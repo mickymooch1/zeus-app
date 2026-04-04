@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
@@ -41,6 +41,7 @@ function startBackend() {
 function pollBackend(retries, resolve, reject) {
   if (retries <= 0) return reject(new Error('Backend did not start in time'));
   http.get('http://localhost:8000/sessions', res => {
+    res.resume(); // consume body to free socket
     if (res.statusCode === 200) return resolve();
     setTimeout(() => pollBackend(retries - 1, resolve, reject), 1000);
   }).on('error', () => {
@@ -83,7 +84,6 @@ app.whenReady().then(async () => {
     createWindow();
   } catch (e) {
     console.error('Backend failed to start:', e.message);
-    const { dialog } = require('electron');
     dialog.showErrorBox(
       'Zeus — Backend Error',
       'Could not start the Zeus backend. Make sure Python is installed and accessible on PATH.'
