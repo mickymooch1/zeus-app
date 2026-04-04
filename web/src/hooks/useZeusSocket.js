@@ -56,11 +56,22 @@ export function useZeusSocket() {
           if (data.status === 'running') {
             tools.push({ name: data.name, path: data.path || '', status: 'running' });
           } else if (data.status === 'done') {
-            // Mark last matching running tool as done
+            // Try to match by name first; fall back to last running tool
+            // (backend may send generic "tool" as name)
+            let matched = false;
             for (let i = tools.length - 1; i >= 0; i--) {
               if (tools[i].name === data.name && tools[i].status === 'running') {
                 tools[i] = { ...tools[i], status: 'done' };
+                matched = true;
                 break;
+              }
+            }
+            if (!matched) {
+              for (let i = tools.length - 1; i >= 0; i--) {
+                if (tools[i].status === 'running') {
+                  tools[i] = { ...tools[i], status: 'done' };
+                  break;
+                }
               }
             }
           }

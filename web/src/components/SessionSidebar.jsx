@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -6,7 +6,7 @@ export function SessionSidebar({ currentSessionId, onNewSession, onResumeSession
   const [sessions, setSessions] = useState([]);
   const [tunnelUrl, setTunnelUrl] = useState(null);
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     fetch(`${BACKEND_URL}/sessions`)
       .then(r => r.json())
       .then(setSessions)
@@ -15,11 +15,11 @@ export function SessionSidebar({ currentSessionId, onNewSession, onResumeSession
       .then(r => r.json())
       .then(d => setTunnelUrl(d.url))
       .catch(() => {});
-  };
+  }, []);
 
   useEffect(() => {
     refresh();
-  }, [currentSessionId]);
+  }, [currentSessionId, refresh]);
 
   return (
     <aside className="sidebar">
