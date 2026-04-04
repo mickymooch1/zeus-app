@@ -1,6 +1,9 @@
+import os
 import pathlib
 import json
 from datetime import datetime
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from claude_agent_sdk import (
     query,
@@ -138,7 +141,7 @@ class HistoryStore:
 async def run_turn_stream(
     prompt: str,
     session_id: str | None,
-    on_message,
+    on_message: Callable[[dict[str, Any]], Awaitable[None]],
     history: HistoryStore,
 ) -> str | None:
     """
@@ -151,14 +154,14 @@ async def run_turn_stream(
         permission_mode="acceptEdits",
         model="claude-opus-4-6",
         max_turns=60,
-        cwd="C:/Users/Student",
+        cwd=os.environ.get("ZEUS_CWD", str(pathlib.Path.home())),
         **({"resume": session_id} if session_id else {}),
     )
 
     new_session_id: str | None = session_id
     zeus_text_parts: list[str] = []
     session_start = datetime.now()
-    turn_number = 1
+    turn_number = len(history.get_transcript(session_id)) + 1 if session_id else 1
 
     try:
         async for message in query(prompt=prompt, options=opts):
