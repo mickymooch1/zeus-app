@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 
 export function MessageBubble({ message, isStreaming }) {
   if (message.role === 'user') {
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 6, padding: 6,
   },
-  toolItem: { fontSize: 11, fontFamily: 'monospace', paddingVertical: 1 },
+  toolItem: { fontSize: 11, fontFamily: Platform.select({ android: 'monospace', ios: 'Courier New' }), paddingVertical: 1 },
   toolDone: { color: '#34d399' },
   toolRunning: { color: '#60a5fa' },
 

@@ -4,9 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // On Android emulator, 10.0.2.2 maps to the host machine's localhost
 const DEFAULT_URL = 'http://10.0.2.2:8000';
 
-let _msgId = 0;
-const nextId = () => ++_msgId;
-
 export function useZeusSocket() {
   const [backendUrl, setBackendUrl] = useState(DEFAULT_URL);
   const [messages, setMessages] = useState([]);
@@ -14,11 +11,21 @@ export function useZeusSocket() {
   const [streaming, setStreaming] = useState(false);
   const streamingRef = useRef(false);
   const sessionIdRef = useRef(null);
+  const wsRef = useRef(null);
+  const msgIdRef = useRef(0);
+  const nextId = () => ++msgIdRef.current;
 
   useEffect(() => {
     AsyncStorage.getItem('zeus_backend_url').then(url => {
       if (url) setBackendUrl(url);
     });
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
   }, []);
 
   const updateBackendUrl = useCallback(async (url) => {
@@ -46,13 +53,25 @@ export function useZeusSocket() {
       .replace(/^http/, 'ws') + '/chat';
 
     const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ prompt, session_id: sessionIdRef.current }));
     };
 
     ws.onmessage = (e) => {
-      const data = JSON.parse(e.data);
+      let data;
+      try {
+        data = JSON.parse(e.data);
+      } catch {
+        setMessages(prev => prev.map(m =>
+          m.id === zeusMsgId ? { ...m, error: 'Received malformed response from server.' } : m
+        ));
+        setStreaming(false);
+        streamingRef.current = false;
+        ws.close();
+        return;
+      }
 
       if (data.type === 'text') {
         setMessages(prev => prev.map(m =>
@@ -110,9 +129,11 @@ export function useZeusSocket() {
       ));
       setStreaming(false);
       streamingRef.current = false;
+      ws.close();
     };
 
     ws.onclose = () => {
+      if (wsRef.current === ws) { wsRef.current = null; }
       if (streamingRef.current) {
         setStreaming(false);
         streamingRef.current = false;
@@ -121,6 +142,11 @@ export function useZeusSocket() {
   }, [backendUrl]);
 
   const newSession = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.onclose = null;
+      wsRef.current.close();
+      wsRef.current = null;
+    }
     setMessages([]);
     setSessionId(null);
     sessionIdRef.current = null;
