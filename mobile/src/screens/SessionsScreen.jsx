@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, FlatList, Text, TouchableOpacity, StyleSheet,
   TextInput, Alert,
@@ -12,26 +12,38 @@ export function SessionsScreen({ navigation }) {
   const [backendUrl, setBackendUrl] = useState(DEFAULT_URL);
   const [editingUrl, setEditingUrl] = useState(DEFAULT_URL);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const loadSessions = useCallback((url, signal) => {
+    setLoading(true);
+    setError(null);
+    fetch(`${url}/sessions`, signal ? { signal } : undefined)
+      .then(r => {
+        if (!r.ok) throw new Error(`Server error ${r.status}`);
+        return r.json();
+      })
+      .then(data => { setSessions(data); setLoading(false); })
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        setError('Could not connect to backend.');
+        setLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
     AsyncStorage.getItem('zeus_backend_url').then(url => {
       const u = url || DEFAULT_URL;
       setBackendUrl(u);
       setEditingUrl(u);
-      loadSessions(u);
+      loadSessions(u, controller.signal);
     });
-  }, []);
-
-  const loadSessions = (url) => {
-    setLoading(true);
-    fetch(`${url}/sessions`)
-      .then(r => r.json())
-      .then(data => { setSessions(data); setLoading(false); })
-      .catch(() => { setLoading(false); });
-  };
+    return () => controller.abort();
+  }, [loadSessions]);
 
   const saveUrl = async () => {
     const trimmed = editingUrl.trim();
+    if (!trimmed.startsWith('http')) return;
     await AsyncStorage.setItem('zeus_backend_url', trimmed);
     setBackendUrl(trimmed);
     loadSessions(trimmed);
@@ -60,20 +72,22 @@ export function SessionsScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
       <Text style={styles.sectionLabel}>RECENT SESSIONS</Text>
 
       <FlatList
         data={sessions}
-        keyExtractor={item => item.id}
+        keyExtractor={item => String(item.id)}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.sessionItem}
-            onPress={() => navigation.navigate('Chat')}
+            onPress={() => navigation.navigate('Chat', { sessionId: item.id })}
           >
             <Text style={styles.preview}>{item.preview || 'Session'}</Text>
             <Text style={styles.meta}>
               {item.turns} turn{item.turns !== 1 ? 's' : ''} ·{' '}
-              {new Date(item.started).toLocaleDateString()}
+              {item.started ? new Date(item.started).toLocaleDateString() : '—'}
             </Text>
           </TouchableOpacity>
         )}
@@ -117,4 +131,5 @@ const styles = StyleSheet.create({
   preview: { color: '#e2d9f3', fontSize: 14 },
   meta: { color: '#555', fontSize: 11, marginTop: 3 },
   empty: { color: '#555', textAlign: 'center', padding: 24, fontSize: 13 },
+  errorText: { color: '#fca5a5', fontSize: 12, textAlign: 'center', padding: 12 },
 });

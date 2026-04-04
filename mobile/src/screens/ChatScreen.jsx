@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import {
   View, FlatList, StyleSheet, StatusBar,
   KeyboardAvoidingView, Platform, Text, TouchableOpacity,
@@ -10,6 +10,13 @@ import { InputBar } from '../components/InputBar';
 export function ChatScreen({ navigation, route }) {
   const { messages, streaming, sendMessage, newSession } = useZeusSocket();
   const flatListRef = useRef(null);
+
+  const renderMessage = useCallback(({ item, index }) => (
+    <MessageBubble
+      message={item}
+      isStreaming={streaming && index === messages.length - 1 && item.role === 'zeus'}
+    />
+  ), [streaming, messages.length]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -44,16 +51,7 @@ export function ChatScreen({ navigation, route }) {
           ref={flatListRef}
           data={messages}
           keyExtractor={item => String(item.id)}
-          renderItem={({ item, index }) => (
-            <MessageBubble
-              message={item}
-              isStreaming={
-                streaming &&
-                index === messages.length - 1 &&
-                item.role === 'zeus'
-              }
-            />
-          )}
+          renderItem={renderMessage}
           contentContainerStyle={styles.list}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           ListEmptyComponent={
