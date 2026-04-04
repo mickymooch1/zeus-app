@@ -7,15 +7,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from zeus_agent import HistoryStore, run_turn_stream
-from tunnel import get_tunnel_url, start_tunnel_background
+from tunnel import get_tunnel_url, start_tunnel_background, stop_tunnel
 
 history = HistoryStore()
+_background_tasks: set = set()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(start_tunnel_background(8000))
+    task = asyncio.create_task(start_tunnel_background(8000))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
     yield
+    task.cancel()
+    stop_tunnel()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -33,18 +38,20 @@ async def chat_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
         data = await websocket.receive_json()
-        prompt = data.get("prompt", "")
+        prompt = data.get("prompt", "").strip()
         session_id = data.get("session_id")
 
         if not prompt:
             await websocket.send_json({"type": "error", "message": "prompt is required"})
             await websocket.send_json({"type": "done"})
+            await websocket.close()
             return
 
         async def send(msg: dict):
             await websocket.send_json(msg)
 
         await run_turn_stream(prompt, session_id, send, history)
+        await websocket.close()
 
     except WebSocketDisconnect:
         pass
@@ -52,6 +59,7 @@ async def chat_endpoint(websocket: WebSocket):
         try:
             await websocket.send_json({"type": "error", "message": str(exc)})
             await websocket.send_json({"type": "done"})
+            await websocket.close()
         except Exception:
             pass
 
