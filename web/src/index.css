@@ -1,111 +1,184 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --bg: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  --accent-1: #a78bfa;
+  --accent-2: #60a5fa;
+  --accent-gradient: linear-gradient(135deg, #a78bfa, #60a5fa);
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-hover: rgba(255, 255, 255, 0.10);
+  --border: rgba(255, 255, 255, 0.10);
+  --text: #e2d9f3;
+  --text-dim: #888;
+  --text-faint: #555;
+  --user-bg: rgba(167, 139, 250, 0.25);
+  --user-border: rgba(167, 139, 250, 0.30);
+  --tool-done: #34d399;
+  --tool-running: #60a5fa;
+  --error-bg: rgba(239, 68, 68, 0.15);
+  --error-border: rgba(239, 68, 68, 0.30);
+  --error-text: #fca5a5;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
+html, body, #root { height: 100%; overflow: hidden; }
 
 body {
-  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
+/* ── Layout ──────────────────────────────── */
+.app { display: flex; height: 100vh; }
+
+/* ── Sidebar ─────────────────────────────── */
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: rgba(0, 0, 0, 0.35);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
+}
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.zeus-logo { display: flex; align-items: center; gap: 8px; }
+.zeus-icon {
+  width: 28px; height: 28px;
+  background: var(--accent-gradient);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.zeus-title { font-weight: 700; font-size: 14px; letter-spacing: 0.5px; }
+
+.new-session-btn {
+  display: block; width: calc(100% - 24px); margin: 12px;
+  background: rgba(167, 139, 250, 0.15);
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  border-radius: 6px; padding: 8px;
+  color: var(--accent-1); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s;
+}
+.new-session-btn:hover { background: rgba(167, 139, 250, 0.25); }
+
+.session-list { flex: 1; overflow-y: auto; padding: 8px; }
+.session-list-label {
+  color: var(--text-faint); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.8px; padding: 4px 8px 6px;
+}
+.session-item {
+  padding: 8px; border-radius: 6px; cursor: pointer;
+  margin-bottom: 2px; transition: background 0.15s;
+}
+.session-item:hover { background: var(--surface-hover); }
+.session-item.active {
+  background: rgba(167, 139, 250, 0.15);
+  border-left: 2px solid var(--accent-1); padding-left: 6px;
+}
+.session-preview {
+  font-size: 11px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.session-meta { font-size: 9px; color: var(--text-faint); margin-top: 2px; }
+
+.tunnel-status {
+  padding: 10px 16px; border-top: 1px solid var(--border);
+  font-size: 10px; color: var(--text-faint);
+  display: flex; align-items: center; gap: 6px;
+}
+.status-dot { font-size: 8px; }
+.status-dot.active { color: #34d399; }
+.status-dot.inactive { color: var(--text-faint); }
+
+/* ── Chat window ─────────────────────────── */
+.chat-window { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.message-list {
+  flex: 1; overflow-y: auto; padding: 24px;
+  display: flex; flex-direction: column; gap: 16px;
+  scroll-behavior: smooth;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+.empty-state {
+  margin: auto; text-align: center; opacity: 0.4; user-select: none;
+}
+.empty-icon { font-size: 36px; margin-bottom: 8px; }
+.empty-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.empty-sub { font-size: 12px; color: var(--text-dim); }
+
+/* ── Messages ────────────────────────────── */
+.message-user { display: flex; justify-content: flex-end; }
+.bubble-user {
+  background: var(--user-bg);
+  border: 1px solid var(--user-border);
+  border-radius: 12px 12px 2px 12px;
+  padding: 10px 16px; max-width: 70%;
+  white-space: pre-wrap; word-break: break-word;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+.message-zeus { display: flex; gap: 10px; max-width: 85%; }
+.zeus-avatar {
+  width: 28px; height: 28px; min-width: 28px;
+  background: var(--accent-gradient);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; margin-top: 2px;
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
+.bubble-zeus {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 2px 12px 12px 12px;
+  padding: 12px 16px; flex: 1; min-width: 0;
 }
-p {
-  margin: 0;
+.zeus-label {
+  font-size: 9px; font-weight: 700; color: var(--accent-1);
+  letter-spacing: 0.8px; margin-bottom: 6px;
+}
+.zeus-text { white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
+.cursor { display: inline-block; color: var(--accent-1); animation: blink 1s infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+.tool-log {
+  margin-top: 8px; background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px; padding: 6px 10px;
+}
+.tool-item { font-size: 11px; font-family: monospace; padding: 1px 0; }
+.tool-item.done { color: var(--tool-done); }
+.tool-item.running { color: var(--tool-running); }
+
+.error-banner {
+  margin-top: 8px;
+  background: var(--error-bg); border: 1px solid var(--error-border);
+  border-radius: 6px; padding: 6px 10px;
+  font-size: 12px; color: var(--error-text);
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+/* ── Input bar ───────────────────────────── */
+.input-bar {
+  padding: 16px 24px; display: flex; gap: 10px; align-items: flex-end;
+  border-top: 1px solid var(--border); background: rgba(0, 0, 0, 0.2);
 }
+.input-field {
+  flex: 1; background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 16px; color: var(--text); font-size: 14px; font-family: inherit;
+  resize: none; outline: none; line-height: 1.5;
+  max-height: 120px; overflow-y: auto;
+  transition: border-color 0.15s;
+}
+.input-field::placeholder { color: var(--text-faint); }
+.input-field:focus { border-color: rgba(167, 139, 250, 0.4); }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.send-btn {
+  width: 40px; height: 40px;
+  background: var(--accent-gradient);
+  border: none; border-radius: 10px; color: #fff; font-size: 16px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: opacity 0.15s;
 }
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.send-btn:not(:disabled):hover { opacity: 0.85; }
