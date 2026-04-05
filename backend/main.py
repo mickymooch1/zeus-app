@@ -1,6 +1,8 @@
 import asyncio
+import logging
 import os
 import pathlib
+import traceback
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -10,6 +12,12 @@ from fastapi.staticfiles import StaticFiles
 from zeus_agent import HistoryStore, run_turn_stream
 from tunnel import get_tunnel_url, start_tunnel_background, stop_tunnel
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+log = logging.getLogger("zeus")
+
 history: HistoryStore | None = None
 _background_tasks: set = set()
 
@@ -17,7 +25,16 @@ _background_tasks: set = set()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global history
-    history = HistoryStore()  # initialised here so failures appear in startup logs
+    log.info("Startup: initialising HistoryStore")
+    log.info("  HOME=%s", os.environ.get("HOME", "<unset>"))
+    log.info("  ZEUS_DATA_DIR=%s", os.environ.get("ZEUS_DATA_DIR", "<unset>"))
+    log.info("  PORT=%s", os.environ.get("PORT", "<unset>"))
+    try:
+        history = HistoryStore()
+        log.info("HistoryStore ready at %s", history.dir)
+    except Exception:
+        log.exception("FATAL: HistoryStore init failed")
+        raise
     port = int(os.environ.get("PORT", 8000))
     task = asyncio.create_task(start_tunnel_background(port))
     _background_tasks.add(task)
@@ -75,12 +92,16 @@ async def chat_endpoint(websocket: WebSocket):
 
 @app.get("/sessions")
 async def get_sessions():
+    log.info("GET /sessions — history=%s", type(history).__name__ if history else None)
     if history is None:
         raise HTTPException(status_code=503, detail="Server still initialising")
     try:
-        return history.list_sessions()
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        sessions = history.list_sessions()
+        log.info("GET /sessions — returning %d sessions", len(sessions))
+        return sessions
+    except Exception:
+        log.exception("GET /sessions — unhandled exception")
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
 
 
 @app.get("/history/{session_id}")
@@ -100,6 +121,7 @@ async def tunnel_url_endpoint():
 
 @app.get("/health")
 async def health():
+    log.info("GET /health — ok")
     return {"status": "ok"}
 
 

@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import pathlib
 import subprocess
@@ -9,6 +10,8 @@ from typing import Any
 
 import anthropic
 import httpx
+
+log = logging.getLogger("zeus.agent")
 
 ZEUS_SYSTEM_PROMPT = """You are Zeus, a powerful AI assistant built to help run a web design business. You are resourceful, confident, and genuinely invested in the success of the business.
 
@@ -305,11 +308,16 @@ class HistoryStore:
             json.dumps(serialized, indent=2), encoding="utf-8")
 
     def _read_sessions(self) -> list:
+        log.info("_read_sessions: sessions_file=%s exists=%s",
+                 self.sessions_file, self.sessions_file.exists())
         if not self.sessions_file.exists():
             return []
         try:
-            return json.loads(self.sessions_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
+            data = json.loads(self.sessions_file.read_text(encoding="utf-8"))
+            log.info("_read_sessions: loaded %d entries", len(data) if isinstance(data, list) else -1)
+            return data
+        except Exception:
+            log.exception("_read_sessions: failed to read %s", self.sessions_file)
             return []
 
 
