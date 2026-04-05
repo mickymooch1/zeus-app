@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const DEFAULT_URL = 'http://10.0.2.2:8000';
+const DEFAULT_URL = 'https://zeus-app-production.up.railway.app';
 
 export function SessionsScreen({ navigation }) {
   const [sessions, setSessions] = useState([]);
