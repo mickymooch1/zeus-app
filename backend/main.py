@@ -79,6 +79,11 @@ async def tunnel_url_endpoint():
     return {"url": get_tunnel_url()}
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 # Serve built React app from web/dist/ at root
 _dist = pathlib.Path(__file__).parent.parent / "web" / "dist"
 if _dist.exists():
