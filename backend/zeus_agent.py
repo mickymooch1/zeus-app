@@ -3,12 +3,16 @@ import logging
 import os
 import pathlib
 import subprocess
+import sys
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Any
 
+print("zeus_agent.py: importing anthropic", file=sys.stderr, flush=True)
 import anthropic
+print("zeus_agent.py: anthropic ok", file=sys.stderr, flush=True)
+
 import httpx
 
 log = logging.getLogger("zeus.agent")

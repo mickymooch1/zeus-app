@@ -2,21 +2,41 @@ import asyncio
 import logging
 import os
 import pathlib
+import sys
 import traceback
 from contextlib import asynccontextmanager
 
+# Log to stderr immediately — before basicConfig — so Railway captures startup
+# crashes even if the import chain below fails.
+print("zeus main.py: starting imports", file=sys.stderr, flush=True)
+
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+
+print("zeus main.py: fastapi ok", file=sys.stderr, flush=True)
 
 from zeus_agent import HistoryStore, run_turn_stream
+
+print("zeus main.py: zeus_agent ok", file=sys.stderr, flush=True)
+
 from tunnel import get_tunnel_url, start_tunnel_background, stop_tunnel
+
+print("zeus main.py: tunnel ok", file=sys.stderr, flush=True)
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 log = logging.getLogger("zeus")
+
+# Log installed packages once so Railway deploy logs show the exact environment.
+try:
+    import importlib.metadata as _meta
+    _pkgs = {d.metadata["Name"]: d.version for d in _meta.distributions()}
+    for _name in ("fastapi", "starlette", "uvicorn", "anthropic", "httpx", "anyio"):
+        log.info("pkg %s==%s", _name, _pkgs.get(_name, "NOT INSTALLED"))
+except Exception:
+    log.exception("could not enumerate installed packages")
 
 history: HistoryStore | None = None
 _background_tasks: set = set()
@@ -125,9 +145,10 @@ async def health():
     return {"status": "ok"}
 
 
-# Serve built React app from web/dist/ at root
+# Serve built React app from web/dist/ at root (lazy import — aiofiles not required on Railway)
 _dist = pathlib.Path(__file__).parent.parent / "web" / "dist"
 if _dist.exists():
+    from fastapi.staticfiles import StaticFiles
     app.mount("/", StaticFiles(directory=str(_dist), html=True), name="static")
 
 
