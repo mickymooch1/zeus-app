@@ -3,19 +3,21 @@ import os
 import pathlib
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from zeus_agent import HistoryStore, run_turn_stream
 from tunnel import get_tunnel_url, start_tunnel_background, stop_tunnel
 
-history = HistoryStore()
+history: HistoryStore | None = None
 _background_tasks: set = set()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global history
+    history = HistoryStore()  # initialised here so failures appear in startup logs
     port = int(os.environ.get("PORT", 8000))
     task = asyncio.create_task(start_tunnel_background(port))
     _background_tasks.add(task)
@@ -38,6 +40,11 @@ app.add_middleware(
 @app.websocket("/chat")
 async def chat_endpoint(websocket: WebSocket):
     await websocket.accept()
+    if history is None:
+        await websocket.send_json({"type": "error", "message": "Server still initialising"})
+        await websocket.send_json({"type": "done"})
+        await websocket.close()
+        return
     try:
         data = await websocket.receive_json()
         prompt = data.get("prompt", "").strip()
@@ -68,12 +75,22 @@ async def chat_endpoint(websocket: WebSocket):
 
 @app.get("/sessions")
 async def get_sessions():
-    return history.list_sessions()
+    if history is None:
+        raise HTTPException(status_code=503, detail="Server still initialising")
+    try:
+        return history.list_sessions()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.get("/history/{session_id}")
 async def get_history(session_id: str):
-    return history.get_transcript(session_id)
+    if history is None:
+        raise HTTPException(status_code=503, detail="Server still initialising")
+    try:
+        return history.get_transcript(session_id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.get("/tunnel-url")

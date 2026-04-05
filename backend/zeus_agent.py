@@ -150,7 +150,14 @@ TOOLS = [
     },
 ]
 
-_CWD = os.environ.get("ZEUS_CWD", str(pathlib.Path.home()))
+def _safe_home() -> pathlib.Path:
+    try:
+        return pathlib.Path.home()
+    except RuntimeError:
+        return pathlib.Path("/tmp")
+
+
+_CWD = os.environ.get("ZEUS_CWD", str(_safe_home()))
 
 
 def _resolve(path: str) -> pathlib.Path:
@@ -215,8 +222,12 @@ def _run_tool(name: str, inp: dict) -> str:
 
 class HistoryStore:
     def __init__(self):
-        self.dir = pathlib.Path.home() / ".zeus"
-        self.dir.mkdir(exist_ok=True)
+        # ZEUS_DATA_DIR lets Railway/Docker operators override the storage path.
+        # Fall back to /tmp/.zeus so it always works in containers where
+        # pathlib.Path.home() may raise RuntimeError (no home in /etc/passwd).
+        default = os.environ.get("ZEUS_DATA_DIR") or str(_safe_home() / ".zeus")
+        self.dir = pathlib.Path(default)
+        self.dir.mkdir(exist_ok=True, parents=True)
         self.sessions_file = self.dir / "sessions.json"
         self.history_file  = self.dir / "history.json"
 
