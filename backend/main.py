@@ -21,6 +21,8 @@ print("zeus main.py: zeus_agent ok", file=sys.stderr, flush=True)
 
 from tunnel import get_tunnel_url, start_tunnel_background, stop_tunnel
 
+_RAILWAY = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
+
 print("zeus main.py: tunnel ok", file=sys.stderr, flush=True)
 
 logging.basicConfig(
@@ -55,13 +57,17 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("FATAL: HistoryStore init failed")
         raise
-    port = int(os.environ.get("PORT", 8000))
-    task = asyncio.create_task(start_tunnel_background(port))
-    _background_tasks.add(task)
-    task.add_done_callback(_background_tasks.discard)
-    yield
-    task.cancel()
-    stop_tunnel()
+    if _RAILWAY:
+        log.info("Running on Railway — skipping cloudflared tunnel (not installed)")
+        yield
+    else:
+        port = int(os.environ.get("PORT", 8000))
+        task = asyncio.create_task(start_tunnel_background(port))
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+        yield
+        task.cancel()
+        stop_tunnel()
 
 
 app = FastAPI(lifespan=lifespan)
