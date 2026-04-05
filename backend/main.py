@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 print("zeus main.py: fastapi ok", file=sys.stderr, flush=True)
 
-from zeus_agent import HistoryStore, run_turn_stream
+from zeus_agent import HistoryStore, get_anthropic_client, run_turn_stream
 
 print("zeus main.py: zeus_agent ok", file=sys.stderr, flush=True)
 
@@ -57,6 +57,12 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("FATAL: HistoryStore init failed")
         raise
+    api_key_set = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
+    log.info("ANTHROPIC_API_KEY present: %s", api_key_set)
+    if not api_key_set:
+        raise RuntimeError("ANTHROPIC_API_KEY is not set — add it to Railway → Service → Variables")
+    get_anthropic_client()  # validate key and warm up client at startup
+    log.info("Anthropic client initialised")
     if _RAILWAY:
         log.info("Running on Railway — skipping cloudflared tunnel (not installed)")
         yield

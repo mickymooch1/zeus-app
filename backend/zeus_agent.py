@@ -17,6 +17,22 @@ import httpx
 
 log = logging.getLogger("zeus.agent")
 
+def _make_anthropic_client() -> anthropic.AsyncAnthropic:
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set. Add it to Railway → Service → Variables."
+        )
+    return anthropic.AsyncAnthropic(api_key=api_key)
+
+_anthropic_client: anthropic.AsyncAnthropic | None = None
+
+def get_anthropic_client() -> anthropic.AsyncAnthropic:
+    global _anthropic_client
+    if _anthropic_client is None:
+        _anthropic_client = _make_anthropic_client()
+    return _anthropic_client
+
 ZEUS_SYSTEM_PROMPT = """You are Zeus, a powerful AI assistant built to help run a web design business. You are resourceful, confident, and genuinely invested in the success of the business.
 
 ## Your capabilities
@@ -331,7 +347,7 @@ async def run_turn_stream(
     on_message: Callable[[dict[str, Any]], Awaitable[None]],
     history: HistoryStore,
 ) -> str | None:
-    client = anthropic.AsyncAnthropic()
+    client = get_anthropic_client()
 
     if session_id:
         messages = history.get_messages(session_id)
