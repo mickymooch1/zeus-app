@@ -48,9 +48,10 @@ _background_tasks: set = set()
 async def lifespan(app: FastAPI):
     global history
     log.info("Startup: initialising HistoryStore")
-    log.info("  HOME=%s", os.environ.get("HOME", "<unset>"))
-    log.info("  ZEUS_DATA_DIR=%s", os.environ.get("ZEUS_DATA_DIR", "<unset>"))
-    log.info("  PORT=%s", os.environ.get("PORT", "<unset>"))
+    _sensitive = {"ANTHROPIC_API_KEY", "SECRET_KEY", "DATABASE_URL", "PASSWORD"}
+    for _k, _v in sorted(os.environ.items()):
+        _display = f"***({len(_v)} chars)" if _k in _sensitive else _v
+        log.info("  ENV %s=%s", _k, _display)
     try:
         history = HistoryStore()
         log.info("HistoryStore ready at %s", history.dir)
