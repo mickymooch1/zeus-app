@@ -118,16 +118,7 @@ async def chat_endpoint(websocket: WebSocket):
 
 @app.get("/sessions")
 async def get_sessions():
-    log.info("GET /sessions — history=%s", type(history).__name__ if history else None)
-    if history is None:
-        raise HTTPException(status_code=503, detail="Server still initialising")
-    try:
-        sessions = history.list_sessions()
-        log.info("GET /sessions — returning %d sessions", len(sessions))
-        return sessions
-    except Exception:
-        log.exception("GET /sessions — unhandled exception")
-        raise HTTPException(status_code=500, detail=traceback.format_exc())
+    return []
 
 
 @app.get("/history/{session_id}")
