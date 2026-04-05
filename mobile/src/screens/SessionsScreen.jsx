@@ -34,6 +34,7 @@ export function SessionsScreen({ navigation }) {
     const controller = new AbortController();
     AsyncStorage.getItem('zeus_backend_url').then(url => {
       const u = url || DEFAULT_URL;
+      if (!url) AsyncStorage.setItem('zeus_backend_url', DEFAULT_URL);
       setBackendUrl(u);
       setEditingUrl(u);
       loadSessions(u, controller.signal);

@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// On Android emulator, 10.0.2.2 maps to the host machine's localhost
-const DEFAULT_URL = 'http://10.0.2.2:8000';
+const DEFAULT_URL = 'https://zeus-app-production.up.railway.app';
 
 export function useZeusSocket() {
   const [backendUrl, setBackendUrl] = useState(DEFAULT_URL);

@@ -1,4 +1,5 @@
 import asyncio
+import os
 import pathlib
 from contextlib import asynccontextmanager
 
@@ -15,7 +16,8 @@ _background_tasks: set = set()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(start_tunnel_background(8000))
+    port = int(os.environ.get("PORT", 8000))
+    task = asyncio.create_task(start_tunnel_background(port))
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
     yield
