@@ -5,9 +5,6 @@ WORKDIR /app
 # Build-time args — set these in Railway: Service → Settings → Build Arguments
 # WARNING: ENV values are visible in image metadata (docker inspect / image history).
 # Rotate the key if the image is ever pushed to a public registry.
-ARG ANTHROPIC_API_KEY
-ENV ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-
 # Install dependencies first (layer-cached until requirements change)
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
