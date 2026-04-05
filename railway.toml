@@ -3,8 +3,9 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "sh -c 'ANTHROPIC_API_KEY=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 uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level debug'"
-healthcheckPath = "/health"
+startCommand = "sh -c 'ANTHROPIC_API_KEY= uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level debug'"
+healthcheckPath = "/health"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
+
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
