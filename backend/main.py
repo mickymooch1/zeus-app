@@ -5,13 +5,15 @@ import pathlib
 import sys
 import traceback
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 # Log to stderr immediately — before basicConfig — so Railway captures startup
 # crashes even if the import chain below fails.
 print("zeus main.py: starting imports", file=sys.stderr, flush=True)
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 print("zeus main.py: fastapi ok", file=sys.stderr, flush=True)
 
@@ -21,7 +23,12 @@ print("zeus main.py: zeus_agent ok", file=sys.stderr, flush=True)
 
 from tunnel import get_tunnel_url, start_tunnel_background, stop_tunnel
 
+import db
+import auth
+import billing
+
 _RAILWAY = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
+_REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "").strip() == "1"
 
 print("zeus main.py: tunnel ok", file=sys.stderr, flush=True)
 
@@ -48,7 +55,8 @@ _background_tasks: set = set()
 async def lifespan(app: FastAPI):
     global history
     log.info("Startup: initialising HistoryStore")
-    _sensitive = {"ANTHROPIC_API_KEY", "SECRET_KEY", "DATABASE_URL", "PASSWORD"}
+    _sensitive = {"ANTHROPIC_API_KEY", "SECRET_KEY", "DATABASE_URL", "PASSWORD", "JWT_SECRET",
+                  "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"}
     for _k, _v in sorted(os.environ.items()):
         _display = f"***({len(_v)} chars)" if _k in _sensitive else _v
         log.info("  ENV %s=%s", _k, _display)
@@ -58,6 +66,16 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("FATAL: HistoryStore init failed")
         raise
+
+    # Initialise user tables in the same DB file
+    try:
+        _db_path = db.get_db_path()
+        db.init_user_tables(_db_path)
+        log.info("User tables initialised at %s", _db_path)
+    except Exception:
+        log.exception("FATAL: user table init failed")
+        raise
+
     api_key_set = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
     log.info("ANTHROPIC_API_KEY present: %s", api_key_set)
     if not api_key_set:
@@ -87,14 +105,218 @@ app.add_middleware(
 )
 
 
+# ── Pydantic request models ───────────────────────────────────────────────────
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+    tc_accepted: bool
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class CheckoutRequest(BaseModel):
+    plan: str
+
+
+# ── Auth routes ───────────────────────────────────────────────────────────────
+
+@app.post("/auth/register")
+async def register(body: RegisterRequest):
+    if not body.tc_accepted:
+        raise HTTPException(status_code=400, detail="You must accept the Terms & Conditions")
+
+    if not body.email or "@" not in body.email:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+
+    if len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    db_path = db.get_db_path()
+
+    # Check for existing user
+    existing = db.get_user_by_email(db_path, body.email)
+    if existing:
+        raise HTTPException(status_code=409, detail="An account with that email already exists")
+
+    password_hash = auth.hash_password(body.password)
+    tc_accepted_at = datetime.now(timezone.utc).isoformat()
+
+    user = db.create_user(
+        db_path,
+        email=body.email,
+        password_hash=password_hash,
+        name=body.name.strip(),
+        tc_accepted_at=tc_accepted_at,
+    )
+
+    # Create Stripe customer if Stripe is enabled
+    if billing.stripe_enabled():
+        customer_id = billing.create_stripe_customer(user)
+        if customer_id:
+            db.update_user(db_path, user["id"], stripe_customer_id=customer_id)
+            user = db.get_user_by_id(db_path, user["id"])
+
+    token = auth.create_token(user["id"], user["email"])
+    safe_user = {k: v for k, v in user.items() if k != "password_hash"}
+
+    return {"token": token, "user": safe_user}
+
+
+@app.post("/auth/login")
+async def login(body: LoginRequest):
+    db_path = db.get_db_path()
+    user = db.get_user_by_email(db_path, body.email)
+
+    if not user or not auth.verify_password(body.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token = auth.create_token(user["id"], user["email"])
+    safe_user = {k: v for k, v in user.items() if k != "password_hash"}
+
+    return {"token": token, "user": safe_user}
+
+
+@app.get("/auth/me")
+async def me(current_user: dict = Depends(auth.get_current_user)):
+    safe_user = {k: v for k, v in current_user.items() if k != "password_hash"}
+    return safe_user
+
+
+# ── Billing routes ────────────────────────────────────────────────────────────
+
+@app.get("/billing/plans")
+async def get_plans():
+    return billing.PLANS
+
+
+@app.post("/billing/checkout")
+async def create_checkout(
+    body: CheckoutRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not billing.stripe_enabled():
+        raise HTTPException(status_code=503, detail="Billing is not configured")
+
+    origin = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    success_url = f"{origin}/billing?success=true"
+    cancel_url = f"{origin}/pricing"
+
+    try:
+        url = billing.create_checkout_session(
+            current_user, body.plan, success_url, cancel_url
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        log.exception("Stripe checkout error")
+        raise HTTPException(status_code=500, detail="Failed to create checkout session")
+
+    return {"url": url}
+
+
+@app.get("/billing/portal")
+async def billing_portal(current_user: dict = Depends(auth.get_current_user)):
+    if not billing.stripe_enabled():
+        raise HTTPException(status_code=503, detail="Billing is not configured")
+
+    customer_id = current_user.get("stripe_customer_id")
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="No billing account found. Please subscribe first.")
+
+    origin = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    return_url = f"{origin}/billing"
+
+    try:
+        url = billing.create_portal_session(customer_id, return_url)
+    except Exception as exc:
+        log.exception("Stripe portal error")
+        raise HTTPException(status_code=500, detail="Failed to create portal session")
+
+    return {"url": url}
+
+
+@app.get("/billing/status")
+async def billing_status(current_user: dict = Depends(auth.get_current_user)):
+    return billing.get_subscription_status(current_user)
+
+
+@app.post("/billing/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+
+    if not billing.stripe_enabled():
+        raise HTTPException(status_code=503, detail="Billing not configured")
+
+    try:
+        billing.handle_webhook(payload, sig)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        log.exception("Webhook handling error")
+        raise HTTPException(status_code=500, detail="Webhook processing failed")
+
+    return {"received": True}
+
+
+# ── WebSocket chat endpoint ───────────────────────────────────────────────────
+
 @app.websocket("/chat")
-async def chat_endpoint(websocket: WebSocket):
+async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
     await websocket.accept()
+
     if history is None:
         await websocket.send_json({"type": "error", "message": "Server still initialising"})
         await websocket.send_json({"type": "done"})
         await websocket.close()
         return
+
+    # Auth check — required if REQUIRE_AUTH=1 env var is set, optional otherwise (dev compat)
+    current_user: dict | None = None
+    if _REQUIRE_AUTH or token:
+        if not token:
+            await websocket.send_json({"type": "error", "message": "Authentication required"})
+            await websocket.send_json({"type": "done"})
+            await websocket.close()
+            return
+
+        payload = auth.verify_token(token)
+        if not payload:
+            await websocket.send_json({"type": "error", "message": "Invalid or expired token"})
+            await websocket.send_json({"type": "done"})
+            await websocket.close()
+            return
+
+        db_path = db.get_db_path()
+        current_user = db.get_user_by_id(db_path, payload.get("sub", ""))
+        if not current_user:
+            await websocket.send_json({"type": "error", "message": "User not found"})
+            await websocket.send_json({"type": "done"})
+            await websocket.close()
+            return
+
+    # Usage / subscription check
+    if current_user:
+        db_path = db.get_db_path()
+        status_info = billing.get_subscription_status(current_user)
+        limit = status_info.get("messages_limit")
+        if limit is not None and status_info["messages_used"] >= limit:
+            await websocket.send_json({
+                "type": "error",
+                "message": (
+                    f"You've reached the free limit of {billing.FREE_LIMIT} messages. "
+                    "Upgrade to Pro for unlimited messages at /pricing"
+                ),
+            })
+            await websocket.send_json({"type": "done"})
+            await websocket.close()
+            return
+
     try:
         data = await websocket.receive_json()
         prompt = data.get("prompt", "").strip()
@@ -110,6 +332,12 @@ async def chat_endpoint(websocket: WebSocket):
             await websocket.send_json(msg)
 
         await run_turn_stream(prompt, session_id, send, history)
+
+        # Increment usage after successful response
+        if current_user:
+            month = datetime.now(timezone.utc).strftime("%Y-%m")
+            db.increment_usage(db.get_db_path(), current_user["id"], month)
+
         await websocket.close()
 
     except WebSocketDisconnect:
@@ -123,8 +351,11 @@ async def chat_endpoint(websocket: WebSocket):
             pass
 
 
+# ── Existing REST endpoints ───────────────────────────────────────────────────
+
 @app.get("/sessions")
 async def get_sessions():
+    # Future: filter by user_id when sessions have user_id column
     return []
 
 

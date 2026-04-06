@@ -5,7 +5,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 let _msgId = 0;
 const nextId = () => ++_msgId;
 
-export function useZeusSocket() {
+export function useZeusSocket(token) {
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [streaming, setStreaming] = useState(false);
@@ -32,9 +32,12 @@ export function useZeusSocket() {
     setStreaming(true);
     streamingRef.current = true;
 
-    const wsUrl = (BACKEND_URL || window.location.origin)
+    const baseUrl = (BACKEND_URL || window.location.origin)
       .replace(/^https/, 'wss')
-      .replace(/^http/, 'ws') + '/chat';
+      .replace(/^http/, 'ws');
+    const wsUrl = token
+      ? `${baseUrl}/chat?token=${encodeURIComponent(token)}`
+      : `${baseUrl}/chat`;
 
     const ws = new WebSocket(wsUrl);
 
@@ -110,7 +113,7 @@ export function useZeusSocket() {
         streamingRef.current = false;
       }
     };
-  }, []);
+  }, [token]);
 
   const newSession = useCallback(() => {
     setMessages([]);
