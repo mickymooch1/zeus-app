@@ -830,7 +830,6 @@ async def run_turn_stream(
         async with client.messages.stream(
             model="claude-opus-4-6",
             max_tokens=16000,
-            thinking={"type": "enabled", "budget_tokens": 5000},
             system=system,
             tools=TOOLS,
             messages=messages,
