@@ -831,6 +831,18 @@ async def run_turn_stream(
         # tool_blocks: index -> {id, name, json, input}
         tool_blocks: dict[int, dict] = {}
 
+        # Debug: log content types in every message before sending
+        for _i, _m in enumerate(messages):
+            _content = _m.get("content", "")
+            if isinstance(_content, list):
+                _types = [
+                    (b.type if hasattr(b, "type") else b.get("type", "?"))
+                    for b in _content
+                ]
+                log.info("PRE-API msg[%d] role=%s types=%s", _i, _m.get("role"), _types)
+            else:
+                log.info("PRE-API msg[%d] role=%s content=str(%d)", _i, _m.get("role"), len(str(_content)))
+
         async with client.messages.stream(
             model="claude-opus-4-6",
             max_tokens=16000,
