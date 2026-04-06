@@ -306,10 +306,14 @@ async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
         db_path = db.get_db_path()
         current_user = db.get_user_by_id(db_path, payload.get("sub", ""))
         if not current_user:
-            await websocket.send_json({"type": "error", "message": "User not found"})
-            await websocket.send_json({"type": "done"})
-            await websocket.close()
-            return
+            # Token is cryptographically valid — DB record missing (e.g. after redeploy).
+            # Reconstruct a minimal user from the token payload so chat still works.
+            current_user = {
+                "id": payload.get("sub", ""),
+                "email": payload.get("email", ""),
+                "subscription_status": "free",
+                "subscription_plan": None,
+            }
 
     # Usage / subscription check
     if current_user:
