@@ -13,7 +13,7 @@ print("zeus main.py: starting imports", file=sys.stderr, flush=True)
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 print("zeus main.py: fastapi ok", file=sys.stderr, flush=True)
@@ -412,6 +412,12 @@ async def get_history(session_id: str):
 async def tunnel_url_endpoint():
     return {"url": get_tunnel_url()}
 
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap():
+    path = pathlib.Path(__file__).parent / "sitemap.xml"
+    return Response(content=path.read_text(encoding="utf-8"), media_type="application/xml")
 
 
 @app.get("/health")
