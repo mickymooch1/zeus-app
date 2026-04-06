@@ -147,23 +147,35 @@ async def register(body: RegisterRequest):
     if len(body.password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
-    db_path = db.get_db_path()
+    try:
+        db_path = db.get_db_path()
+    except Exception as exc:
+        log.exception("register: failed to get DB path")
+        raise HTTPException(status_code=500, detail=f"Database unavailable: {exc}")
 
-    # Check for existing user
     existing = db.get_user_by_email(db_path, body.email)
     if existing:
         raise HTTPException(status_code=409, detail="An account with that email already exists")
 
-    password_hash = auth.hash_password(body.password)
+    try:
+        password_hash = auth.hash_password(body.password)
+    except Exception as exc:
+        log.exception("register: password hashing failed")
+        raise HTTPException(status_code=500, detail=f"Password hashing failed: {exc}")
+
     tc_accepted_at = datetime.now(timezone.utc).isoformat()
 
-    user = db.create_user(
-        db_path,
-        email=body.email,
-        password_hash=password_hash,
-        name=body.name.strip(),
-        tc_accepted_at=tc_accepted_at,
-    )
+    try:
+        user = db.create_user(
+            db_path,
+            email=body.email,
+            password_hash=password_hash,
+            name=body.name.strip(),
+            tc_accepted_at=tc_accepted_at,
+        )
+    except Exception as exc:
+        log.exception("register: create_user failed")
+        raise HTTPException(status_code=500, detail=f"Could not create account: {exc}")
 
     # Create Stripe customer if Stripe is enabled
     if billing.stripe_enabled():
@@ -180,10 +192,21 @@ async def register(body: RegisterRequest):
 
 @app.post("/auth/login")
 async def login(body: LoginRequest):
-    db_path = db.get_db_path()
+    try:
+        db_path = db.get_db_path()
+    except Exception as exc:
+        log.exception("login: failed to get DB path")
+        raise HTTPException(status_code=500, detail=f"Database unavailable: {exc}")
+
     user = db.get_user_by_email(db_path, body.email)
 
-    if not user or not auth.verify_password(body.password, user["password_hash"]):
+    try:
+        password_ok = user and auth.verify_password(body.password, user["password_hash"])
+    except Exception as exc:
+        log.exception("login: password verification failed")
+        raise HTTPException(status_code=500, detail=f"Authentication error: {exc}")
+
+    if not password_ok:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = auth.create_token(user["id"], user["email"])
@@ -370,8 +393,9 @@ async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
 
 @app.get("/sessions")
 async def get_sessions():
-    # Future: filter by user_id when sessions have user_id column
-    return []
+    if history is None:
+        return []
+    return history.list_sessions()
 
 
 @app.get("/history/{session_id}")

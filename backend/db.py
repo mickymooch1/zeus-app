@@ -17,8 +17,12 @@ def _safe_home() -> pathlib.Path:
         return pathlib.Path("/tmp")
 
 
+_db_initialised = False
+
+
 def get_db_path() -> pathlib.Path:
-    """Return path to zeus.db — same logic as HistoryStore in zeus_agent.py."""
+    """Return path to zeus.db and ensure user tables exist."""
+    global _db_initialised
     _railway = bool(
         os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID")
     )
@@ -28,7 +32,11 @@ def get_db_path() -> pathlib.Path:
     )
     data_dir = pathlib.Path(default)
     data_dir.mkdir(parents=True, exist_ok=True)
-    return data_dir / "zeus.db"
+    path = data_dir / "zeus.db"
+    if not _db_initialised:
+        init_user_tables(path)
+        _db_initialised = True
+    return path
 
 
 def get_db_path_dep() -> pathlib.Path:
