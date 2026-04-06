@@ -839,106 +839,99 @@ async def run_turn_stream(
     session_start = datetime.now()
     zeus_text_parts: list[str] = []
 
-    for _ in range(60):  # max agentic turns
-        # tool_blocks: index -> {id, name, json, input}
-        tool_blocks: dict[int, dict] = {}
+    try:
+        for _ in range(60):  # max agentic turns
+            tool_blocks: dict[int, dict] = {}
 
-        # Debug: log content types in every message before sending
-        for _i, _m in enumerate(messages):
-            _content = _m.get("content", "")
-            if isinstance(_content, list):
-                _types = [
-                    (b.type if hasattr(b, "type") else b.get("type", "?"))
-                    for b in _content
-                ]
-                log.info("PRE-API msg[%d] role=%s types=%s", _i, _m.get("role"), _types)
-            else:
-                log.info("PRE-API msg[%d] role=%s content=str(%d)", _i, _m.get("role"), len(str(_content)))
+            async with client.messages.stream(
+                model="claude-opus-4-6",
+                max_tokens=16000,
+                system=system,
+                tools=TOOLS,
+                messages=messages,
+            ) as stream:
+                async for event in stream:
+                    etype = event.type
 
-        async with client.messages.stream(
-            model="claude-opus-4-6",
-            max_tokens=16000,
-            system=system,
-            tools=TOOLS,
-            messages=messages,
-        ) as stream:
-            async for event in stream:
-                etype = event.type
+                    if etype == "content_block_start":
+                        if event.content_block.type == "tool_use":
+                            tool_blocks[event.index] = {
+                                "id": event.content_block.id,
+                                "name": event.content_block.name,
+                                "json": "",
+                                "input": {},
+                            }
 
-                if etype == "content_block_start":
-                    if event.content_block.type == "tool_use":
-                        tool_blocks[event.index] = {
-                            "id": event.content_block.id,
-                            "name": event.content_block.name,
-                            "json": "",
-                            "input": {},
-                        }
+                    elif etype == "content_block_delta":
+                        delta = event.delta
+                        if delta.type == "text_delta":
+                            zeus_text_parts.append(delta.text)
+                            await on_message({"type": "text", "delta": delta.text})
+                        elif delta.type == "input_json_delta":
+                            if event.index in tool_blocks:
+                                tool_blocks[event.index]["json"] += delta.partial_json
 
-                elif etype == "content_block_delta":
-                    delta = event.delta
-                    if delta.type == "text_delta":
-                        zeus_text_parts.append(delta.text)
-                        await on_message({"type": "text", "delta": delta.text})
-                    elif delta.type == "input_json_delta":
+                    elif etype == "content_block_stop":
                         if event.index in tool_blocks:
-                            tool_blocks[event.index]["json"] += delta.partial_json
+                            tb = tool_blocks[event.index]
+                            try:
+                                tb["input"] = json.loads(tb["json"]) if tb["json"] else {}
+                            except json.JSONDecodeError:
+                                tb["input"] = {}
+                            path = (tb["input"].get("file_path")
+                                    or tb["input"].get("path")
+                                    or tb["input"].get("url", ""))
+                            await on_message({
+                                "type": "tool",
+                                "name": tb["name"],
+                                "path": path,
+                                "status": "running",
+                            })
 
-                elif etype == "content_block_stop":
-                    if event.index in tool_blocks:
-                        tb = tool_blocks[event.index]
-                        try:
-                            tb["input"] = json.loads(tb["json"]) if tb["json"] else {}
-                        except json.JSONDecodeError:
-                            tb["input"] = {}
-                        path = (tb["input"].get("file_path")
-                                or tb["input"].get("path")
-                                or tb["input"].get("url", ""))
-                        await on_message({
-                            "type": "tool",
-                            "name": tb["name"],
-                            "path": path,
-                            "status": "running",
-                        })
+                final = await stream.get_final_message()
 
-            final = await stream.get_final_message()
+            # Sanitise assistant content — strip extra fields and drop unreplayable blocks
+            safe_content = [s for b in final.content if (s := _sanitise_block(b)) is not None]
+            messages.append({"role": "assistant", "content": safe_content})
 
-        # Sanitise assistant content — strip extra fields and drop unreplayable blocks
-        safe_content = [s for b in final.content if (s := _sanitise_block(b)) is not None]
-        messages.append({"role": "assistant", "content": safe_content})
+            if final.stop_reason != "tool_use" or not tool_blocks:
+                break
 
-        if final.stop_reason != "tool_use" or not tool_blocks:
-            break
+            # Execute tools and collect results
+            tool_results = []
+            for idx in sorted(tool_blocks):
+                tb = tool_blocks[idx]
+                result = _run_tool(tb["name"], tb["input"], history)
+                path = (tb["input"].get("file_path")
+                        or tb["input"].get("path")
+                        or tb["input"].get("url", ""))
+                await on_message({
+                    "type": "tool",
+                    "name": tb["name"],
+                    "path": path,
+                    "status": "done",
+                })
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tb["id"],
+                    "content": result,
+                })
 
-        # Execute tools and collect results
-        tool_results = []
-        for idx in sorted(tool_blocks):
-            tb = tool_blocks[idx]
-            result = _run_tool(tb["name"], tb["input"], history)
-            path = (tb["input"].get("file_path")
-                    or tb["input"].get("path")
-                    or tb["input"].get("url", ""))
-            await on_message({
-                "type": "tool",
-                "name": tb["name"],
-                "path": path,
-                "status": "done",
-            })
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": tb["id"],
-                "content": result,
-            })
+            messages.append({"role": "user", "content": tool_results})
 
-        messages.append({"role": "user", "content": tool_results})
-
-    # Persist conversation history
-    history.save_messages(session_id, messages)
-    turn_count = sum(1 for m in messages if m["role"] == "user")
-    history.log_turn(session_id, turn_count, "user", prompt)
-    zeus_text = "".join(zeus_text_parts).strip()
-    if zeus_text:
-        history.log_turn(session_id, turn_count, "zeus", zeus_text)
-    history.save_session(session_id, session_start, turn_count, prompt)
+    finally:
+        # Always persist whatever was exchanged — even if the loop threw
+        if len(messages) > 1:  # more than just the user prompt
+            try:
+                history.save_messages(session_id, messages)
+                turn_count = sum(1 for m in messages if m["role"] == "user")
+                history.log_turn(session_id, turn_count, "user", prompt)
+                zeus_text = "".join(zeus_text_parts).strip()
+                if zeus_text:
+                    history.log_turn(session_id, turn_count, "zeus", zeus_text)
+                history.save_session(session_id, session_start, turn_count, prompt)
+            except Exception:
+                log.exception("Failed to persist session %s", session_id)
 
     await on_message({"type": "done"})
     return session_id
