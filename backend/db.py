@@ -66,6 +66,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 subscription_plan   TEXT,
                 subscription_id     TEXT,
                 tc_accepted_at      TEXT,
+                is_admin            INTEGER NOT NULL DEFAULT 0,
                 created_at          TEXT NOT NULL,
                 updated_at          TEXT NOT NULL
             );
@@ -77,7 +78,12 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 PRIMARY KEY (user_id, month)
             );
         """)
-        conn.commit()
+        # Migrate existing tables — ignore error if column already exists
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+            conn.commit()
+        except Exception:
+            pass
     finally:
         conn.close()
 

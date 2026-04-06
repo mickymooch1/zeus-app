@@ -281,8 +281,9 @@ def get_subscription_status(user: dict) -> dict:
     status = user.get("subscription_status", "free")
     plan = user.get("subscription_plan")
 
+    is_admin = bool(user.get("is_admin", 0))
     is_paid = status == "active" and plan in PLANS
-    messages_limit = None if is_paid else FREE_LIMIT
+    messages_limit = None if (is_paid or is_admin) else FREE_LIMIT
 
     return {
         "status": status,
