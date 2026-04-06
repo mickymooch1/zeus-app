@@ -333,6 +333,26 @@ def _resolve(path: str) -> pathlib.Path:
     return p if p.is_absolute() else pathlib.Path(_CWD) / p
 
 
+def _sanitise_block(b) -> dict | None:
+    """
+    Convert an API response block to a plain dict containing only the fields
+    the API accepts when the message is replayed as conversation history.
+    Returns None for block types that must never be replayed (thinking, etc.).
+    """
+    raw = b.model_dump() if hasattr(b, "model_dump") else (b if isinstance(b, dict) else None)
+    if not isinstance(raw, dict):
+        return None
+    t = raw.get("type")
+    if t == "text":
+        return {"type": "text", "text": raw.get("text", "")}
+    if t == "tool_use":
+        return {"type": "tool_use", "id": raw["id"], "name": raw["name"], "input": raw.get("input", {})}
+    if t == "tool_result":
+        return {"type": "tool_result", "tool_use_id": raw["tool_use_id"], "content": raw.get("content", "")}
+    # thinking, redacted_thinking, parsed_output, and any future types: drop them
+    return None
+
+
 def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> str:
     try:
         if name == "Bash":
@@ -610,19 +630,11 @@ class HistoryStore:
             return []
 
     def save_messages(self, session_id: str, messages: list) -> None:
-        _STRIP_TYPES = {"thinking", "parsed_output"}
         serialized = []
         for msg in messages:
             content = msg.get("content", "")
             if isinstance(content, list):
-                blocks = []
-                for b in content:
-                    raw = b.model_dump() if hasattr(b, "model_dump") else b
-                    if not isinstance(raw, dict):
-                        continue
-                    if raw.get("type") in _STRIP_TYPES:
-                        continue
-                    blocks.append(raw)
+                blocks = [s for b in content if (s := _sanitise_block(b)) is not None]
                 serialized.append({"role": msg["role"], "content": blocks})
             else:
                 serialized.append(msg)
@@ -890,12 +902,8 @@ async def run_turn_stream(
 
             final = await stream.get_final_message()
 
-        # Strip thinking/parsed_output blocks — they cannot be replayed to the API
-        _STRIP_TYPES = {"thinking", "parsed_output"}
-        safe_content = [
-            b for b in final.content
-            if (b.type if hasattr(b, "type") else b.get("type")) not in _STRIP_TYPES
-        ]
+        # Sanitise assistant content — strip extra fields and drop unreplayable blocks
+        safe_content = [s for b in final.content if (s := _sanitise_block(b)) is not None]
         messages.append({"role": "assistant", "content": safe_content})
 
         if final.stop_reason != "tool_use" or not tool_blocks:
