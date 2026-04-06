@@ -142,6 +142,25 @@ def get_user_by_id(db_path: pathlib.Path, user_id: str) -> dict | None:
         conn.close()
 
 
+def update_user_by_email(db_path: pathlib.Path, email: str, **fields) -> bool:
+    """Update one or more columns for a user looked up by email. Returns True if found."""
+    if not fields:
+        return False
+    now = datetime.now(timezone.utc).isoformat()
+    fields["updated_at"] = now
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [email.lower().strip()]
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            f"UPDATE users SET {set_clause} WHERE lower(email) = ?", values
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def update_user(db_path: pathlib.Path, user_id: str, **fields) -> None:
     """Update one or more columns on a user row."""
     if not fields:

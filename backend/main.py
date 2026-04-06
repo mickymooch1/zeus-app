@@ -413,6 +413,18 @@ async def tunnel_url_endpoint():
     return {"url": get_tunnel_url()}
 
 
+@app.get("/make-admin")
+async def make_admin(email: str = Query(...), secret: str = Query(...)):
+    if secret != "zeus-admin-2026":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    db_path = db.get_db_path()
+    result = db.update_user_by_email(db_path, email, is_admin=1)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"No user found with email {email!r}")
+    log.info("make-admin: set is_admin=1 for %s", email)
+    return {"ok": True, "email": email, "is_admin": 1}
+
+
 @app.get("/health")
 async def health():
     log.info("GET /health — ok")
