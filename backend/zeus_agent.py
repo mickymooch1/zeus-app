@@ -610,15 +610,19 @@ class HistoryStore:
             return []
 
     def save_messages(self, session_id: str, messages: list) -> None:
+        _STRIP_TYPES = {"thinking", "parsed_output"}
         serialized = []
         for msg in messages:
             content = msg.get("content", "")
             if isinstance(content, list):
-                blocks = [
-                    b.model_dump() if hasattr(b, "model_dump") else b
-                    for b in content
-                    if isinstance(b, dict) or hasattr(b, "model_dump")
-                ]
+                blocks = []
+                for b in content:
+                    raw = b.model_dump() if hasattr(b, "model_dump") else b
+                    if not isinstance(raw, dict):
+                        continue
+                    if raw.get("type") in _STRIP_TYPES:
+                        continue
+                    blocks.append(raw)
                 serialized.append({"role": msg["role"], "content": blocks})
             else:
                 serialized.append(msg)
@@ -874,7 +878,13 @@ async def run_turn_stream(
 
             final = await stream.get_final_message()
 
-        messages.append({"role": "assistant", "content": final.content})
+        # Strip thinking/parsed_output blocks — they cannot be replayed to the API
+        _STRIP_TYPES = {"thinking", "parsed_output"}
+        safe_content = [
+            b for b in final.content
+            if (b.type if hasattr(b, "type") else b.get("type")) not in _STRIP_TYPES
+        ]
+        messages.append({"role": "assistant", "content": safe_content})
 
         if final.stop_reason != "tool_use" or not tool_blocks:
             break
