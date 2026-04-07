@@ -1169,11 +1169,18 @@ async def run_turn_stream(
                 # Emit a download event if ZipProject succeeded
                 if result.startswith("DOWNLOAD_READY:"):
                     zip_filename = result.split("\n", 1)[0].replace("DOWNLOAD_READY:", "").strip()
-                    _base = os.environ.get("FRONTEND_URL", "https://zeusaidesign.com").rstrip("/")
+                    # Resolve base URL: explicit config → Railway public domain → hardcoded production URL
+                    _base = (
+                        os.environ.get("FRONTEND_URL")
+                        or (f"https://{os.environ['RAILWAY_PUBLIC_DOMAIN']}" if os.environ.get("RAILWAY_PUBLIC_DOMAIN") else None)
+                        or "https://zeusaidesign.com"
+                    ).rstrip("/")
+                    # Strip the token prefix (first segment before _) for the display filename
+                    _display = zip_filename.split("_", 1)[-1] if "_" in zip_filename else zip_filename
                     await on_message({
                         "type": "download",
                         "url": f"{_base}/download/{zip_filename}",
-                        "filename": zip_filename.split("_", 1)[-1],
+                        "filename": _display,
                     })
                 tool_results.append({
                     "type": "tool_result",

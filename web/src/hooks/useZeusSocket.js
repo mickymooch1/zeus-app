@@ -81,9 +81,12 @@ export function useZeusSocket(token) {
           return { ...m, tools };
         }));
       } else if (data.type === 'download') {
+        const fullUrl = data.url.startsWith('http')
+          ? data.url
+          : `${window.location.origin}${data.url.startsWith('/') ? '' : '/'}${data.url}`;
         setMessages(prev => prev.map(m =>
           m.id === zeusMsgId
-            ? { ...m, downloads: [...(m.downloads || []), { url: data.url, filename: data.filename }] }
+            ? { ...m, downloads: [...(m.downloads || []), { url: fullUrl, filename: data.filename }] }
             : m
         ));
       } else if (data.type === 'session_id') {
