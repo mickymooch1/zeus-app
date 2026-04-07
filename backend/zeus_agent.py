@@ -215,6 +215,20 @@ TOOLS = [
             "required": ["query"],
         },
     },
+    {
+        "name": "StockPrice",
+        "description": (
+            "Get the real-time or latest stock price and key stats for any ticker symbol. "
+            "Use this when asked about share prices, market cap, P/E ratio, or company financials."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol, e.g. AAPL, TSLA, GOOGL"},
+            },
+            "required": ["ticker"],
+        },
+    },
     # ── Memory & intelligence tools ────────────────────────────────────────────
     {
         "name": "SaveMemory",
@@ -413,6 +427,49 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
         elif name == "WebFetch":
             resp = httpx.get(inp["url"], timeout=20, follow_redirects=True)
             return resp.text[:8000]
+
+        elif name == "StockPrice":
+            ticker = inp["ticker"].upper().strip()
+            resp = httpx.get(
+                f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{ticker}",
+                params={"modules": "price,summaryDetail"},
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=15,
+                follow_redirects=True,
+            )
+            if resp.status_code != 200:
+                return f"Could not fetch data for ticker '{ticker}' (HTTP {resp.status_code})"
+            try:
+                result = resp.json()["quoteSummary"]["result"]
+                if not result:
+                    return f"No data found for ticker '{ticker}'"
+                price_data = result[0].get("price", {})
+                summary = result[0].get("summaryDetail", {})
+
+                def _val(d, key):
+                    v = d.get(key, {})
+                    return v.get("fmt") or v.get("raw") if isinstance(v, dict) else v
+
+                lines = [
+                    f"Ticker:        {ticker}",
+                    f"Company:       {price_data.get('longName') or price_data.get('shortName', 'N/A')}",
+                    f"Exchange:      {price_data.get('exchangeName', 'N/A')}",
+                    f"Currency:      {price_data.get('currency', 'N/A')}",
+                    f"Current price: {_val(price_data, 'regularMarketPrice')}",
+                    f"Change:        {_val(price_data, 'regularMarketChange')} ({_val(price_data, 'regularMarketChangePercent')})",
+                    f"Open:          {_val(price_data, 'regularMarketOpen')}",
+                    f"Day high:      {_val(price_data, 'regularMarketDayHigh')}",
+                    f"Day low:       {_val(price_data, 'regularMarketDayLow')}",
+                    f"52w high:      {_val(summary, 'fiftyTwoWeekHigh')}",
+                    f"52w low:       {_val(summary, 'fiftyTwoWeekLow')}",
+                    f"Market cap:    {_val(price_data, 'marketCap')}",
+                    f"Volume:        {_val(price_data, 'regularMarketVolume')}",
+                    f"P/E ratio:     {_val(summary, 'trailingPE')}",
+                    f"Market state:  {price_data.get('marketState', 'N/A')}",
+                ]
+                return "\n".join(l for l in lines if not l.endswith("N/A") and not l.endswith("None"))
+            except (KeyError, IndexError, ValueError) as exc:
+                return f"Error parsing Yahoo Finance response for '{ticker}': {exc}"
 
         elif name == "WebSearch":
             query = inp["query"]
