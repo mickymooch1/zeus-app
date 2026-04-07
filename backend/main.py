@@ -425,10 +425,14 @@ async def download_file(filename: str):
         raise HTTPException(status_code=400, detail="Invalid filename")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found or expired")
-    return FileResponse(
-        path=str(file_path),
-        filename=filename.split("_", 1)[-1],  # strip the token prefix for the download name
+    display_name = filename.split("_", 1)[-1] if "_" in filename else filename
+    return Response(
+        content=file_path.read_bytes(),
         media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{display_name}"',
+            "Content-Length": str(file_path.stat().st_size),
+        },
     )
 
 
