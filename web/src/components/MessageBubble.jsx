@@ -1,33 +1,30 @@
-const DOWNLOAD_RE = /https?:\/\/\S+\/download\/\S+\.zip/gi;
+import ReactMarkdown from 'react-markdown';
 
-function renderTextWithDownloads(text) {
-  if (!text) return null;
-  const parts = [];
-  let last = 0;
-  let match;
-  const re = new RegExp(DOWNLOAD_RE.source, 'gi');
-  while ((match = re.exec(text)) !== null) {
-    if (match.index > last) {
-      parts.push(text.slice(last, match.index));
-    }
-    const url = match[0];
-    const filename = url.split('/').pop().split('_').slice(1).join('_') || url.split('/').pop();
-    parts.push(
+const DOWNLOAD_URL_RE = /https?:\/\/\S+\/download\/[^\s)]+\.zip/gi;
+
+function linkRenderer({ href, children }) {
+  const isDownload = href && /\/download\/.+\.zip$/i.test(href);
+  const filename = isDownload
+    ? href.split('/').pop().replace(/^[0-9a-f]{8}_/, '')
+    : null;
+  if (isDownload) {
+    return (
       <a
-        key={match.index}
-        href={url}
+        href={href}
         download={filename}
         target="_blank"
         rel="noopener noreferrer"
-        className="download-btn download-btn--inline"
+        className="download-btn"
       >
-        ⬇ Download {filename}
+        ⬇ {children || `Download ${filename}`}
       </a>
     );
-    last = match.index + url.length;
   }
-  if (last < text.length) parts.push(text.slice(last));
-  return parts.length > 0 ? parts : text;
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
 }
 
 export function MessageBubble({ message, isStreaming }) {
@@ -40,7 +37,6 @@ export function MessageBubble({ message, isStreaming }) {
   }
 
   const showCursor = isStreaming && !message.error;
-  const textContent = renderTextWithDownloads(message.text);
 
   return (
     <div className="message-zeus">
@@ -50,7 +46,11 @@ export function MessageBubble({ message, isStreaming }) {
 
         {(message.text || showCursor) && (
           <div className="zeus-text">
-            {textContent}
+            <ReactMarkdown
+              components={{ a: linkRenderer }}
+            >
+              {message.text || ''}
+            </ReactMarkdown>
             {showCursor && <span className="cursor">▍</span>}
           </div>
         )}
