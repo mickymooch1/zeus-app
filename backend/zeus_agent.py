@@ -827,11 +827,12 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                 deploy_id = deploy_data["id"]
                 required_files = deploy_data.get("required", [])
 
+                upload_errors = []
                 for rel_path in required_files:
                     content = file_contents.get(rel_path)
                     if content:
                         mime = mimetypes.guess_type(rel_path)[0] or "application/octet-stream"
-                        requests.put(
+                        put_resp = requests.put(
                             f"https://api.netlify.com/api/v1/deploys/{deploy_id}/files{rel_path}",
                             headers={
                                 "Authorization": f"Bearer {netlify_token}",
@@ -839,12 +840,28 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                             },
                             data=content
                         )
+                        if put_resp.status_code not in (200, 201):
+                            upload_errors.append(f"{rel_path}: HTTP {put_resp.status_code}")
 
-                requests.patch(
-                    f"https://api.netlify.com/api/v1/deploys/{deploy_id}",
-                    headers=headers,
-                    json={"state": "ready"}
-                )
+                if upload_errors:
+                    return f"Error: {len(upload_errors)} file(s) failed to upload:\n" + "\n".join(upload_errors)
+
+                import time
+                deploy_state = None
+                for _ in range(15):
+                    time.sleep(2)
+                    poll_resp = requests.get(
+                        f"https://api.netlify.com/api/v1/deploys/{deploy_id}",
+                        headers={"Authorization": f"Bearer {netlify_token}"}
+                    )
+                    deploy_state = poll_resp.json().get("state")
+                    if deploy_state == "ready":
+                        break
+                    if deploy_state == "error":
+                        return f"Error: Netlify deploy failed with state 'error'."
+
+                if deploy_state != "ready":
+                    return f"Error: Deploy did not become ready within 30 seconds (last state: {deploy_state})."
 
                 site_url = f"https://{site_name}.netlify.app"
                 return f"✅ Successfully deployed to Netlify!\n🌐 Live URL: {site_url}\n📁 Site ID: {site_id}"
