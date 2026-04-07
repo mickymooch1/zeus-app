@@ -767,7 +767,7 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
             )
 
         elif name == "DeployToNetlify":
-            import requests, os, base64, mimetypes, hashlib
+            import requests, mimetypes, hashlib
 
             project_folder = inp.get("project_folder")
             site_name = inp.get("site_name", project_folder.lower().replace(" ", "-"))
