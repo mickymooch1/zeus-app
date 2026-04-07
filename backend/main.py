@@ -13,7 +13,7 @@ print("zeus main.py: starting imports", file=sys.stderr, flush=True)
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
 print("zeus main.py: fastapi ok", file=sys.stderr, flush=True)
@@ -412,6 +412,24 @@ async def get_history(session_id: str):
 async def tunnel_url_endpoint():
     return {"url": get_tunnel_url()}
 
+
+
+@app.get("/download/{filename}")
+async def download_file(filename: str):
+    import tempfile
+    _railway = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
+    downloads_dir = pathlib.Path("/data/downloads" if _railway else tempfile.gettempdir()) / "zeus_downloads"
+    file_path = downloads_dir / filename
+    # Prevent path traversal
+    if not file_path.resolve().is_relative_to(downloads_dir.resolve()):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found or expired")
+    return FileResponse(
+        path=str(file_path),
+        filename=filename.split("_", 1)[-1],  # strip the token prefix for the download name
+        media_type="application/zip",
+    )
 
 
 @app.get("/sitemap.xml", include_in_schema=False)

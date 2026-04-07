@@ -216,6 +216,22 @@ TOOLS = [
         },
     },
     {
+        "name": "ZipProject",
+        "description": (
+            "Package a project folder into a downloadable zip file. "
+            "Call this after writing all project files when the user wants to download their project. "
+            "Returns a download URL the user can click to get the zip."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "folder":   {"type": "string", "description": "Path to the project folder to zip"},
+                "zip_name": {"type": "string", "description": "Name for the zip file, e.g. 'my-website.zip'"},
+            },
+            "required": ["folder", "zip_name"],
+        },
+    },
+    {
         "name": "SendEmail",
         "description": (
             "Send an email on behalf of the user via Gmail. "
@@ -462,6 +478,41 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
         elif name == "WebFetch":
             resp = httpx.get(inp["url"], timeout=20, follow_redirects=True)
             return resp.text[:8000]
+
+        elif name == "ZipProject":
+            import zipfile, tempfile
+            src = _resolve(inp["folder"])
+            if not src.exists():
+                return f"Error: folder '{src}' does not exist."
+            if not src.is_dir():
+                return f"Error: '{src}' is not a directory."
+
+            zip_name = inp["zip_name"].strip()
+            if not zip_name.endswith(".zip"):
+                zip_name += ".zip"
+
+            # Store in /data/downloads (persistent on Railway) or a temp dir
+            import os as _os
+            _railway = bool(_os.environ.get("RAILWAY_ENVIRONMENT") or _os.environ.get("RAILWAY_PROJECT_ID"))
+            downloads_dir = pathlib.Path("/data/downloads" if _railway else tempfile.gettempdir()) / "zeus_downloads"
+            downloads_dir.mkdir(parents=True, exist_ok=True)
+
+            # Use a unique token so the URL can't be guessed
+            token = str(uuid.uuid4())[:8]
+            zip_filename = f"{token}_{zip_name}"
+            zip_path = downloads_dir / zip_filename
+
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for file in src.rglob("*"):
+                    if file.is_file():
+                        zf.write(file, file.relative_to(src))
+
+            file_count = sum(1 for _ in src.rglob("*") if _.is_file())
+            return (
+                f"DOWNLOAD_READY:{zip_filename}\n"
+                f"Zipped {file_count} files from '{src.name}' → {zip_name}\n"
+                f"The user can now download their project."
+            )
 
         elif name == "SendEmail":
             import smtplib
@@ -1115,6 +1166,14 @@ async def run_turn_stream(
                     "path": path,
                     "status": "done",
                 })
+                # Emit a download event if ZipProject succeeded
+                if result.startswith("DOWNLOAD_READY:"):
+                    zip_filename = result.split("\n", 1)[0].replace("DOWNLOAD_READY:", "").strip()
+                    await on_message({
+                        "type": "download",
+                        "url": f"/download/{zip_filename}",
+                        "filename": zip_filename.split("_", 1)[-1],
+                    })
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": tb["id"],

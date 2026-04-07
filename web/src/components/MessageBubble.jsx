@@ -33,6 +33,16 @@ export function MessageBubble({ message, isStreaming }) {
           </div>
         )}
 
+        {message.downloads?.length > 0 && (
+          <div className="download-list">
+            {message.downloads.map((d, i) => (
+              <a key={i} href={d.url} download={d.filename} className="download-btn">
+                ⬇ Download {d.filename}
+              </a>
+            ))}
+          </div>
+        )}
+
         {message.error && (
           <div className="error-banner">{message.error}</div>
         )}

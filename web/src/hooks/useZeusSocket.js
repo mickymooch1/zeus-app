@@ -80,6 +80,12 @@ export function useZeusSocket(token) {
           }
           return { ...m, tools };
         }));
+      } else if (data.type === 'download') {
+        setMessages(prev => prev.map(m =>
+          m.id === zeusMsgId
+            ? { ...m, downloads: [...(m.downloads || []), { url: data.url, filename: data.filename }] }
+            : m
+        ));
       } else if (data.type === 'session_id') {
         setSessionId(data.value);
         sync(data.value, true);
