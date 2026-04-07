@@ -405,7 +405,10 @@ def _safe_home() -> pathlib.Path:
         return pathlib.Path("/tmp")
 
 
-_CWD = os.environ.get("ZEUS_CWD", str(_safe_home()))
+_railway = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
+_default_cwd = "/data/projects" if _railway else str(_safe_home() / "zeus-projects")
+_CWD = os.environ.get("ZEUS_CWD", _default_cwd)
+pathlib.Path(_CWD).mkdir(parents=True, exist_ok=True)
 
 
 def _resolve(path: str) -> pathlib.Path:
