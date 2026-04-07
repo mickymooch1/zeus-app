@@ -981,7 +981,7 @@ def _build_memory_context(history: HistoryStore) -> str:
     """
     parts: list[str] = []
 
-    memories = history.get_recent_memory(40)
+    memories = history.get_recent_memory(10)
     if memories:
         lines = "\n".join(
             f"  [{m['category']}] {m['content']}"
@@ -1049,7 +1049,7 @@ async def run_turn_stream(
 
             async with client.messages.stream(
                 model="claude-sonnet-4-6",
-                max_tokens=16000,
+                max_tokens=8000,
                 system=system,
                 tools=TOOLS,
                 messages=messages,
