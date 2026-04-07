@@ -1099,7 +1099,7 @@ async def run_turn_stream(
             tool_blocks: dict[int, dict] = {}
 
             async with client.messages.stream(
-                model="claude-sonnet-4-6",
+                model="claude-haiku-4-5-20251001",
                 max_tokens=8000,
                 system=system,
                 tools=TOOLS,
