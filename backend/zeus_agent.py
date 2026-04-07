@@ -998,7 +998,7 @@ async def run_turn_stream(
             tool_blocks: dict[int, dict] = {}
 
             async with client.messages.stream(
-                model="claude-opus-4-6",
+                model="claude-sonnet-4-6",
                 max_tokens=16000,
                 system=system,
                 tools=TOOLS,
