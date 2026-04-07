@@ -200,6 +200,21 @@ TOOLS = [
             "required": ["url"],
         },
     },
+    {
+        "name": "WebSearch",
+        "description": (
+            "Search the internet for current information. "
+            "Use this to look up recent news, prices, businesses, people, or anything "
+            "that may have changed since your training data."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The search query"},
+            },
+            "required": ["query"],
+        },
+    },
     # ── Memory & intelligence tools ────────────────────────────────────────────
     {
         "name": "SaveMemory",
@@ -398,6 +413,55 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
         elif name == "WebFetch":
             resp = httpx.get(inp["url"], timeout=20, follow_redirects=True)
             return resp.text[:8000]
+
+        elif name == "WebSearch":
+            query = inp["query"]
+            # DuckDuckGo instant-answer API — no key required
+            ddg = httpx.get(
+                "https://api.duckduckgo.com/",
+                params={"q": query, "format": "json", "no_html": "1", "skip_disambig": "1"},
+                headers={"User-Agent": "Zeus/1.0"},
+                timeout=15,
+                follow_redirects=True,
+            )
+            data = ddg.json()
+            parts: list[str] = []
+
+            if data.get("AbstractText"):
+                parts.append(f"Summary: {data['AbstractText']}")
+                if data.get("AbstractURL"):
+                    parts.append(f"Source: {data['AbstractURL']}")
+
+            if data.get("Answer"):
+                parts.append(f"Answer: {data['Answer']}")
+
+            for topic in data.get("RelatedTopics", [])[:8]:
+                if isinstance(topic, dict) and topic.get("Text"):
+                    parts.append(f"- {topic['Text']}")
+                    if topic.get("FirstURL"):
+                        parts.append(f"  {topic['FirstURL']}")
+
+            if not parts:
+                # Fall back to fetching DuckDuckGo HTML search results
+                html = httpx.get(
+                    "https://html.duckduckgo.com/html/",
+                    params={"q": query},
+                    headers={"User-Agent": "Mozilla/5.0"},
+                    timeout=15,
+                    follow_redirects=True,
+                )
+                # Extract result snippets with a simple text scan
+                import re
+                snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html.text, re.S)
+                titles = re.findall(r'class="result__a"[^>]*>(.*?)</a>', html.text, re.S)
+                urls = re.findall(r'class="result__url"[^>]*>(.*?)</span>', html.text, re.S)
+                for i, snippet in enumerate(snippets[:6]):
+                    title = re.sub(r"<[^>]+>", "", titles[i]) if i < len(titles) else ""
+                    url = urls[i].strip() if i < len(urls) else ""
+                    clean = re.sub(r"<[^>]+>", "", snippet).strip()
+                    parts.append(f"{title}\n{url}\n{clean}")
+
+            return "\n".join(parts)[:6000] if parts else f"No results found for: {query}"
 
         # ── Memory & intelligence tools ────────────────────────────────────────
         elif name == "SaveMemory":
