@@ -1169,9 +1169,10 @@ async def run_turn_stream(
                 # Emit a download event if ZipProject succeeded
                 if result.startswith("DOWNLOAD_READY:"):
                     zip_filename = result.split("\n", 1)[0].replace("DOWNLOAD_READY:", "").strip()
+                    _base = os.environ.get("FRONTEND_URL", "https://zeusaidesign.com").rstrip("/")
                     await on_message({
                         "type": "download",
-                        "url": f"/download/{zip_filename}",
+                        "url": f"{_base}/download/{zip_filename}",
                         "filename": zip_filename.split("_", 1)[-1],
                     })
                 tool_results.append({
