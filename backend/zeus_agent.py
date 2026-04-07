@@ -786,18 +786,33 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                     "Content-Type": "application/json"
                 }
 
-                file_digests = {}
-                file_contents = {}
-
+                # First pass: collect all files
+                scanned = []
                 for root, dirs, files in os.walk(folder_path):
                     for filename in files:
                         filepath = os.path.join(root, filename)
                         relative_path = "/" + os.path.relpath(filepath, folder_path).replace("\\", "/")
                         with open(filepath, "rb") as f:
                             content = f.read()
-                        sha1 = hashlib.sha1(content).hexdigest()
-                        file_digests[relative_path] = sha1
-                        file_contents[relative_path] = content
+                        scanned.append((relative_path, content))
+
+                # Determine HTML rename mapping
+                html_paths = sorted(p for p, _ in scanned if p.lower().endswith(".html"))
+                rename_map = {}
+                if html_paths and not any(os.path.basename(p).lower() == "index.html" for p in html_paths):
+                    target = html_paths[0]
+                    dir_part = os.path.dirname(target)
+                    new_path = (dir_part + "/index.html") if dir_part and dir_part != "/" else "/index.html"
+                    rename_map[target] = new_path
+
+                # Second pass: build digests and contents with remapped paths
+                file_digests = {}
+                file_contents = {}
+                for relative_path, content in scanned:
+                    key = rename_map.get(relative_path, relative_path)
+                    sha1 = hashlib.sha1(content).hexdigest()
+                    file_digests[key] = sha1
+                    file_contents[key] = content
 
                 sites_resp = requests.get(
                     "https://api.netlify.com/api/v1/sites",
