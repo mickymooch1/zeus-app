@@ -416,6 +416,24 @@ TOOLS = [
             },
         },
     },
+    {
+        "name": "DeployToNetlify",
+        "description": "Deploy a built website folder to Netlify and return a live URL. Use this after building a website for a client.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_folder": {
+                    "type": "string",
+                    "description": "The folder name inside /data/projects/ to deploy"
+                },
+                "site_name": {
+                    "type": "string",
+                    "description": "A URL-friendly name for the Netlify site e.g. mikes-plumbing-london"
+                }
+            },
+            "required": ["project_folder"]
+        }
+    },
 ]
 
 def _safe_home() -> pathlib.Path:
@@ -747,6 +765,86 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                 + (f" £{p['budget']:.0f}" if p.get("budget") else "")
                 for p in projects
             )
+
+        elif name == "DeployToNetlify":
+            import requests, os, base64, mimetypes, hashlib
+
+            project_folder = inp.get("project_folder")
+            site_name = inp.get("site_name", project_folder.lower().replace(" ", "-"))
+
+            netlify_token = os.environ.get("NETLIFY_TOKEN")
+            if not netlify_token:
+                return "Error: NETLIFY_TOKEN not set in environment variables."
+
+            folder_path = f"/data/projects/{project_folder}"
+            if not os.path.exists(folder_path):
+                return f"Error: Folder {folder_path} does not exist."
+
+            try:
+                headers = {
+                    "Authorization": f"Bearer {netlify_token}",
+                    "Content-Type": "application/json"
+                }
+
+                file_digests = {}
+                file_contents = {}
+
+                for root, dirs, files in os.walk(folder_path):
+                    for filename in files:
+                        filepath = os.path.join(root, filename)
+                        relative_path = "/" + os.path.relpath(filepath, folder_path).replace("\\", "/")
+                        with open(filepath, "rb") as f:
+                            content = f.read()
+                        sha1 = hashlib.sha1(content).hexdigest()
+                        file_digests[relative_path] = sha1
+                        file_contents[relative_path] = content
+
+                sites_resp = requests.get(
+                    "https://api.netlify.com/api/v1/sites",
+                    headers=headers
+                )
+                sites = sites_resp.json()
+                site_id = None
+                for s in sites:
+                    if s.get("name") == site_name:
+                        site_id = s["id"]
+                        break
+
+                if not site_id:
+                    create_resp = requests.post(
+                        "https://api.netlify.com/api/v1/sites",
+                        headers=headers,
+                        json={"name": site_name}
+                    )
+                    site_id = create_resp.json()["id"]
+
+                deploy_resp = requests.post(
+                    f"https://api.netlify.com/api/v1/sites/{site_id}/deploys",
+                    headers=headers,
+                    json={"files": file_digests}
+                )
+                deploy_data = deploy_resp.json()
+                deploy_id = deploy_data["id"]
+                required_files = deploy_data.get("required", [])
+
+                for rel_path in required_files:
+                    content = file_contents.get(rel_path)
+                    if content:
+                        mime = mimetypes.guess_type(rel_path)[0] or "application/octet-stream"
+                        requests.put(
+                            f"https://api.netlify.com/api/v1/deploys/{deploy_id}/files{rel_path}",
+                            headers={
+                                "Authorization": f"Bearer {netlify_token}",
+                                "Content-Type": mime
+                            },
+                            data=content
+                        )
+
+                site_url = f"https://{site_name}.netlify.app"
+                return f"✅ Successfully deployed to Netlify!\n🌐 Live URL: {site_url}\n📁 Site ID: {site_id}"
+
+            except Exception as e:
+                return f"Error deploying to Netlify: {str(e)}"
 
         else:
             return f"Unknown tool: {name}"
