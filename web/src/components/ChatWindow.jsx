@@ -1,13 +1,22 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { InputBar } from './InputBar';
+import { Toolbar } from './Toolbar';
 
 export function ChatWindow({ messages, streaming, onSend }) {
   const bottomRef = useRef(null);
+  const textareaRef = useRef(null);
+  const [inputValue, setInputValue] = useState('');
+  const [grammarMode, setGrammarMode] = useState(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleChipClick = (starter) => {
+    setInputValue(starter);
+    textareaRef.current?.focus();
+  };
 
   return (
     <main className="chat-window">
@@ -16,7 +25,7 @@ export function ChatWindow({ messages, streaming, onSend }) {
           <div className="empty-state">
             <div className="empty-icon">⚡</div>
             <div className="empty-title">Ask Zeus anything.</div>
-            <div className="empty-sub">Websites · Research · Emails · Business</div>
+            <div className="empty-sub">Websites · Writing · Research · Business</div>
           </div>
         )}
         {messages.map((msg, i) => (
@@ -32,7 +41,16 @@ export function ChatWindow({ messages, streaming, onSend }) {
         ))}
         <div ref={bottomRef} />
       </div>
-      <InputBar onSend={onSend} disabled={streaming} />
+      <Toolbar onChipClick={handleChipClick} />
+      <InputBar
+        onSend={onSend}
+        disabled={streaming}
+        value={inputValue}
+        setValue={setInputValue}
+        grammarMode={grammarMode}
+        setGrammarMode={setGrammarMode}
+        textareaRef={textareaRef}
+      />
     </main>
   );
 }

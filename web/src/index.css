@@ -751,3 +751,94 @@ body {
   .cta-title { font-size: 28px; }
   .hero-title { font-size: 32px; }
 }
+
+/* ── Toolbar chips ─────────────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px 0;
+}
+
+.chip {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 12px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+/* ── Grammar check button ──────────────────────────────────────────────────── */
+.grammar-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 4px 8px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.grammar-btn--active {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: rgba(139, 92, 246, 0.7);
+  color: #a78bfa;
+}
+
+.grammar-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Word count ────────────────────────────────────────────────────────────── */
+.word-count {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 11px;
+  margin-top: 6px;
+  text-align: right;
+}
+
+/* ── Export bar ────────────────────────────────────────────────────────────── */
+.export-bar {
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.export-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.export-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 12px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.export-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+}

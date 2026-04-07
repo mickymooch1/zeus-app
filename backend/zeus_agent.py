@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import sqlite3
 import subprocess
 import sys
@@ -16,6 +17,11 @@ import anthropic
 print("zeus_agent.py: anthropic ok", file=sys.stderr, flush=True)
 
 import httpx
+
+EXPORT_TAG_RE = re.compile(
+    r'\[ZEUS_EXPORT:\s*type=(\w+)\s+title="([^"]+)"\]',
+    re.IGNORECASE,
+)
 
 log = logging.getLogger("zeus.agent")
 
@@ -57,17 +63,28 @@ ZEUS_SYSTEM_PROMPT = """You are Zeus, a powerful AI assistant built to help run 
 - Fetch and summarise web pages, documentation, or client reference sites
 - Look up tools, plugins, libraries, or anything needed for a project
 
-**Content & Copywriting**
-- Write website copy: headlines, taglines, about pages, service descriptions, CTAs
-- Draft blog posts, case studies, and portfolio write-ups
-- Generate SEO-friendly meta descriptions and page titles
-- Adapt tone for different industries (corporate, creative, hospitality, etc.)
+**Writing & Content**
+- Essays: structured arguments with intro, body, conclusion; appropriate academic or casual tone
+- Blog posts and articles: engaging hooks, clear sections, strong CTAs
+- CVs and cover letters: professional formatting, tailored to role/industry
+- Business proposals: executive summary, scope, pricing, timeline
+- Website copy: headlines, taglines, about pages, service descriptions, CTAs
+- Email drafting: professional client emails, cold outreach, templates for common scenarios
 
-**Email Drafting**
-- Draft professional client emails: proposals, follow-ups, project updates, invoices
-- Write cold outreach emails to win new business
-- Respond to client feedback diplomatically
-- Create email templates for common scenarios
+**Grammar & Language**
+- Grammar checking: proofread user-provided text, return corrected version with a brief list of changes made
+- Tone adjustment: rewrite any text as formal, casual, or persuasive on request
+- Translation: translate text to any requested language, preserving meaning and tone
+- Word count: state approximate word count when producing long documents (>200 words)
+
+**Export signalling**
+When Zeus produces an exportable document (essay, blog post, CV, cover letter, proposal, business plan,
+proofread text), it MUST end its response with this exact tag on its own line:
+[ZEUS_EXPORT: type=<type> title="<descriptive title>"]
+
+Valid types: essay, blog, cv, cover_letter, proposal, business_plan, document
+The tag is stripped from display by the frontend — users never see it.
+Do NOT include the tag for conversational replies, short answers, website builds, or research summaries.
 
 **Business Operations**
 - Help price projects and write proposals
@@ -76,11 +93,14 @@ ZEUS_SYSTEM_PROMPT = """You are Zeus, a powerful AI assistant built to help run 
 - Answer questions about freelancing, client management, and contracts
 
 ## Your personality
-- Talk like a sharp, experienced colleague — direct, helpful, no filler
-- Think out loud briefly before diving into big tasks so the user knows the plan
-- Ask a quick follow-up if something is genuinely unclear; don't guess on important details
-- Take pride in clean, well-crafted work and note key decisions made
-- Be honest about limitations or when something needs more information
+- Warm, encouraging, and genuinely invested in the user's success
+- Direct and clear — no waffle, but never cold
+- Ask ONE clarifying question before starting essays, CVs, proposals, or business plans
+  (e.g. "Who is this CV for — what industry and level?")
+- Celebrate completions briefly ("Strong proposal — here's what makes it work")
+- Remember context within the conversation — refer back to earlier details naturally
+- Web design remains your primary strength; present all other capabilities as natural extensions
+- Never use filler phrases like "Certainly!", "Of course!", "Great question!"
 
 ## Working style
 - Brief plan → execute → summary of what was done
@@ -1096,6 +1116,7 @@ async def run_turn_stream(
 
     session_start = datetime.now()
     zeus_text_parts: list[str] = []
+    _export_payload: dict | None = None
 
     try:
         for _ in range(60):  # max agentic turns
@@ -1201,11 +1222,22 @@ async def run_turn_stream(
                 turn_count = sum(1 for m in messages if m["role"] == "user")
                 history.log_turn(session_id, turn_count, "user", prompt)
                 zeus_text = "".join(zeus_text_parts).strip()
+                # Detect and strip export tag before persisting to history
+                match = EXPORT_TAG_RE.search(zeus_text)
+                if match:
+                    _export_payload = {
+                        "type": "export_ready",
+                        "doc_type": match.group(1),
+                        "title": match.group(2),
+                    }
+                    zeus_text = EXPORT_TAG_RE.sub('', zeus_text).rstrip()
                 if zeus_text:
                     history.log_turn(session_id, turn_count, "zeus", zeus_text)
                 history.save_session(session_id, session_start, turn_count, prompt)
             except Exception:
                 log.exception("Failed to persist session %s", session_id)
 
+    if _export_payload:
+        await on_message(_export_payload)
     await on_message({"type": "done"})
     return session_id

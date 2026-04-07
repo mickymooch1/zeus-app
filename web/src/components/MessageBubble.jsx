@@ -1,5 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+
 const DOWNLOAD_URL_RE = /https?:\/\/\S+\/download\/[^\s)]+\.zip/gi;
 
 function linkRenderer({ href, children }) {
@@ -27,6 +29,35 @@ function linkRenderer({ href, children }) {
   );
 }
 
+function wordCount(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+async function handleExport(message, format) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: message.text,
+        format,
+        title: message.exportReady.title,
+        doc_type: message.exportReady.doc_type,
+      }),
+    });
+    if (!res.ok) throw new Error('Export failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = message.exportReady.title + (format === 'pdf' ? '.pdf' : '.docx');
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    alert('Export failed — please try again.');
+  }
+}
+
 export function MessageBubble({ message, isStreaming }) {
   if (message.role === 'user') {
     return (
@@ -37,6 +68,7 @@ export function MessageBubble({ message, isStreaming }) {
   }
 
   const showCursor = isStreaming && !message.error;
+  const wc = message.text ? wordCount(message.text) : 0;
 
   return (
     <div className="message-zeus">
@@ -53,6 +85,10 @@ export function MessageBubble({ message, isStreaming }) {
             </ReactMarkdown>
             {showCursor && <span className="cursor">▍</span>}
           </div>
+        )}
+
+        {!isStreaming && wc >= 50 && (
+          <div className="word-count">~{wc} words</div>
         )}
 
         {message.tools?.length > 0 && (
@@ -80,6 +116,26 @@ export function MessageBubble({ message, isStreaming }) {
                 ⬇ Download {d.filename}
               </a>
             ))}
+          </div>
+        )}
+
+        {message.exportReady && (
+          <div className="export-bar">
+            <span className="export-label">Export as:</span>
+            <button
+              className="export-btn"
+              onClick={() => handleExport(message, 'pdf')}
+              type="button"
+            >
+              ⬇ PDF
+            </button>
+            <button
+              className="export-btn"
+              onClick={() => handleExport(message, 'docx')}
+              type="button"
+            >
+              ⬇ Word
+            </button>
           </div>
         )}
 

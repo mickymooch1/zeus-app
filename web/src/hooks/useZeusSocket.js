@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+const EXPORT_TAG_RE = /\[ZEUS_EXPORT:[^\]]+\]/gi;
 
 let _msgId = 0;
 const nextId = () => ++_msgId;
@@ -23,6 +24,7 @@ export function useZeusSocket(token) {
 
     const userMsgId = nextId();
     const zeusMsgId = nextId();
+    let partialTagBuffer = '';
 
     setMessages(prev => [
       ...prev,
@@ -49,9 +51,26 @@ export function useZeusSocket(token) {
       const data = JSON.parse(e.data);
 
       if (data.type === 'text') {
-        setMessages(prev => prev.map(m =>
-          m.id === zeusMsgId ? { ...m, text: m.text + data.delta } : m
-        ));
+        // Combine any buffered partial tag with new delta
+        let combined = partialTagBuffer + data.delta;
+        partialTagBuffer = '';
+
+        // Strip any complete export tags
+        combined = combined.replace(EXPORT_TAG_RE, '');
+
+        // Check if the end of combined text starts a partial tag
+        const partialMatch = combined.match(/\[ZEUS_EXPORT[^\]]*$/i);
+        if (partialMatch) {
+          // Hold the partial tag in buffer, don't display it yet
+          partialTagBuffer = partialMatch[0];
+          combined = combined.slice(0, combined.length - partialMatch[0].length);
+        }
+
+        if (combined) {
+          setMessages(prev => prev.map(m =>
+            m.id === zeusMsgId ? { ...m, text: m.text + combined } : m
+          ));
+        }
       } else if (data.type === 'tool') {
         setMessages(prev => prev.map(m => {
           if (m.id !== zeusMsgId) return m;
@@ -99,6 +118,12 @@ export function useZeusSocket(token) {
         setStreaming(false);
         streamingRef.current = false;
         ws.close();
+      } else if (data.type === 'export_ready') {
+        setMessages(prev => prev.map(m =>
+          m.id === zeusMsgId
+            ? { ...m, exportReady: { doc_type: data.doc_type, title: data.title } }
+            : m
+        ));
       } else if (data.type === 'done') {
         setStreaming(false);
         streamingRef.current = false;
