@@ -216,6 +216,24 @@ TOOLS = [
         },
     },
     {
+        "name": "SendEmail",
+        "description": (
+            "Send an email on behalf of the user via Gmail. "
+            "Use this to send client proposals, follow-ups, invoices, or any other email. "
+            "Always confirm the recipient, subject, and body with the user before sending."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "to":      {"type": "string", "description": "Recipient email address"},
+                "subject": {"type": "string", "description": "Email subject line"},
+                "body":    {"type": "string", "description": "Plain text email body"},
+                "cc":      {"type": "string", "description": "CC email address (optional)"},
+            },
+            "required": ["to", "subject", "body"],
+        },
+    },
+    {
         "name": "GenerateImage",
         "description": (
             "Generate an image from a text prompt using AI and return a URL the user can view. "
@@ -444,6 +462,38 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
         elif name == "WebFetch":
             resp = httpx.get(inp["url"], timeout=20, follow_redirects=True)
             return resp.text[:8000]
+
+        elif name == "SendEmail":
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+
+            smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
+            smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+            if not smtp_email or not smtp_password:
+                return "Error: SMTP_EMAIL and SMTP_PASSWORD environment variables are not set."
+
+            msg = MIMEMultipart()
+            msg["From"] = smtp_email
+            msg["To"] = inp["to"]
+            msg["Subject"] = inp["subject"]
+            if inp.get("cc"):
+                msg["Cc"] = inp["cc"]
+            msg.attach(MIMEText(inp["body"], "plain"))
+
+            recipients = [inp["to"]]
+            if inp.get("cc"):
+                recipients.append(inp["cc"])
+
+            try:
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+                    server.login(smtp_email, smtp_password)
+                    server.sendmail(smtp_email, recipients, msg.as_string())
+                return f"Email sent to {inp['to']} — Subject: {inp['subject']}"
+            except smtplib.SMTPAuthenticationError:
+                return "Error: Gmail authentication failed. Make sure SMTP_PASSWORD is an App Password, not your regular Gmail password."
+            except smtplib.SMTPException as exc:
+                return f"Error sending email: {exc}"
 
         elif name == "GenerateImage":
             import urllib.parse
