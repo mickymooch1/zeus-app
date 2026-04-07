@@ -216,6 +216,23 @@ TOOLS = [
         },
     },
     {
+        "name": "GenerateImage",
+        "description": (
+            "Generate an image from a text prompt using AI and return a URL the user can view. "
+            "Use this when asked to create, design, or visualise anything — logos, banners, "
+            "illustrations, mockups, background images, etc."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "prompt": {"type": "string", "description": "Detailed description of the image to generate"},
+                "width":  {"type": "integer", "description": "Image width in pixels (default 1024)"},
+                "height": {"type": "integer", "description": "Image height in pixels (default 1024)"},
+            },
+            "required": ["prompt"],
+        },
+    },
+    {
         "name": "StockPrice",
         "description": (
             "Get the real-time or latest stock price and key stats for any ticker symbol. "
@@ -427,6 +444,22 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
         elif name == "WebFetch":
             resp = httpx.get(inp["url"], timeout=20, follow_redirects=True)
             return resp.text[:8000]
+
+        elif name == "GenerateImage":
+            import urllib.parse
+            prompt = inp["prompt"]
+            width  = int(inp.get("width", 1024))
+            height = int(inp.get("height", 1024))
+            encoded = urllib.parse.quote(prompt)
+            url = f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&nologo=true"
+            # Verify the image is reachable
+            try:
+                check = httpx.head(url, timeout=20, follow_redirects=True)
+                if check.status_code >= 400:
+                    return f"Image generation failed (HTTP {check.status_code}). Try a different prompt."
+            except Exception:
+                pass  # Return the URL anyway — HEAD may be blocked but GET will work
+            return f"Generated image URL: {url}\n\nPrompt used: {prompt}"
 
         elif name == "StockPrice":
             ticker = inp["ticker"].upper().strip()
