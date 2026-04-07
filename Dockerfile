@@ -1,4 +1,4 @@
-# Stage 1: Build React frontend — cache bust 2026-04-07
+# Stage 1: Build React frontend — cache bust 2026-04-07b
 FROM node:20-slim AS frontend
 WORKDIR /web
 COPY web/package*.json ./
