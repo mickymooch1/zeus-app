@@ -165,6 +165,7 @@ body {
   cursor: pointer; transition: background 0.15s;
 }
 .download-btn:hover { background: rgba(96,165,250,0.25); }
+.download-btn--inline { display: inline-flex; margin: 2px 4px; vertical-align: middle; }
 
 .error-banner {
   margin-top: 8px;

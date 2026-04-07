@@ -1,3 +1,35 @@
+const DOWNLOAD_RE = /https?:\/\/\S+\/download\/\S+\.zip/gi;
+
+function renderTextWithDownloads(text) {
+  if (!text) return null;
+  const parts = [];
+  let last = 0;
+  let match;
+  const re = new RegExp(DOWNLOAD_RE.source, 'gi');
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) {
+      parts.push(text.slice(last, match.index));
+    }
+    const url = match[0];
+    const filename = url.split('/').pop().split('_').slice(1).join('_') || url.split('/').pop();
+    parts.push(
+      <a
+        key={match.index}
+        href={url}
+        download={filename}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="download-btn download-btn--inline"
+      >
+        ⬇ Download {filename}
+      </a>
+    );
+    last = match.index + url.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts.length > 0 ? parts : text;
+}
+
 export function MessageBubble({ message, isStreaming }) {
   if (message.role === 'user') {
     return (
@@ -8,6 +40,7 @@ export function MessageBubble({ message, isStreaming }) {
   }
 
   const showCursor = isStreaming && !message.error;
+  const textContent = renderTextWithDownloads(message.text);
 
   return (
     <div className="message-zeus">
@@ -17,7 +50,7 @@ export function MessageBubble({ message, isStreaming }) {
 
         {(message.text || showCursor) && (
           <div className="zeus-text">
-            {message.text}
+            {textContent}
             {showCursor && <span className="cursor">▍</span>}
           </div>
         )}
