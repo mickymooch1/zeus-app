@@ -36,7 +36,14 @@ export function MessageBubble({ message, isStreaming }) {
         {message.downloads?.length > 0 && (
           <div className="download-list">
             {message.downloads.map((d, i) => (
-              <a key={i} href={d.url} download={d.filename} className="download-btn">
+              <a
+                key={i}
+                href={d.url}
+                download={d.filename}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="download-btn"
+              >
                 ⬇ Download {d.filename}
               </a>
             ))}
