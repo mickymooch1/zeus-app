@@ -840,6 +840,12 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                             data=content
                         )
 
+                requests.patch(
+                    f"https://api.netlify.com/api/v1/deploys/{deploy_id}",
+                    headers=headers,
+                    json={"state": "ready"}
+                )
+
                 site_url = f"https://{site_name}.netlify.app"
                 return f"✅ Successfully deployed to Netlify!\n🌐 Live URL: {site_url}\n📁 Site ID: {site_id}"
 
