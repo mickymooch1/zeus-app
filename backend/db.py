@@ -52,7 +52,7 @@ def _conn(db_path: pathlib.Path):
 
 
 def init_user_tables(db_path: pathlib.Path) -> None:
-    """Create users and monthly_usage tables if they don't exist."""
+    """Create users, monthly_usage, and tasks tables if they don't exist."""
     conn = _conn(db_path)
     try:
         conn.executescript("""
@@ -77,6 +77,18 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 messages    INTEGER DEFAULT 0,
                 PRIMARY KEY (user_id, month)
             );
+
+            CREATE TABLE IF NOT EXISTS tasks (
+                id           TEXT PRIMARY KEY,
+                user_id      TEXT NOT NULL,
+                description  TEXT NOT NULL,
+                status       TEXT NOT NULL DEFAULT 'pending',
+                result       TEXT,
+                live_url     TEXT,
+                created_at   TEXT NOT NULL,
+                completed_at TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks (user_id);
         """)
         # Migrate existing tables — ignore error if column already exists
         try:
@@ -214,6 +226,80 @@ def reset_monthly_usage(db_path: pathlib.Path, user_id: str) -> None:
     conn = _conn(db_path)
     try:
         conn.execute("DELETE FROM monthly_usage WHERE user_id = ?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ── Background task CRUD ──────────────────────────────────────────────────────
+
+def create_task(db_path: pathlib.Path, user_id: str, description: str) -> dict:
+    """Insert a new pending task and return the row as a dict."""
+    now = datetime.now(timezone.utc).isoformat()
+    task_id = str(uuid.uuid4())
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """
+            INSERT INTO tasks (id, user_id, description, status, created_at)
+            VALUES (?, ?, ?, 'pending', ?)
+            """,
+            (task_id, user_id, description, now),
+        )
+        conn.commit()
+        return get_task(db_path, task_id)
+    finally:
+        conn.close()
+
+
+def update_task(db_path: pathlib.Path, task_id: str, **fields) -> None:
+    """Update one or more columns on a task row."""
+    if not fields:
+        return
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [task_id]
+    conn = _conn(db_path)
+    try:
+        conn.execute(f"UPDATE tasks SET {set_clause} WHERE id = ?", values)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_task(db_path: pathlib.Path, task_id: str) -> dict | None:
+    """Fetch a single task by ID."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM tasks WHERE id = ?", (task_id,)
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def get_tasks_for_user(db_path: pathlib.Path, user_id: str) -> list:
+    """Return all tasks for a user, newest first."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def fail_stale_tasks(db_path: pathlib.Path) -> None:
+    """Mark any 'running' tasks as 'failed' — called at startup after a restart."""
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE tasks SET status = 'failed', completed_at = ? WHERE status = 'running'",
+            (now,),
+        )
         conn.commit()
     finally:
         conn.close()
