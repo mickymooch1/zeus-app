@@ -1,4 +1,18 @@
 {
   "name": "ZeusMobile",
-  "displayName": "ZeusMobile"
+  "displayName": "Zeus AI",
+  "icon": "./assets/icon.png",
+  "splash": {
+    "image": "./assets/splash.png",
+    "resizeMode": "cover"
+  },
+  "android": {
+    "icon": "./assets/icon.png",
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/icon.png"
+    }
+  },
+  "ios": {
+    "icon": "./assets/icon.png"
+  }
 }
