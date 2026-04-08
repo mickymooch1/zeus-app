@@ -116,4 +116,8 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Required by react-native-image-picker when minSdkVersion < 30
+    // Provides the backported AndroidX Photo Picker
+    implementation("androidx.activity:activity:1.9.+")
 }
