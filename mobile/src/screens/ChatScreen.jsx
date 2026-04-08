@@ -3,6 +3,7 @@ import {
   View, FlatList, StyleSheet, StatusBar,
   KeyboardAvoidingView, Platform, Text, TouchableOpacity,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useZeusSocket } from '../hooks/useZeusSocket';
 import { MessageBubble } from '../components/MessageBubble';
@@ -27,15 +28,26 @@ export function ChatScreen({ navigation, route }) {
     }
   }, [route.params?.sessionId, loadSession]);
 
+  const handleLogout = useCallback(async () => {
+    await AsyncStorage.removeItem('zeus_token');
+    newSession();
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+  }, [navigation, newSession]);
+
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          onPress={() => { loadedSessionRef.current = null; newSession(); }}
-          style={{ marginRight: 16 }}
-        >
-          <Text style={{ color: '#a78bfa', fontSize: 13, fontWeight: '600' }}>New</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+          <TouchableOpacity
+            onPress={() => { loadedSessionRef.current = null; newSession(); }}
+            style={{ marginRight: 12 }}
+          >
+            <Text style={{ color: '#a78bfa', fontSize: 13, fontWeight: '600' }}>New</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={{ padding: 4 }}>
+            <Text style={{ color: '#888', fontSize: 18 }}>⏻</Text>
+          </TouchableOpacity>
+        </View>
       ),
       headerLeft: () => (
         <TouchableOpacity onPress={() => navigation.navigate('Sessions')} style={{ marginLeft: 16 }}>
@@ -43,7 +55,7 @@ export function ChatScreen({ navigation, route }) {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, newSession]);
+  }, [navigation, newSession, handleLogout]);
 
   const renderMessage = useCallback(({ item, index }) => (
     <MessageBubble
