@@ -156,9 +156,9 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p>
-            To exercise any of these rights, contact us at privacy@zeusai.co.uk. We will respond
-            within one month. You also have the right to lodge a complaint with the Information
-            Commissioner's Office (ICO) at ico.org.uk.
+            To exercise any of these rights, contact us at rowlemichael1@gmail.com. We will
+            respond within one month. You also have the right to lodge a complaint with the
+            Information Commissioner's Office (ICO) at ico.org.uk.
           </p>
         </section>
 
@@ -208,13 +208,19 @@ export default function PrivacyPage() {
         <section className="content-section">
           <h2>10. Contact &amp; Data Controller</h2>
           <p>
-            Zeus is the data controller for personal data processed through the Service.
+            Aero Space Parking Ltd (trading as Zeus AI Design) is the data controller for
+            personal data processed through the Service. Aero Space Parking Ltd (trading as
+            Zeus AI Design) is registered with the Information Commissioner's Office (ICO),
+            registration number C1903581.
           </p>
           <address className="content-address">
-            Zeus<br />
+            Aero Space Parking Ltd<br />
+            Trading as: Zeus AI Design<br />
+            Company number: 17141941<br />
+            Registered in England and Wales<br />
             Data Protection Enquiries:<br />
-            Email: <a href="mailto:privacy@zeusai.co.uk" className="auth-link">privacy@zeusai.co.uk</a><br />
-            Website: <a href="https://zeusai.co.uk" className="auth-link">zeusai.co.uk</a>
+            Email: <a href="mailto:rowlemichael1@gmail.com" className="auth-link">rowlemichael1@gmail.com</a><br />
+            Website: <a href="https://zeusaidesign.com" className="auth-link">zeusaidesign.com</a>
           </address>
         </section>
       </main>

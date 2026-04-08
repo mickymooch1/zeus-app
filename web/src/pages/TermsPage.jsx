@@ -238,7 +238,9 @@ export default function TermsPage() {
             registered in England and Wales) is committed to protecting your personal data in
             accordance with the UK General Data Protection Regulation (UK GDPR), the Data
             Protection Act 2018, and applicable EU GDPR requirements. We act as the data
-            controller for personal data processed through the Service.
+            controller for personal data processed through the Service. Aero Space Parking Ltd
+            (trading as Zeus AI Design) is registered with the Information Commissioner's Office
+            (ICO), registration number C1903581.
           </p>
           <p>
             <strong>Data we collect:</strong> We collect account information (name, email,
