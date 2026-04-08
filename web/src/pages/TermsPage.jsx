@@ -16,9 +16,11 @@ export default function TermsPage() {
           <p>
             By accessing or using Zeus AI Design ("the Service"), you agree to be bound by these
             Terms &amp; Conditions ("Terms"). If you do not agree to these Terms, you must not use
-            the Service. These Terms constitute a legally binding agreement between you and Zeus AI
-            Design ("we", "us", "our"). We reserve the right to update these Terms at any time.
-            Continued use of the Service after changes constitutes acceptance of the updated Terms.
+            the Service. These Terms constitute a legally binding agreement between you and Aero
+            Space Parking Ltd (company number 17141941), trading as Zeus AI Design ("we", "us",
+            "our"), a company registered in England and Wales. We reserve the right to update these
+            Terms at any time. Continued use of the Service after changes constitutes acceptance of
+            the updated Terms.
           </p>
         </section>
 
@@ -132,7 +134,7 @@ export default function TermsPage() {
             We offer a <strong>7-day refund window</strong> from the date of your initial
             subscription payment. If you are not satisfied with the Service, you may request a
             full refund within 7 days of your first payment by contacting us at{' '}
-            <a href="mailto:support@zeusai.co.uk" className="auth-link">support@zeusai.co.uk</a>.
+            <a href="mailto:rowlemichael1@gmail.com" className="auth-link">rowlemichael1@gmail.com</a>.
           </p>
           <p>
             <strong>After 7 days, no refunds will be issued</strong> for any subscription fees
@@ -158,7 +160,7 @@ export default function TermsPage() {
           <p>
             You may cancel your subscription at any time through the Billing section of your
             account or by contacting us at{' '}
-            <a href="mailto:support@zeusai.co.uk" className="auth-link">support@zeusai.co.uk</a>.
+            <a href="mailto:rowlemichael1@gmail.com" className="auth-link">rowlemichael1@gmail.com</a>.
           </p>
           <p>
             Upon cancellation:
@@ -232,10 +234,11 @@ export default function TermsPage() {
         <section className="content-section">
           <h2>10. Data Protection &amp; GDPR</h2>
           <p>
-            Zeus AI Design is committed to protecting your personal data in accordance with the
-            UK General Data Protection Regulation (UK GDPR), the Data Protection Act 2018, and
-            applicable EU GDPR requirements. We act as the data controller for personal data
-            processed through the Service.
+            Aero Space Parking Ltd (trading as Zeus AI Design, company number 17141941,
+            registered in England and Wales) is committed to protecting your personal data in
+            accordance with the UK General Data Protection Regulation (UK GDPR), the Data
+            Protection Act 2018, and applicable EU GDPR requirements. We act as the data
+            controller for personal data processed through the Service.
           </p>
           <p>
             <strong>Data we collect:</strong> We collect account information (name, email,
@@ -252,7 +255,7 @@ export default function TermsPage() {
             <strong>Your rights:</strong> Under UK GDPR, you have the right to access, rectify,
             erase, and port your personal data, as well as the right to restrict or object to
             processing. To exercise your rights, contact us at{' '}
-            <a href="mailto:privacy@zeusai.co.uk" className="auth-link">privacy@zeusai.co.uk</a>.
+            <a href="mailto:rowlemichael1@gmail.com" className="auth-link">rowlemichael1@gmail.com</a>.
             You also have the right to lodge a complaint with the Information Commissioner's
             Office (ICO) at{' '}
             <a
@@ -302,7 +305,7 @@ export default function TermsPage() {
           </p>
           <p>
             You may terminate your account at any time by contacting us at{' '}
-            <a href="mailto:support@zeusai.co.uk" className="auth-link">support@zeusai.co.uk</a>.
+            <a href="mailto:rowlemichael1@gmail.com" className="auth-link">rowlemichael1@gmail.com</a>.
             Termination does not entitle you to a refund of any prepaid subscription fees outside
             the 7-day refund window.
           </p>
@@ -327,13 +330,14 @@ export default function TermsPage() {
             If you have any questions about these Terms, please contact us at:
           </p>
           <address className="content-address">
-            Zeus AI Design<br />
-            Legal Enquiries:{' '}
-            <a href="mailto:legal@zeusai.co.uk" className="auth-link">legal@zeusai.co.uk</a><br />
-            Support:{' '}
-            <a href="mailto:support@zeusai.co.uk" className="auth-link">support@zeusai.co.uk</a><br />
+            Aero Space Parking Ltd<br />
+            Trading as: Zeus AI Design<br />
+            Company number: 17141941<br />
+            Registered in England and Wales<br />
+            Email:{' '}
+            <a href="mailto:rowlemichael1@gmail.com" className="auth-link">rowlemichael1@gmail.com</a><br />
             Website:{' '}
-            <a href="https://zeusai.co.uk" className="auth-link">zeusai.co.uk</a>
+            <a href="https://zeusaidesign.com" className="auth-link">zeusaidesign.com</a>
           </address>
         </section>
       </main>
