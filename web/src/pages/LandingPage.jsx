@@ -336,6 +336,8 @@ export default function LandingPage() {
             <Link to="/login">Sign In</Link>
             <a href="#pricing">Pricing</a>
             <a href="#features">Features</a>
+            <Link to="/terms">Terms</Link>
+            <Link to="/privacy">Privacy Policy</Link>
           </div>
         </div>
       </footer>
