@@ -434,7 +434,33 @@ TOOLS = [
             "required": ["project_folder"]
         }
     },
+    {
+        "name": "MultiAgentBuild",
+        "description": (
+            "Run a full multi-agent website build pipeline: "
+            "Planner → Researcher → Builder → Deployer. "
+            "The Planner writes a detailed brief, the Researcher finds competitor sites and design "
+            "inspiration, the Builder writes the complete website, and the Deployer publishes it to "
+            "Netlify and returns the live URL. Each agent streams its output in real time. "
+            "Enterprise plan only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "request": {
+                    "type": "string",
+                    "description": "The user's website build request — business type, goals, and any preferences",
+                },
+            },
+            "required": ["request"],
+        },
+    },
 ]
+
+# ── Restricted tool sets for each sub-agent ───────────────────────────────────
+_RESEARCHER_TOOLS = [t for t in TOOLS if t["name"] in ("WebSearch", "WebFetch")]
+_BUILDER_TOOLS    = [t for t in TOOLS if t["name"] in ("Write", "Read", "Edit", "Glob")]
+_DEPLOYER_TOOLS   = [t for t in TOOLS if t["name"] in ("DeployToNetlify",)]
 
 def _safe_home() -> pathlib.Path:
     try:
@@ -1225,6 +1251,281 @@ def _build_memory_context(history: HistoryStore) -> str:
     return "## Zeus Live Context\n\n" + "\n\n".join(parts)
 
 
+async def _run_agent_loop(
+    prompt: str,
+    system_prompt: str,
+    tools: list,
+    on_message: Callable[[dict[str, Any]], Awaitable[None]],
+    history: "HistoryStore",
+    stage_label: str,
+    max_turns: int = 30,
+) -> str:
+    """
+    Run a focused single-purpose agentic loop and return the final text output.
+    Emits the stage header immediately, then streams text deltas and tool events
+    via on_message. Raises RuntimeError if the loop exits without producing text.
+    """
+    client = get_anthropic_client()
+    messages: list[dict] = [{"role": "user", "content": prompt}]
+    text_parts: list[str] = []
+
+    # Emit stage header before any work begins
+    await on_message({"type": "text", "delta": f"\n\n**{stage_label}**\n"})
+
+    for _ in range(max_turns):
+        tool_blocks: dict[int, dict] = {}
+
+        stream_kwargs: dict[str, Any] = {
+            "model": "claude-sonnet-4-6",
+            "max_tokens": 8000,
+            "system": system_prompt,
+            "messages": messages,
+        }
+        if tools:
+            stream_kwargs["tools"] = tools
+
+        async with client.messages.stream(**stream_kwargs) as stream:
+            async for event in stream:
+                etype = event.type
+
+                if etype == "content_block_start":
+                    if event.content_block.type == "tool_use":
+                        tool_blocks[event.index] = {
+                            "id": event.content_block.id,
+                            "name": event.content_block.name,
+                            "json": "",
+                            "input": {},
+                        }
+
+                elif etype == "content_block_delta":
+                    delta = event.delta
+                    if delta.type == "text_delta":
+                        text_parts.append(delta.text)
+                        await on_message({"type": "text", "delta": delta.text})
+                    elif delta.type == "input_json_delta":
+                        if event.index in tool_blocks:
+                            tool_blocks[event.index]["json"] += delta.partial_json
+
+                elif etype == "content_block_stop":
+                    if event.index in tool_blocks:
+                        tb = tool_blocks[event.index]
+                        try:
+                            tb["input"] = json.loads(tb["json"]) if tb["json"] else {}
+                        except json.JSONDecodeError:
+                            tb["input"] = {}
+                        path = (
+                            tb["input"].get("file_path")
+                            or tb["input"].get("path")
+                            or tb["input"].get("url", "")
+                        )
+                        await on_message({
+                            "type": "tool",
+                            "name": tb["name"],
+                            "path": path,
+                            "status": "running",
+                        })
+
+            final = await stream.get_final_message()
+
+        safe_content = [s for b in final.content if (s := _sanitise_block(b)) is not None]
+        messages.append({"role": "assistant", "content": safe_content})
+
+        if final.stop_reason != "tool_use" or not tool_blocks:
+            break
+
+        tool_results = []
+        for idx in sorted(tool_blocks):
+            tb = tool_blocks[idx]
+            result = _run_tool(tb["name"], tb["input"], history)
+            path = (
+                tb["input"].get("file_path")
+                or tb["input"].get("path")
+                or tb["input"].get("url", "")
+            )
+            await on_message({
+                "type": "tool",
+                "name": tb["name"],
+                "path": path,
+                "status": "done",
+            })
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": tb["id"],
+                "content": result,
+            })
+
+        messages.append({"role": "user", "content": tool_results})
+
+    return "".join(text_parts).strip()
+
+
+async def run_multi_agent(
+    request: str,
+    on_message: Callable[[dict[str, Any]], Awaitable[None]],
+    history: "HistoryStore",
+    user_id: str | None = None,
+) -> str:
+    """
+    Planner → Researcher → Builder → Deployer pipeline.
+    Streams all agent output live via on_message.
+    Enterprise plan required.
+    """
+    # ── Enterprise gating ─────────────────────────────────────────────────────
+    if user_id:
+        try:
+            import db as _db
+            _db_path = _db.get_db_path()
+            _user = _db.get_user_by_id(_db_path, user_id)
+            if _user:
+                _plan   = _user.get("subscription_plan") or "free"
+                _status = _user.get("subscription_status", "free")
+                if not (_status == "active" and _plan == "enterprise"):
+                    msg = (
+                        "❌ **MultiAgentBuild requires an Enterprise plan.** "
+                        "Upgrade at zeusaidesign.com/pricing to unlock this feature."
+                    )
+                    await on_message({"type": "text", "delta": msg})
+                    return "Enterprise plan required."
+        except Exception:
+            log.warning("run_multi_agent: could not verify enterprise plan for user %s", user_id)
+
+    # ── Stage 1: Planner ──────────────────────────────────────────────────────
+    planner_system = """\
+You are the Planner in a multi-agent website build pipeline.
+
+Your job: read the user's request and produce a structured website brief.
+Write the following fields clearly, each on its own line:
+
+SITE_NAME: <url-slug e.g. mikes-plumbing-london>
+Business: <what the business does>
+Target audience: <who the site is for>
+Pages: <comma-separated list e.g. Home, About, Services, Contact>
+Design style: <visual tone e.g. modern/minimal, bold/colourful, corporate>
+Colour scheme: <2-3 hex colours>
+Key features: <specific functionality or content points>
+Tone: <voice/personality for the copy>
+
+Be specific and actionable. The Researcher and Builder will use this brief directly.\
+"""
+    try:
+        planner_output = await _run_agent_loop(
+            prompt=f"Create a website brief for: {request}",
+            system_prompt=planner_system,
+            tools=[],
+            on_message=on_message,
+            history=history,
+            stage_label="🧠 Planner Agent",
+        )
+    except Exception as exc:
+        await on_message({"type": "text", "delta": f"\n\n❌ **Planner failed:** {exc}\n"})
+        return f"Pipeline aborted: Planner failed — {exc}"
+
+    # Extract site name from planner output
+    site_name = "zeus-build"
+    for line in planner_output.splitlines():
+        stripped = line.strip()
+        if stripped.upper().startswith("SITE_NAME:"):
+            raw = stripped.split(":", 1)[1].strip().lower()
+            slug = re.sub(r"[^a-z0-9-]+", "-", raw).strip("-")
+            if slug:
+                site_name = slug
+            break
+
+    # ── Stage 2: Researcher ───────────────────────────────────────────────────
+    researcher_system = """\
+You are the Researcher in a multi-agent website build pipeline.
+
+Given a website brief, your job:
+1. Search for 3 real competitor or inspiration websites in the same niche
+2. Fetch a key page from each to note design patterns, navigation structure, and copy style
+3. Identify 2–3 concrete design inspiration points (colour usage, layout, typography)
+
+Output a clear research summary the Builder can use directly.
+Include actual URLs and specific, actionable observations.\
+"""
+    researcher_prompt = (
+        f"Website brief from Planner:\n\n{planner_output}\n\n"
+        "Find 3 competitor/inspiration sites and summarise what the Builder should take from them."
+    )
+    try:
+        researcher_output = await _run_agent_loop(
+            prompt=researcher_prompt,
+            system_prompt=researcher_system,
+            tools=_RESEARCHER_TOOLS,
+            on_message=on_message,
+            history=history,
+            stage_label="🔍 Researcher Agent",
+        )
+    except Exception as exc:
+        await on_message({"type": "text", "delta": f"\n\n❌ **Researcher failed:** {exc}\n"})
+        return f"Pipeline aborted: Researcher failed — {exc}"
+
+    # ── Stage 3: Builder ──────────────────────────────────────────────────────
+    builder_system = f"""\
+You are the Builder in a multi-agent website build pipeline.
+
+Given a brief and competitor research, your job:
+1. Build a complete, modern, responsive website
+2. Write all files to /data/projects/{site_name}/
+3. index.html must be the main entry point
+4. Embed CSS in a <style> block or write it to style.css; embed JS inline or to script.js
+5. Use the brief's colour scheme, tone, and design style
+6. Draw on the research to inform layout, copy quality, and design choices
+7. Production-ready: mobile-first, semantic HTML, smooth hover/scroll interactions
+
+When done, confirm which files were written.\
+"""
+    builder_prompt = (
+        f"Brief from Planner:\n{planner_output}\n\n"
+        f"Research from Researcher:\n{researcher_output}\n\n"
+        f"Build the complete website. Write all files to /data/projects/{site_name}/"
+    )
+    try:
+        builder_output = await _run_agent_loop(
+            prompt=builder_prompt,
+            system_prompt=builder_system,
+            tools=_BUILDER_TOOLS,
+            on_message=on_message,
+            history=history,
+            stage_label="🏗️ Builder Agent",
+        )
+    except Exception as exc:
+        await on_message({"type": "text", "delta": f"\n\n❌ **Builder failed:** {exc}\n"})
+        return f"Pipeline aborted: Builder failed — {exc}"
+
+    # ── Stage 4: Deployer ─────────────────────────────────────────────────────
+    deployer_system = """\
+You are the Deployer in a multi-agent website build pipeline.
+
+Your only job: call DeployToNetlify with the project folder and site name, then
+report the live URL clearly. Do nothing else.\
+"""
+    deployer_prompt = (
+        f"The Builder has finished writing the website.\n\n"
+        f"Deploy it now using DeployToNetlify:\n"
+        f"  project_folder = \"{site_name}\"\n"
+        f"  site_name      = \"{site_name}\"\n\n"
+        "Confirm the live URL when done."
+    )
+    try:
+        deployer_output = await _run_agent_loop(
+            prompt=deployer_prompt,
+            system_prompt=deployer_system,
+            tools=_DEPLOYER_TOOLS,
+            on_message=on_message,
+            history=history,
+            stage_label="🚀 Deployer Agent",
+        )
+    except Exception as exc:
+        await on_message({"type": "text", "delta": f"\n\n❌ **Deployer failed:** {exc}\n"})
+        return (
+            f"Website built at /data/projects/{site_name}/ but deployment failed — {exc}\n"
+            "You can deploy manually from the Builder's output."
+        )
+
+    return deployer_output
+
+
 async def run_turn_stream(
     prompt: str,
     session_id: str | None,
@@ -1350,7 +1651,16 @@ async def run_turn_stream(
             tool_results = []
             for idx in sorted(tool_blocks):
                 tb = tool_blocks[idx]
-                result = _run_tool(tb["name"], tb["input"], history)
+                # MultiAgentBuild is async — handle inline rather than via _run_tool
+                if tb["name"] == "MultiAgentBuild":
+                    result = await run_multi_agent(
+                        request=tb["input"].get("request", ""),
+                        on_message=on_message,
+                        history=history,
+                        user_id=user_id,
+                    )
+                else:
+                    result = _run_tool(tb["name"], tb["input"], history)
                 path = (tb["input"].get("file_path")
                         or tb["input"].get("path")
                         or tb["input"].get("url", ""))
