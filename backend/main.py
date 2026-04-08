@@ -102,6 +102,54 @@ def generate_docx(text: str, title: str) -> bytes:
     return buf.getvalue()
 
 
+def _send_task_email(
+    user_email: str,
+    description: str,
+    live_url: str | None,
+    result: str,
+) -> None:
+    """Send a task completion email via Gmail SMTP. Silently skips if not configured."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
+    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+    if not smtp_email or not smtp_password:
+        log.warning("_send_task_email: SMTP_EMAIL/SMTP_PASSWORD not set — skipping")
+        return
+
+    subject = f"Zeus: Your background task is complete — {description}"
+    body = "\n".join([
+        "Your background task has finished.",
+        "",
+        f"Task: {description}",
+        f"Live URL: {live_url or 'See result below'}",
+        "",
+        "Result:",
+        result[:2000],
+        "",
+        "— Zeus AI Design",
+        "zeusaidesign.com",
+    ])
+
+    msg = MIMEMultipart()
+    msg["From"] = smtp_email
+    msg["To"] = user_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+            server.login(smtp_email, smtp_password)
+            server.sendmail(smtp_email, [user_email], msg.as_string())
+        log.info("_send_task_email: sent to %s", user_email)
+    except smtplib.SMTPAuthenticationError:
+        log.warning("_send_task_email: Gmail auth failed — check SMTP_PASSWORD is an App Password")
+    except smtplib.SMTPException as exc:
+        log.warning("_send_task_email: SMTP error: %s", exc)
+
+
 _RAILWAY = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
 _REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "").strip() == "1"
 
@@ -147,6 +195,8 @@ async def lifespan(app: FastAPI):
         _db_path = db.get_db_path()
         db.init_user_tables(_db_path)
         log.info("User tables initialised at %s", _db_path)
+        db.fail_stale_tasks(_db_path)
+        log.info("Stale running tasks marked as failed")
     except Exception:
         log.exception("FATAL: user table init failed")
         raise
@@ -492,6 +542,18 @@ async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
             await websocket.close()
         except Exception:
             pass
+
+
+# ── Tasks endpoints ───────────────────────────────────────────────────────────
+
+@app.get("/tasks")
+async def get_tasks(current_user: dict = Depends(auth.get_current_user)):
+    plan = current_user.get("subscription_plan")
+    status = current_user.get("subscription_status", "free")
+    if not (status == "active" and plan == "enterprise"):
+        raise HTTPException(status_code=403, detail="Enterprise plan required")
+    db_path = db.get_db_path()
+    return db.get_tasks_for_user(db_path, current_user["id"])
 
 
 # ── Existing REST endpoints ───────────────────────────────────────────────────
