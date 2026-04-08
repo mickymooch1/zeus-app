@@ -207,3 +207,13 @@ def increment_usage(db_path: pathlib.Path, user_id: str, month: str) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def reset_monthly_usage(db_path: pathlib.Path, user_id: str) -> None:
+    """Delete all monthly usage records for a user (e.g. on subscription downgrade)."""
+    conn = _conn(db_path)
+    try:
+        conn.execute("DELETE FROM monthly_usage WHERE user_id = ?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()

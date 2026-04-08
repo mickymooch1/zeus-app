@@ -47,6 +47,15 @@ PLANS: dict = {
 
 FREE_LIMIT = 20
 
+# Hardcoded Stripe price IDs — used to map a completed payment to a plan
+PRO_PRICE_ID = "price_1TJKE4K5Ou7aVaHMesQe02B5"
+AGENCY_PRICE_ID = "price_1TJKF9K5Ou7aVaHMqijE70Hw"
+
+_PRICE_ID_TO_PLAN = {
+    PRO_PRICE_ID: "pro",
+    AGENCY_PRICE_ID: "agency",
+}
+
 # ── Stripe setup ──────────────────────────────────────────────────────────────
 
 _STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
@@ -189,13 +198,43 @@ def _handle_event(event) -> None:
 
 def _handle_checkout_completed(db_path, session) -> None:
     """Handle successful checkout — activate subscription."""
-    user_id = session.get("metadata", {}).get("user_id")
-    plan = session.get("metadata", {}).get("plan")
+    customer_email = session.get("customer_email")
     customer_id = session.get("customer")
     subscription_id = session.get("subscription")
+    user_id = session.get("metadata", {}).get("user_id")
 
-    if not user_id:
-        log.warning("checkout.session.completed: no user_id in metadata")
+    # Determine plan from the subscription's price ID
+    plan = None
+    if subscription_id:
+        try:
+            stripe = _get_stripe()
+            sub = stripe.Subscription.retrieve(subscription_id)
+            price_id = sub["items"]["data"][0]["price"]["id"]
+            plan = _PRICE_ID_TO_PLAN.get(price_id)
+            if not plan:
+                log.warning("checkout.session.completed: unknown price_id %s", price_id)
+        except Exception as exc:
+            log.warning("Could not retrieve subscription to determine plan: %s", exc)
+
+    # Fall back to metadata plan if price_id lookup failed
+    if not plan:
+        plan = session.get("metadata", {}).get("plan")
+
+    # Find user — by email first, then by Stripe customer ID, then by metadata user_id
+    user = None
+    if customer_email:
+        user = db.get_user_by_email(db_path, customer_email)
+    if not user and customer_id:
+        user = _find_user_by_customer(db_path, customer_id)
+    if not user and user_id:
+        user = db.get_user_by_id(db_path, user_id)
+
+    if not user:
+        log.warning(
+            "checkout.session.completed: could not find user "
+            "(email=%s, customer=%s, user_id=%s)",
+            customer_email, customer_id, user_id,
+        )
         return
 
     updates = {
@@ -207,8 +246,8 @@ def _handle_checkout_completed(db_path, session) -> None:
     if subscription_id:
         updates["subscription_id"] = subscription_id
 
-    db.update_user(db_path, user_id, **updates)
-    log.info("Activated %s plan for user %s", plan, user_id)
+    db.update_user(db_path, user["id"], **updates)
+    log.info("Activated %s plan for user %s", plan, user["id"])
 
 
 def _handle_subscription_updated(db_path, subscription) -> None:
@@ -239,7 +278,7 @@ def _handle_subscription_updated(db_path, subscription) -> None:
 
 
 def _handle_subscription_deleted(db_path, subscription) -> None:
-    """Handle subscription cancellation — revert to free."""
+    """Handle subscription cancellation — revert to free and reset message count."""
     customer_id = subscription.get("customer")
     if not customer_id:
         return
@@ -253,7 +292,8 @@ def _handle_subscription_deleted(db_path, subscription) -> None:
                    subscription_status="free",
                    subscription_plan=None,
                    subscription_id=None)
-    log.info("Subscription cancelled for user %s — reverted to free", user["id"])
+    db.reset_monthly_usage(db_path, user["id"])
+    log.info("Subscription cancelled for user %s — reverted to free, usage reset", user["id"])
 
 
 def _find_user_by_customer(db_path, customer_id: str) -> dict | None:

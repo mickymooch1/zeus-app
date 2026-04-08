@@ -379,6 +379,25 @@ async def stripe_webhook(request: Request):
     return {"received": True}
 
 
+@app.post("/webhook/stripe")
+async def stripe_webhook_v2(request: Request):
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+
+    if not billing.stripe_enabled():
+        raise HTTPException(status_code=503, detail="Billing not configured")
+
+    try:
+        billing.handle_webhook(payload, sig)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        log.exception("Webhook handling error")
+        raise HTTPException(status_code=500, detail="Webhook processing failed")
+
+    return {"received": True}
+
+
 # ── WebSocket chat endpoint ───────────────────────────────────────────────────
 
 @app.websocket("/chat")
