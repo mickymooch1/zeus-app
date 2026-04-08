@@ -42,6 +42,17 @@ const DEFAULT_PLANS = {
       'Dedicated account manager',
     ],
   },
+  enterprise: {
+    name: 'Enterprise',
+    price: '£150/mo',
+    features: [
+      'Multi-agent AI',
+      'Background tasks',
+      'Scheduled automation',
+      'Appointment booking',
+      'Priority support',
+    ],
+  },
 };
 
 export default function PricingPage() {
@@ -194,6 +205,38 @@ export default function PricingPage() {
                   onClick={() => handleCheckout('agency')}
                 >
                   {loadingPlan === 'agency' ? <span className="spinner spinner--inline" /> : 'Upgrade to Agency'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Enterprise tier */}
+          <div className="pricing-card">
+            <div className="pricing-card-header">
+              <span className="badge-enterprise">Enterprise</span>
+              <div className="pricing-price">{plans.enterprise?.price || '£150/mo'}</div>
+              <p className="pricing-desc">Advanced automation for power users</p>
+            </div>
+            <ul className="pricing-features">
+              {(plans.enterprise?.features || DEFAULT_PLANS.enterprise.features).map((f) => (
+                <li key={f} className="plan-feature">
+                  <span className="plan-feature-check">✓</span>
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <div className="pricing-card-footer">
+              {isActive && currentPlan === 'enterprise' ? (
+                <Link to="/billing" className="btn btn-outline btn-full">
+                  Current Plan
+                </Link>
+              ) : (
+                <button
+                  className="btn btn-outline btn-full"
+                  disabled={loadingPlan === 'enterprise'}
+                  onClick={() => handleCheckout('enterprise')}
+                >
+                  {loadingPlan === 'enterprise' ? <span className="spinner spinner--inline" /> : 'Upgrade to Enterprise'}
                 </button>
               )}
             </div>

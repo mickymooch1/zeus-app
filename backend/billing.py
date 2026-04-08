@@ -43,6 +43,18 @@ PLANS: dict = {
             "Dedicated account manager",
         ],
     },
+    "enterprise": {
+        "name": "Enterprise",
+        "price": "£150/mo",
+        "price_id": os.environ.get("STRIPE_ENTERPRISE_PRICE_ID", "price_1TK3elK5Ou7aVaHMiJ3jg3L4"),
+        "features": [
+            "Multi-agent AI",
+            "Background tasks",
+            "Scheduled automation",
+            "Appointment booking",
+            "Priority support",
+        ],
+    },
 }
 
 FREE_LIMIT = 20
@@ -50,10 +62,12 @@ FREE_LIMIT = 20
 # Hardcoded Stripe price IDs — used to map a completed payment to a plan
 PRO_PRICE_ID = "price_1TJKE4K5Ou7aVaHMesQe02B5"
 AGENCY_PRICE_ID = "price_1TJKF9K5Ou7aVaHMqijE70Hw"
+ENTERPRISE_PRICE_ID = "price_1TK3elK5Ou7aVaHMiJ3jg3L4"
 
 _PRICE_ID_TO_PLAN = {
     PRO_PRICE_ID: "pro",
     AGENCY_PRICE_ID: "agency",
+    ENTERPRISE_PRICE_ID: "enterprise",
 }
 
 # ── Stripe setup ──────────────────────────────────────────────────────────────
