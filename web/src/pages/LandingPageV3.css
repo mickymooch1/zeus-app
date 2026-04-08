@@ -805,11 +805,97 @@
   .lp .price-featured:hover { transform: translateY(-4px); }
 }
 
+@media (max-width: 768px) {
+  /* Container */
+  .lp .container { padding: 0 16px; }
+
+  /* Hero */
+  .lp .hero { padding: 100px 0 60px; }
+  .lp .hero-title { font-size: clamp(2rem, 8vw, 2.8rem); }
+  .lp .hero-sub { font-size: 1rem; margin-bottom: 32px; }
+  .lp .hero-actions { flex-direction: column; align-items: stretch; width: 100%; max-width: 340px; }
+  .lp .hero-actions .btn-primary,
+  .lp .hero-actions .btn-ghost { width: 100%; justify-content: center; min-height: 52px; font-size: 1rem; }
+
+  /* Touch-friendly nav mobile menu links */
+  .lp .mobile-menu a { min-height: 48px; display: flex; align-items: center; }
+
+  /* Section spacing */
+  .lp .features { padding: 80px 0; }
+  .lp .capabilities { padding: 80px 0; }
+  .lp .pricing { padding: 80px 0; }
+  .lp .final-cta { padding: 60px 0; }
+  .lp .section-sub { margin-bottom: 40px; font-size: 1rem; }
+
+  /* Cards */
+  .lp .feat-card { padding: 20px; }
+  .lp .feat-lead { padding: 24px; }
+  .lp .price-card { padding: 28px 20px; }
+
+  /* Pricing — single column, no max-width clamp */
+  .lp .pricing-grid { grid-template-columns: 1fr; max-width: 100%; }
+  .lp .price-featured { transform: none; }
+  .lp .price-featured:hover { transform: translateY(-4px); }
+
+  /* Buttons — 48px minimum touch target */
+  .lp .btn-lg { min-height: 52px; padding: 14px 28px; }
+  .lp .btn-plan-primary,
+  .lp .btn-plan-ghost { min-height: 48px; display: flex; align-items: center; justify-content: center; }
+  .lp .btn-nav-ghost,
+  .lp .btn-nav-primary { min-height: 44px; display: flex; align-items: center; }
+
+  /* Terminal */
+  .lp .terminal-body { font-size: 0.72rem; padding: 14px; }
+
+  /* CTA */
+  .lp .cta-box { padding: 56px 24px; }
+  .lp .cta-box h2 { font-size: clamp(1.6rem, 6vw, 2.2rem); }
+
+  /* Footer */
+  .lp .footer-inner { flex-direction: column; text-align: center; gap: 12px; }
+  .lp .footer-links { justify-content: center; flex-wrap: wrap; gap: 16px; }
+}
+
 @media (max-width: 600px) {
   .lp .features-grid { grid-template-columns: 1fr; }
   .lp .feat-lead { grid-column: span 1; }
-  .lp .hero-actions { flex-direction: column; align-items: center; }
+  .lp .hero-actions { flex-direction: column; align-items: stretch; }
   .lp .btn-lg { width: 100%; justify-content: center; }
-  .lp .cta-box { padding: 48px 24px; }
+  .lp .cta-box { padding: 48px 20px; }
   .lp .footer-inner { flex-direction: column; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  /* Small phones — iPhone SE, Galaxy A series */
+  .lp .hero { padding: 88px 0 48px; }
+  .lp .hero-title { font-size: clamp(1.75rem, 9vw, 2.2rem); letter-spacing: -0.01em; }
+  .lp .hero-badge { font-size: 0.72rem; padding: 5px 12px; }
+  .lp .hero-sub { font-size: 0.95rem; }
+
+  .lp .mockup-body { padding: 14px; gap: 10px; }
+  .lp .chat-msg { font-size: 0.8rem; padding: 10px 12px; }
+  .lp .progress-text { font-size: 0.7rem; }
+
+  .lp .section-title { font-size: clamp(1.6rem, 8vw, 2rem); }
+  .lp .section-label { font-size: 0.7rem; }
+
+  .lp .feat-card { padding: 16px; }
+  .lp .feat-icon { font-size: 1.6rem; margin-bottom: 10px; }
+  .lp .feat-card h3 { font-size: 1rem; }
+  .lp .feat-card p { font-size: 0.85rem; }
+
+  .lp .cap-num { font-size: 1.2rem; }
+  .lp .cap-body h4 { font-size: 0.95rem; }
+  .lp .cap-body p { font-size: 0.85rem; }
+
+  .lp .terminal-body { font-size: 0.68rem; line-height: 1.6; }
+
+  .lp .plan-price { font-size: 2.4rem; }
+  .lp .price-card { padding: 24px 16px; }
+
+  .lp .cta-box { padding: 40px 16px; }
+  .lp .cta-box p { font-size: 0.95rem; }
+
+  .lp .footer-links { gap: 12px; }
+  .lp .footer-links a { font-size: 0.8rem; }
 }
