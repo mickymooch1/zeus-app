@@ -33,7 +33,48 @@ export function useZeusSocket() {
     setBackendUrl(trimmed);
   }, []);
 
-  const sendMessage = useCallback((prompt) => {
+  // Fix 1: load an existing session's history from the backend
+  const loadSession = useCallback(async (targetSessionId) => {
+    // Cancel any active stream
+    if (wsRef.current) {
+      wsRef.current.onclose = null;
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    setStreaming(false);
+    streamingRef.current = false;
+
+    // Set session ID so the next message continues this conversation
+    setSessionId(targetSessionId);
+    sessionIdRef.current = targetSessionId;
+
+    try {
+      const url = await AsyncStorage.getItem('zeus_backend_url') || backendUrl;
+      const res = await fetch(`${url}/history/${targetSessionId}`);
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const transcript = await res.json(); // [{role, text}, ...]
+
+      const loaded = transcript.map(entry => ({
+        id: nextId(),
+        role: entry.role === 'user' ? 'user' : 'zeus',
+        text: entry.text || '',
+        tools: [],
+        error: null,
+      }));
+      setMessages(loaded);
+    } catch {
+      setMessages([{
+        id: nextId(),
+        role: 'zeus',
+        text: '',
+        tools: [],
+        error: 'Could not load session history.',
+      }]);
+    }
+  }, [backendUrl]);
+
+  // Fix 2: accept optional image attachment alongside the prompt
+  const sendMessage = useCallback((prompt, image = null) => {
     if (streamingRef.current) return;
 
     const userMsgId = nextId();
@@ -41,7 +82,7 @@ export function useZeusSocket() {
 
     setMessages(prev => [
       ...prev,
-      { id: userMsgId, role: 'user', text: prompt },
+      { id: userMsgId, role: 'user', text: prompt, imagePreview: image?.preview ?? null },
       { id: zeusMsgId, role: 'zeus', text: '', tools: [], error: null },
     ]);
     setStreaming(true);
@@ -55,7 +96,10 @@ export function useZeusSocket() {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({ prompt, session_id: sessionIdRef.current }));
+      const payload = { prompt, session_id: sessionIdRef.current };
+      // Send base64 data + media_type — strip preview URI (not needed by backend)
+      if (image) payload.image = { data: image.data, media_type: image.media_type };
+      ws.send(JSON.stringify(payload));
     };
 
     ws.onmessage = (e) => {
@@ -83,7 +127,6 @@ export function useZeusSocket() {
           if (data.status === 'running') {
             tools.push({ name: data.name, path: data.path || '', status: 'running' });
           } else if (data.status === 'done') {
-            // Try name match first; fall back to last running tool
             let matched = false;
             for (let i = tools.length - 1; i >= 0; i--) {
               if (tools[i].name === data.name && tools[i].status === 'running') {
@@ -155,7 +198,7 @@ export function useZeusSocket() {
 
   return {
     messages, sessionId, streaming,
-    sendMessage, newSession,
+    sendMessage, newSession, loadSession,
     backendUrl, updateBackendUrl,
   };
 }

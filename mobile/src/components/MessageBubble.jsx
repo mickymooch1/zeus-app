@@ -1,12 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, Image, StyleSheet, Platform } from 'react-native';
 
 export function MessageBubble({ message, isStreaming }) {
   if (message.role === 'user') {
     return (
       <View style={styles.userContainer}>
         <View style={styles.userBubble}>
-          <Text style={styles.userText}>{message.text}</Text>
+          {message.imagePreview && (
+            <Image
+              source={{ uri: message.imagePreview }}
+              style={styles.userImage}
+              resizeMode="cover"
+            />
+          )}
+          {message.text ? <Text style={styles.userText}>{message.text}</Text> : null}
         </View>
       </View>
     );
@@ -59,6 +66,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 2,
     padding: 10,
     maxWidth: '75%',
+  },
+  userImage: {
+    width: 200, height: 160, borderRadius: 8, marginBottom: 6,
   },
   userText: { color: '#e2d9f3', fontSize: 14, lineHeight: 20 },
 
