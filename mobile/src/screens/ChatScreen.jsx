@@ -11,10 +11,14 @@ import { InputBar } from '../components/InputBar';
 export function ChatScreen({ navigation, route }) {
   const { messages, streaming, sendMessage, newSession, loadSession } = useZeusSocket();
   const flatListRef = useRef(null);
-  const loadedSessionRef = useRef(null); // prevents re-loading the same session on re-render
+  const loadedSessionRef = useRef(null);
+
+  // useHeaderHeight() returns the exact height of the navigation header including
+  // status bar on iOS. Using it as keyboardVerticalOffset tells KeyboardAvoidingView
+  // how far its top edge is from the screen top, so it calculates the correct
+  // amount to shift content when the keyboard appears.
   const headerHeight = useHeaderHeight();
 
-  // Fix 1: load session when navigating from the history screen
   useEffect(() => {
     const sessionId = route.params?.sessionId;
     if (sessionId && sessionId !== loadedSessionRef.current) {
@@ -27,10 +31,7 @@ export function ChatScreen({ navigation, route }) {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity
-          onPress={() => {
-            loadedSessionRef.current = null;
-            newSession();
-          }}
+          onPress={() => { loadedSessionRef.current = null; newSession(); }}
           style={{ marginRight: 16 }}
         >
           <Text style={{ color: '#a78bfa', fontSize: 13, fontWeight: '600' }}>New</Text>
@@ -58,21 +59,27 @@ export function ChatScreen({ navigation, route }) {
   }, [messages.length]);
 
   return (
-    // Fix 3: KeyboardAvoidingView as the outermost container
-    // behavior='padding' on iOS pushes content up; 'height' on Android shrinks the view
-    // headerHeight from useHeaderHeight() gives the exact navigation bar offset for iOS
+    // KeyboardAvoidingView wraps the entire screen content (FlatList + InputBar).
+    // behavior='padding' on iOS: adds bottom padding equal to keyboard height,
+    //   pushing the InputBar up without resizing the view.
+    // behavior='height' on Android: shrinks the view height so the InputBar
+    //   stays anchored at the bottom above the keyboard.
+    // keyboardVerticalOffset={headerHeight}: on both platforms the KAV sits below
+    //   the navigation header, so we tell it to subtract that header height when
+    //   computing how much to adjust — without this the adjustment overshoots.
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+      keyboardVerticalOffset={headerHeight}
     >
       <StatusBar barStyle="light-content" backgroundColor="#0f0c29" />
       <FlatList
         ref={flatListRef}
+        style={styles.list}
         data={messages}
         keyExtractor={item => String(item.id)}
         renderItem={renderMessage}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={styles.listContent}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
@@ -90,10 +97,13 @@ export function ChatScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0c29' },
-  list: { padding: 16, paddingBottom: 8 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  emptyIcon: { fontSize: 36, marginBottom: 8 },
-  emptyTitle: { color: '#e2d9f3', fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  emptySub: { color: '#555', fontSize: 12 },
+  container:   { flex: 1, backgroundColor: '#0f0c29' },
+  // flex: 1 is critical — lets the FlatList contract when KAV shrinks the view
+  // on Android (behavior='height'), so the InputBar is never pushed offscreen.
+  list:        { flex: 1 },
+  listContent: { padding: 16, paddingBottom: 8 },
+  empty:       { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
+  emptyIcon:   { fontSize: 36, marginBottom: 8 },
+  emptyTitle:  { color: '#e2d9f3', fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  emptySub:    { color: '#555', fontSize: 12 },
 });
