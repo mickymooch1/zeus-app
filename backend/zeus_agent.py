@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -34,6 +35,9 @@ def _make_anthropic_client() -> anthropic.AsyncAnthropic:
     return anthropic.AsyncAnthropic(api_key=api_key)
 
 _anthropic_client: anthropic.AsyncAnthropic | None = None
+
+# Holds references to background task coroutines so they aren't GC'd mid-run
+_bg_tasks: set = set()
 
 def get_anthropic_client() -> anthropic.AsyncAnthropic:
     global _anthropic_client
@@ -127,6 +131,12 @@ style preferences, notes). Update whenever new information comes up.
 **GetClient(name)** — pull a client's full profile before starting work for them.
 
 **ListClients()** — get an overview of all clients on the books.
+
+**CreateBackgroundTask(request, description)** — when a user asks for a MultiAgentBuild
+or any website build you estimate will take more than a few minutes, call this instead
+of MultiAgentBuild directly. It schedules the pipeline in the background so the user
+doesn't have to wait in the chat. The user will be emailed at their registered address
+when the site is live. Enterprise plan only.
 
 **UpsertProject(name, ...)** — log every website you build: client, live URL, folder,
 budget, status. Update status when a project is delivered or goes to maintenance.
@@ -453,6 +463,30 @@ TOOLS = [
                 },
             },
             "required": ["request"],
+        },
+    },
+    {
+        "name": "CreateBackgroundTask",
+        "description": (
+            "Schedule a MultiAgentBuild as a background task. "
+            "Use this when the user asks for a website build that will take a long time. "
+            "The pipeline runs in the background — the user is emailed at their registered "
+            "address when the site is live. Returns immediately with a task ID. "
+            "Enterprise plan only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "request": {
+                    "type": "string",
+                    "description": "The full website build request to pass to the MultiAgentBuild pipeline",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Short human-readable label for the task card, e.g. \"Build website for Joe's Plumbing\"",
+                },
+            },
+            "required": ["request", "description"],
         },
     },
 ]
@@ -1526,6 +1560,145 @@ report the live URL clearly. Do nothing else.\
     return deployer_output
 
 
+async def _handle_create_background_task(
+    request: str,
+    description: str,
+    history: "HistoryStore",
+    user_id: str | None,
+) -> str:
+    """
+    Create a background task record and spawn run_multi_agent as an asyncio task.
+    Returns immediately with a confirmation string for Zeus to relay to the user.
+    Enterprise plan only.
+    """
+    import db as _db
+
+    if not user_id:
+        return "Error: Cannot create background task — no authenticated user."
+
+    # Enterprise gate
+    try:
+        _db_path = _db.get_db_path()
+        _user = _db.get_user_by_id(_db_path, user_id)
+        if not _user:
+            return "Error: User not found."
+        _plan = _user.get("subscription_plan") or "free"
+        _status = _user.get("subscription_status", "free")
+        if not (_status == "active" and _plan == "enterprise"):
+            return (
+                "❌ **CreateBackgroundTask requires an Enterprise plan.** "
+                "Upgrade at zeusaidesign.com/pricing."
+            )
+        user_email = _user.get("email", "")
+    except Exception as exc:
+        log.warning("_handle_create_background_task: could not verify plan: %s", exc)
+        return f"Error: Could not verify enterprise plan — {exc}"
+
+    # Create the DB record
+    try:
+        task = _db.create_task(_db_path, user_id, description)
+        task_id = task["id"]
+    except Exception as exc:
+        log.error("_handle_create_background_task: db.create_task failed: %s", exc)
+        return f"Error: Could not create task record — {exc}"
+
+    # Background coroutine — runs after this function returns
+    async def _run() -> None:
+        try:
+            _db.update_task(_db_path, task_id, status="running")
+
+            # Noop sink — no live WebSocket to stream to in background
+            async def _noop(_msg: dict) -> None:
+                pass
+
+            result_text = await run_multi_agent(request, _noop, history, user_id)
+
+            # Extract Netlify URL from result
+            _url_match = re.search(r'https?://\S+\.netlify\.app', result_text)
+            live_url = _url_match.group(0).rstrip(".,)") if _url_match else None
+
+            now = datetime.now().isoformat()
+            _db.update_task(
+                _db_path, task_id,
+                status="done",
+                result=result_text,
+                live_url=live_url,
+                completed_at=now,
+            )
+            log.info("Background task %s done. live_url=%s", task_id, live_url)
+            _send_bg_task_email(user_email, description, live_url, result_text)
+
+        except Exception as exc:
+            log.error("Background task %s failed: %s", task_id, exc)
+            try:
+                _db.update_task(
+                    _db_path, task_id,
+                    status="failed",
+                    result=str(exc),
+                    completed_at=datetime.now().isoformat(),
+                )
+            except Exception:
+                log.exception("Background task %s: could not update failed status", task_id)
+
+    bg = asyncio.create_task(_run())
+    _bg_tasks.add(bg)
+    bg.add_done_callback(_bg_tasks.discard)
+
+    return (
+        f"✅ Background task queued — ID: `{task_id}`\n"
+        f"I'll email you at **{user_email}** when it's done.\n"
+        f"You can track progress at [/tasks](/tasks)."
+    )
+
+
+def _send_bg_task_email(
+    user_email: str,
+    description: str,
+    live_url: str | None,
+    result: str,
+) -> None:
+    """Send a task completion email via Gmail SMTP. Silently skips if not configured."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
+    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+    if not smtp_email or not smtp_password:
+        log.warning("_send_bg_task_email: SMTP_EMAIL/SMTP_PASSWORD not set — skipping")
+        return
+
+    subject = f"Zeus: Your background task is complete — {description}"
+    body = "\n".join([
+        "Your background task has finished.",
+        "",
+        f"Task: {description}",
+        f"Live URL: {live_url or 'See result below'}",
+        "",
+        "Result:",
+        result[:2000],
+        "",
+        "— Zeus AI Design",
+        "zeusaidesign.com",
+    ])
+
+    msg = MIMEMultipart()
+    msg["From"] = smtp_email
+    msg["To"] = user_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+            server.login(smtp_email, smtp_password)
+            server.sendmail(smtp_email, [user_email], msg.as_string())
+        log.info("_send_bg_task_email: sent to %s", user_email)
+    except smtplib.SMTPAuthenticationError:
+        log.warning("_send_bg_task_email: Gmail auth failed — check SMTP_PASSWORD is an App Password")
+    except smtplib.SMTPException as exc:
+        log.warning("_send_bg_task_email: SMTP error: %s", exc)
+
+
 async def run_turn_stream(
     prompt: str,
     session_id: str | None,
@@ -1651,11 +1824,18 @@ async def run_turn_stream(
             tool_results = []
             for idx in sorted(tool_blocks):
                 tb = tool_blocks[idx]
-                # MultiAgentBuild is async — handle inline rather than via _run_tool
+                # Async tools — handle inline rather than via _run_tool
                 if tb["name"] == "MultiAgentBuild":
                     result = await run_multi_agent(
                         request=tb["input"].get("request", ""),
                         on_message=on_message,
+                        history=history,
+                        user_id=user_id,
+                    )
+                elif tb["name"] == "CreateBackgroundTask":
+                    result = await _handle_create_background_task(
+                        request=tb["input"].get("request", ""),
+                        description=tb["input"].get("description", "Background build"),
                         history=history,
                         user_id=user_id,
                     )
