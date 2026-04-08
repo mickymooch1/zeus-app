@@ -459,17 +459,22 @@ async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
         data = await websocket.receive_json()
         prompt = data.get("prompt", "").strip()
         session_id = data.get("session_id")
+        image = data.get("image")  # optional: {data: base64str, media_type: str}
 
-        if not prompt:
+        if not prompt and not image:
             await websocket.send_json({"type": "error", "message": "prompt is required"})
             await websocket.send_json({"type": "done"})
             await websocket.close()
             return
 
+        # Validate image payload if present
+        if image and (not isinstance(image, dict) or not image.get("data") or not image.get("media_type")):
+            image = None
+
         async def send(msg: dict):
             await websocket.send_json(msg)
 
-        await run_turn_stream(prompt, session_id, send, history, user_id=current_user["id"] if current_user else None)
+        await run_turn_stream(prompt, session_id, send, history, user_id=current_user["id"] if current_user else None, image=image)
 
         # Increment usage after successful response
         if current_user:

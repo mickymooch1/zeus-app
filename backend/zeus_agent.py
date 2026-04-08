@@ -1231,6 +1231,7 @@ async def run_turn_stream(
     on_message: Callable[[dict[str, Any]], Awaitable[None]],
     history: HistoryStore,
     user_id: str | None = None,
+    image: dict | None = None,
 ) -> str | None:
     client = get_anthropic_client()
 
@@ -1241,7 +1242,24 @@ async def run_turn_stream(
         messages = []
         await on_message({"type": "session_id", "value": session_id})
 
-    messages.append({"role": "user", "content": prompt})
+    # Build user message content — multimodal if an image was attached
+    if image:
+        user_content = [
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": image["media_type"],
+                    "data": image["data"],
+                },
+            },
+        ]
+        if prompt:
+            user_content.append({"type": "text", "text": prompt})
+    else:
+        user_content = prompt
+
+    messages.append({"role": "user", "content": user_content})
 
     # Build enriched system prompt with live memory context
     memory_context = _build_memory_context(history)

@@ -19,7 +19,7 @@ export function useZeusSocket(token) {
     streamingRef.current = isStreaming;
   };
 
-  const sendMessage = useCallback((prompt) => {
+  const sendMessage = useCallback((prompt, image = null) => {
     if (streamingRef.current) return;
 
     const userMsgId = nextId();
@@ -28,7 +28,7 @@ export function useZeusSocket(token) {
 
     setMessages(prev => [
       ...prev,
-      { id: userMsgId, role: 'user', text: prompt },
+      { id: userMsgId, role: 'user', text: prompt, imagePreview: image?.preview ?? null },
       { id: zeusMsgId, role: 'zeus', text: '', tools: [], error: null },
     ]);
     setStreaming(true);
@@ -44,7 +44,9 @@ export function useZeusSocket(token) {
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({ prompt, session_id: sessionIdRef.current }));
+      const payload = { prompt, session_id: sessionIdRef.current };
+      if (image) payload.image = { data: image.data, media_type: image.media_type }; // strip preview — not needed by backend
+      ws.send(JSON.stringify(payload));
     };
 
     ws.onmessage = (e) => {

@@ -62,7 +62,16 @@ export function MessageBubble({ message, isStreaming }) {
   if (message.role === 'user') {
     return (
       <div className="message-user">
-        <div className="bubble-user">{message.text}</div>
+        <div className="bubble-user">
+          {message.imagePreview && (
+            <img
+              src={message.imagePreview}
+              alt="Attached image"
+              className="bubble-user-image"
+            />
+          )}
+          {message.text && <span>{message.text}</span>}
+        </div>
       </div>
     );
   }
