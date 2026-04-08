@@ -1230,6 +1230,7 @@ async def run_turn_stream(
     session_id: str | None,
     on_message: Callable[[dict[str, Any]], Awaitable[None]],
     history: HistoryStore,
+    user_id: str | None = None,
 ) -> str | None:
     client = get_anthropic_client()
 
@@ -1249,6 +1250,21 @@ async def run_turn_stream(
         if memory_context
         else ZEUS_SYSTEM_PROMPT
     )
+
+    # Append user subscription context if a user_id was provided
+    if user_id:
+        try:
+            import db
+            from datetime import timezone
+            db_path = db.get_db_path()
+            user = db.get_user_by_id(db_path, user_id)
+            if user:
+                plan = user.get("subscription_plan") or "free"
+                month = datetime.now(timezone.utc).strftime("%Y-%m")
+                messages_used = db.get_monthly_usage(db_path, user_id, month)
+                system = f"{system}\n\n---\n\nUser plan: {plan} | Messages used this month: {messages_used}"
+        except Exception:
+            log.warning("run_turn_stream: could not load user subscription context for %s", user_id)
 
     session_start = datetime.now()
     zeus_text_parts: list[str] = []

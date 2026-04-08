@@ -469,7 +469,7 @@ async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
         async def send(msg: dict):
             await websocket.send_json(msg)
 
-        await run_turn_stream(prompt, session_id, send, history)
+        await run_turn_stream(prompt, session_id, send, history, user_id=current_user["id"] if current_user else None)
 
         # Increment usage after successful response
         if current_user:
