@@ -191,38 +191,53 @@ export default function BillingPage() {
         )}
 
         {/* Plan features */}
-        {isActive && (
-          <div className="billing-card">
-            <h2 className="billing-card-title">Your plan includes</h2>
-            <ul className="pricing-features" style={{ marginTop: '1rem' }}>
-              {status?.plan === 'pro' && [
-                'Unlimited messages',
-                'Persistent memory & learning',
-                'Client & project tracking',
-                'Website builder',
-                'Email drafting',
-                'Content & copy generation',
-                'Netlify deployment integration',
-                'Priority response',
-              ].map((f) => (
-                <li key={f} className="plan-feature">
-                  <span className="plan-feature-check">✓</span>{f}
-                </li>
-              ))}
-              {status?.plan === 'agency' && [
-                'Everything in Professional',
-                'Team features (coming soon)',
-                'Multiple workspaces (coming soon)',
-                'Priority support',
-                'Custom integrations',
-              ].map((f) => (
-                <li key={f} className="plan-feature">
-                  <span className="plan-feature-check">✓</span>{f}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <div className="billing-card">
+          <h2 className="billing-card-title">Your plan includes</h2>
+          <ul className="pricing-features" style={{ marginTop: '1rem' }}>
+            {(!status?.plan || !isActive) && [
+              '20 messages per month',
+              'AI chat assistant',
+            ].map((f) => (
+              <li key={f} className="plan-feature">
+                <span className="plan-feature-check">✓</span>{f}
+              </li>
+            ))}
+            {status?.plan === 'pro' && isActive && [
+              'Unlimited messages',
+              'AI chat assistant',
+              'Priority support',
+            ].map((f) => (
+              <li key={f} className="plan-feature">
+                <span className="plan-feature-check">✓</span>{f}
+              </li>
+            ))}
+            {status?.plan === 'agency' && isActive && [
+              'Unlimited messages',
+              'AI chat assistant',
+              'Team features',
+              'Priority support',
+            ].map((f) => (
+              <li key={f} className="plan-feature">
+                <span className="plan-feature-check">✓</span>{f}
+              </li>
+            ))}
+            {status?.plan === 'enterprise' && isActive && [
+              { label: 'Unlimited messages', soon: false },
+              { label: 'AI chat assistant', soon: false },
+              { label: 'Multi-agent website builder', soon: false },
+              { label: 'Background tasks', soon: false },
+              { label: 'Scheduled tasks', soon: true },
+              { label: 'Appointment booking', soon: true },
+              { label: 'Priority support', soon: false },
+            ].map(({ label, soon }) => (
+              <li key={label} className="plan-feature">
+                <span className="plan-feature-check">✓</span>
+                {label}
+                {soon && <span className="badge-coming-soon">coming soon</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <p className="billing-note">
           Questions? Email us at{' '}

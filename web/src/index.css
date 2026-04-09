@@ -651,6 +651,12 @@ body {
   background: rgba(52,211,153,0.15); color: #34d399;
   border: 1px solid rgba(52,211,153,0.3);
 }
+.badge-coming-soon {
+  display: inline-block; margin-left: 8px; padding: 1px 7px;
+  border-radius: 10px; font-size: 10px; font-weight: 600;
+  background: rgba(251,191,36,0.15); color: #fbbf24;
+  border: 1px solid rgba(251,191,36,0.3); vertical-align: middle;
+}
 
 /* ── Dashboard ───────────────────────────────────────────── */
 .dashboard-page {
