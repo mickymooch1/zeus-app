@@ -883,3 +883,62 @@ body {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.3);
 }
+
+/* ── Tasks page ─────────────────────────────────────────────────── */
+.tasks-page { background: #0a0818; min-height: 100vh; position: relative; overflow-y: auto; }
+.tasks-page-inner { position: relative; z-index: 1; max-width: 760px; }
+
+.tasks-list { display: flex; flex-direction: column; gap: 1rem; }
+
+.task-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.task-card--running { border-color: rgba(167,139,250,0.4); }
+.task-card--done    { border-color: rgba(52,211,153,0.35); }
+.task-card--failed  { border-color: rgba(248,113,113,0.35); }
+
+.task-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.task-description { color: #e2d9f3; font-weight: 600; font-size: 0.95rem; }
+.task-card-meta   { color: #666; font-size: 0.78rem; }
+.task-error-note  { color: #f87171; font-size: 0.8rem; margin-top: 0.25rem; }
+.task-url-btn     { align-self: flex-start; margin-top: 0.25rem; }
+
+.badge-status {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.badge-status--pending { background: rgba(251,191,36,0.15);  color: #fbbf24; }
+.badge-status--running { background: rgba(167,139,250,0.15); color: #a78bfa; }
+.badge-status--done    { background: rgba(52,211,153,0.15);  color: #34d399; }
+.badge-status--failed  { background: rgba(248,113,113,0.15); color: #f87171; }
+
+.tasks-empty { text-align: center; padding: 4rem 1rem; }
+.tasks-empty-icon  { font-size: 2.5rem; margin-bottom: 0.75rem; }
+.tasks-empty-title { color: #e2d9f3; font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }
+.tasks-empty-sub   { color: #555; font-size: 0.85rem; }
+
+.upgrade-gate {
+  text-align: center;
+  padding: 3rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+.upgrade-gate p { color: #aaa; font-size: 1rem; }
