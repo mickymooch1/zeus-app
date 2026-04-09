@@ -97,8 +97,10 @@ export default function BillingPage() {
     }
   };
 
-  const isActive = status?.is_active;
-  const planName = status?.plan_name || 'Free';
+  const isAdmin = status?.is_admin === true;
+  const isActive = status?.is_active || isAdmin;
+  const effectivePlan = isAdmin ? 'enterprise' : status?.plan;
+  const planName = isAdmin ? 'Enterprise (Admin)' : (status?.plan_name || 'Free');
 
   return (
     <div className="billing-page">
@@ -121,9 +123,10 @@ export default function BillingPage() {
         <div className="billing-card">
           <div className="billing-card-header">
             <h2 className="billing-card-title">Current Plan</h2>
-            {status?.plan === 'pro' && <span className="badge-pro">Pro</span>}
-            {status?.plan === 'agency' && <span className="badge-agency">Agency</span>}
-            {(!status?.plan || !isActive) && <span className="badge-free">Free</span>}
+            {effectivePlan === 'pro' && <span className="badge-pro">Pro</span>}
+            {effectivePlan === 'agency' && <span className="badge-agency">Agency</span>}
+            {effectivePlan === 'enterprise' && <span className="badge-enterprise">Enterprise</span>}
+            {(!effectivePlan || !isActive) && <span className="badge-free">Free</span>}
           </div>
 
           <div className="billing-plan-name">{planName}</div>
@@ -202,7 +205,7 @@ export default function BillingPage() {
                 <span className="plan-feature-check">✓</span>{f}
               </li>
             ))}
-            {status?.plan === 'pro' && isActive && [
+            {effectivePlan === 'pro' && isActive && [
               'Unlimited messages',
               'AI chat assistant',
               'Priority support',
@@ -211,7 +214,7 @@ export default function BillingPage() {
                 <span className="plan-feature-check">✓</span>{f}
               </li>
             ))}
-            {status?.plan === 'agency' && isActive && [
+            {effectivePlan === 'agency' && isActive && [
               'Unlimited messages',
               'AI chat assistant',
               'Team features',
@@ -221,7 +224,7 @@ export default function BillingPage() {
                 <span className="plan-feature-check">✓</span>{f}
               </li>
             ))}
-            {status?.plan === 'enterprise' && isActive && [
+            {effectivePlan === 'enterprise' && isActive && [
               { label: 'Unlimited messages', soon: false },
               { label: 'AI chat assistant', soon: false },
               { label: 'Multi-agent website builder', soon: false },

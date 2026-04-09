@@ -346,4 +346,5 @@ def get_subscription_status(user: dict) -> dict:
         "messages_used": messages_used,
         "messages_limit": messages_limit,
         "is_active": is_paid,
+        "is_admin": is_admin,
     }
