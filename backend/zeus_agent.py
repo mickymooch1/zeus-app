@@ -1924,6 +1924,7 @@ async def run_turn_stream(
             # Execute tools and collect results
             tool_results = []
             for idx in sorted(tool_blocks):
+                result = "(no result)"  # safe default — overwritten by every branch below
                 tb = tool_blocks[idx]
                 # Async tools — handle inline rather than via _run_tool
                 if tb["name"] == "MultiAgentBuild":
@@ -1998,6 +1999,19 @@ async def run_turn_stream(
             messages.append({"role": "user", "content": tool_results})
 
     finally:
+        # Guard: if an exception interrupted the tool loop after the assistant's
+        # tool_use message was appended but before tool_results were appended,
+        # the history would contain a dangling tool_use with no tool_result —
+        # Anthropic rejects that on the next request.  Strip it before saving.
+        if (messages
+                and messages[-1].get("role") == "assistant"
+                and isinstance(messages[-1].get("content"), list)
+                and any(
+                    isinstance(b, dict) and b.get("type") == "tool_use"
+                    for b in messages[-1]["content"]
+                )):
+            messages.pop()
+
         # Always persist whatever was exchanged — even if the loop threw
         if len(messages) > 1:  # more than just the user prompt
             try:
