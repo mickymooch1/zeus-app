@@ -262,18 +262,17 @@ export default function LandingPage() {
               <p className="plan-desc">Try Zeus with no commitment. Perfect for exploring what's possible.</p>
               <ul className="plan-features">
                 <li>✓ 20 messages per month</li>
+                <li>✓ AI chat assistant</li>
                 <li>✓ Website builder</li>
                 <li>✓ Content writing</li>
                 <li>✓ Web research</li>
                 <li className="feat-dim">✗ Netlify deployment</li>
-                <li className="feat-dim">✗ Image generation</li>
-                <li className="feat-dim">✗ Email sending</li>
+                <li className="feat-dim">✗ Multi-agent builder</li>
               </ul>
               <Link to="/register" className="btn-plan-ghost">Get Started Free</Link>
             </div>
 
-            <div className="price-card price-featured">
-              <div className="plan-badge">Most Popular</div>
+            <div className="price-card">
               <div className="plan-name">Pro</div>
               <div className="plan-price">£29<span>/mo</span></div>
               <p className="plan-desc">Everything you need to run a web design business with AI.</p>
@@ -286,9 +285,9 @@ export default function LandingPage() {
                 <li>✓ Email via Gmail</li>
                 <li>✓ Client &amp; project CRM</li>
                 <li>✓ Persistent memory</li>
-                <li>✓ Export &amp; download ZIPs</li>
+                <li>✓ Priority support</li>
               </ul>
-              <Link to="/register" className="btn-plan-primary">Start Pro</Link>
+              <Link to="/register" className="btn-plan-ghost">Start Pro</Link>
             </div>
 
             <div className="price-card">
@@ -298,12 +297,29 @@ export default function LandingPage() {
               <ul className="plan-features">
                 <li>✓ Everything in Pro</li>
                 <li>✓ Multiple team seats</li>
-                <li>✓ Priority support</li>
                 <li>✓ Advanced memory &amp; CRM</li>
                 <li>✓ White-label options</li>
                 <li>✓ Early access to features</li>
+                <li>✓ Priority support</li>
               </ul>
-              <Link to="/register" className="btn-plan-ghost">Contact Us</Link>
+              <Link to="/register" className="btn-plan-ghost">Start Agency</Link>
+            </div>
+
+            <div className="price-card price-featured price-enterprise">
+              <div className="plan-badge plan-badge--enterprise">Best Plan</div>
+              <div className="plan-name">Enterprise</div>
+              <div className="plan-price">£150<span>/mo</span></div>
+              <p className="plan-desc">The full Zeus AI power stack. Autonomous agents build and deploy sites while you sleep.</p>
+              <ul className="plan-features">
+                <li>✓ Unlimited messages</li>
+                <li>✓ Multi-agent website builder</li>
+                <li>✓ Background tasks</li>
+                <li>✓ Priority support</li>
+                <li>✓ Everything in Agency</li>
+                <li>⏳ Scheduled tasks <span className="feat-soon">coming soon</span></li>
+                <li>⏳ Appointment booking <span className="feat-soon">coming soon</span></li>
+              </ul>
+              <Link to="/register" className="btn-plan-primary">Start Enterprise</Link>
             </div>
           </div>
         </div>
