@@ -594,7 +594,13 @@ async def get_tasks(current_user: dict = Depends(auth.get_current_user)):
     if not (is_admin or (status == "active" and plan == "enterprise")):
         raise HTTPException(status_code=403, detail="Enterprise plan required")
     db_path = db.get_db_path()
-    return db.get_tasks_for_user(db_path, current_user["id"])
+    # Ensure tasks table exists (handles DBs initialised before this feature was added)
+    db.init_user_tables(db_path)
+    try:
+        return db.get_tasks_for_user(db_path, current_user["id"])
+    except Exception:
+        log.exception("get_tasks: DB error for user %s", current_user["id"])
+        return []
 
 
 # ── Existing REST endpoints ───────────────────────────────────────────────────
