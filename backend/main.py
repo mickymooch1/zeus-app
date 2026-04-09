@@ -330,7 +330,7 @@ async def register(body: RegisterRequest):
             db.update_user(db_path, user["id"], stripe_customer_id=customer_id)
             user = db.get_user_by_id(db_path, user["id"])
 
-    token = auth.create_token(user["id"], user["email"])
+    token = auth.create_token(user["id"], user["email"], is_admin=bool(user.get("is_admin", 0)))
     safe_user = {k: v for k, v in user.items() if k != "password_hash"}
 
     return {"token": token, "user": safe_user}
@@ -355,7 +355,7 @@ async def login(body: LoginRequest):
     if not password_ok:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    token = auth.create_token(user["id"], user["email"])
+    token = auth.create_token(user["id"], user["email"], is_admin=bool(user.get("is_admin", 0)))
     safe_user = {k: v for k, v in user.items() if k != "password_hash"}
 
     return {"token": token, "user": safe_user}

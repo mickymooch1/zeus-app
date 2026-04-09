@@ -28,12 +28,13 @@ def verify_password(plain: str, hashed: str) -> bool:
     return _pwd_context.verify(plain, hashed)
 
 
-def create_token(user_id: str, email: str) -> str:
+def create_token(user_id: str, email: str, is_admin: bool = False) -> str:
     """Create a signed JWT valid for TOKEN_EXPIRE_DAYS days."""
     expire = datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRE_DAYS)
     payload = {
         "sub": user_id,
         "email": email,
+        "is_admin": is_admin,
         "exp": expire,
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
