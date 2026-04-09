@@ -680,11 +680,26 @@ async def health():
     return {"status": "ok"}
 
 
-# Serve built React app from web/dist/ at root (lazy import — aiofiles not required on Railway)
+# Serve built React app from web/dist/
+# Mount /assets for Vite bundles, then a catch-all that returns index.html for
+# any unmatched path so client-side routes (e.g. /tasks, /billing) survive refresh.
 _dist = pathlib.Path(__file__).parent.parent / "web" / "dist"
 if _dist.exists():
     from fastapi.staticfiles import StaticFiles
-    app.mount("/", StaticFiles(directory=str(_dist), html=True), name="static")
+    from fastapi.responses import FileResponse
+
+    _assets_dir = _dist / "assets"
+    if _assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        # Serve real files that live in dist root (favicon.ico, robots.txt, etc.)
+        candidate = _dist / full_path
+        if candidate.exists() and candidate.is_file():
+            return FileResponse(str(candidate))
+        # Fall back to index.html for all client-side routes
+        return FileResponse(str(_dist / "index.html"))
 
 
 if __name__ == "__main__":
