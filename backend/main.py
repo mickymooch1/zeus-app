@@ -197,6 +197,17 @@ async def lifespan(app: FastAPI):
         log.info("User tables initialised at %s", _db_path)
         db.fail_stale_tasks(_db_path)
         log.info("Stale running tasks marked as failed")
+        # Ensure owner account always has enterprise + admin access
+        _owner_email = "dominic.rowle@yahoo.com"
+        _owner = db.get_user_by_email(_db_path, _owner_email)
+        if _owner:
+            db.update_user(_db_path, _owner["id"],
+                           subscription_plan="enterprise",
+                           subscription_status="active",
+                           is_admin=1)
+            log.info("Owner account %s set to enterprise/admin", _owner_email)
+        else:
+            log.info("Owner account %s not yet registered — will be promoted on first login", _owner_email)
     except Exception:
         log.exception("FATAL: user table init failed")
         raise
