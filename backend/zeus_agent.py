@@ -18,6 +18,7 @@ import anthropic
 print("zeus_agent.py: anthropic ok", file=sys.stderr, flush=True)
 
 import httpx
+from github_push import push_to_github as _push_to_github
 
 EXPORT_TAG_RE = re.compile(
     r'\[ZEUS_EXPORT:\s*type=(\w+)\s+title="([^"]+)"\]',
@@ -141,6 +142,12 @@ style preferences, notes). Update whenever new information comes up.
 **GetClient(name)** — pull a client's full profile before starting work for them.
 
 **ListClients()** — get an overview of all clients on the books.
+
+**PushToGitHub(files, commit_message, create_pr, pr_title, pr_body)** — update the live
+zeusaidesign.com website by pushing files directly to the GitHub repo. Restricted to
+web/src/ files only. Use create_pr=false for minor updates (copy, prices, colours) and
+create_pr=true for significant redesigns. Admin only — only use this tool when is_admin
+is confirmed in the system context.
 
 **CreateBackgroundTask(request, description)** — when a user asks for a MultiAgentBuild
 or any website build you estimate will take more than a few minutes, call this instead
@@ -510,6 +517,53 @@ TOOLS = [
                 },
             },
             "required": ["request", "description"],
+        },
+    },
+    {
+        "name": "PushToGitHub",
+        "description": (
+            "Push one or more files to the mickymooch1/zeus-app GitHub repository "
+            "and commit them atomically. Restricted to paths under web/src/ only. "
+            "Use this to update the zeusaidesign.com website — landing page, pricing, "
+            "styles, copy, or any frontend file. "
+            "Set create_pr=false for minor changes (copy fix, price update, colour change). "
+            "Set create_pr=true for significant changes (redesigns, multi-section rewrites). "
+            "Railway will automatically redeploy zeusaidesign.com when merged to main. "
+            "Admin only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "description": "List of files to write. Each must have 'path' (under web/src/) and 'content' (full file text).",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string"},
+                            "content": {"type": "string"},
+                        },
+                        "required": ["path", "content"],
+                    },
+                },
+                "commit_message": {
+                    "type": "string",
+                    "description": "Git commit message, e.g. 'feat: update pricing section'",
+                },
+                "create_pr": {
+                    "type": "boolean",
+                    "description": "true = open a pull request for review; false = push directly to main",
+                },
+                "pr_title": {
+                    "type": "string",
+                    "description": "PR title — required if create_pr is true",
+                },
+                "pr_body": {
+                    "type": "string",
+                    "description": "PR description — optional summary of changes",
+                },
+            },
+            "required": ["files", "commit_message"],
         },
     },
 ]
@@ -1886,6 +1940,28 @@ async def run_turn_stream(
                         history=history,
                         user_id=user_id,
                     )
+                elif tb["name"] == "PushToGitHub":
+                    _is_admin_push = False
+                    if user_id:
+                        try:
+                            import db as _db
+                            _u = _db.get_user_by_id(_db.get_db_path(), user_id)
+                            _is_admin_push = bool(_u and _u.get("is_admin", 0))
+                        except Exception:
+                            pass
+                    if not _is_admin_push:
+                        result = "❌ PushToGitHub is restricted to admin users only."
+                    else:
+                        try:
+                            result = await _push_to_github(
+                                files=tb["input"].get("files", []),
+                                commit_message=tb["input"].get("commit_message", "Update from Zeus"),
+                                create_pr=tb["input"].get("create_pr", False),
+                                pr_title=tb["input"].get("pr_title", ""),
+                                pr_body=tb["input"].get("pr_body", ""),
+                            )
+                        except Exception as _exc:
+                            result = f"❌ PushToGitHub failed: {_exc}"
                 else:
                     result = _run_tool(tb["name"], tb["input"], history)
                 path = (tb["input"].get("file_path")
