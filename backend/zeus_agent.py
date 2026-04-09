@@ -1761,6 +1761,8 @@ async def run_turn_stream(
                 month = datetime.now(timezone.utc).strftime("%Y-%m")
                 messages_used = db.get_monthly_usage(db_path, user_id, month)
                 system = f"{system}\n\n---\n\nUser plan: {plan} | Messages used this month: {messages_used}"
+                if bool(user.get("is_admin", 0)):
+                    system = f"{system}\n\nThe user you are talking to is the admin and owner of Zeus AI Design. Treat them accordingly."
         except Exception:
             log.warning("run_turn_stream: could not load user subscription context for %s", user_id)
 
