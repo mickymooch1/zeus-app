@@ -1503,24 +1503,38 @@ Include actual URLs and specific, actionable observations.\
         return f"Pipeline aborted: Researcher failed — {exc}"
 
     # ── Stage 3: Builder ──────────────────────────────────────────────────────
+    _build_dir = f"/data/projects/{site_name}"
     builder_system = f"""\
 You are the Builder in a multi-agent website build pipeline.
 
-Given a brief and competitor research, your job:
-1. Build a complete, modern, responsive website
-2. Write all files to /data/projects/{site_name}/
-3. index.html must be the main entry point
-4. Embed CSS in a <style> block or write it to style.css; embed JS inline or to script.js
-5. Use the brief's colour scheme, tone, and design style
-6. Draw on the research to inform layout, copy quality, and design choices
-7. Production-ready: mobile-first, semantic HTML, smooth hover/scroll interactions
+CRITICAL FILE SAVE RULE:
+Every single file you create MUST be written using the Write tool with a full absolute path.
+The project directory is: {_build_dir}
 
-When done, confirm which files were written.\
+Examples of CORRECT Write tool calls:
+  file_path: "{_build_dir}/index.html"
+  file_path: "{_build_dir}/style.css"
+  file_path: "{_build_dir}/script.js"
+
+NEVER use relative paths. NEVER write files anywhere other than {_build_dir}/.
+
+Your job:
+1. Build a complete, modern, responsive website
+2. Write every file to {_build_dir}/ using the Write tool with the full absolute path shown above
+3. index.html MUST be written — it is the required entry point
+4. Embed CSS in a <style> block or write it to {_build_dir}/style.css
+5. Embed JS inline or write it to {_build_dir}/script.js
+6. Use the brief's colour scheme, tone, and design style
+7. Draw on the research to inform layout, copy quality, and design choices
+8. Production-ready: mobile-first, semantic HTML, smooth hover/scroll interactions
+
+When done, list every file path you wrote.\
 """
     builder_prompt = (
         f"Brief from Planner:\n{planner_output}\n\n"
         f"Research from Researcher:\n{researcher_output}\n\n"
-        f"Build the complete website. Write all files to /data/projects/{site_name}/"
+        f"Build the complete website. Write ALL files to {_build_dir}/ using the Write tool "
+        f"with full absolute paths (e.g. Write file_path={_build_dir}/index.html)."
     )
     try:
         builder_output = await _run_agent_loop(
@@ -1534,6 +1548,18 @@ When done, confirm which files were written.\
     except Exception as exc:
         await on_message({"type": "text", "delta": f"\n\n❌ **Builder failed:** {exc}\n"})
         return f"Pipeline aborted: Builder failed — {exc}"
+
+    # ── Verify build output before deploying ──────────────────────────────────
+    index_path = pathlib.Path(_build_dir) / "index.html"
+    if not index_path.exists():
+        msg = (
+            f"\n\n❌ **Build verification failed:** `{_build_dir}/index.html` was not found. "
+            "The Builder did not save files to the expected location. Aborting deployment.\n"
+        )
+        await on_message({"type": "text", "delta": msg})
+        return f"Pipeline aborted: index.html missing at {_build_dir}/"
+
+    await on_message({"type": "text", "delta": f"\n\n✅ **Build verified** — files confirmed at `{_build_dir}/`\n"})
 
     # ── Stage 4: Deployer ─────────────────────────────────────────────────────
     deployer_system = """\
