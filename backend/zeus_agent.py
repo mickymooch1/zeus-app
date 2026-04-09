@@ -39,6 +39,16 @@ _anthropic_client: anthropic.AsyncAnthropic | None = None
 # Holds references to background task coroutines so they aren't GC'd mid-run
 _bg_tasks: set = set()
 
+
+def _is_enterprise_or_admin(user: dict) -> bool:
+    """Return True if the user has an active enterprise subscription OR is an admin."""
+    if bool(user.get("is_admin", 0)):
+        return True
+    return (
+        user.get("subscription_status") == "active"
+        and user.get("subscription_plan") == "enterprise"
+    )
+
 def get_anthropic_client() -> anthropic.AsyncAnthropic:
     global _anthropic_client
     if _anthropic_client is None:
@@ -1411,9 +1421,7 @@ async def run_multi_agent(
             _db_path = _db.get_db_path()
             _user = _db.get_user_by_id(_db_path, user_id)
             if _user:
-                _plan   = _user.get("subscription_plan") or "free"
-                _status = _user.get("subscription_status", "free")
-                if not (_status == "active" and _plan == "enterprise"):
+                if not _is_enterprise_or_admin(_user):
                     msg = (
                         "❌ **MultiAgentBuild requires an Enterprise plan.** "
                         "Upgrade at zeusaidesign.com/pricing to unlock this feature."
@@ -1582,9 +1590,7 @@ async def _handle_create_background_task(
         _user = _db.get_user_by_id(_db_path, user_id)
         if not _user:
             return "Error: User not found."
-        _plan = _user.get("subscription_plan") or "free"
-        _status = _user.get("subscription_status", "free")
-        if not (_status == "active" and _plan == "enterprise"):
+        if not _is_enterprise_or_admin(_user):
             return (
                 "❌ **CreateBackgroundTask requires an Enterprise plan.** "
                 "Upgrade at zeusaidesign.com/pricing."

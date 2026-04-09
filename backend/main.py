@@ -548,9 +548,10 @@ async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
 
 @app.get("/tasks")
 async def get_tasks(current_user: dict = Depends(auth.get_current_user)):
+    is_admin = bool(current_user.get("is_admin", 0))
     plan = current_user.get("subscription_plan")
     status = current_user.get("subscription_status", "free")
-    if not (status == "active" and plan == "enterprise"):
+    if not (is_admin or (status == "active" and plan == "enterprise")):
         raise HTTPException(status_code=403, detail="Enterprise plan required")
     db_path = db.get_db_path()
     return db.get_tasks_for_user(db_path, current_user["id"])
