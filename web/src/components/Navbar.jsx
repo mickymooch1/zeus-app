@@ -18,6 +18,8 @@ export function Navbar() {
     navigate('/');
   };
 
+  console.log('[Navbar] user object:', user);
+
   return (
     <nav className={`navbar${scrolled ? ' navbar--scrolled' : ''}`}>
       <div className="navbar-inner">
