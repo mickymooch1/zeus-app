@@ -258,6 +258,10 @@ class CheckoutRequest(BaseModel):
     plan: str
 
 
+class SetEnterpriseRequest(BaseModel):
+    email: str
+
+
 class ExportRequest(BaseModel):
     text: str = Field(max_length=100_000)
     format: str   # "pdf" or "docx"
@@ -542,6 +546,31 @@ async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
             await websocket.close()
         except Exception:
             pass
+
+
+# ── Admin endpoints ───────────────────────────────────────────────────────────
+
+@app.post("/admin/set-enterprise")
+async def admin_set_enterprise(
+    body: SetEnterpriseRequest,
+    x_admin_secret: str = Header(None, alias="X-Admin-Secret"),
+):
+    admin_secret = os.environ.get("ADMIN_SECRET", "").strip()
+    if not admin_secret or x_admin_secret != admin_secret:
+        raise HTTPException(status_code=403, detail="Invalid or missing admin secret")
+
+    db_path = db.get_db_path()
+    user = db.get_user_by_email(db_path, body.email)
+    if not user:
+        raise HTTPException(status_code=404, detail=f"No user found with email {body.email!r}")
+
+    db.update_user(
+        db_path, user["id"],
+        subscription_plan="enterprise",
+        subscription_status="active",
+    )
+    log.info("admin_set_enterprise: set %s to enterprise", body.email)
+    return {"ok": True, "email": body.email, "plan": "enterprise", "status": "active"}
 
 
 # ── Tasks endpoints ───────────────────────────────────────────────────────────
