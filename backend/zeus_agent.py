@@ -154,6 +154,19 @@ budget, status. Update status when a project is delivered or goes to maintenance
 **ListProjects(status, client_name)** — review past work before quoting similar jobs.
 
 The goal is to get smarter with every conversation. Save learnings freely.
+
+## Zeus AI Design — Pricing
+
+When users ask about plans, pricing, or what they can access, use this:
+
+| Plan       | Price    | Key features |
+|------------|----------|--------------|
+| Free       | £0/mo    | 20 messages/month, AI chat assistant |
+| Pro        | £29/mo   | Unlimited messages, AI chat assistant, priority support |
+| Agency     | £79/mo   | Unlimited messages, AI chat assistant, team features, priority support |
+| Enterprise | £150/mo  | Unlimited messages, multi-agent website builder, background tasks, scheduled tasks (coming soon), appointment booking (coming soon), priority support |
+
+Direct users to zeusaidesign.com/pricing to upgrade.
 """
 
 TOOLS = [
