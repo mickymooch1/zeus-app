@@ -49,7 +49,7 @@ async def push_to_github(
 
     Each entry in `files`: {"path": "web/src/...", "content": "<utf-8 text>"}
 
-    If create_pr=False: pushes directly to main.
+    If create_pr=False: pushes directly to master.
     If create_pr=True:  creates branch zeus/update-{timestamp}, pushes there, opens PR.
 
     Returns a human-readable result string.
@@ -61,7 +61,7 @@ async def push_to_github(
     async with httpx.AsyncClient(headers=headers, timeout=30) as client:
 
         # 1. Get current HEAD commit SHA on main
-        r = await client.get(f"{API}/repos/{REPO}/git/ref/heads/main")
+        r = await client.get(f"{API}/repos/{REPO}/git/ref/heads/master")
         r.raise_for_status()
         head_sha = r.json()["object"]["sha"]
 
@@ -110,13 +110,13 @@ async def push_to_github(
         if not create_pr:
             # 6a. Advance main to the new commit
             r = await client.patch(
-                f"{API}/repos/{REPO}/git/refs/heads/main",
+                f"{API}/repos/{REPO}/git/refs/heads/master",
                 json={"sha": new_commit_sha},
             )
             r.raise_for_status()
             file_list = ", ".join(f["path"] for f in files)
             return (
-                f"✅ Pushed {len(files)} file(s) directly to main.\n"
+                f"✅ Pushed {len(files)} file(s) directly to master.\n"
                 f"Files: {file_list}\n"
                 f"Commit: {new_commit_sha[:7]} — {commit_message}\n"
                 f"Railway will redeploy zeusaidesign.com automatically."
@@ -136,7 +136,7 @@ async def push_to_github(
                     "title": pr_title or commit_message,
                     "body": pr_body or f"Automated update by Zeus AI.\n\n{commit_message}",
                     "head": branch,
-                    "base": "main",
+                    "base": "master",
                 },
             )
             r.raise_for_status()

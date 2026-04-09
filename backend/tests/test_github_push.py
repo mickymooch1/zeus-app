@@ -86,7 +86,7 @@ class TestPushToGithub:
                 create_pr=False,
             )
         assert "Pushed 1 file" in result
-        assert "main" in result
+        assert "master" in result
         assert "zeusaidesign.com" in result
 
     @pytest.mark.asyncio
