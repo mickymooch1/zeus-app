@@ -1165,6 +1165,17 @@ class HistoryStore:
                     updated     TEXT NOT NULL
                 );
             """)
+            # Idempotent migration: add user_id to sessions
+            try:
+                conn.execute("ALTER TABLE sessions ADD COLUMN user_id TEXT")
+            except Exception:
+                pass  # column already exists
+            try:
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id)"
+                )
+            except Exception:
+                pass
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -1176,19 +1187,20 @@ class HistoryStore:
             )
 
     def save_session(self, session_id: str, started: datetime,
-                     turns: int, preview: str) -> None:
+                     turns: int, preview: str,
+                     user_id: str | None = None) -> None:
         with self._conn() as conn:
             conn.execute(
                 """
-                INSERT INTO sessions (id, started, turns, preview, updated)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO sessions (id, started, turns, preview, updated, user_id)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     turns   = excluded.turns,
                     preview = excluded.preview,
                     updated = excluded.updated
                 """,
                 (session_id, started.isoformat(), turns,
-                 preview[:80], datetime.now().isoformat()),
+                 preview[:80], datetime.now().isoformat(), user_id),
             )
 
     def list_sessions(self) -> list:
@@ -1198,8 +1210,32 @@ class HistoryStore:
             ).fetchall()
         return [dict(r) for r in rows]
 
+    def list_sessions_for_user(self, user_id: str) -> list:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT id, started, turns, preview FROM sessions "
+                "WHERE user_id = ? ORDER BY updated DESC",
+                (user_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
     def get_transcript(self, session_id: str) -> list:
         with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT turn, role, text FROM turns WHERE session_id=? ORDER BY id",
+                (session_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_transcript_if_owner(self, session_id: str, user_id: str) -> list | None:
+        """Return transcript if session belongs to user_id, else None."""
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT id FROM sessions WHERE id = ? AND user_id = ?",
+                (session_id, user_id),
+            ).fetchone()
+            if row is None:
+                return None
             rows = conn.execute(
                 "SELECT turn, role, text FROM turns WHERE session_id=? ORDER BY id",
                 (session_id,),
