@@ -672,20 +672,20 @@ async def delete_task(task_id: str, current_user: dict = Depends(auth.get_curren
 # ── Existing REST endpoints ───────────────────────────────────────────────────
 
 @app.get("/sessions")
-async def get_sessions():
+async def get_sessions(current_user: dict = Depends(auth.get_current_user)):
     if history is None:
         return []
-    return history.list_sessions()
+    return history.list_sessions_for_user(current_user["id"])
 
 
 @app.get("/history/{session_id}")
-async def get_history(session_id: str):
+async def get_history(session_id: str, current_user: dict = Depends(auth.get_current_user)):
     if history is None:
         raise HTTPException(status_code=503, detail="Server still initialising")
-    try:
-        return history.get_transcript(session_id)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+    transcript = history.get_transcript_if_owner(session_id, current_user["id"])
+    if transcript is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return transcript
 
 
 @app.get("/tunnel-url")
