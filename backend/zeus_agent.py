@@ -1028,7 +1028,7 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
 
                 import time
                 deploy_state = None
-                for _ in range(15):
+                for _ in range(60):
                     time.sleep(2)
                     poll_resp = requests.get(
                         f"https://api.netlify.com/api/v1/deploys/{deploy_id}",
@@ -1050,7 +1050,7 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                         )
 
                 if deploy_state != "ready":
-                    return f"Error: Deploy did not become ready within 30 seconds (last state: {deploy_state})."
+                    return f"Error: Deploy did not become ready within 120 seconds (last state: {deploy_state})."
 
                 site_url = f"https://{site_name}.netlify.app"
                 return f"✅ Successfully deployed to Netlify!\n🌐 Live URL: {site_url}\n📁 Site ID: {site_id}"
