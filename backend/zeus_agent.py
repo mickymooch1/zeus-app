@@ -1370,6 +1370,7 @@ async def _run_agent_loop(
     history: "HistoryStore",
     stage_label: str,
     max_turns: int = 30,
+    collect_tool_results: bool = False,
 ) -> str:
     """
     Run a focused single-purpose agentic loop and return the final text output.
@@ -1448,6 +1449,8 @@ async def _run_agent_loop(
         for idx in sorted(tool_blocks):
             tb = tool_blocks[idx]
             result = _run_tool(tb["name"], tb["input"], history)
+            if collect_tool_results:
+                text_parts.append(result)
             path = (
                 tb["input"].get("file_path")
                 or tb["input"].get("path")
@@ -1650,6 +1653,7 @@ report the live URL clearly. Do nothing else.\
             on_message=on_message,
             history=history,
             stage_label="🚀 Deployer Agent",
+            collect_tool_results=True,
         )
     except Exception as exc:
         await on_message({"type": "text", "delta": f"\n\n❌ **Deployer failed:** {exc}\n"})
