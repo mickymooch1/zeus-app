@@ -1647,23 +1647,26 @@ CRITICAL — READ BEFORE WRITING ANY FILE:
 The ONLY permitted project directory is: {_build_dir}
 The site slug is: {site_name}
 
-Every file you write MUST use exactly these paths — no variations, no subdirectories, no different slugs:
-  {_build_dir}/index.html      ← REQUIRED entry point
-  {_build_dir}/style.css
-  {_build_dir}/script.js
+OUTPUT CONSTRAINTS — MUST BE FOLLOWED WITHOUT EXCEPTION:
+- Write ONE file only: {_build_dir}/index.html
+- Maximum 500 lines total
+- All CSS must be in a single <style> block inside the HTML — no separate .css files
+- All JS must be in a single <script> block inside the HTML — no separate .js files
+- No external frameworks, libraries, or CDN links (no Bootstrap, Tailwind, jQuery, etc.)
+- No base64-encoded images or data URIs
+- No external fonts (use system font stack only: sans-serif, serif, monospace)
+- Inline styles only where needed for dynamic behaviour; otherwise use the <style> block
 
+DO NOT write style.css, script.js, or any file other than index.html.
 DO NOT use any other directory. DO NOT invent a different folder name.
 DO NOT use relative paths. DO NOT add extra subdirectories.
 
 Your job:
-1. Build a complete, modern, responsive website
-2. Write every file to {_build_dir}/ using the Write tool with full absolute paths exactly as shown above
-3. index.html MUST be written — it is the required entry point
-4. Embed CSS in a <style> block or write it to {_build_dir}/style.css
-5. Embed JS inline or write it to {_build_dir}/script.js
-6. Use the brief's colour scheme, tone, and design style
-7. Draw on the research to inform layout, copy quality, and design choices
-8. Production-ready: mobile-first, semantic HTML, smooth hover/scroll interactions
+1. Write a single self-contained index.html under 500 lines
+2. Use the brief's colour scheme, tone, and content
+3. Draw on the research for copy and layout decisions
+4. Mobile-responsive using simple CSS (flexbox/grid, media queries)
+5. Clean semantic HTML — no unnecessary divs or complexity
 
 When done, confirm: "Files written to {_build_dir}/"\
 """
