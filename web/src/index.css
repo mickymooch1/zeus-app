@@ -956,3 +956,66 @@ body {
   gap: 1.25rem;
 }
 .upgrade-gate p { color: #aaa; font-size: 1rem; }
+
+/* ── Admin page ──────────────────────────────────────────── */
+.admin-page { background: #0a0818; min-height: 100vh; position: relative; }
+.admin-page-inner { position: relative; z-index: 1; }
+.admin-denied { text-align: center; color: var(--text-dim); padding: 4rem 0; font-size: 18px; }
+.admin-count { color: var(--text-faint); font-size: 13px; margin-top: 12px; text-align: right; }
+
+.admin-table-wrap {
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.admin-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.admin-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  vertical-align: middle;
+}
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.admin-email { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-date  { color: var(--text-dim); white-space: nowrap; }
+
+.admin-select {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+.admin-select:focus { border-color: var(--accent); }
+.admin-select:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.admin-cell { position: relative; }
+.admin-cell--saving { opacity: 0.6; }
+.admin-cell--saved .admin-select  { border-color: #34d399; }
+.admin-cell--error .admin-select  { border-color: #f87171; }
+
+.admin-flash {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.admin-flash--ok  { color: #34d399; }
+.admin-flash--err { color: #f87171; }
