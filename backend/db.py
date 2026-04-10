@@ -317,3 +317,15 @@ def fail_stale_tasks(db_path: pathlib.Path) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def get_all_users(db_path: pathlib.Path) -> list:
+    """Return all users ordered by creation date descending."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT * FROM users ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
