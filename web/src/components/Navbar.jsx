@@ -41,6 +41,9 @@ export function Navbar() {
               {(user.is_admin || (user.subscription_plan === 'enterprise' && user.subscription_status === 'active')) && (
                 <Link to="/tasks" className="btn btn-sm btn-ghost">Tasks</Link>
               )}
+              {user.is_admin && (
+                <Link to="/admin" className="btn btn-sm btn-ghost">Admin</Link>
+              )}
               <button className="btn btn-sm btn-outline" onClick={handleLogout}>
                 Sign out
               </button>
