@@ -1606,7 +1606,7 @@ Be specific and actionable. The Researcher and Builder will use this brief direc
         await on_message({"type": "text", "delta": f"\n\n❌ **Planner failed:** {exc}\n"})
         return f"Pipeline aborted: Planner failed — {exc}"
 
-    # Extract site name from planner output
+    # Extract site name from planner output — single source of truth for all stages
     site_name = "zeus-build"
     for line in planner_output.splitlines():
         stripped = line.strip()
@@ -1616,6 +1616,10 @@ Be specific and actionable. The Researcher and Builder will use this brief direc
             if slug:
                 site_name = slug
             break
+
+    _build_dir = f"/data/projects/{site_name}"
+    log.info("run_multi_agent: site_name=%r  build_dir=%r", site_name, _build_dir)
+    await on_message({"type": "text", "delta": f"\n📁 **Build directory:** `{_build_dir}`\n"})
 
     # ── Stage 2: Researcher ───────────────────────────────────────────────────
     researcher_system = """\
@@ -1647,24 +1651,25 @@ Include actual URLs and specific, actionable observations.\
         return f"Pipeline aborted: Researcher failed — {exc}"
 
     # ── Stage 3: Builder ──────────────────────────────────────────────────────
-    _build_dir = f"/data/projects/{site_name}"
+    log.info("run_multi_agent: Builder stage — site_name=%r  build_dir=%r", site_name, _build_dir)
     builder_system = f"""\
 You are the Builder in a multi-agent website build pipeline.
 
-CRITICAL FILE SAVE RULE:
-Every single file you create MUST be written using the Write tool with a full absolute path.
-The project directory is: {_build_dir}
+CRITICAL — READ BEFORE WRITING ANY FILE:
+The ONLY permitted project directory is: {_build_dir}
+The site slug is: {site_name}
 
-Examples of CORRECT Write tool calls:
-  file_path: "{_build_dir}/index.html"
-  file_path: "{_build_dir}/style.css"
-  file_path: "{_build_dir}/script.js"
+Every file you write MUST use exactly these paths — no variations, no subdirectories, no different slugs:
+  {_build_dir}/index.html      ← REQUIRED entry point
+  {_build_dir}/style.css
+  {_build_dir}/script.js
 
-NEVER use relative paths. NEVER write files anywhere other than {_build_dir}/.
+DO NOT use any other directory. DO NOT invent a different folder name.
+DO NOT use relative paths. DO NOT add extra subdirectories.
 
 Your job:
 1. Build a complete, modern, responsive website
-2. Write every file to {_build_dir}/ using the Write tool with the full absolute path shown above
+2. Write every file to {_build_dir}/ using the Write tool with full absolute paths exactly as shown above
 3. index.html MUST be written — it is the required entry point
 4. Embed CSS in a <style> block or write it to {_build_dir}/style.css
 5. Embed JS inline or write it to {_build_dir}/script.js
@@ -1672,13 +1677,13 @@ Your job:
 7. Draw on the research to inform layout, copy quality, and design choices
 8. Production-ready: mobile-first, semantic HTML, smooth hover/scroll interactions
 
-When done, list every file path you wrote.\
+When done, confirm: "Files written to {_build_dir}/"\
 """
     builder_prompt = (
         f"Brief from Planner:\n{planner_output}\n\n"
         f"Research from Researcher:\n{researcher_output}\n\n"
         f"Build the complete website. Write ALL files to {_build_dir}/ using the Write tool "
-        f"with full absolute paths (e.g. Write file_path={_build_dir}/index.html)."
+        f"with full absolute paths. The ONLY valid directory is {_build_dir}/ — do not use any other path."
     )
     try:
         builder_output = await _run_agent_loop(
@@ -1695,6 +1700,7 @@ When done, list every file path you wrote.\
 
     # ── Verify build output before deploying ──────────────────────────────────
     index_path = pathlib.Path(_build_dir) / "index.html"
+    log.info("run_multi_agent: verifying index.html at %r — exists=%s", str(index_path), index_path.exists())
     if not index_path.exists():
         msg = (
             f"\n\n❌ **Build verification failed:** `{_build_dir}/index.html` was not found. "
@@ -1706,6 +1712,7 @@ When done, list every file path you wrote.\
     await on_message({"type": "text", "delta": f"\n\n✅ **Build verified** — files confirmed at `{_build_dir}/`\n"})
 
     # ── Stage 4: Deployer ─────────────────────────────────────────────────────
+    log.info("run_multi_agent: Deployer stage — site_name=%r  build_dir=%r", site_name, _build_dir)
     deployer_system = """\
 You are the Deployer in a multi-agent website build pipeline.
 
@@ -1714,9 +1721,11 @@ report the live URL clearly. Do nothing else.\
 """
     deployer_prompt = (
         f"The Builder has finished writing the website.\n\n"
+        f"The files are at: {_build_dir}/\n"
         f"Deploy it now using DeployToNetlify:\n"
         f"  project_folder = \"{site_name}\"\n"
         f"  site_name      = \"{site_name}\"\n\n"
+        f"The project_folder value must be exactly \"{site_name}\" — do not change it.\n"
         "Confirm the live URL when done."
     )
     try:
