@@ -1790,6 +1790,27 @@ async def _handle_create_background_task(
 
             result_text = await run_multi_agent(request, _noop, history, user_id)
 
+            # run_multi_agent swallows agent/API exceptions and returns error strings
+            # rather than raising — detect them and mark the task failed.
+            _pipeline_failed = result_text.startswith("Pipeline aborted:")
+            _agent_error = result_text.startswith("Error:")
+            if _pipeline_failed or _agent_error:
+                if "overloaded_error" in result_text or "overloaded" in result_text.lower():
+                    error_msg = (
+                        "Anthropic API is overloaded — the request could not be completed. "
+                        "Please retry the task in a few minutes."
+                    )
+                else:
+                    error_msg = result_text
+                log.error("Background task %s failed (pipeline error): %s", task_id, result_text)
+                _db.update_task(
+                    _db_path, task_id,
+                    status="failed",
+                    result=error_msg,
+                    completed_at=datetime.now().isoformat(),
+                )
+                return
+
             # Extract Netlify URL from result
             _url_match = re.search(r'https?://\S+\.netlify\.app', result_text)
             live_url = _url_match.group(0).rstrip(".,)") if _url_match else None
@@ -1806,12 +1827,18 @@ async def _handle_create_background_task(
             _send_bg_task_email(user_email, description, live_url, result_text)
 
         except Exception as exc:
-            log.error("Background task %s failed: %s", task_id, exc)
+            log.error("Background task %s failed: %s", task_id, exc, exc_info=True)
+            error_msg = (
+                "Anthropic API is overloaded — the request could not be completed. "
+                "Please retry the task in a few minutes."
+                if "overloaded_error" in str(exc)
+                else str(exc)
+            )
             try:
                 _db.update_task(
                     _db_path, task_id,
                     status="failed",
-                    result=str(exc),
+                    result=error_msg,
                     completed_at=datetime.now().isoformat(),
                 )
             except Exception:
