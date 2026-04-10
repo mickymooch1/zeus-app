@@ -273,6 +273,11 @@ class SetEnterpriseRequest(BaseModel):
     email: str
 
 
+class AdminUserPatchRequest(BaseModel):
+    field: str   # "subscription_plan" or "subscription_status"
+    value: str
+
+
 class ExportRequest(BaseModel):
     text: str = Field(max_length=100_000)
     format: str   # "pdf" or "docx"
@@ -582,6 +587,50 @@ async def admin_set_enterprise(
     )
     log.info("admin_set_enterprise: set %s to enterprise", body.email)
     return {"ok": True, "email": body.email, "plan": "enterprise", "status": "active"}
+
+
+@app.get("/admin/users")
+async def admin_list_users(current_user: dict = Depends(auth.get_current_user)):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    db_path = db.get_db_path()
+    users = db.get_all_users(db_path)
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    for u in users:
+        u.pop("password_hash", None)
+        u["messages_this_month"] = db.get_monthly_usage(db_path, u["id"], month)
+    return users
+
+
+_ALLOWED_ADMIN_FIELDS = {
+    "subscription_plan": {"free", "pro", "agency", "enterprise"},
+    "subscription_status": {"free", "active", "cancelled"},
+}
+
+
+@app.patch("/admin/users/{user_id}")
+async def admin_patch_user(
+    user_id: str,
+    body: AdminUserPatchRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    allowed_values = _ALLOWED_ADMIN_FIELDS.get(body.field)
+    if allowed_values is None:
+        raise HTTPException(status_code=400, detail=f"Field '{body.field}' is not editable")
+    if body.value not in allowed_values:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Value '{body.value}' not allowed for '{body.field}'. Allowed: {sorted(allowed_values)}",
+        )
+    db_path = db.get_db_path()
+    target = db.get_user_by_id(db_path, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.update_user(db_path, user_id, **{body.field: body.value})
+    log.info("admin_patch_user: set %s.%s = %s (by admin %s)", user_id, body.field, body.value, current_user["id"])
+    return {"ok": True}
 
 
 # ── Tasks endpoints ───────────────────────────────────────────────────────────
