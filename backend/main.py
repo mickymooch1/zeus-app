@@ -594,7 +594,10 @@ async def admin_list_users(current_user: dict = Depends(auth.get_current_user)):
     if not current_user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Admin access required")
     db_path = db.get_db_path()
+    log.info("admin_list_users: querying db at %s", db_path)
     users = db.get_all_users(db_path)
+    log.info("admin_list_users: get_all_users returned %d row(s): %s",
+             len(users), [u.get("email") for u in users])
     month = datetime.now(timezone.utc).strftime("%Y-%m")
     for u in users:
         u.pop("password_hash", None)

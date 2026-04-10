@@ -321,11 +321,16 @@ def fail_stale_tasks(db_path: pathlib.Path) -> None:
 
 def get_all_users(db_path: pathlib.Path) -> list:
     """Return all users ordered by creation date descending."""
+    import logging as _logging
+    _log = _logging.getLogger("zeus.db")
+    _log.info("get_all_users: db_path=%s (exists=%s)", db_path, db_path.exists())
     conn = _conn(db_path)
     try:
         rows = conn.execute(
             "SELECT * FROM users ORDER BY created_at DESC"
         ).fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        _log.info("get_all_users: returned %d user(s)", len(result))
+        return result
     finally:
         conn.close()
