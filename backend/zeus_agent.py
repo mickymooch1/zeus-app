@@ -1607,10 +1607,13 @@ Be specific and actionable. The Researcher and Builder will use this brief direc
         return f"Pipeline aborted: Planner failed — {exc}"
 
     # Extract site name from planner output — single source of truth for all stages
+    log.info("run_multi_agent: raw planner_output=\n%s", planner_output)
     site_name = "zeus-build"
+    _site_name_raw_line = "(SITE_NAME: line not found in planner output)"
     for line in planner_output.splitlines():
         stripped = line.strip()
         if stripped.upper().startswith("SITE_NAME:"):
+            _site_name_raw_line = stripped
             raw = stripped.split(":", 1)[1].strip().lower()
             slug = re.sub(r"[^a-z0-9-]+", "-", raw).strip("-")
             if slug:
@@ -1618,7 +1621,10 @@ Be specific and actionable. The Researcher and Builder will use this brief direc
             break
 
     _build_dir = f"/data/projects/{site_name}"
-    log.info("run_multi_agent: site_name=%r  build_dir=%r", site_name, _build_dir)
+    log.info(
+        "run_multi_agent: site_name extraction — raw_line=%r  extracted=%r  build_dir=%r",
+        _site_name_raw_line, site_name, _build_dir,
+    )
     await on_message({"type": "text", "delta": f"\n📁 **Build directory:** `{_build_dir}`\n"})
 
     # ── Stage 2: Researcher ───────────────────────────────────────────────────
