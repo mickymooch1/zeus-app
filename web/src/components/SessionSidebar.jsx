@@ -1,21 +1,29 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 export function SessionSidebar({ currentSessionId, onNewSession, onResumeSession }) {
   const [sessions, setSessions] = useState([]);
   const [tunnelUrl, setTunnelUrl] = useState(null);
+  const { token } = useAuth();
 
   const refresh = useCallback(() => {
-    fetch(`${BACKEND_URL}/sessions`)
-      .then(r => r.json())
+    if (!token) {
+      setSessions([]);
+      return;
+    }
+    fetch(`${BACKEND_URL}/sessions`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : [])
       .then(setSessions)
       .catch(() => {});
     fetch(`${BACKEND_URL}/tunnel-url`)
       .then(r => r.json())
       .then(d => setTunnelUrl(d.url))
       .catch(() => {});
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     refresh();
