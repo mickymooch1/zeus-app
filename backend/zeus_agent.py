@@ -904,7 +904,7 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
             )
 
         elif name == "DeployToNetlify":
-            import requests, mimetypes, hashlib
+            import requests, io, time, zipfile
 
             project_folder = inp.get("project_folder")
             site_name = inp.get("site_name", project_folder.lower().replace(" ", "-"))
@@ -918,51 +918,44 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                 return f"Error: Folder {folder_path} does not exist."
 
             try:
-                headers = {
+                json_headers = {
                     "Authorization": f"Bearer {netlify_token}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 }
 
-                # First pass: collect all files
-                scanned = []
-                for root, dirs, files in os.walk(folder_path):
-                    for filename in files:
-                        filepath = os.path.join(root, filename)
-                        relative_path = "/" + os.path.relpath(filepath, folder_path).replace("\\", "/")
-                        with open(filepath, "rb") as f:
-                            content = f.read()
-                        scanned.append((relative_path, content))
+                # ── Build zip in memory ───────────────────────────────────────
+                zip_buf = io.BytesIO()
+                with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                    for root, _dirs, files in os.walk(folder_path):
+                        for filename in files:
+                            filepath = os.path.join(root, filename)
+                            arcname = os.path.relpath(filepath, folder_path).replace("\\", "/")
+                            # Rename first .html to index.html if no index.html exists
+                            if arcname.lower().endswith(".html"):
+                                parts = arcname.split("/")
+                                if parts[-1].lower() != "index.html":
+                                    siblings = [
+                                        f for f in os.listdir(os.path.dirname(filepath) or folder_path)
+                                        if f.lower() == "index.html"
+                                    ]
+                                    if not siblings:
+                                        parts[-1] = "index.html"
+                                        arcname = "/".join(parts)
+                            zf.write(filepath, arcname)
+                zip_bytes = zip_buf.getvalue()
 
-                # Determine HTML rename mapping
-                html_paths = sorted(p for p, _ in scanned if p.lower().endswith(".html"))
-                rename_map = {}
-                if html_paths and not any(os.path.basename(p).lower() == "index.html" for p in html_paths):
-                    target = html_paths[0]
-                    dir_part = os.path.dirname(target)
-                    new_path = (dir_part + "/index.html") if dir_part and dir_part != "/" else "/index.html"
-                    rename_map[target] = new_path
-
-                # Second pass: build digests and contents with remapped paths
-                file_digests = {}
-                file_contents = {}
-                for relative_path, content in scanned:
-                    key = rename_map.get(relative_path, relative_path)
-                    sha1 = hashlib.sha1(content).hexdigest()
-                    file_digests[key] = sha1
-                    file_contents[key] = content
-
+                # ── Get or create site ────────────────────────────────────────
                 sites_resp = requests.get(
                     "https://api.netlify.com/api/v1/sites",
-                    headers=headers
+                    headers=json_headers,
                 )
                 if sites_resp.status_code != 200:
                     return (
                         f"Error: Netlify /sites list returned HTTP {sites_resp.status_code}. "
                         f"Body: {sites_resp.text[:500]}"
                     )
-                sites = sites_resp.json()
                 site_id = None
-                for s in sites:
+                for s in sites_resp.json():
                     if s.get("name") == site_name:
                         site_id = s["id"]
                         break
@@ -970,8 +963,8 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                 if not site_id:
                     create_resp = requests.post(
                         "https://api.netlify.com/api/v1/sites",
-                        headers=headers,
-                        json={"name": site_name}
+                        headers=json_headers,
+                        json={"name": site_name},
                     )
                     if create_resp.status_code not in (200, 201):
                         return (
@@ -986,53 +979,35 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                         )
                     site_id = create_data["id"]
 
+                # ── Upload zip deploy ─────────────────────────────────────────
                 deploy_resp = requests.post(
                     f"https://api.netlify.com/api/v1/sites/{site_id}/deploys",
-                    headers=headers,
-                    json={"files": file_digests}
+                    headers={
+                        "Authorization": f"Bearer {netlify_token}",
+                        "Content-Type": "application/zip",
+                    },
+                    data=zip_bytes,
                 )
                 if deploy_resp.status_code not in (200, 201):
                     return (
-                        f"Error: Netlify deploy creation returned HTTP {deploy_resp.status_code}. "
+                        f"Error: Netlify zip deploy returned HTTP {deploy_resp.status_code}. "
                         f"Body: {deploy_resp.text[:500]}"
                     )
                 deploy_data = deploy_resp.json()
                 if "id" not in deploy_data:
                     return (
-                        f"Error: Netlify deploy creation response missing 'id'. "
+                        f"Error: Netlify zip deploy response missing 'id'. "
                         f"Body: {deploy_resp.text[:500]}"
                     )
                 deploy_id = deploy_data["id"]
-                required_files = deploy_data.get("required", [])
 
-                upload_errors = []
-                for rel_path in required_files:
-                    content = file_contents.get(rel_path)
-                    if content:
-                        mime = mimetypes.guess_type(rel_path)[0] or "application/octet-stream"
-                        put_resp = requests.put(
-                            f"https://api.netlify.com/api/v1/deploys/{deploy_id}/files{rel_path}",
-                            headers={
-                                "Authorization": f"Bearer {netlify_token}",
-                                "Content-Type": mime
-                            },
-                            data=content
-                        )
-                        if put_resp.status_code not in (200, 201):
-                            upload_errors.append(
-                                f"{rel_path}: HTTP {put_resp.status_code} — {put_resp.text[:200]}"
-                            )
-
-                if upload_errors:
-                    return f"Error: {len(upload_errors)} file(s) failed to upload:\n" + "\n".join(upload_errors)
-
-                import time
+                # ── Poll until ready ──────────────────────────────────────────
                 deploy_state = None
                 for _ in range(60):
                     time.sleep(2)
                     poll_resp = requests.get(
                         f"https://api.netlify.com/api/v1/deploys/{deploy_id}",
-                        headers={"Authorization": f"Bearer {netlify_token}"}
+                        headers={"Authorization": f"Bearer {netlify_token}"},
                     )
                     poll_data = poll_resp.json()
                     deploy_state = poll_data.get("state")
@@ -1040,13 +1015,12 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                         break
                     if deploy_state == "error":
                         error_msg = poll_data.get("error_message") or "(no error_message in response)"
-                        deploy_title = poll_data.get("title", "")
                         return (
                             f"Error: Netlify deploy failed.\n"
                             f"  state: error\n"
                             f"  error_message: {error_msg}\n"
                             f"  deploy_id: {deploy_id}\n"
-                            f"  title: {deploy_title}"
+                            f"  title: {poll_data.get('title', '')}"
                         )
 
                 if deploy_state != "ready":
@@ -1707,7 +1681,7 @@ When done, confirm: "Files written to {_build_dir}/"\
             on_message=on_message,
             history=history,
             stage_label="🏗️ Builder Agent",
-            max_tokens=16000,
+            max_tokens=32000,
             max_turns=40,
         )
     except Exception as exc:
