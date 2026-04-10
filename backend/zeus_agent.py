@@ -955,6 +955,11 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                     "https://api.netlify.com/api/v1/sites",
                     headers=headers
                 )
+                if sites_resp.status_code != 200:
+                    return (
+                        f"Error: Netlify /sites list returned HTTP {sites_resp.status_code}. "
+                        f"Body: {sites_resp.text[:500]}"
+                    )
                 sites = sites_resp.json()
                 site_id = None
                 for s in sites:
@@ -968,14 +973,35 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                         headers=headers,
                         json={"name": site_name}
                     )
-                    site_id = create_resp.json()["id"]
+                    if create_resp.status_code not in (200, 201):
+                        return (
+                            f"Error: Netlify site creation returned HTTP {create_resp.status_code}. "
+                            f"Body: {create_resp.text[:500]}"
+                        )
+                    create_data = create_resp.json()
+                    if "id" not in create_data:
+                        return (
+                            f"Error: Netlify site creation response missing 'id'. "
+                            f"Body: {create_resp.text[:500]}"
+                        )
+                    site_id = create_data["id"]
 
                 deploy_resp = requests.post(
                     f"https://api.netlify.com/api/v1/sites/{site_id}/deploys",
                     headers=headers,
                     json={"files": file_digests}
                 )
+                if deploy_resp.status_code not in (200, 201):
+                    return (
+                        f"Error: Netlify deploy creation returned HTTP {deploy_resp.status_code}. "
+                        f"Body: {deploy_resp.text[:500]}"
+                    )
                 deploy_data = deploy_resp.json()
+                if "id" not in deploy_data:
+                    return (
+                        f"Error: Netlify deploy creation response missing 'id'. "
+                        f"Body: {deploy_resp.text[:500]}"
+                    )
                 deploy_id = deploy_data["id"]
                 required_files = deploy_data.get("required", [])
 
@@ -993,7 +1019,9 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                             data=content
                         )
                         if put_resp.status_code not in (200, 201):
-                            upload_errors.append(f"{rel_path}: HTTP {put_resp.status_code}")
+                            upload_errors.append(
+                                f"{rel_path}: HTTP {put_resp.status_code} — {put_resp.text[:200]}"
+                            )
 
                 if upload_errors:
                     return f"Error: {len(upload_errors)} file(s) failed to upload:\n" + "\n".join(upload_errors)
@@ -1006,11 +1034,20 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                         f"https://api.netlify.com/api/v1/deploys/{deploy_id}",
                         headers={"Authorization": f"Bearer {netlify_token}"}
                     )
-                    deploy_state = poll_resp.json().get("state")
+                    poll_data = poll_resp.json()
+                    deploy_state = poll_data.get("state")
                     if deploy_state == "ready":
                         break
                     if deploy_state == "error":
-                        return f"Error: Netlify deploy failed with state 'error'."
+                        error_msg = poll_data.get("error_message") or "(no error_message in response)"
+                        deploy_title = poll_data.get("title", "")
+                        return (
+                            f"Error: Netlify deploy failed.\n"
+                            f"  state: error\n"
+                            f"  error_message: {error_msg}\n"
+                            f"  deploy_id: {deploy_id}\n"
+                            f"  title: {deploy_title}"
+                        )
 
                 if deploy_state != "ready":
                     return f"Error: Deploy did not become ready within 30 seconds (last state: {deploy_state})."
@@ -1019,7 +1056,8 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                 return f"✅ Successfully deployed to Netlify!\n🌐 Live URL: {site_url}\n📁 Site ID: {site_id}"
 
             except Exception as e:
-                return f"Error deploying to Netlify: {str(e)}"
+                import traceback as _tb
+                return f"Error deploying to Netlify: {e}\n{_tb.format_exc()}"
 
         else:
             return f"Unknown tool: {name}"
