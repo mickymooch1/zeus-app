@@ -2108,7 +2108,7 @@ async def run_turn_stream(
                     zeus_text = EXPORT_TAG_RE.sub('', zeus_text).rstrip()
                 if zeus_text:
                     history.log_turn(session_id, turn_count, "zeus", zeus_text)
-                history.save_session(session_id, session_start, turn_count, prompt)
+                history.save_session(session_id, session_start, turn_count, prompt, user_id=user_id)
             except Exception:
                 log.exception("Failed to persist session %s", session_id)
 
