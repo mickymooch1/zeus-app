@@ -1444,6 +1444,7 @@ async def _run_agent_loop(
     history: "HistoryStore",
     stage_label: str,
     max_turns: int = 30,
+    max_tokens: int = 8000,
     collect_tool_results: bool = False,
 ) -> str:
     """
@@ -1463,7 +1464,7 @@ async def _run_agent_loop(
 
         stream_kwargs: dict[str, Any] = {
             "model": "claude-sonnet-4-6",
-            "max_tokens": 8000,
+            "max_tokens": max_tokens,
             "system": system_prompt,
             "messages": messages,
         }
@@ -1512,6 +1513,13 @@ async def _run_agent_loop(
                         })
 
             final = await stream.get_final_message()
+
+        log.info("%s: stop_reason=%r  tool_blocks=%d", stage_label, final.stop_reason, len(tool_blocks))
+        if final.stop_reason == "max_tokens":
+            log.warning(
+                "%s: hit max_tokens limit (%d) — response was truncated; increase max_tokens if output is incomplete",
+                stage_label, max_tokens,
+            )
 
         safe_content = [s for b in final.content if (s := _sanitise_block(b)) is not None]
         messages.append({"role": "assistant", "content": safe_content})
@@ -1699,6 +1707,8 @@ When done, confirm: "Files written to {_build_dir}/"\
             on_message=on_message,
             history=history,
             stage_label="🏗️ Builder Agent",
+            max_tokens=16000,
+            max_turns=40,
         )
     except Exception as exc:
         await on_message({"type": "text", "delta": f"\n\n❌ **Builder failed:** {exc}\n"})
