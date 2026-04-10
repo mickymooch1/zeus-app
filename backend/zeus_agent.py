@@ -1761,6 +1761,7 @@ report the live URL clearly. Do nothing else.\
             "You can deploy manually from the Builder's output."
         )
 
+    log.info("run_multi_agent: deployer_output=\n%s", deployer_output)
     return deployer_output
 
 
@@ -1837,6 +1838,7 @@ async def _handle_create_background_task(
                 return
 
             # Extract Netlify URL from result
+            log.info("Background task %s: raw result_text=\n%s", task_id, result_text)
             _url_match = re.search(r'https?://\S+\.netlify\.app', result_text)
             live_url = _url_match.group(0).rstrip(".,)") if _url_match else None
 
