@@ -291,6 +291,20 @@ def get_tasks_for_user(db_path: pathlib.Path, user_id: str) -> list:
         conn.close()
 
 
+def delete_task(db_path: pathlib.Path, task_id: str, user_id: str) -> bool:
+    """Delete a task. Returns True if a row was deleted, False if not found."""
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            "DELETE FROM tasks WHERE id = ? AND user_id = ?",
+            (task_id, user_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def fail_stale_tasks(db_path: pathlib.Path) -> None:
     """Mark any 'running' tasks as 'failed' — called at startup after a restart."""
     now = datetime.now(timezone.utc).isoformat()

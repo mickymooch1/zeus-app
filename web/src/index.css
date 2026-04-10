@@ -909,6 +909,14 @@ body {
 .task-card--done    { border-color: rgba(52,211,153,0.35); }
 .task-card--failed  { border-color: rgba(248,113,113,0.35); }
 
+.task-delete-btn {
+  margin-left: auto; background: none; border: none; cursor: pointer;
+  color: var(--text-dim); font-size: 13px; padding: 2px 6px; border-radius: 4px;
+  line-height: 1; flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+.task-delete-btn:hover { color: #f87171; background: rgba(248,113,113,0.1); }
+
 .task-card-header {
   display: flex;
   align-items: center;

@@ -603,6 +603,20 @@ async def get_tasks(current_user: dict = Depends(auth.get_current_user)):
         return []
 
 
+@app.delete("/tasks/{task_id}")
+async def delete_task(task_id: str, current_user: dict = Depends(auth.get_current_user)):
+    is_admin = bool(current_user.get("is_admin", 0))
+    plan = current_user.get("subscription_plan")
+    status = current_user.get("subscription_status", "free")
+    if not (is_admin or (status == "active" and plan == "enterprise")):
+        raise HTTPException(status_code=403, detail="Enterprise plan required")
+    db_path = db.get_db_path()
+    deleted = db.delete_task(db_path, task_id, current_user["id"])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"ok": True}
+
+
 # ── Existing REST endpoints ───────────────────────────────────────────────────
 
 @app.get("/sessions")

@@ -12,7 +12,7 @@ const STATUS_BADGE = {
   failed:  { label: '❌ Failed',   className: 'badge-status badge-status--failed'   },
 };
 
-function TaskCard({ task }) {
+function TaskCard({ task, onDelete }) {
   const badge = STATUS_BADGE[task.status] || STATUS_BADGE.pending;
   const createdAt = new Date(task.created_at).toLocaleString();
 
@@ -21,6 +21,7 @@ function TaskCard({ task }) {
       <div className="task-card-header">
         <span className="task-description">{task.description}</span>
         <span className={badge.className}>{badge.label}</span>
+        <button className="task-delete-btn" onClick={() => onDelete(task.id)} title="Delete task">✕</button>
       </div>
       <div className="task-card-meta">Started {createdAt}</div>
       {task.status === 'done' && task.live_url && (
@@ -45,6 +46,18 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const handleDelete = useCallback(async (taskId) => {
+    try {
+      await fetch(`${BACKEND_URL}/tasks/${taskId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    } catch {
+      // silently ignore — task will reappear on next poll
+    }
+  }, [token]);
 
   const fetchTasks = useCallback(async () => {
     if (!token) return;
@@ -132,7 +145,7 @@ export default function TasksPage() {
         ) : (
           <div className="tasks-list">
             {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} />
+              <TaskCard key={task.id} task={task} onDelete={handleDelete} />
             ))}
           </div>
         )}
