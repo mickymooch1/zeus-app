@@ -327,6 +327,30 @@ class TestCreateScheduledTask:
         finally:
             app.dependency_overrides.pop(auth.get_current_user, None)
 
+    def test_six_field_cron_returns_400(self):
+        """croniter accepts 6-field crons but APScheduler only accepts 5 — must be rejected."""
+        import auth
+        import db
+        from main import app
+        from fastapi.testclient import TestClient
+        app.dependency_overrides[auth.get_current_user] = _pro_user
+        try:
+            with patch.object(db, "count_active_scheduled_tasks", return_value=0):
+                with TestClient(app) as client:
+                    resp = client.post(
+                        "/scheduled-tasks",
+                        json={
+                            "task_description": "Rebuild site",
+                            "cron_expression": "0 0 9 * * 1",
+                            "schedule_label": "Label",
+                            "timezone": "UTC",
+                        },
+                        headers={"Authorization": "Bearer fake"},
+                    )
+                    assert resp.status_code == 400
+        finally:
+            app.dependency_overrides.pop(auth.get_current_user, None)
+
     def test_enterprise_user_unlimited(self):
         import auth
         import db

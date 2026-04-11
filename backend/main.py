@@ -774,12 +774,13 @@ async def create_scheduled_task_endpoint(
                 detail=f"You've reached the limit of {limit} scheduled tasks on the {plan} plan. Upgrade to add more.",
             )
 
-    # Validate cron expression
+    # Validate cron expression — must be exactly 5 fields (APScheduler rejects 6-field)
     try:
         from croniter import croniter
-        if not croniter.is_valid(body.cron_expression):
+        parts = body.cron_expression.strip().split()
+        if len(parts) != 5 or not croniter.is_valid(body.cron_expression):
             raise ValueError("invalid")
-    except Exception:
+    except ValueError:
         raise HTTPException(status_code=400, detail="Invalid cron expression")
 
     import scheduler as _scheduler_mod
