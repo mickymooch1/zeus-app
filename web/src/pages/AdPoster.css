@@ -1,0 +1,212 @@
+/* ============================================
+   AdPoster.css — Facebook Ad 1200x630
+   Zeus AI Design — Black + Neon Green theme
+   ============================================ */
+
+.ad-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #111;
+  padding: 40px;
+  box-sizing: border-box;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+/* ---- The Ad Card ---- */
+.ad-card {
+  position: relative;
+  width: 1200px;
+  height: 630px;
+  background: #000;
+  border: 1.5px solid #00ff6a33;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 56px 72px;
+  box-sizing: border-box;
+  box-shadow: 0 0 80px #00ff6a18, 0 0 200px #00ff6a08;
+}
+
+/* ---- Background grid ---- */
+.ad-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 255, 106, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 106, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+
+/* ---- Glow blobs ---- */
+.glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+.glow-1 {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, #00ff6a22 0%, transparent 70%);
+  top: -120px;
+  right: -80px;
+}
+.glow-2 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, #00ff6a14 0%, transparent 70%);
+  bottom: -80px;
+  left: 40px;
+}
+
+/* ---- Badge ---- */
+.ad-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #00ff6a12;
+  border: 1px solid #00ff6a40;
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #00ff6a;
+  text-transform: uppercase;
+  margin-bottom: 22px;
+  width: fit-content;
+}
+.badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00ff6a;
+  box-shadow: 0 0 6px #00ff6a;
+  display: inline-block;
+}
+
+/* ---- Logo ---- */
+.ad-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.logo-bolt {
+  font-size: 28px;
+  color: #00ff6a;
+  filter: drop-shadow(0 0 8px #00ff6a);
+  line-height: 1;
+}
+.logo-text {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
+/* ---- Headline ---- */
+.ad-headline {
+  font-size: 62px;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1.05;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.02em;
+  max-width: 680px;
+}
+.ad-headline-green {
+  color: #00ff6a;
+  text-shadow: 0 0 30px #00ff6a55;
+}
+
+/* ---- Subline ---- */
+.ad-sub {
+  font-size: 19px;
+  color: #aaa;
+  margin: 0 0 30px 0;
+  font-weight: 400;
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+/* ---- Feature list ---- */
+.ad-features {
+  list-style: none;
+  margin: 0 0 34px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ad-features li {
+  font-size: 16px;
+  color: #ddd;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+}
+.check {
+  color: #00ff6a;
+  font-size: 15px;
+  font-weight: 900;
+  background: #00ff6a18;
+  border: 1px solid #00ff6a44;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px #00ff6a44;
+}
+
+/* ---- CTA ---- */
+.ad-cta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.cta-btn {
+  background: #00ff6a;
+  color: #000;
+  font-size: 16px;
+  font-weight: 800;
+  padding: 14px 32px;
+  border-radius: 8px;
+  letter-spacing: 0.01em;
+  box-shadow: 0 0 24px #00ff6a55;
+  cursor: default;
+  white-space: nowrap;
+}
+.cta-url {
+  font-size: 15px;
+  color: #555;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* ---- Bottom bar ---- */
+.ad-bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #00ff6a0a;
+  border-top: 1px solid #00ff6a20;
+  padding: 12px 72px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #444;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
