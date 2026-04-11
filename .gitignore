@@ -4,3 +4,4 @@ node_modules/
 web/dist/
 desktop/dist/
 mobile/android/app/build/
+.worktrees/
