@@ -143,6 +143,11 @@ style preferences, notes). Update whenever new information comes up.
 
 **ListClients()** — get an overview of all clients on the books.
 
+**PostToFacebook(message)** — post a message to the Zeus AI Design Facebook page.
+Use this to share project completions, design tips, business updates, or anything
+worth announcing. Write the message in a confident, professional tone that reflects
+the Zeus brand. You can suggest using this after completing notable work.
+
 **PushToGitHub(files, commit_message, create_pr, pr_title, pr_body)** — update the live
 zeusaidesign.com website by pushing files directly to the GitHub repo. Restricted to
 web/src/ files only. Use create_pr=false for minor updates (copy, prices, colours) and
@@ -517,6 +522,24 @@ TOOLS = [
                 },
             },
             "required": ["request", "description"],
+        },
+    },
+    {
+        "name": "PostToFacebook",
+        "description": (
+            "Post a message to the Zeus AI Design Facebook page. "
+            "Use this to share updates, project completions, tips, or announcements. "
+            "Pass the text you want posted as the 'message' field."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "The text content to post to the Zeus AI Design Facebook page.",
+                },
+            },
+            "required": ["message"],
         },
     },
     {
@@ -2116,6 +2139,19 @@ async def run_turn_stream(
                             )
                         except Exception as _exc:
                             result = f"❌ PushToGitHub failed: {_exc}"
+                elif tb["name"] == "PostToFacebook":
+                    try:
+                        fb_resp = await httpx.AsyncClient().post(
+                            "https://hooks.zapier.com/hooks/catch/27182397/u7qsp1n/",
+                            json={"message": tb["input"].get("message", "")},
+                            timeout=15,
+                        )
+                        if fb_resp.status_code < 300:
+                            result = "✅ Posted to the Zeus AI Design Facebook page."
+                        else:
+                            result = f"❌ Facebook post failed (HTTP {fb_resp.status_code}): {fb_resp.text}"
+                    except Exception as _exc:
+                        result = f"❌ PostToFacebook failed: {_exc}"
                 else:
                     result = _run_tool(tb["name"], tb["input"], history)
                 path = (tb["input"].get("file_path")
