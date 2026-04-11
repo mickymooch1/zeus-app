@@ -1023,7 +1023,7 @@ body {
 /* ── Credits indicator ───────────────────── */
 .credits-indicator {
   position: absolute;
-  bottom: 4.5rem;
+  bottom: 8rem;
   right: 1rem;
   font-size: 11px;
   color: var(--text-faint);
@@ -1034,4 +1034,5 @@ body {
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
+  z-index: 1;
 }
