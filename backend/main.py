@@ -1,5 +1,6 @@
 import asyncio
 import httpx
+import json
 import logging
 import os
 import pathlib
@@ -691,7 +692,7 @@ async def admin_credits(current_user: dict = Depends(auth.get_current_user)):
 # ── Scheduled Tasks ─────────────────────────────────────────────────────────
 
 class ScheduledTaskParseRequest(BaseModel):
-    natural_language: str
+    natural_language: str = Field(min_length=1, max_length=500)
 
 
 @app.post("/scheduled-tasks/parse")
@@ -722,18 +723,18 @@ async def parse_scheduled_task(
         )
     except Exception:
         log.exception("parse_scheduled_task: Anthropic call failed")
-        raise HTTPException(status_code=400, detail="Schedule parsing timed out — try again")
+        raise HTTPException(status_code=503, detail="Schedule parsing timed out — try again")
 
-    import json as _json
     try:
-        result = _json.loads(msg.content[0].text)
+        result = json.loads(msg.content[0].text)
     except Exception:
         raise HTTPException(status_code=400, detail="Could not parse schedule — try again")
 
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
 
-    _parse_cache[key] = result
+    if len(_parse_cache) < 1024:
+        _parse_cache[key] = result
     return result
 
 
