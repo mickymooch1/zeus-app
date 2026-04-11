@@ -84,6 +84,7 @@ function BackgroundTasksTab({ token }) {
     fetchTasks();
   }, [fetchTasks]);
 
+  // Poll every 10 seconds while any task is active
   useEffect(() => {
     const hasActive = tasks.some(
       (t) => t.status === 'pending' || t.status === 'running'
@@ -150,14 +151,18 @@ export default function TasksPage() {
           Tasks
         </h1>
 
-        <div className="tasks-tab-bar">
+        <div className="tasks-tab-bar" role="tablist" aria-label="Task views">
           <button
+            role="tab"
+            aria-selected={activeTab === 'background'}
             className={`tasks-tab-btn${activeTab === 'background' ? ' tasks-tab-btn--active' : ''}`}
             onClick={() => setActiveTab('background')}
           >
             Background Tasks
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === 'scheduled'}
             className={`tasks-tab-btn${activeTab === 'scheduled' ? ' tasks-tab-btn--active' : ''}`}
             onClick={() => setActiveTab('scheduled')}
           >
