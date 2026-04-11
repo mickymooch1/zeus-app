@@ -14,7 +14,7 @@ print("zeus main.py: starting imports", file=sys.stderr, flush=True)
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 print("zeus main.py: fastapi ok", file=sys.stderr, flush=True)
@@ -777,6 +777,142 @@ async def sitemap():
 async def health():
     log.info("GET /health — ok")
     return {"status": "ok"}
+
+
+@app.get("/ad-poster", include_in_schema=False)
+async def ad_poster():
+    html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zeus AI Design</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    background: #000;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card {
+    width: 1200px;
+    height: 630px;
+    background: #000;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 80px 100px;
+    overflow: hidden;
+  }
+
+  /* Grid overlay */
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0, 255, 65, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 255, 65, 0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  /* Glow bloom */
+  .card::after {
+    content: '';
+    position: absolute;
+    top: -200px;
+    right: -200px;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(0, 255, 65, 0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .bolt {
+    font-size: 72px;
+    line-height: 1;
+    margin-bottom: 24px;
+    filter: drop-shadow(0 0 24px #00ff41);
+  }
+
+  .headline {
+    font-size: 80px;
+    font-weight: 800;
+    color: #00ff41;
+    letter-spacing: -2px;
+    line-height: 1;
+    text-shadow: 0 0 40px rgba(0, 255, 65, 0.5);
+    margin-bottom: 8px;
+  }
+
+  .sub {
+    font-size: 80px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -2px;
+    line-height: 1;
+    margin-bottom: 32px;
+  }
+
+  .tagline {
+    font-size: 26px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: 0.5px;
+    margin-bottom: 48px;
+  }
+
+  .url {
+    font-size: 22px;
+    font-weight: 600;
+    color: #00ff41;
+    letter-spacing: 1px;
+    border: 1.5px solid rgba(0, 255, 65, 0.4);
+    padding: 10px 24px;
+    border-radius: 4px;
+    text-transform: lowercase;
+  }
+
+  /* Corner accent lines */
+  .corner {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border-color: rgba(0, 255, 65, 0.3);
+    border-style: solid;
+  }
+  .corner-tl { top: 32px; left: 32px; border-width: 2px 0 0 2px; }
+  .corner-tr { top: 32px; right: 32px; border-width: 2px 2px 0 0; }
+  .corner-bl { bottom: 32px; left: 32px; border-width: 0 0 2px 2px; }
+  .corner-br { bottom: 32px; right: 32px; border-width: 0 2px 2px 0; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="bolt">⚡</div>
+    <div class="headline">Zeus AI</div>
+    <div class="sub">Design.</div>
+    <div class="tagline">Websites · Writing · Research · Business — powered by AI</div>
+    <div class="url">zeusaidesign.com</div>
+  </div>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
 
 
 # Serve built React app from web/dist/
