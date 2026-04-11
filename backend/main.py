@@ -240,9 +240,9 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("ANTHROPIC_API_KEY is not set — add it to Railway → Service → Variables")
     get_anthropic_client()  # validate key and warm up client at startup
     log.info("Anthropic client initialised")
-    _scheduler_mod.init_scheduler(history)
-    log.info("Scheduler initialised")
     try:
+        _scheduler_mod.init_scheduler(history)
+        log.info("Scheduler initialised")
         if _RAILWAY:
             log.info("Running on Railway — skipping cloudflared tunnel (not installed)")
             yield
