@@ -55,7 +55,6 @@ class TestCreditsEndpoint:
     def test_admin_gets_balance_on_success(self):
         import auth
         import main as _main
-        import httpx
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -132,5 +131,31 @@ class TestCreditsEndpoint:
                     data = resp.json()
                     assert data["balance"] is None
                     assert "unavailable" in data["message"].lower()
+        finally:
+            app.dependency_overrides.pop(auth.get_current_user, None)
+
+    def test_admin_gets_unavailable_when_no_api_key(self):
+        import auth
+        import main as _main
+
+        app = _main.app
+        app.dependency_overrides[auth.get_current_user] = _admin_user
+        # The app lifespan requires the key to be present at startup, so we
+        # start the client first, then clear the key only for the request.
+        try:
+            with TestClient(app) as client:
+                original_key = os.environ.pop("ANTHROPIC_API_KEY", None)
+                try:
+                    resp = client.get(
+                        "/admin/credits",
+                        headers={"Authorization": "Bearer fake"},
+                    )
+                finally:
+                    if original_key is not None:
+                        os.environ["ANTHROPIC_API_KEY"] = original_key
+                assert resp.status_code == 200
+                data = resp.json()
+                assert data["balance"] is None
+                assert "unavailable" in data["message"].lower()
         finally:
             app.dependency_overrides.pop(auth.get_current_user, None)

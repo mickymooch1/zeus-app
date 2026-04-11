@@ -665,6 +665,7 @@ async def admin_credits(current_user: dict = Depends(auth.get_current_user)):
             return {"balance": round(amount_cents / 100, 2), "currency": currency}
         return {"balance": None, "message": "Balance unavailable"}
     except Exception:
+        log.exception("admin_credits: failed to fetch Anthropic balance")
         return {"balance": None, "message": "Balance unavailable"}
 
 
