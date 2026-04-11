@@ -3,6 +3,22 @@
    Zeus AI Design — Black + Neon Green theme
    ============================================ */
 
+/* Force the global layout constraints out of the way */
+body:has(.ad-wrapper),
+html:has(.ad-wrapper) {
+  height: auto;
+  overflow: auto;
+}
+
+#root:has(.ad-wrapper),
+.app:has(.ad-wrapper) {
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+  display: block;
+  background: #111;
+}
+
 .ad-wrapper {
   display: flex;
   align-items: center;
@@ -12,6 +28,7 @@
   padding: 40px;
   box-sizing: border-box;
   font-family: 'Inter', 'Segoe UI', sans-serif;
+  overflow: auto;
 }
 
 /* ---- The Ad Card ---- */
@@ -29,6 +46,7 @@
   padding: 56px 72px;
   box-sizing: border-box;
   box-shadow: 0 0 80px #00ff6a18, 0 0 200px #00ff6a08;
+  flex-shrink: 0;
 }
 
 /* ---- Background grid ---- */
