@@ -12,30 +12,55 @@ const STATUS_BADGE = {
   failed:  { label: '❌ Failed',   className: 'badge-status badge-status--failed'   },
 };
 
-/** Pull the first https:// URL out of a block of text — fallback when live_url is null */
+/** Pull the first https:// URL out of a block of text */
 function extractUrl(text) {
   if (!text) return null;
-  const m = text.match(/https?:\/\/[^\s\)\]]+/);
+  const m = text.match(/https?:\/\/[^\s\)\]"'<>]+/);
   return m ? m[0].replace(/[.,\/]+$/, '') : null;
+}
+
+/** Convert a plain-text/markdown result string into readable HTML */
+function resultToHtml(text) {
+  if (!text) return '';
+  return text
+    // Bold **text**
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    // Code `inline`
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // Strip triple-backtick code fences — just show the content
+    .replace(/```[\w]*\n?/g, '')
+    // URLs → clickable links
+    .replace(
+      /(https?:\/\/[^\s\)\]"'<>]+)/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+    )
+    // Line breaks
+    .replace(/\n/g, '<br />');
 }
 
 function TaskCard({ task, onDelete }) {
   const badge = STATUS_BADGE[task.status] || STATUS_BADGE.pending;
   const createdAt = new Date(task.created_at).toLocaleString();
-
-  // Use live_url if present, otherwise try to extract from result text
-  const liveUrl = task.live_url || (task.status === 'done' ? extractUrl(task.result) : null);
+  const liveUrl = task.live_url || extractUrl(task.result);
 
   return (
     <div className={`task-card task-card--${task.status}`}>
       <div className="task-card-header">
         <span className="task-description">{task.description}</span>
         <span className={badge.className}>{badge.label}</span>
-        <button className="task-delete-btn" onClick={() => onDelete(task.id)} title="Delete task">✕</button>
+        <button
+          className="task-delete-btn"
+          onClick={() => onDelete(task.id)}
+          title="Delete task"
+        >
+          ✕
+        </button>
       </div>
+
       <div className="task-card-meta">Started {createdAt}</div>
 
-      {task.status === 'done' && liveUrl && (
+      {/* Live URL button — shown whenever a URL exists, regardless of status */}
+      {liveUrl && (
         <a
           href={liveUrl}
           target="_blank"
@@ -46,14 +71,20 @@ function TaskCard({ task, onDelete }) {
         </a>
       )}
 
+      {/* Result text for done tasks with no URL */}
       {task.status === 'done' && !liveUrl && task.result && (
-        <p className="task-result-note">
-          {task.result.slice(0, 400)}
-        </p>
+        <div
+          className="task-result-note"
+          dangerouslySetInnerHTML={{ __html: resultToHtml(task.result.slice(0, 600)) }}
+        />
       )}
 
+      {/* Error text for failed tasks */}
       {task.status === 'failed' && task.result && (
-        <p className="task-error-note">{task.result.slice(0, 300)}</p>
+        <div
+          className="task-error-note"
+          dangerouslySetInnerHTML={{ __html: resultToHtml(task.result.slice(0, 600)) }}
+        />
       )}
     </div>
   );
@@ -73,7 +104,7 @@ export default function TasksPage() {
       });
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch {
-      // silently ignore — task will reappear on next poll
+      // silently ignore
     }
   }, [token]);
 
@@ -102,7 +133,7 @@ export default function TasksPage() {
     fetchTasks();
   }, [fetchTasks]);
 
-  // Poll every 10 seconds while any task is active
+  // Poll every 10s while any task is pending or running
   useEffect(() => {
     const hasActive = tasks.some(
       (t) => t.status === 'pending' || t.status === 'running'
