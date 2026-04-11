@@ -89,6 +89,21 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 completed_at TEXT
             );
             CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks (user_id);
+
+            CREATE TABLE IF NOT EXISTS scheduled_tasks (
+                id               TEXT PRIMARY KEY,
+                user_id          TEXT NOT NULL,
+                task_description TEXT NOT NULL,
+                cron_expression  TEXT NOT NULL,
+                schedule_label   TEXT NOT NULL,
+                timezone         TEXT NOT NULL DEFAULT 'UTC',
+                is_active        INTEGER NOT NULL DEFAULT 1,
+                last_run         TEXT,
+                next_run         TEXT NOT NULL,
+                created_at       TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_user
+                ON scheduled_tasks (user_id);
         """)
         # Migrate existing tables — ignore error if column already exists
         try:
@@ -332,5 +347,118 @@ def get_all_users(db_path: pathlib.Path) -> list:
         result = [dict(r) for r in rows]
         _log.info("get_all_users: returned %d user(s)", len(result))
         return result
+    finally:
+        conn.close()
+
+
+# ── Scheduled Tasks ─────────────────────────────────────────────────────────
+
+
+def create_scheduled_task(
+    db_path: pathlib.Path,
+    user_id: str,
+    task_description: str,
+    cron_expression: str,
+    schedule_label: str,
+    next_run: str,
+    tz: str = "UTC",
+) -> dict:
+    """Insert a new scheduled task and return the created row."""
+    now = datetime.now(timezone.utc).isoformat()
+    task_id = str(uuid.uuid4())
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """
+            INSERT INTO scheduled_tasks
+                (id, user_id, task_description, cron_expression, schedule_label,
+                 timezone, is_active, last_run, next_run, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 1, NULL, ?, ?)
+            """,
+            (task_id, user_id, task_description, cron_expression, schedule_label,
+             tz, next_run, now),
+        )
+        conn.commit()
+        return get_scheduled_task(db_path, task_id)
+    finally:
+        conn.close()
+
+
+def get_scheduled_tasks_for_user(db_path: pathlib.Path, user_id: str) -> list[dict]:
+    """Return all scheduled tasks for a user, most recent first."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT * FROM scheduled_tasks WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_all_active_scheduled_tasks(db_path: pathlib.Path) -> list[dict]:
+    """Return all rows where is_active = 1 — used by scheduler on startup."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT * FROM scheduled_tasks WHERE is_active = 1"
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_scheduled_task(db_path: pathlib.Path, task_id: str) -> dict | None:
+    """Return a single scheduled task by ID."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM scheduled_tasks WHERE id = ?", (task_id,)
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def update_scheduled_task(db_path: pathlib.Path, task_id: str, **fields) -> None:
+    """Update arbitrary columns on a scheduled task row."""
+    if not fields:
+        return
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [task_id]
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            f"UPDATE scheduled_tasks SET {set_clause} WHERE id = ?", values
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def delete_scheduled_task(db_path: pathlib.Path, task_id: str, user_id: str) -> bool:
+    """Delete a scheduled task owned by user_id. Returns True if deleted."""
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            "DELETE FROM scheduled_tasks WHERE id = ? AND user_id = ?",
+            (task_id, user_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def count_active_scheduled_tasks(db_path: pathlib.Path, user_id: str) -> int:
+    """Count is_active = 1 rows for user — used for plan limit check."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM scheduled_tasks WHERE user_id = ? AND is_active = 1",
+            (user_id,),
+        ).fetchone()
+        return row[0] if row else 0
     finally:
         conn.close()
