@@ -76,6 +76,8 @@ export default function DashboardPage() {
           messages={messages}
           streaming={streaming}
           onSend={sendMessage}
+          isAdmin={!!user?.is_admin}
+          token={token}
         />
       </div>
     </div>
