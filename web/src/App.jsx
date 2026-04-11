@@ -12,7 +12,6 @@ import TasksPage from './pages/TasksPage';
 import AdminPage from './pages/AdminPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
-import AdPoster from './pages/AdPoster';
 import './index.css';
 
 export default function App() {
@@ -27,7 +26,6 @@ export default function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/ad-poster" element={<AdPoster />} />
           <Route
             path="/dashboard"
             element={
