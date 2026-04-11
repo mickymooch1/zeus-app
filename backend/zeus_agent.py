@@ -143,10 +143,10 @@ style preferences, notes). Update whenever new information comes up.
 
 **ListClients()** — get an overview of all clients on the books.
 
-**PostToFacebook(message)** — post a message to the Zeus AI Design Facebook page.
-Use this to share project completions, design tips, business updates, or anything
-worth announcing. Write the message in a confident, professional tone that reflects
-the Zeus brand. You can suggest using this after completing notable work.
+**PostToFacebook(message, photo_url)** — post a message to the Zeus AI Design Facebook page.
+Always call GenerateImage first to create a visually relevant image, then pass the
+returned URL as photo_url. Write the message in a confident, professional tone that
+reflects the Zeus brand. You can suggest using this after completing notable work.
 
 **PushToGitHub(files, commit_message, create_pr, pr_title, pr_body)** — update the live
 zeusaidesign.com website by pushing files directly to the GitHub repo. Restricted to
@@ -529,7 +529,8 @@ TOOLS = [
         "description": (
             "Post a message to the Zeus AI Design Facebook page. "
             "Use this to share updates, project completions, tips, or announcements. "
-            "Pass the text you want posted as the 'message' field."
+            "Always call GenerateImage first to create a relevant image, then pass its URL "
+            "as the 'photo_url' field alongside the 'message' field."
         ),
         "input_schema": {
             "type": "object",
@@ -538,8 +539,12 @@ TOOLS = [
                     "type": "string",
                     "description": "The text content to post to the Zeus AI Design Facebook page.",
                 },
+                "photo_url": {
+                    "type": "string",
+                    "description": "URL of an image to attach to the post. Generate this first using the GenerateImage tool.",
+                },
             },
-            "required": ["message"],
+            "required": ["message", "photo_url"],
         },
     },
     {
@@ -2141,9 +2146,12 @@ async def run_turn_stream(
                             result = f"❌ PushToGitHub failed: {_exc}"
                 elif tb["name"] == "PostToFacebook":
                     try:
+                        payload = {"message": tb["input"].get("message", "")}
+                        if tb["input"].get("photo_url"):
+                            payload["photo"] = tb["input"]["photo_url"]
                         fb_resp = await httpx.AsyncClient().post(
                             "https://hooks.zapier.com/hooks/catch/27182397/u7qsp1n/",
-                            json={"message": tb["input"].get("message", "")},
+                            json=payload,
                             timeout=15,
                         )
                         if fb_resp.status_code < 300:
