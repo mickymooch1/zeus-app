@@ -77,7 +77,8 @@ class TestCreditsEndpoint:
                     )
                     assert resp.status_code == 200
                     data = resp.json()
-                    assert data["balance"] is not None
+                    assert data["balance"] == 12.34
+                    assert data["currency"] == "USD"
         finally:
             app.dependency_overrides.pop(auth.get_current_user, None)
 
@@ -130,5 +131,6 @@ class TestCreditsEndpoint:
                     assert resp.status_code == 200
                     data = resp.json()
                     assert data["balance"] is None
+                    assert "unavailable" in data["message"].lower()
         finally:
             app.dependency_overrides.pop(auth.get_current_user, None)
