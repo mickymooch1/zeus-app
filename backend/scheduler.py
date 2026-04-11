@@ -12,6 +12,10 @@ Public interface:
     remove_job(task_id)            — call after DELETE /scheduled-tasks/{id}
     set_job_enabled(task_id, active) — call after PATCH toggle
     compute_next_run(cron_expression) — returns next fire time as ISO string
+
+NOTE: This module uses process-level globals. It is only safe in a
+single-worker deployment. Multi-worker deployments require an external
+job store (e.g. SQLAlchemyJobStore) and a dedicated scheduler worker.
 """
 import logging
 from datetime import datetime, timezone
@@ -32,6 +36,9 @@ def compute_next_run(cron_expression: str) -> str:
 def init_scheduler(history_store) -> None:
     """Start the AsyncIOScheduler and load all active jobs from the DB."""
     global _scheduler, _history
+    if _scheduler is not None:
+        log.warning("init_scheduler called while scheduler already running — ignoring")
+        return
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
     import db
 
@@ -65,10 +72,6 @@ def add_job(task: dict) -> None:
     task_id = task["id"]
     cron = task["cron_expression"]
 
-    # Remove existing job with the same ID before adding (idempotent)
-    if _scheduler.get_job(task_id):
-        _scheduler.remove_job(task_id)
-
     trigger = CronTrigger.from_crontab(cron, timezone="UTC")
     _scheduler.add_job(
         _run_scheduled_task,
@@ -98,14 +101,16 @@ def set_job_enabled(task_id: str, active: bool) -> None:
     if active:
         if job:
             job.resume()
-        # Job may not exist yet (was paused before a restart); re-add it from DB
+            log.info("Scheduler: enabled job %s", task_id)
         else:
             import db
             db_path = db.get_db_path()
             task = db.get_scheduled_task(db_path, task_id)
             if task:
                 add_job(task)
-        log.info("Scheduler: enabled job %s", task_id)
+                log.info("Scheduler: enabled job %s (re-added from DB)", task_id)
+            else:
+                log.warning("Scheduler: set_job_enabled(%s, True) — task not found in DB", task_id)
     else:
         if job:
             job.pause()
@@ -113,9 +118,13 @@ def set_job_enabled(task_id: str, active: bool) -> None:
 
 
 async def _run_scheduled_task(task_id: str) -> None:
-    """Internal job runner. Always updates last_run/next_run in finally block."""
+    """Internal job runner. Updates last_run/next_run in finally block when task runs; skips update on pre-flight guard failures (inactive task, missing user)."""
     import db
-    from main import _handle_create_background_task
+    from zeus_agent import _handle_create_background_task
+
+    if _history is None:
+        log.error("_run_scheduled_task: _history not initialised — was init_scheduler called?")
+        return
 
     db_path = db.get_db_path()
     task = db.get_scheduled_task(db_path, task_id)
