@@ -174,6 +174,25 @@ except Exception:
 history: HistoryStore | None = None
 _background_tasks: set = set()
 
+_parse_cache: dict[str, dict] = {}
+
+_SCHEDULED_TASK_LIMITS = {"pro": 5, "agency": 20, "enterprise": None}
+
+
+def _scheduled_task_plan_allowed(user: dict) -> bool:
+    """Return True if user's plan includes scheduled tasks."""
+    plan = user.get("subscription_plan")
+    status = user.get("subscription_status", "free")
+    is_admin = bool(user.get("is_admin", 0))
+    return is_admin or (status == "active" and plan in _SCHEDULED_TASK_LIMITS)
+
+
+def _scheduled_task_limit(user: dict) -> int | None:
+    """Return max active scheduled tasks for user's plan, or None for unlimited."""
+    if user.get("is_admin"):
+        return None
+    return _SCHEDULED_TASK_LIMITS.get(user.get("subscription_plan"))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -667,6 +686,65 @@ async def admin_credits(current_user: dict = Depends(auth.get_current_user)):
     except Exception:
         log.exception("admin_credits: failed to fetch Anthropic balance")
         return {"balance": None, "message": "Balance unavailable"}
+
+
+# ── Scheduled Tasks ─────────────────────────────────────────────────────────
+
+class ScheduledTaskParseRequest(BaseModel):
+    natural_language: str
+
+
+@app.post("/scheduled-tasks/parse")
+async def parse_scheduled_task(
+    body: ScheduledTaskParseRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Parse a natural language schedule into a cron expression. No plan gate."""
+    key = body.natural_language.lower().strip()
+    if key in _parse_cache:
+        return _parse_cache[key]
+
+    client = get_anthropic_client()
+    try:
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=128,
+            system=(
+                "You extract cron expressions from natural language schedule descriptions. "
+                'Respond with ONLY a JSON object: {"cron_expression": "...", "schedule_label": "..."}\n'
+                "- cron_expression: standard 5-field cron (minute hour day month weekday)\n"
+                '- schedule_label: concise human-readable label, e.g. "Every Monday at 9am"\n'
+                "If you cannot parse the input into a valid cron expression, respond with:\n"
+                '{"error": "Could not parse schedule — try something like \'every Monday at 9am\'"}\n'
+                "Do not include any other text."
+            ),
+            messages=[{"role": "user", "content": body.natural_language}],
+        )
+    except Exception:
+        log.exception("parse_scheduled_task: Anthropic call failed")
+        raise HTTPException(status_code=400, detail="Schedule parsing timed out — try again")
+
+    import json as _json
+    try:
+        result = _json.loads(msg.content[0].text)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not parse schedule — try again")
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    _parse_cache[key] = result
+    return result
+
+
+@app.get("/scheduled-tasks")
+async def list_scheduled_tasks(
+    db_path: pathlib.Path = Depends(db.get_db_path_dep),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not _scheduled_task_plan_allowed(current_user):
+        raise HTTPException(status_code=403, detail="Scheduled tasks require a Pro plan or above.")
+    return db.get_scheduled_tasks_for_user(db_path, current_user["id"])
 
 
 # ── Tasks endpoints ───────────────────────────────────────────────────────────
