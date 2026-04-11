@@ -12,9 +12,19 @@ const STATUS_BADGE = {
   failed:  { label: '❌ Failed',   className: 'badge-status badge-status--failed'   },
 };
 
+/** Pull the first https:// URL out of a block of text — fallback when live_url is null */
+function extractUrl(text) {
+  if (!text) return null;
+  const m = text.match(/https?:\/\/[^\s\)\]]+/);
+  return m ? m[0].replace(/[.,\/]+$/, '') : null;
+}
+
 function TaskCard({ task, onDelete }) {
   const badge = STATUS_BADGE[task.status] || STATUS_BADGE.pending;
   const createdAt = new Date(task.created_at).toLocaleString();
+
+  // Use live_url if present, otherwise try to extract from result text
+  const liveUrl = task.live_url || (task.status === 'done' ? extractUrl(task.result) : null);
 
   return (
     <div className={`task-card task-card--${task.status}`}>
@@ -24,9 +34,10 @@ function TaskCard({ task, onDelete }) {
         <button className="task-delete-btn" onClick={() => onDelete(task.id)} title="Delete task">✕</button>
       </div>
       <div className="task-card-meta">Started {createdAt}</div>
-      {task.status === 'done' && task.live_url && (
+
+      {task.status === 'done' && liveUrl && (
         <a
-          href={task.live_url}
+          href={liveUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="btn btn-primary btn-sm task-url-btn"
@@ -34,6 +45,13 @@ function TaskCard({ task, onDelete }) {
           View Live Site →
         </a>
       )}
+
+      {task.status === 'done' && !liveUrl && task.result && (
+        <p className="task-result-note">
+          {task.result.slice(0, 400)}
+        </p>
+      )}
+
       {task.status === 'failed' && task.result && (
         <p className="task-error-note">{task.result.slice(0, 300)}</p>
       )}
