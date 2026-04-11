@@ -1,4 +1,5 @@
 import asyncio
+import httpx
 import logging
 import os
 import pathlib
@@ -634,6 +635,37 @@ async def admin_patch_user(
     db.update_user(db_path, user_id, **{body.field: body.value})
     log.info("admin_patch_user: set %s.%s = %s (by admin %s)", user_id, body.field, body.value, current_user["id"])
     return {"ok": True}
+
+
+@app.get("/admin/credits")
+async def admin_credits(current_user: dict = Depends(auth.get_current_user)):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        return {"balance": None, "message": "Balance unavailable"}
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://api.anthropic.com/v1/organizations/credits/balance",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+                timeout=10,
+            )
+        if resp.status_code != 200:
+            return {"balance": None, "message": "Balance unavailable"}
+        data = resp.json()
+        # Response shape: {"balance": {"available": [{"amount": 1234, "currency": "USD"}]}}
+        available = data.get("balance", {}).get("available", [])
+        if available:
+            amount_cents = available[0].get("amount", 0)
+            currency = available[0].get("currency", "USD")
+            return {"balance": round(amount_cents / 100, 2), "currency": currency}
+        return {"balance": None, "message": "Balance unavailable"}
+    except Exception:
+        return {"balance": None, "message": "Balance unavailable"}
 
 
 # ── Tasks endpoints ───────────────────────────────────────────────────────────
