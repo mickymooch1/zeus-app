@@ -29,6 +29,7 @@ from tunnel import get_tunnel_url, start_tunnel_background, stop_tunnel
 import db
 import auth
 import billing
+import scheduler as _scheduler_mod
 
 import io
 import re as _re
@@ -239,17 +240,23 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("ANTHROPIC_API_KEY is not set — add it to Railway → Service → Variables")
     get_anthropic_client()  # validate key and warm up client at startup
     log.info("Anthropic client initialised")
-    if _RAILWAY:
-        log.info("Running on Railway — skipping cloudflared tunnel (not installed)")
-        yield
-    else:
-        port = int(os.environ.get("PORT", 8000))
-        task = asyncio.create_task(start_tunnel_background(port))
-        _background_tasks.add(task)
-        task.add_done_callback(_background_tasks.discard)
-        yield
-        task.cancel()
-        stop_tunnel()
+    _scheduler_mod.init_scheduler(history)
+    log.info("Scheduler initialised")
+    try:
+        if _RAILWAY:
+            log.info("Running on Railway — skipping cloudflared tunnel (not installed)")
+            yield
+        else:
+            port = int(os.environ.get("PORT", 8000))
+            task = asyncio.create_task(start_tunnel_background(port))
+            _background_tasks.add(task)
+            task.add_done_callback(_background_tasks.discard)
+            yield
+            task.cancel()
+            stop_tunnel()
+    finally:
+        _scheduler_mod.shutdown_scheduler()
+        log.info("Scheduler shut down")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -783,7 +790,6 @@ async def create_scheduled_task_endpoint(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid cron expression")
 
-    import scheduler as _scheduler_mod
     next_run = _scheduler_mod.compute_next_run(body.cron_expression)
     task = db.create_scheduled_task(
         db_path,
@@ -809,7 +815,6 @@ async def delete_scheduled_task_endpoint(
     deleted = db.delete_scheduled_task(db_path, task_id, current_user["id"])
     if not deleted:
         raise HTTPException(status_code=404, detail="Task not found")
-    import scheduler as _scheduler_mod
     _scheduler_mod.remove_job(task_id)
     return {"ok": True}
 
@@ -841,7 +846,6 @@ async def toggle_scheduled_task(
                     detail=f"You've reached the limit of {limit} scheduled tasks on the {plan} plan.",
                 )
 
-    import scheduler as _scheduler_mod
     if new_active == 1:
         next_run = _scheduler_mod.compute_next_run(task["cron_expression"])
         db.update_scheduled_task(db_path, task_id, is_active=1, next_run=next_run)
