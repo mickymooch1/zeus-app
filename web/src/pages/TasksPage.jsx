@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
+import { ScheduledTasksTab } from '../components/ScheduledTasksTab';
 import { useAuth } from '../contexts/AuthContext';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
@@ -41,8 +42,7 @@ function TaskCard({ task, onDelete }) {
   );
 }
 
-export default function TasksPage() {
-  const { user, token } = useAuth();
+function BackgroundTasksTab({ token }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -84,7 +84,6 @@ export default function TasksPage() {
     fetchTasks();
   }, [fetchTasks]);
 
-  // Poll every 10 seconds while any task is active
   useEffect(() => {
     const hasActive = tasks.some(
       (t) => t.status === 'pending' || t.status === 'running'
@@ -96,18 +95,47 @@ export default function TasksPage() {
 
   if (error === 'enterprise') {
     return (
-      <div className="tasks-page">
-        <Navbar />
-        <div className="page tasks-page-inner">
-          <h1 className="section-title">Background Tasks</h1>
-          <div className="upgrade-gate">
-            <p>Background tasks require an <strong>Enterprise</strong> plan.</p>
-            <Link to="/pricing" className="btn btn-primary">Upgrade to Enterprise</Link>
-          </div>
-        </div>
+      <div className="upgrade-gate">
+        <p>Background tasks require an <strong>Enterprise</strong> plan.</p>
+        <Link to="/pricing" className="btn btn-primary">Upgrade to Enterprise</Link>
       </div>
     );
   }
+
+  if (error && error !== 'enterprise') {
+    return <div className="form-error form-error--banner">{error}</div>;
+  }
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '3rem' }}>
+        <span className="spinner" />
+      </div>
+    );
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <div className="tasks-empty">
+        <p className="tasks-empty-icon">⚡</p>
+        <p className="tasks-empty-title">No background tasks yet.</p>
+        <p className="tasks-empty-sub">Ask Zeus to build a website and it will appear here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="tasks-list">
+      {tasks.map((task) => (
+        <TaskCard key={task.id} task={task} onDelete={handleDelete} />
+      ))}
+    </div>
+  );
+}
+
+export default function TasksPage() {
+  const { token } = useAuth();
+  const [activeTab, setActiveTab] = useState('background');
 
   return (
     <div className="tasks-page">
@@ -118,37 +146,27 @@ export default function TasksPage() {
           <div className="orb orb-2" />
         </div>
 
-        <div className="section-label" style={{ textAlign: 'center' }}>Enterprise</div>
         <h1 className="section-title" style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
-          Background Tasks
+          Tasks
         </h1>
-        <p className="section-sub" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          Long-running builds run in the background. You'll be emailed when they're done.
-        </p>
 
-        {error && error !== 'enterprise' && (
-          <div className="form-error form-error--banner">{error}</div>
-        )}
+        <div className="tasks-tab-bar">
+          <button
+            className={`tasks-tab-btn${activeTab === 'background' ? ' tasks-tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('background')}
+          >
+            Background Tasks
+          </button>
+          <button
+            className={`tasks-tab-btn${activeTab === 'scheduled' ? ' tasks-tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('scheduled')}
+          >
+            Scheduled Tasks
+          </button>
+        </div>
 
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '3rem' }}>
-            <span className="spinner" />
-          </div>
-        ) : tasks.length === 0 ? (
-          <div className="tasks-empty">
-            <p className="tasks-empty-icon">⚡</p>
-            <p className="tasks-empty-title">No background tasks yet.</p>
-            <p className="tasks-empty-sub">
-              Ask Zeus to build a website and it will appear here.
-            </p>
-          </div>
-        ) : (
-          <div className="tasks-list">
-            {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} onDelete={handleDelete} />
-            ))}
-          </div>
-        )}
+        {activeTab === 'background' && <BackgroundTasksTab token={token} />}
+        {activeTab === 'scheduled' && <ScheduledTasksTab token={token} />}
       </div>
     </div>
   );
