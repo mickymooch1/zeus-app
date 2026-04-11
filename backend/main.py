@@ -748,6 +748,110 @@ async def list_scheduled_tasks(
     return db.get_scheduled_tasks_for_user(db_path, current_user["id"])
 
 
+class ScheduledTaskCreateRequest(BaseModel):
+    task_description: str = Field(min_length=1, max_length=2000)
+    cron_expression: str = Field(min_length=1, max_length=100)
+    schedule_label: str = Field(min_length=1, max_length=200)
+    timezone: str = "UTC"
+
+
+@app.post("/scheduled-tasks")
+async def create_scheduled_task_endpoint(
+    body: ScheduledTaskCreateRequest,
+    db_path: pathlib.Path = Depends(db.get_db_path_dep),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not _scheduled_task_plan_allowed(current_user):
+        raise HTTPException(status_code=403, detail="Scheduled tasks require a Pro plan or above.")
+
+    limit = _scheduled_task_limit(current_user)
+    if limit is not None:
+        active_count = db.count_active_scheduled_tasks(db_path, current_user["id"])
+        if active_count >= limit:
+            plan = current_user.get("subscription_plan", "")
+            raise HTTPException(
+                status_code=403,
+                detail=f"You've reached the limit of {limit} scheduled tasks on the {plan} plan. Upgrade to add more.",
+            )
+
+    # Validate cron expression
+    try:
+        from croniter import croniter
+        if not croniter.is_valid(body.cron_expression):
+            raise ValueError("invalid")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid cron expression")
+
+    import scheduler as _scheduler_mod
+    next_run = _scheduler_mod.compute_next_run(body.cron_expression)
+    task = db.create_scheduled_task(
+        db_path,
+        user_id=current_user["id"],
+        task_description=body.task_description,
+        cron_expression=body.cron_expression,
+        schedule_label=body.schedule_label,
+        next_run=next_run,
+        tz=body.timezone,
+    )
+    _scheduler_mod.add_job(task)
+    return task
+
+
+@app.delete("/scheduled-tasks/{task_id}")
+async def delete_scheduled_task_endpoint(
+    task_id: str,
+    db_path: pathlib.Path = Depends(db.get_db_path_dep),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not _scheduled_task_plan_allowed(current_user):
+        raise HTTPException(status_code=403, detail="Scheduled tasks require a Pro plan or above.")
+    deleted = db.delete_scheduled_task(db_path, task_id, current_user["id"])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Task not found")
+    import scheduler as _scheduler_mod
+    _scheduler_mod.remove_job(task_id)
+    return {"ok": True}
+
+
+@app.patch("/scheduled-tasks/{task_id}/toggle")
+async def toggle_scheduled_task(
+    task_id: str,
+    db_path: pathlib.Path = Depends(db.get_db_path_dep),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not _scheduled_task_plan_allowed(current_user):
+        raise HTTPException(status_code=403, detail="Scheduled tasks require a Pro plan or above.")
+
+    task = db.get_scheduled_task(db_path, task_id)
+    if not task or task["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    new_active = 0 if task["is_active"] else 1
+
+    if new_active == 1:
+        # Re-activation limit check — prevents circumventing plan limits by deactivating+reactivating
+        limit = _scheduled_task_limit(current_user)
+        if limit is not None:
+            active_count = db.count_active_scheduled_tasks(db_path, current_user["id"])
+            if active_count >= limit:
+                plan = current_user.get("subscription_plan", "")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"You've reached the limit of {limit} scheduled tasks on the {plan} plan.",
+                )
+
+    import scheduler as _scheduler_mod
+    if new_active == 1:
+        next_run = _scheduler_mod.compute_next_run(task["cron_expression"])
+        db.update_scheduled_task(db_path, task_id, is_active=1, next_run=next_run)
+        _scheduler_mod.set_job_enabled(task_id, True)
+    else:
+        db.update_scheduled_task(db_path, task_id, is_active=0)
+        _scheduler_mod.set_job_enabled(task_id, False)
+
+    return db.get_scheduled_task(db_path, task_id)
+
+
 # ── Tasks endpoints ───────────────────────────────────────────────────────────
 
 @app.get("/tasks")

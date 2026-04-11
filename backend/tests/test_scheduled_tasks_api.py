@@ -211,3 +211,244 @@ class TestParseEndpoint:
         finally:
             app.dependency_overrides.pop(auth.get_current_user, None)
             _parse_cache.clear()
+
+
+class TestCreateScheduledTask:
+    def _task_row(self, **kwargs):
+        base = {
+            "id": "task-1",
+            "user_id": "pro-user-1",
+            "task_description": "Rebuild site",
+            "cron_expression": "0 9 * * 1",
+            "schedule_label": "Every Monday at 9am",
+            "timezone": "UTC",
+            "is_active": 1,
+            "last_run": None,
+            "next_run": "2026-04-14T09:00:00+00:00",
+            "created_at": "2026-04-11T12:00:00+00:00",
+        }
+        base.update(kwargs)
+        return base
+
+    def test_pro_user_can_create(self):
+        import auth
+        import db
+        import scheduler as _sched
+        from main import app
+        from fastapi.testclient import TestClient
+        app.dependency_overrides[auth.get_current_user] = _pro_user
+        task_row = self._task_row()
+        try:
+            with patch.object(db, "count_active_scheduled_tasks", return_value=0), \
+                 patch.object(db, "create_scheduled_task", return_value=task_row), \
+                 patch.object(_sched, "add_job") as mock_add:
+                with TestClient(app) as client:
+                    resp = client.post(
+                        "/scheduled-tasks",
+                        json={
+                            "task_description": "Rebuild site",
+                            "cron_expression": "0 9 * * 1",
+                            "schedule_label": "Every Monday at 9am",
+                            "timezone": "UTC",
+                        },
+                        headers={"Authorization": "Bearer fake"},
+                    )
+                    assert resp.status_code == 200
+                    assert resp.json()["id"] == "task-1"
+                    mock_add.assert_called_once()
+        finally:
+            app.dependency_overrides.pop(auth.get_current_user, None)
+
+    def test_free_user_cannot_create(self):
+        import auth
+        from main import app
+        from fastapi.testclient import TestClient
+        app.dependency_overrides[auth.get_current_user] = _free_user
+        try:
+            with TestClient(app) as client:
+                resp = client.post(
+                    "/scheduled-tasks",
+                    json={
+                        "task_description": "Rebuild site",
+                        "cron_expression": "0 9 * * 1",
+                        "schedule_label": "Label",
+                        "timezone": "UTC",
+                    },
+                    headers={"Authorization": "Bearer fake"},
+                )
+                assert resp.status_code == 403
+        finally:
+            app.dependency_overrides.pop(auth.get_current_user, None)
+
+    def test_pro_user_at_limit_cannot_create(self):
+        import auth
+        import db
+        from main import app
+        from fastapi.testclient import TestClient
+        app.dependency_overrides[auth.get_current_user] = _pro_user
+        try:
+            with patch.object(db, "count_active_scheduled_tasks", return_value=5):
+                with TestClient(app) as client:
+                    resp = client.post(
+                        "/scheduled-tasks",
+                        json={
+                            "task_description": "Rebuild site",
+                            "cron_expression": "0 9 * * 1",
+                            "schedule_label": "Label",
+                            "timezone": "UTC",
+                        },
+                        headers={"Authorization": "Bearer fake"},
+                    )
+                    assert resp.status_code == 403
+                    assert "5" in resp.json()["detail"]
+        finally:
+            app.dependency_overrides.pop(auth.get_current_user, None)
+
+    def test_invalid_cron_returns_400(self):
+        import auth
+        import db
+        from main import app
+        from fastapi.testclient import TestClient
+        app.dependency_overrides[auth.get_current_user] = _pro_user
+        try:
+            with patch.object(db, "count_active_scheduled_tasks", return_value=0):
+                with TestClient(app) as client:
+                    resp = client.post(
+                        "/scheduled-tasks",
+                        json={
+                            "task_description": "Rebuild site",
+                            "cron_expression": "not valid",
+                            "schedule_label": "Label",
+                            "timezone": "UTC",
+                        },
+                        headers={"Authorization": "Bearer fake"},
+                    )
+                    assert resp.status_code == 400
+        finally:
+            app.dependency_overrides.pop(auth.get_current_user, None)
+
+    def test_enterprise_user_unlimited(self):
+        import auth
+        import db
+        import scheduler as _sched
+        from main import app
+        from fastapi.testclient import TestClient
+        app.dependency_overrides[auth.get_current_user] = _enterprise_user
+        task_row = self._task_row(user_id="ent-user-1")
+        try:
+            with patch.object(db, "count_active_scheduled_tasks", return_value=999), \
+                 patch.object(db, "create_scheduled_task", return_value=task_row), \
+                 patch.object(_sched, "add_job"):
+                with TestClient(app) as client:
+                    resp = client.post(
+                        "/scheduled-tasks",
+                        json={
+                            "task_description": "Rebuild site",
+                            "cron_expression": "0 9 * * 1",
+                            "schedule_label": "Label",
+                            "timezone": "UTC",
+                        },
+                        headers={"Authorization": "Bearer fake"},
+                    )
+                    assert resp.status_code == 200
+        finally:
+            app.dependency_overrides.pop(auth.get_current_user, None)
+
+
+class TestDeleteScheduledTask:
+    def test_delete_owned_task(self):
+        import auth
+        import db
+        import scheduler as _sched
+        from main import app
+        from fastapi.testclient import TestClient
+        app.dependency_overrides[auth.get_current_user] = _pro_user
+        try:
+            with patch.object(db, "delete_scheduled_task", return_value=True), \
+                 patch.object(_sched, "remove_job") as mock_remove:
+                with TestClient(app) as client:
+                    resp = client.delete(
+                        "/scheduled-tasks/task-1",
+                        headers={"Authorization": "Bearer fake"},
+                    )
+                    assert resp.status_code == 200
+                    assert resp.json() == {"ok": True}
+                    mock_remove.assert_called_once_with("task-1")
+        finally:
+            app.dependency_overrides.pop(auth.get_current_user, None)
+
+    def test_delete_not_owned_returns_404(self):
+        import auth
+        import db
+        from main import app
+        from fastapi.testclient import TestClient
+        app.dependency_overrides[auth.get_current_user] = _pro_user
+        try:
+            with patch.object(db, "delete_scheduled_task", return_value=False):
+                with TestClient(app) as client:
+                    resp = client.delete(
+                        "/scheduled-tasks/task-999",
+                        headers={"Authorization": "Bearer fake"},
+                    )
+                    assert resp.status_code == 404
+        finally:
+            app.dependency_overrides.pop(auth.get_current_user, None)
+
+
+class TestToggleScheduledTask:
+    def _task_row(self, is_active):
+        return {
+            "id": "task-1",
+            "user_id": "pro-user-1",
+            "task_description": "Rebuild site",
+            "cron_expression": "0 9 * * 1",
+            "schedule_label": "Every Monday at 9am",
+            "timezone": "UTC",
+            "is_active": is_active,
+            "last_run": None,
+            "next_run": "2026-04-14T09:00:00+00:00",
+            "created_at": "2026-04-11T12:00:00+00:00",
+        }
+
+    def test_deactivate_task(self):
+        import auth
+        import db
+        import scheduler as _sched
+        from main import app
+        from fastapi.testclient import TestClient
+        active_task = self._task_row(is_active=1)
+        paused_task = self._task_row(is_active=0)
+        app.dependency_overrides[auth.get_current_user] = _pro_user
+        try:
+            with patch.object(db, "get_scheduled_task", side_effect=[active_task, paused_task]), \
+                 patch.object(db, "update_scheduled_task"), \
+                 patch.object(_sched, "set_job_enabled") as mock_toggle:
+                with TestClient(app) as client:
+                    resp = client.patch(
+                        "/scheduled-tasks/task-1/toggle",
+                        headers={"Authorization": "Bearer fake"},
+                    )
+                    assert resp.status_code == 200
+                    assert resp.json()["is_active"] == 0
+                    mock_toggle.assert_called_once_with("task-1", False)
+        finally:
+            app.dependency_overrides.pop(auth.get_current_user, None)
+
+    def test_activate_task_at_limit_returns_403(self):
+        import auth
+        import db
+        from main import app
+        from fastapi.testclient import TestClient
+        paused_task = self._task_row(is_active=0)
+        app.dependency_overrides[auth.get_current_user] = _pro_user
+        try:
+            with patch.object(db, "get_scheduled_task", return_value=paused_task), \
+                 patch.object(db, "count_active_scheduled_tasks", return_value=5):
+                with TestClient(app) as client:
+                    resp = client.patch(
+                        "/scheduled-tasks/task-1/toggle",
+                        headers={"Authorization": "Bearer fake"},
+                    )
+                    assert resp.status_code == 403
+        finally:
+            app.dependency_overrides.pop(auth.get_current_user, None)
