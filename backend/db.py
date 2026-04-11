@@ -52,7 +52,7 @@ def _conn(db_path: pathlib.Path):
 
 
 def init_user_tables(db_path: pathlib.Path) -> None:
-    """Create users, monthly_usage, and tasks tables if they don't exist."""
+    """Create users, monthly_usage, tasks, and scheduled_tasks tables if they don't exist."""
     conn = _conn(db_path)
     try:
         conn.executescript("""
@@ -456,9 +456,9 @@ def count_active_scheduled_tasks(db_path: pathlib.Path, user_id: str) -> int:
     conn = _conn(db_path)
     try:
         row = conn.execute(
-            "SELECT COUNT(*) FROM scheduled_tasks WHERE user_id = ? AND is_active = 1",
+            "SELECT COUNT(*) AS cnt FROM scheduled_tasks WHERE user_id = ? AND is_active = 1",
             (user_id,),
         ).fetchone()
-        return row[0] if row else 0
+        return row["cnt"] if row else 0
     finally:
         conn.close()
