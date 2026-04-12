@@ -40,7 +40,7 @@ const DEFAULT_PLANS = {
       'Custom integrations',
       'White-label options (coming soon)',
       'Dedicated account manager',
-      'Submitted to Google automatically',
+      'Push to Google — sites submitted to Google automatically after every build',
     ],
   },
   enterprise: {
@@ -52,7 +52,7 @@ const DEFAULT_PLANS = {
       'Scheduled automation',
       'Appointment booking',
       'Priority support',
-      'Submitted to Google automatically',
+      'Push to Google — sites submitted to Google automatically after every build',
     ],
   },
 };
