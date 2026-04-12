@@ -1896,7 +1896,7 @@ report the live URL clearly. Do nothing else.\
         )
         if isinstance(zip_result, str) and zip_result.startswith("DOWNLOAD_READY:"):
             filename = zip_result.split("\n", 1)[0].split(":", 1)[1].strip()
-            download_url = f"/downloads/{filename}"
+            download_url = f"/download/{filename}"
             msg = (
                 f"\n\n⚠️ **Deployment failed after {len(exc.attempts)} attempts — "
                 f"but your site was built successfully.**\n\n"
@@ -1907,6 +1907,7 @@ report the live URL clearly. Do nothing else.\
                 f"[netlify.com/drop](https://app.netlify.com/drop).\n"
             )
             await on_message({"type": "text", "delta": msg})
+            await on_message({"type": "download", "url": download_url, "filename": f"{site_name}.zip"})
             return download_url
         else:
             # Zip also failed
