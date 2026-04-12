@@ -1396,6 +1396,15 @@ def _build_memory_context(history: HistoryStore) -> str:
     return "## Zeus Live Context\n\n" + "\n\n".join(parts)
 
 
+class StageFailure(Exception):
+    """Raised when a pipeline stage fails all retry attempts."""
+
+    def __init__(self, stage: str, attempts: list[str]) -> None:
+        self.stage = stage
+        self.attempts = attempts  # one error string per attempt, truncated to 120 chars
+        super().__init__(f"{stage} failed after {len(attempts)} attempt(s)")
+
+
 async def _run_agent_loop(
     prompt: str,
     system_prompt: str,
