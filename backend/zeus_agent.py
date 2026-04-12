@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -7,6 +8,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
@@ -18,6 +20,7 @@ import anthropic
 print("zeus_agent.py: anthropic ok", file=sys.stderr, flush=True)
 
 import httpx
+import requests
 from github_push import push_to_github as _push_to_github
 
 EXPORT_TAG_RE = re.compile(
@@ -622,6 +625,34 @@ def _strip_code_fences(content: str) -> str:
     else:
         return content  # no closing fence — leave as-is
     return inner
+
+
+def _generate_seo_files(build_dir: str, site_url: str) -> None:
+    """Write sitemap.xml and robots.txt into build_dir before deployment.
+
+    Both files are picked up by the existing DeployToNetlify zip logic.
+    site_url: the expected live HTTPS URL, e.g. 'https://mikes-plumbing.netlify.app'
+    """
+    base = pathlib.Path(build_dir)
+    base.mkdir(parents=True, exist_ok=True)
+    url = site_url.rstrip("/") + "/"
+
+    sitemap = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        "  <url>\n"
+        f"    <loc>{url}</loc>\n"
+        "    <changefreq>weekly</changefreq>\n"
+        "    <priority>1.0</priority>\n"
+        "  </url>\n"
+        "</urlset>\n"
+    )
+    (base / "sitemap.xml").write_text(sitemap, encoding="utf-8")
+
+    robots = f"User-agent: *\nAllow: /\nSitemap: {url}sitemap.xml\n"
+    (base / "robots.txt").write_text(robots, encoding="utf-8")
+
+    log.info("_generate_seo_files: wrote sitemap.xml and robots.txt to %s", build_dir)
 
 
 def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> str:
@@ -1899,6 +1930,13 @@ When done, confirm: "Files written to {_build_dir}/"\
 
     await on_message({"type": "text", "delta": f"\n\n✅ **Build verified** — files confirmed at `{_build_dir}/`\n"})
 
+    # ── Stage 3.5: SEO files ──────────────────────────────────────────────────
+    try:
+        _generate_seo_files(_build_dir, f"https://{site_name}.netlify.app")
+        await on_message({"type": "text", "delta": "\n🔍 **SEO files added** — sitemap.xml and robots.txt\n"})
+    except OSError as _seo_err:
+        log.warning("_generate_seo_files failed, continuing to deploy: %s", _seo_err)
+
     # ── Stage 4: Deployer ─────────────────────────────────────────────────────
     log.info("run_multi_agent: Deployer stage — site_name=%r  build_dir=%r", site_name, _build_dir)
     deployer_system = """\
@@ -1963,6 +2001,15 @@ report the live URL clearly. Do nothing else.\
             return f"Pipeline aborted: {exc}"
 
     log.info("run_multi_agent: deployer_output=\n%s", deployer_output)
+
+    # ── Submit to Google Indexing API ─────────────────────────────────────────
+    _url_match = re.search(r'https?://\S+\.netlify\.app', deployer_output)
+    if _url_match:
+        _live_url = _url_match.group(0).rstrip(".,)/")
+        _submit_url_to_google(_live_url)
+    else:
+        log.warning("run_multi_agent: no Netlify URL found in deployer_output — skipping Google submission")
+
     return deployer_output
 
 
@@ -2081,6 +2128,96 @@ async def _handle_create_background_task(
         f"I'll email you at **{user_email}** when it's done.\n"
         f"You can track progress at [/tasks](/tasks)."
     )
+
+
+def _submit_url_to_google(url: str) -> None:
+    """Submit *url* to the Google Indexing API.
+
+    Silently skips when GOOGLE_SERVICE_ACCOUNT_JSON is absent or any step fails.
+    Never raises — a Google failure must not break the deployment pipeline.
+
+    One-time manual setup (see docs/superpowers/plans/2026-04-12-google-indexing.md):
+      * Enable 'Web Search Indexing API' in Google Cloud Console.
+      * Create a Service Account, download JSON key.
+      * Set GOOGLE_SERVICE_ACCOUNT_JSON in Railway to the full JSON string.
+      * In Google Search Console, add the service account email as Owner on
+        the URL-prefix property for each new Netlify site.
+    """
+    raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+    if not raw:
+        log.info("_submit_url_to_google: GOOGLE_SERVICE_ACCOUNT_JSON not set — skipping")
+        return
+
+    try:
+        sa = json.loads(raw)
+        client_email = sa["client_email"]
+        private_key = sa["private_key"]
+        token_uri = sa.get("token_uri", "https://oauth2.googleapis.com/token")
+    except (KeyError, json.JSONDecodeError) as exc:
+        log.warning("_submit_url_to_google: malformed service account JSON — %s", exc)
+        return
+
+    # ── Build and sign a JWT using the service account private key ────────────
+    try:
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import padding
+
+        now = int(time.time())
+        header_b64 = base64.urlsafe_b64encode(
+            json.dumps({"alg": "RS256", "typ": "JWT"}).encode()
+        ).rstrip(b"=")
+        payload_b64 = base64.urlsafe_b64encode(
+            json.dumps({
+                "iss": client_email,
+                "scope": "https://www.googleapis.com/auth/indexing",
+                "aud": token_uri,
+                "exp": now + 3600,
+                "iat": now,
+            }).encode()
+        ).rstrip(b"=")
+        signing_input = header_b64 + b"." + payload_b64
+        key = serialization.load_pem_private_key(private_key.encode(), password=None)
+        sig = key.sign(signing_input, padding.PKCS1v15(), hashes.SHA256())
+        signed_jwt = (
+            signing_input + b"." + base64.urlsafe_b64encode(sig).rstrip(b"=")
+        ).decode()
+    except Exception as exc:
+        log.warning("_submit_url_to_google: JWT signing failed — %s", exc)
+        return
+
+    # ── Exchange JWT for an OAuth2 access token, then call Indexing API ──────
+    try:
+        token_resp = requests.post(
+            token_uri,
+            data={
+                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "assertion": signed_jwt,
+            },
+            timeout=10,
+        )
+        token_resp.raise_for_status()
+        access_token = token_resp.json()["access_token"]
+
+        index_resp = requests.post(
+            "https://indexing.googleapis.com/v3/urlNotifications:publish",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            },
+            json={"url": url, "type": "URL_UPDATED"},
+            timeout=10,
+        )
+        if index_resp.status_code == 200:
+            log.info("_submit_url_to_google: submitted %s — 200 OK", url)
+        else:
+            log.warning(
+                "_submit_url_to_google: Indexing API returned %s for %s — %s",
+                index_resp.status_code,
+                url,
+                index_resp.text[:200],
+            )
+    except Exception as exc:
+        log.warning("_submit_url_to_google: HTTP error — %s", exc)
 
 
 def _send_bg_task_email(
