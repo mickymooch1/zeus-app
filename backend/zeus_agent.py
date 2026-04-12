@@ -600,6 +600,30 @@ def _sanitise_block(b) -> dict | None:
     return None
 
 
+def _strip_code_fences(content: str) -> str:
+    """Strip markdown code fences if Claude accidentally wrapped content in backticks.
+
+    Handles both ```html\\n...\\n``` and ```\\n...\\n``` variants.  Only strips
+    when the content both starts AND ends with fence markers so we never corrupt
+    legitimate content.
+    """
+    stripped = content.strip()
+    if not stripped.startswith("```"):
+        return content
+    # Find the end of the opening fence line (e.g. "```html\n")
+    first_newline = stripped.find("\n")
+    if first_newline == -1:
+        return content  # single-line fence — leave as-is
+    inner = stripped[first_newline + 1:]
+    if inner.endswith("```"):
+        inner = inner[:-3].rstrip()
+    elif inner.endswith("```\n"):
+        inner = inner[:-4].rstrip()
+    else:
+        return content  # no closing fence — leave as-is
+    return inner
+
+
 def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> str:
     try:
         if name == "Bash":
@@ -614,9 +638,12 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
 
         elif name == "Write":
             p = _resolve(inp["file_path"])
+            content = inp["content"]
+            if str(p).endswith(".html"):
+                content = _strip_code_fences(content)
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(inp["content"], encoding="utf-8")
-            return f"Written {len(inp['content'])} chars to {p}"
+            p.write_text(content, encoding="utf-8")
+            return f"Written {len(content)} chars to {p}"
 
         elif name == "Edit":
             p = _resolve(inp["file_path"])
@@ -946,12 +973,20 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                         site_id = s["id"]
                         break
 
+                site_ssl_url = None  # actual URL from Netlify, set during site creation
                 if not site_id:
                     create_resp = requests.post(
                         "https://api.netlify.com/api/v1/sites",
                         headers=json_headers,
                         json={"name": site_name},
                     )
+                    # If name is taken (422) or conflicts (409), let Netlify auto-assign
+                    if create_resp.status_code in (409, 422):
+                        create_resp = requests.post(
+                            "https://api.netlify.com/api/v1/sites",
+                            headers=json_headers,
+                            json={},
+                        )
                     if create_resp.status_code not in (200, 201):
                         return (
                             f"Error: Netlify site creation returned HTTP {create_resp.status_code}. "
@@ -964,6 +999,7 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                             f"Body: {create_resp.text[:500]}"
                         )
                     site_id = create_data["id"]
+                    site_ssl_url = create_data.get("ssl_url") or create_data.get("url")
 
                 # ── Upload zip deploy ─────────────────────────────────────────
                 deploy_resp = requests.post(
@@ -1012,7 +1048,13 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                 if deploy_state != "ready":
                     return f"Error: Deploy did not become ready within 120 seconds (last state: {deploy_state})."
 
-                site_url = f"https://{site_name}.netlify.app"
+                # Prefer the URL from the final deploy poll, then site creation, then fallback
+                site_url = (
+                    poll_data.get("deploy_ssl_url")
+                    or poll_data.get("deploy_url")
+                    or site_ssl_url
+                    or f"https://{site_name}.netlify.app"
+                )
                 return f"✅ Successfully deployed to Netlify!\n🌐 Live URL: {site_url}\n📁 Site ID: {site_id}"
 
             except Exception as e:
