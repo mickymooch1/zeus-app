@@ -1,5 +1,6 @@
 import asyncio
 import httpx
+import json
 import logging
 import os
 import pathlib
@@ -28,6 +29,7 @@ from tunnel import get_tunnel_url, start_tunnel_background, stop_tunnel
 import db
 import auth
 import billing
+import scheduler as _scheduler_mod
 
 import io
 import re as _re
@@ -174,6 +176,25 @@ except Exception:
 history: HistoryStore | None = None
 _background_tasks: set = set()
 
+_parse_cache: dict[str, dict] = {}
+
+_SCHEDULED_TASK_LIMITS = {"pro": 5, "agency": 20, "enterprise": None}
+
+
+def _scheduled_task_plan_allowed(user: dict) -> bool:
+    """Return True if user's plan includes scheduled tasks."""
+    plan = user.get("subscription_plan")
+    status = user.get("subscription_status", "free")
+    is_admin = bool(user.get("is_admin", 0))
+    return is_admin or (status == "active" and plan in _SCHEDULED_TASK_LIMITS)
+
+
+def _scheduled_task_limit(user: dict) -> int | None:
+    """Return max active scheduled tasks for user's plan, or None for unlimited."""
+    if user.get("is_admin"):
+        return None
+    return _SCHEDULED_TASK_LIMITS.get(user.get("subscription_plan"))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -219,17 +240,23 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("ANTHROPIC_API_KEY is not set — add it to Railway → Service → Variables")
     get_anthropic_client()  # validate key and warm up client at startup
     log.info("Anthropic client initialised")
-    if _RAILWAY:
-        log.info("Running on Railway — skipping cloudflared tunnel (not installed)")
-        yield
-    else:
-        port = int(os.environ.get("PORT", 8000))
-        task = asyncio.create_task(start_tunnel_background(port))
-        _background_tasks.add(task)
-        task.add_done_callback(_background_tasks.discard)
-        yield
-        task.cancel()
-        stop_tunnel()
+    try:
+        _scheduler_mod.init_scheduler(history)
+        log.info("Scheduler initialised")
+        if _RAILWAY:
+            log.info("Running on Railway — skipping cloudflared tunnel (not installed)")
+            yield
+        else:
+            port = int(os.environ.get("PORT", 8000))
+            task = asyncio.create_task(start_tunnel_background(port))
+            _background_tasks.add(task)
+            task.add_done_callback(_background_tasks.discard)
+            yield
+            task.cancel()
+            stop_tunnel()
+    finally:
+        _scheduler_mod.shutdown_scheduler()
+        log.info("Scheduler shut down")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -667,6 +694,167 @@ async def admin_credits(current_user: dict = Depends(auth.get_current_user)):
     except Exception:
         log.exception("admin_credits: failed to fetch Anthropic balance")
         return {"balance": None, "message": "Balance unavailable"}
+
+
+# ── Scheduled Tasks ─────────────────────────────────────────────────────────
+
+class ScheduledTaskParseRequest(BaseModel):
+    natural_language: str = Field(min_length=1, max_length=500)
+
+
+@app.post("/scheduled-tasks/parse")
+async def parse_scheduled_task(
+    body: ScheduledTaskParseRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Parse a natural language schedule into a cron expression. No plan gate."""
+    key = body.natural_language.lower().strip()
+    if key in _parse_cache:
+        return _parse_cache[key]
+
+    client = get_anthropic_client()
+    try:
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=128,
+            system=(
+                "You extract cron expressions from natural language schedule descriptions. "
+                'Respond with ONLY a JSON object: {"cron_expression": "...", "schedule_label": "..."}\n'
+                "- cron_expression: standard 5-field cron (minute hour day month weekday)\n"
+                '- schedule_label: concise human-readable label, e.g. "Every Monday at 9am"\n'
+                "If you cannot parse the input into a valid cron expression, respond with:\n"
+                '{"error": "Could not parse schedule — try something like \'every Monday at 9am\'"}\n'
+                "Do not include any other text."
+            ),
+            messages=[{"role": "user", "content": body.natural_language}],
+        )
+    except Exception:
+        log.exception("parse_scheduled_task: Anthropic call failed")
+        raise HTTPException(status_code=503, detail="Schedule parsing timed out — try again")
+
+    try:
+        result = json.loads(msg.content[0].text)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not parse schedule — try again")
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    if len(_parse_cache) < 1024:
+        _parse_cache[key] = result
+    return result
+
+
+@app.get("/scheduled-tasks")
+async def list_scheduled_tasks(
+    db_path: pathlib.Path = Depends(db.get_db_path_dep),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not _scheduled_task_plan_allowed(current_user):
+        raise HTTPException(status_code=403, detail="Scheduled tasks require a Pro plan or above.")
+    return db.get_scheduled_tasks_for_user(db_path, current_user["id"])
+
+
+class ScheduledTaskCreateRequest(BaseModel):
+    task_description: str = Field(min_length=1, max_length=2000)
+    cron_expression: str = Field(min_length=1, max_length=100)
+    schedule_label: str = Field(min_length=1, max_length=200)
+    timezone: str = "UTC"
+
+
+@app.post("/scheduled-tasks")
+async def create_scheduled_task_endpoint(
+    body: ScheduledTaskCreateRequest,
+    db_path: pathlib.Path = Depends(db.get_db_path_dep),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not _scheduled_task_plan_allowed(current_user):
+        raise HTTPException(status_code=403, detail="Scheduled tasks require a Pro plan or above.")
+
+    limit = _scheduled_task_limit(current_user)
+    if limit is not None:
+        active_count = db.count_active_scheduled_tasks(db_path, current_user["id"])
+        if active_count >= limit:
+            plan = current_user.get("subscription_plan", "")
+            raise HTTPException(
+                status_code=403,
+                detail=f"You've reached the limit of {limit} scheduled tasks on the {plan} plan. Upgrade to add more.",
+            )
+
+    # Validate cron expression — must be exactly 5 fields (APScheduler rejects 6-field)
+    try:
+        from croniter import croniter
+        parts = body.cron_expression.strip().split()
+        if len(parts) != 5 or not croniter.is_valid(body.cron_expression):
+            raise ValueError("invalid")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid cron expression")
+
+    next_run = _scheduler_mod.compute_next_run(body.cron_expression)
+    task = db.create_scheduled_task(
+        db_path,
+        user_id=current_user["id"],
+        task_description=body.task_description,
+        cron_expression=body.cron_expression,
+        schedule_label=body.schedule_label,
+        next_run=next_run,
+        tz=body.timezone,
+    )
+    _scheduler_mod.add_job(task)
+    return task
+
+
+@app.delete("/scheduled-tasks/{task_id}")
+async def delete_scheduled_task_endpoint(
+    task_id: str,
+    db_path: pathlib.Path = Depends(db.get_db_path_dep),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not _scheduled_task_plan_allowed(current_user):
+        raise HTTPException(status_code=403, detail="Scheduled tasks require a Pro plan or above.")
+    deleted = db.delete_scheduled_task(db_path, task_id, current_user["id"])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Task not found")
+    _scheduler_mod.remove_job(task_id)
+    return {"ok": True}
+
+
+@app.patch("/scheduled-tasks/{task_id}/toggle")
+async def toggle_scheduled_task(
+    task_id: str,
+    db_path: pathlib.Path = Depends(db.get_db_path_dep),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not _scheduled_task_plan_allowed(current_user):
+        raise HTTPException(status_code=403, detail="Scheduled tasks require a Pro plan or above.")
+
+    task = db.get_scheduled_task(db_path, task_id)
+    if not task or task["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    new_active = 0 if task["is_active"] else 1
+
+    if new_active == 1:
+        # Re-activation limit check — prevents circumventing plan limits by deactivating+reactivating
+        limit = _scheduled_task_limit(current_user)
+        if limit is not None:
+            active_count = db.count_active_scheduled_tasks(db_path, current_user["id"])
+            if active_count >= limit:
+                plan = current_user.get("subscription_plan", "")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"You've reached the limit of {limit} scheduled tasks on the {plan} plan.",
+                )
+
+    if new_active == 1:
+        next_run = _scheduler_mod.compute_next_run(task["cron_expression"])
+        db.update_scheduled_task(db_path, task_id, is_active=1, next_run=next_run)
+        _scheduler_mod.set_job_enabled(task_id, True)
+    else:
+        db.update_scheduled_task(db_path, task_id, is_active=0)
+        _scheduler_mod.set_job_enabled(task_id, False)
+
+    return db.get_scheduled_task(db_path, task_id)
 
 
 # ── Tasks endpoints ───────────────────────────────────────────────────────────
