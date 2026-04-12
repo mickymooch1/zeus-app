@@ -1,3 +1,5 @@
+import json
+import os
 import pathlib
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -74,3 +76,99 @@ class TestSeoFilesWiredIntoPipeline:
         )
         assert "SEO files added" in delta_texts
         mock_generate.assert_called_once()
+
+
+# RSA key generated once per test run (avoid per-test overhead of 2048-bit keygen)
+_TEST_RSA_PEM: str | None = None
+
+
+def _get_test_rsa_pem() -> str:
+    global _TEST_RSA_PEM
+    if _TEST_RSA_PEM is None:
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.primitives import serialization
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        _TEST_RSA_PEM = key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode()
+    return _TEST_RSA_PEM
+
+
+class TestSubmitUrlToGoogle:
+    def test_skips_silently_when_env_not_set(self):
+        clean_env = {k: v for k, v in os.environ.items() if k != "GOOGLE_SERVICE_ACCOUNT_JSON"}
+        with patch.dict(os.environ, clean_env, clear=True):
+            zeus_agent._submit_url_to_google("https://test.netlify.app/")  # must not raise
+
+    def test_skips_on_malformed_json(self):
+        with patch.dict(os.environ, {"GOOGLE_SERVICE_ACCOUNT_JSON": "not-json"}):
+            zeus_agent._submit_url_to_google("https://test.netlify.app/")  # must not raise
+
+    def test_skips_on_missing_client_email(self):
+        bad = json.dumps({"private_key": "x"})
+        with patch.dict(os.environ, {"GOOGLE_SERVICE_ACCOUNT_JSON": bad}):
+            zeus_agent._submit_url_to_google("https://test.netlify.app/")  # must not raise
+
+    def test_skips_when_private_key_is_not_valid_pem(self):
+        sa = json.dumps({
+            "client_email": "svc@proj.iam.gserviceaccount.com",
+            "private_key": "this-is-not-rsa",
+            "token_uri": "https://oauth2.googleapis.com/token",
+        })
+        with patch.dict(os.environ, {"GOOGLE_SERVICE_ACCOUNT_JSON": sa}):
+            zeus_agent._submit_url_to_google("https://test.netlify.app/")  # must not raise
+
+    def test_skips_when_token_request_raises(self):
+        sa = json.dumps({
+            "client_email": "svc@proj.iam.gserviceaccount.com",
+            "private_key": _get_test_rsa_pem(),
+            "token_uri": "https://oauth2.googleapis.com/token",
+        })
+        mock_post = MagicMock(side_effect=Exception("Connection refused"))
+        with patch.dict(os.environ, {"GOOGLE_SERVICE_ACCOUNT_JSON": sa}):
+            with patch("requests.post", mock_post):
+                zeus_agent._submit_url_to_google("https://test.netlify.app/")  # must not raise
+
+    def test_skips_when_indexing_api_returns_403(self):
+        sa = json.dumps({
+            "client_email": "svc@proj.iam.gserviceaccount.com",
+            "private_key": _get_test_rsa_pem(),
+            "token_uri": "https://oauth2.googleapis.com/token",
+        })
+        token_resp = MagicMock()
+        token_resp.raise_for_status.return_value = None
+        token_resp.json.return_value = {"access_token": "fake-token"}
+
+        index_resp = MagicMock()
+        index_resp.raise_for_status.return_value = None
+        index_resp.status_code = 403
+        index_resp.text = "Permission denied — site not verified"
+
+        with patch.dict(os.environ, {"GOOGLE_SERVICE_ACCOUNT_JSON": sa}):
+            with patch("requests.post", side_effect=[token_resp, index_resp]):
+                zeus_agent._submit_url_to_google("https://test.netlify.app/")  # must not raise
+
+    def test_logs_success_on_200(self):
+        sa = json.dumps({
+            "client_email": "svc@proj.iam.gserviceaccount.com",
+            "private_key": _get_test_rsa_pem(),
+            "token_uri": "https://oauth2.googleapis.com/token",
+        })
+        token_resp = MagicMock()
+        token_resp.raise_for_status.return_value = None
+        token_resp.json.return_value = {"access_token": "fake-token"}
+
+        index_resp = MagicMock()
+        index_resp.raise_for_status.return_value = None
+        index_resp.status_code = 200
+        index_resp.text = '{"urlNotificationMetadata": {}}'
+
+        with patch.dict(os.environ, {"GOOGLE_SERVICE_ACCOUNT_JSON": sa}):
+            with patch("requests.post", side_effect=[token_resp, index_resp]):
+                import logging
+                with patch.object(logging.getLogger("zeus.agent"), "info") as mock_log:
+                    zeus_agent._submit_url_to_google("https://test.netlify.app/")
+                    log_calls = " ".join(str(c) for c in mock_log.call_args_list)
+                    assert "200" in log_calls or "submitted" in log_calls

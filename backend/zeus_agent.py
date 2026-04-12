@@ -2118,6 +2118,102 @@ async def _handle_create_background_task(
     )
 
 
+def _submit_url_to_google(url: str) -> None:
+    """Submit *url* to the Google Indexing API.
+
+    Silently skips when GOOGLE_SERVICE_ACCOUNT_JSON is absent or any step fails.
+    Never raises — a Google failure must not break the deployment pipeline.
+
+    One-time manual setup (see docs/superpowers/plans/2026-04-12-google-indexing.md):
+      * Enable 'Web Search Indexing API' in Google Cloud Console.
+      * Create a Service Account, download JSON key.
+      * Set GOOGLE_SERVICE_ACCOUNT_JSON in Railway to the full JSON string.
+      * In Google Search Console, add the service account email as Owner on
+        the URL-prefix property for each new Netlify site.
+    """
+    import json as _json
+    import time as _time
+    import base64 as _base64
+
+    raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+    if not raw:
+        log.info("_submit_url_to_google: GOOGLE_SERVICE_ACCOUNT_JSON not set — skipping")
+        return
+
+    try:
+        sa = _json.loads(raw)
+        client_email = sa["client_email"]
+        private_key = sa["private_key"]
+        token_uri = sa.get("token_uri", "https://oauth2.googleapis.com/token")
+    except (KeyError, ValueError, _json.JSONDecodeError) as exc:
+        log.warning("_submit_url_to_google: malformed service account JSON — %s", exc)
+        return
+
+    # ── Build and sign a JWT using the service account private key ────────────
+    try:
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import padding
+
+        now = int(_time.time())
+        header_b64 = _base64.urlsafe_b64encode(
+            _json.dumps({"alg": "RS256", "typ": "JWT"}).encode()
+        ).rstrip(b"=")
+        payload_b64 = _base64.urlsafe_b64encode(
+            _json.dumps({
+                "iss": client_email,
+                "scope": "https://www.googleapis.com/auth/indexing",
+                "aud": token_uri,
+                "exp": now + 3600,
+                "iat": now,
+            }).encode()
+        ).rstrip(b"=")
+        signing_input = header_b64 + b"." + payload_b64
+        key = serialization.load_pem_private_key(private_key.encode(), password=None)
+        sig = key.sign(signing_input, padding.PKCS1v15(), hashes.SHA256())
+        signed_jwt = (
+            signing_input + b"." + _base64.urlsafe_b64encode(sig).rstrip(b"=")
+        ).decode()
+    except Exception as exc:
+        log.warning("_submit_url_to_google: JWT signing failed — %s", exc)
+        return
+
+    # ── Exchange JWT for an OAuth2 access token, then call Indexing API ──────
+    try:
+        import requests as _req
+
+        token_resp = _req.post(
+            token_uri,
+            data={
+                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "assertion": signed_jwt,
+            },
+            timeout=10,
+        )
+        token_resp.raise_for_status()
+        access_token = token_resp.json()["access_token"]
+
+        index_resp = _req.post(
+            "https://indexing.googleapis.com/v3/urlNotifications:publish",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            },
+            json={"url": url, "type": "URL_UPDATED"},
+            timeout=10,
+        )
+        if index_resp.status_code == 200:
+            log.info("_submit_url_to_google: submitted %s — 200 OK", url)
+        else:
+            log.warning(
+                "_submit_url_to_google: Indexing API returned %s for %s — %s",
+                index_resp.status_code,
+                url,
+                index_resp.text[:200],
+            )
+    except Exception as exc:
+        log.warning("_submit_url_to_google: HTTP error — %s", exc)
+
+
 def _send_bg_task_email(
     user_email: str,
     description: str,
