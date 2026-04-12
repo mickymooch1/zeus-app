@@ -2,11 +2,14 @@
   --bg: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
   --accent-1: #a78bfa;
   --accent-2: #60a5fa;
+  --accent: #00ff41;
   --accent-gradient: linear-gradient(135deg, #a78bfa, #60a5fa);
   --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.09);
   --surface-hover: rgba(255, 255, 255, 0.10);
   --border: rgba(255, 255, 255, 0.10);
   --text: #e2d9f3;
+  --text-muted: #888;
   --text-dim: #888;
   --text-faint: #555;
   --user-bg: rgba(167, 139, 250, 0.25);
@@ -1035,4 +1038,245 @@ body {
   user-select: none;
   white-space: nowrap;
   z-index: 1;
+}
+
+/* ── Tasks tab bar ───────────────────────────────────────────── */
+.tasks-tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0 auto 2rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  width: fit-content;
+}
+
+.tasks-tab-btn {
+  background: none;
+  border: none;
+  border-radius: 7px;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.tasks-tab-btn:hover {
+  color: var(--text);
+}
+
+.tasks-tab-btn--active {
+  background: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+
+/* ── Scheduled tasks tab ─────────────────────────────────────── */
+.scheduled-tasks-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.scheduled-task-create-form {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.scheduled-task-create-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.scheduled-task-textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 0.6rem 0.75rem;
+  resize: vertical;
+  width: 100%;
+  font-family: inherit;
+}
+
+.scheduled-task-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.scheduled-task-parse-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.scheduled-task-schedule-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 0.6rem 0.75rem;
+}
+
+.scheduled-task-schedule-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.scheduled-task-parse-btn {
+  white-space: nowrap;
+  min-width: 90px;
+}
+
+.scheduled-task-parse-result {
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* ── Scheduled task cards ────────────────────────────────────── */
+.scheduled-tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.scheduled-task-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.scheduled-task-card--paused {
+  opacity: 0.65;
+}
+
+.scheduled-task-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.scheduled-task-card-labels {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.scheduled-task-schedule-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scheduled-task-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.scheduled-task-badge--active {
+  background: rgba(0, 255, 65, 0.15);
+  color: #00ff41;
+}
+
+.scheduled-task-badge--paused {
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.scheduled-task-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.scheduled-task-description {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.scheduled-task-meta {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+
+/* ── Toggle switch ───────────────────────────────────────────── */
+.scheduled-task-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.scheduled-task-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.scheduled-task-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  transition: background 0.2s;
+}
+
+.scheduled-task-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 2px;
+  top: 2px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.scheduled-task-toggle input:checked + .scheduled-task-toggle-slider {
+  background: rgba(0, 255, 65, 0.2);
+  border-color: var(--accent);
+}
+
+.scheduled-task-toggle input:checked + .scheduled-task-toggle-slider::before {
+  transform: translateX(16px);
+  background: var(--accent);
 }
