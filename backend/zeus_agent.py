@@ -624,6 +624,34 @@ def _strip_code_fences(content: str) -> str:
     return inner
 
 
+def _generate_seo_files(build_dir: str, site_url: str) -> None:
+    """Write sitemap.xml and robots.txt into build_dir before deployment.
+
+    Both files are picked up by the existing DeployToNetlify zip logic.
+    site_url: the expected live HTTPS URL, e.g. 'https://mikes-plumbing.netlify.app'
+    """
+    base = pathlib.Path(build_dir)
+    base.mkdir(parents=True, exist_ok=True)
+    url = site_url.rstrip("/") + "/"
+
+    sitemap = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        "  <url>\n"
+        f"    <loc>{url}</loc>\n"
+        "    <changefreq>weekly</changefreq>\n"
+        "    <priority>1.0</priority>\n"
+        "  </url>\n"
+        "</urlset>\n"
+    )
+    (base / "sitemap.xml").write_text(sitemap, encoding="utf-8")
+
+    robots = f"User-agent: *\nAllow: /\nSitemap: {url}sitemap.xml\n"
+    (base / "robots.txt").write_text(robots, encoding="utf-8")
+
+    log.info("_generate_seo_files: wrote sitemap.xml and robots.txt to %s", build_dir)
+
+
 def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> str:
     try:
         if name == "Bash":
