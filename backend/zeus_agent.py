@@ -1928,8 +1928,11 @@ When done, confirm: "Files written to {_build_dir}/"\
     await on_message({"type": "text", "delta": f"\n\n✅ **Build verified** — files confirmed at `{_build_dir}/`\n"})
 
     # ── Stage 3.5: SEO files ──────────────────────────────────────────────────
-    _generate_seo_files(_build_dir, f"https://{site_name}.netlify.app")
-    await on_message({"type": "text", "delta": "\n🔍 **SEO files added** — sitemap.xml and robots.txt\n"})
+    try:
+        _generate_seo_files(_build_dir, f"https://{site_name}.netlify.app")
+        await on_message({"type": "text", "delta": "\n🔍 **SEO files added** — sitemap.xml and robots.txt\n"})
+    except OSError as _seo_err:
+        log.warning("_generate_seo_files failed, continuing to deploy: %s", _seo_err)
 
     # ── Stage 4: Deployer ─────────────────────────────────────────────────────
     log.info("run_multi_agent: Deployer stage — site_name=%r  build_dir=%r", site_name, _build_dir)

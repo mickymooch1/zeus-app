@@ -1,4 +1,7 @@
 import pathlib
+import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import zeus_agent
 
 
@@ -39,10 +42,6 @@ class TestGenerateSeoFiles:
         assert (pathlib.Path(target) / "sitemap.xml").exists()
 
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
-
 class TestSeoFilesWiredIntoPipeline:
     @pytest.mark.asyncio
     async def test_seo_status_message_streamed(self):
@@ -59,7 +58,7 @@ class TestSeoFilesWiredIntoPipeline:
                 "Build done.",
                 "✅ Deployed!\n🌐 Live URL: https://wired-test.netlify.app",
             ])),
-            patch("zeus_agent._generate_seo_files"),
+            patch("zeus_agent._generate_seo_files") as mock_generate,
             patch("zeus_agent._submit_url_to_google", create=True),
             patch("pathlib.Path.exists", return_value=True),
         ):
@@ -73,4 +72,5 @@ class TestSeoFilesWiredIntoPipeline:
         delta_texts = " ".join(
             m.get("delta", "") for m in messages if m.get("type") == "text"
         )
-        assert "SEO files added" in delta_texts or "sitemap" in delta_texts.lower()
+        assert "SEO files added" in delta_texts
+        mock_generate.assert_called_once()
