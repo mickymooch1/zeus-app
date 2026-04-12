@@ -9,7 +9,6 @@
   --surface-hover: rgba(255, 255, 255, 0.10);
   --border: rgba(255, 255, 255, 0.10);
   --text: #e2d9f3;
-  --text-muted: #888;
   --text-dim: #888;
   --text-faint: #555;
   --user-bg: rgba(167, 139, 250, 0.25);
@@ -1058,7 +1057,7 @@ body {
   border-radius: 7px;
   padding: 0.45rem 1.1rem;
   font-size: 0.875rem;
-  color: var(--text-muted);
+  color: var(--text-dim);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   white-space: nowrap;
@@ -1207,12 +1206,12 @@ body {
 
 .scheduled-task-badge--active {
   background: rgba(0, 255, 65, 0.15);
-  color: #00ff41;
+  color: var(--accent);
 }
 
 .scheduled-task-badge--paused {
   background: var(--surface);
-  color: var(--text-muted);
+  color: var(--text-dim);
 }
 
 .scheduled-task-card-actions {
@@ -1223,7 +1222,7 @@ body {
 
 .scheduled-task-description {
   font-size: 0.85rem;
-  color: var(--text-muted);
+  color: var(--text-dim);
   margin: 0;
 }
 
@@ -1266,7 +1265,7 @@ body {
   height: 14px;
   left: 2px;
   top: 2px;
-  background: var(--text-muted);
+  background: var(--text-dim);
   border-radius: 50%;
   transition: transform 0.2s, background 0.2s;
 }
@@ -1274,6 +1273,11 @@ body {
 .scheduled-task-toggle input:checked + .scheduled-task-toggle-slider {
   background: rgba(0, 255, 65, 0.2);
   border-color: var(--accent);
+}
+
+.scheduled-task-toggle input:focus-visible + .scheduled-task-toggle-slider {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .scheduled-task-toggle input:checked + .scheduled-task-toggle-slider::before {
