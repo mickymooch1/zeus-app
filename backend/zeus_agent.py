@@ -1729,17 +1729,17 @@ Key features: <functionality or content that this business specifically needs>
 Be opinionated. Every decision should feel like it was made for THIS business, not adapted from a template.\
 """
     try:
-        planner_output = await _run_agent_loop(
+        planner_output = await _run_stage_with_retry(
+            stage_label="🧠 Planner Agent",
             prompt=f"Create a website brief for: {request}",
             system_prompt=planner_system,
             tools=[],
             on_message=on_message,
             history=history,
-            stage_label="🧠 Planner Agent",
         )
-    except Exception as exc:
-        await on_message({"type": "text", "delta": f"\n\n❌ **Planner failed:** {exc}\n"})
-        return f"Pipeline aborted: Planner failed — {exc}"
+    except StageFailure as exc:
+        await _emit_stage_failure(exc, "planner", on_message)
+        return f"Pipeline aborted: {exc}"
 
     # Extract site name from planner output — single source of truth for all stages
     log.info("run_multi_agent: raw planner_output=\n%s", planner_output)
@@ -1779,17 +1779,17 @@ Include actual URLs and specific, actionable observations.\
         "Find 3 competitor/inspiration sites and summarise what the Builder should take from them."
     )
     try:
-        researcher_output = await _run_agent_loop(
+        researcher_output = await _run_stage_with_retry(
+            stage_label="🔍 Researcher Agent",
             prompt=researcher_prompt,
             system_prompt=researcher_system,
             tools=_RESEARCHER_TOOLS,
             on_message=on_message,
             history=history,
-            stage_label="🔍 Researcher Agent",
         )
-    except Exception as exc:
-        await on_message({"type": "text", "delta": f"\n\n❌ **Researcher failed:** {exc}\n"})
-        return f"Pipeline aborted: Researcher failed — {exc}"
+    except StageFailure as exc:
+        await _emit_stage_failure(exc, "researcher", on_message)
+        return f"Pipeline aborted: {exc}"
 
     # ── Stage 3: Builder ──────────────────────────────────────────────────────
     log.info("run_multi_agent: Builder stage — site_name=%r  build_dir=%r", site_name, _build_dir)
@@ -1830,19 +1830,19 @@ When done, confirm: "Files written to {_build_dir}/"\
         f"with full absolute paths. The ONLY valid directory is {_build_dir}/ — do not use any other path."
     )
     try:
-        builder_output = await _run_agent_loop(
+        builder_output = await _run_stage_with_retry(
+            stage_label="🏗️ Builder Agent",
             prompt=builder_prompt,
             system_prompt=builder_system,
             tools=_BUILDER_TOOLS,
             on_message=on_message,
             history=history,
-            stage_label="🏗️ Builder Agent",
             max_tokens=32000,
             max_turns=40,
         )
-    except Exception as exc:
-        await on_message({"type": "text", "delta": f"\n\n❌ **Builder failed:** {exc}\n"})
-        return f"Pipeline aborted: Builder failed — {exc}"
+    except StageFailure as exc:
+        await _emit_stage_failure(exc, "builder", on_message)
+        return f"Pipeline aborted: {exc}"
 
     # ── Verify build output before deploying ──────────────────────────────────
     index_path = pathlib.Path(_build_dir) / "index.html"
@@ -1875,21 +1875,49 @@ report the live URL clearly. Do nothing else.\
         "Confirm the live URL when done."
     )
     try:
-        deployer_output = await _run_agent_loop(
+        deployer_output = await _run_stage_with_retry(
+            stage_label="🚀 Deployer Agent",
             prompt=deployer_prompt,
             system_prompt=deployer_system,
             tools=_DEPLOYER_TOOLS,
             on_message=on_message,
             history=history,
-            stage_label="🚀 Deployer Agent",
             collect_tool_results=True,
         )
-    except Exception as exc:
-        await on_message({"type": "text", "delta": f"\n\n❌ **Deployer failed:** {exc}\n"})
-        return (
-            f"Website built at /data/projects/{site_name}/ but deployment failed — {exc}\n"
-            "You can deploy manually from the Builder's output."
+    except StageFailure as exc:
+        # Deployment failed — zip the built files as a fallback
+        attempts_text = "\n".join(
+            f"• Attempt {i + 1}: {err}" for i, err in enumerate(exc.attempts)
         )
+        zip_result = _run_tool(
+            "ZipProject",
+            {"folder": _build_dir, "zip_name": f"{site_name}.zip"},
+            history,
+        )
+        if isinstance(zip_result, str) and zip_result.startswith("DOWNLOAD_READY:"):
+            filename = zip_result.split("\n", 1)[0].split(":", 1)[1].strip()
+            download_url = f"/downloads/{filename}"
+            msg = (
+                f"\n\n⚠️ **Deployment failed after {len(exc.attempts)} attempts — "
+                f"but your site was built successfully.**\n\n"
+                f"**What Zeus tried:**\n{attempts_text}\n\n"
+                f"Your files are ready to download: "
+                f"[Download {site_name}.zip]({download_url})\n\n"
+                f"To deploy manually: extract the zip and drag the folder into "
+                f"[netlify.com/drop](https://app.netlify.com/drop).\n"
+            )
+            await on_message({"type": "text", "delta": msg})
+            return download_url
+        else:
+            # Zip also failed
+            msg = (
+                f"\n\n❌ **Deployment failed after {len(exc.attempts)} attempts "
+                f"and the zip fallback also failed.**\n\n"
+                f"**What Zeus tried:**\n{attempts_text}\n\n"
+                f"Your built files are at `{_build_dir}/` on the server.\n"
+            )
+            await on_message({"type": "text", "delta": msg})
+            return f"Pipeline aborted: {exc}"
 
     log.info("run_multi_agent: deployer_output=\n%s", deployer_output)
     return deployer_output

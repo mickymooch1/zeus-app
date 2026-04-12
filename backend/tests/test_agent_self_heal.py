@@ -212,3 +212,114 @@ class TestEmitStageFailure:
 
         full_text = "".join(m.get("delta", "") for m in messages)
         assert "Retry" in full_text  # fallback hint
+
+
+import pathlib
+
+
+class TestRunMultiAgentSelfHeal:
+    @pytest.mark.asyncio
+    async def test_planner_failure_returns_pipeline_aborted(self):
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        stage_failure = zeus_agent.StageFailure(
+            "🧠 Planner Agent", ["err1", "err2", "err3"]
+        )
+
+        with patch("zeus_agent._run_stage_with_retry", new=AsyncMock(side_effect=stage_failure)):
+            result = await zeus_agent.run_multi_agent("build a site", on_msg, MagicMock())
+
+        assert result.startswith("Pipeline aborted:")
+        full_text = "".join(m.get("delta", "") for m in messages)
+        assert "failed after 3" in full_text
+
+    @pytest.mark.asyncio
+    async def test_researcher_failure_returns_pipeline_aborted(self):
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        planner_out = "SITE_NAME: test-biz\nBusiness: Test business\n"
+        researcher_failure = zeus_agent.StageFailure(
+            "🔍 Researcher Agent", ["connection refused"]
+        )
+
+        call_count = 0
+        async def fake_retry(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return planner_out
+            raise researcher_failure
+
+        with patch("zeus_agent._run_stage_with_retry", side_effect=fake_retry):
+            result = await zeus_agent.run_multi_agent("build a site", on_msg, MagicMock())
+
+        assert result.startswith("Pipeline aborted:")
+
+    @pytest.mark.asyncio
+    async def test_deployer_failure_triggers_zip_fallback(self):
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        planner_out = "SITE_NAME: my-bakery\nBusiness: Bakery in Leeds\n"
+        deployer_failure = zeus_agent.StageFailure(
+            "🚀 Deployer Agent", ["HTTP 503", "connection reset", "timeout"]
+        )
+
+        call_count = 0
+        async def fake_retry(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return planner_out       # Planner
+            if call_count == 2:
+                return "research output" # Researcher
+            if call_count == 3:
+                return "builder output"  # Builder
+            raise deployer_failure       # Deployer
+
+        zip_result = "DOWNLOAD_READY:abc123_my-bakery.zip\nZipped 3 files from 'my-bakery'"
+
+        with patch("zeus_agent._run_stage_with_retry", side_effect=fake_retry), \
+             patch("zeus_agent._run_tool", return_value=zip_result), \
+             patch.object(pathlib.Path, "exists", return_value=True):
+            result = await zeus_agent.run_multi_agent("build a bakery site", on_msg, MagicMock())
+
+        full_text = "".join(m.get("delta", "") for m in messages)
+        assert "Deployment failed after 3 attempts" in full_text
+        assert "built successfully" in full_text
+        assert "HTTP 503" in full_text
+        assert "Download" in full_text
+        assert "abc123_my-bakery.zip" in full_text
+
+    @pytest.mark.asyncio
+    async def test_deployer_failure_zip_also_fails_returns_error(self):
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        planner_out = "SITE_NAME: my-shop\nBusiness: Shop\n"
+        deployer_failure = zeus_agent.StageFailure(
+            "🚀 Deployer Agent", ["err"]
+        )
+
+        call_count = 0
+        async def fake_retry(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return planner_out
+            if call_count == 2:
+                return "research output"
+            if call_count == 3:
+                return "builder output"
+            raise deployer_failure
+
+        with patch("zeus_agent._run_stage_with_retry", side_effect=fake_retry), \
+             patch("zeus_agent._run_tool", return_value="Error: folder does not exist"), \
+             patch.object(pathlib.Path, "exists", return_value=True):
+            result = await zeus_agent.run_multi_agent("build a shop site", on_msg, MagicMock())
+
+        assert isinstance(result, str)
+        full_text = "".join(m.get("delta", "") for m in messages)
+        assert "Deployment failed" in full_text
