@@ -128,7 +128,7 @@ class TestSubmitUrlToGoogle:
         })
         mock_post = MagicMock(side_effect=Exception("Connection refused"))
         with patch.dict(os.environ, {"GOOGLE_SERVICE_ACCOUNT_JSON": sa}):
-            with patch("requests.post", mock_post):
+            with patch("zeus_agent.requests.post", mock_post):
                 zeus_agent._submit_url_to_google("https://test.netlify.app/")  # must not raise
 
     def test_skips_when_indexing_api_returns_403(self):
@@ -142,12 +142,11 @@ class TestSubmitUrlToGoogle:
         token_resp.json.return_value = {"access_token": "fake-token"}
 
         index_resp = MagicMock()
-        index_resp.raise_for_status.return_value = None
         index_resp.status_code = 403
         index_resp.text = "Permission denied — site not verified"
 
         with patch.dict(os.environ, {"GOOGLE_SERVICE_ACCOUNT_JSON": sa}):
-            with patch("requests.post", side_effect=[token_resp, index_resp]):
+            with patch("zeus_agent.requests.post", side_effect=[token_resp, index_resp]):
                 zeus_agent._submit_url_to_google("https://test.netlify.app/")  # must not raise
 
     def test_logs_success_on_200(self):
@@ -161,12 +160,11 @@ class TestSubmitUrlToGoogle:
         token_resp.json.return_value = {"access_token": "fake-token"}
 
         index_resp = MagicMock()
-        index_resp.raise_for_status.return_value = None
         index_resp.status_code = 200
         index_resp.text = '{"urlNotificationMetadata": {}}'
 
         with patch.dict(os.environ, {"GOOGLE_SERVICE_ACCOUNT_JSON": sa}):
-            with patch("requests.post", side_effect=[token_resp, index_resp]):
+            with patch("zeus_agent.requests.post", side_effect=[token_resp, index_resp]):
                 import logging
                 with patch.object(logging.getLogger("zeus.agent"), "info") as mock_log:
                     zeus_agent._submit_url_to_google("https://test.netlify.app/")

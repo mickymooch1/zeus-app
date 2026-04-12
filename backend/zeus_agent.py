@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -7,6 +8,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
@@ -18,6 +20,7 @@ import anthropic
 print("zeus_agent.py: anthropic ok", file=sys.stderr, flush=True)
 
 import httpx
+import requests
 from github_push import push_to_github as _push_to_github
 
 EXPORT_TAG_RE = re.compile(
@@ -2131,21 +2134,17 @@ def _submit_url_to_google(url: str) -> None:
       * In Google Search Console, add the service account email as Owner on
         the URL-prefix property for each new Netlify site.
     """
-    import json as _json
-    import time as _time
-    import base64 as _base64
-
     raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
     if not raw:
         log.info("_submit_url_to_google: GOOGLE_SERVICE_ACCOUNT_JSON not set — skipping")
         return
 
     try:
-        sa = _json.loads(raw)
+        sa = json.loads(raw)
         client_email = sa["client_email"]
         private_key = sa["private_key"]
         token_uri = sa.get("token_uri", "https://oauth2.googleapis.com/token")
-    except (KeyError, ValueError, _json.JSONDecodeError) as exc:
+    except (KeyError, json.JSONDecodeError) as exc:
         log.warning("_submit_url_to_google: malformed service account JSON — %s", exc)
         return
 
@@ -2154,12 +2153,12 @@ def _submit_url_to_google(url: str) -> None:
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import padding
 
-        now = int(_time.time())
-        header_b64 = _base64.urlsafe_b64encode(
-            _json.dumps({"alg": "RS256", "typ": "JWT"}).encode()
+        now = int(time.time())
+        header_b64 = base64.urlsafe_b64encode(
+            json.dumps({"alg": "RS256", "typ": "JWT"}).encode()
         ).rstrip(b"=")
-        payload_b64 = _base64.urlsafe_b64encode(
-            _json.dumps({
+        payload_b64 = base64.urlsafe_b64encode(
+            json.dumps({
                 "iss": client_email,
                 "scope": "https://www.googleapis.com/auth/indexing",
                 "aud": token_uri,
@@ -2171,7 +2170,7 @@ def _submit_url_to_google(url: str) -> None:
         key = serialization.load_pem_private_key(private_key.encode(), password=None)
         sig = key.sign(signing_input, padding.PKCS1v15(), hashes.SHA256())
         signed_jwt = (
-            signing_input + b"." + _base64.urlsafe_b64encode(sig).rstrip(b"=")
+            signing_input + b"." + base64.urlsafe_b64encode(sig).rstrip(b"=")
         ).decode()
     except Exception as exc:
         log.warning("_submit_url_to_google: JWT signing failed — %s", exc)
@@ -2179,9 +2178,7 @@ def _submit_url_to_google(url: str) -> None:
 
     # ── Exchange JWT for an OAuth2 access token, then call Indexing API ──────
     try:
-        import requests as _req
-
-        token_resp = _req.post(
+        token_resp = requests.post(
             token_uri,
             data={
                 "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
@@ -2192,7 +2189,7 @@ def _submit_url_to_google(url: str) -> None:
         token_resp.raise_for_status()
         access_token = token_resp.json()["access_token"]
 
-        index_resp = _req.post(
+        index_resp = requests.post(
             "https://indexing.googleapis.com/v3/urlNotifications:publish",
             headers={
                 "Authorization": f"Bearer {access_token}",
