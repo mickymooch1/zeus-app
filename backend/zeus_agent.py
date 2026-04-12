@@ -123,6 +123,8 @@ You have a persistent memory system. Use it proactively. The goal is to get smar
 
 **PushToGitHub(files, commit_message, create_pr, pr_title, pr_body)** — push files to the zeusaidesign.com GitHub repo. Restricted to web/src/ only. create_pr=false for minor updates, create_pr=true for significant changes. Admin only.
 
+**SendEmail(to_email, subject, body, from_name)** — send an email on the user's behalf. Use this when asked to send any email — client proposals, follow-ups, meeting confirmations, invoices, cold outreach, anything. Workflow: draft the email, show the user the recipient, subject, and body, ask "Shall I send this?" and only call SendEmail after they confirm. After sending, tell the user "Email sent to [address] ✅". Example triggers: "Send an email to john@example.com saying the meeting is at 3pm", "Email the client with the proposal", "Follow up with sarah@company.com about the invoice".
+
 **CreateBackgroundTask(request, description)** — for MultiAgentBuild or any build that will take more than a few minutes, use this instead of calling MultiAgentBuild directly. Runs in the background; user is emailed when the site is live. Enterprise plan only.
 
 ## Zeus AI Design — Pricing
@@ -258,18 +260,19 @@ TOOLS = [
         "name": "SendEmail",
         "description": (
             "Send an email on behalf of the user via Gmail. "
-            "Use this to send client proposals, follow-ups, invoices, or any other email. "
-            "Always confirm the recipient, subject, and body with the user before sending."
+            "Use this to send client proposals, follow-ups, invoices, or any other email the user asks to send. "
+            "IMPORTANT: Before calling this tool, always show the user the to_email, subject, and body and ask "
+            "'Shall I send this?' — only call SendEmail after the user confirms."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "to":      {"type": "string", "description": "Recipient email address"},
-                "subject": {"type": "string", "description": "Email subject line"},
-                "body":    {"type": "string", "description": "Plain text email body"},
-                "cc":      {"type": "string", "description": "CC email address (optional)"},
+                "to_email":  {"type": "string", "description": "Recipient email address"},
+                "subject":   {"type": "string", "description": "Email subject line"},
+                "body":      {"type": "string", "description": "Plain text email body"},
+                "from_name": {"type": "string", "description": "Sender display name shown to recipient (default: 'Zeus AI')"},
             },
-            "required": ["to", "subject", "body"],
+            "required": ["to_email", "subject", "body"],
         },
     },
     {
@@ -688,23 +691,20 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
             if not smtp_email or not smtp_password:
                 return "Error: SMTP_EMAIL and SMTP_PASSWORD environment variables are not set."
 
-            msg = MIMEMultipart()
-            msg["From"] = smtp_email
-            msg["To"] = inp["to"]
-            msg["Subject"] = inp["subject"]
-            if inp.get("cc"):
-                msg["Cc"] = inp["cc"]
-            msg.attach(MIMEText(inp["body"], "plain"))
+            to_email = inp["to_email"]
+            from_name = inp.get("from_name", "Zeus AI") or "Zeus AI"
 
-            recipients = [inp["to"]]
-            if inp.get("cc"):
-                recipients.append(inp["cc"])
+            msg = MIMEMultipart()
+            msg["From"] = f"{from_name} <{smtp_email}>"
+            msg["To"] = to_email
+            msg["Subject"] = inp["subject"]
+            msg.attach(MIMEText(inp["body"], "plain"))
 
             try:
                 with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
                     server.login(smtp_email, smtp_password)
-                    server.sendmail(smtp_email, recipients, msg.as_string())
-                return f"Email sent to {inp['to']} — Subject: {inp['subject']}"
+                    server.sendmail(smtp_email, [to_email], msg.as_string())
+                return f"Email sent to {to_email} ✅"
             except smtplib.SMTPAuthenticationError:
                 return "Error: Gmail authentication failed. Make sure SMTP_PASSWORD is an App Password, not your regular Gmail password."
             except smtplib.SMTPException as exc:
