@@ -31,7 +31,7 @@ function ScheduledTaskRow({ task, token, onToggle, onDelete }) {
 
   const handleDelete = async () => {
     setDeleting(true);
-    onDelete(task.id); // optimistic
+    onDelete(task.id); // optimistic — row is removed from DOM immediately
     try {
       const res = await fetch(`${BACKEND_URL}/scheduled-tasks/${task.id}`, {
         method: 'DELETE',
@@ -39,7 +39,9 @@ function ScheduledTaskRow({ task, token, onToggle, onDelete }) {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch {
-      // revert: parent would need to re-fetch; for simplicity leave as deleted
+      // Leave as deleted — for simplicity we do not revert the optimistic remove
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -122,12 +124,12 @@ export function ScheduledTasksTab({ token }) {
     fetchTasks();
   }, [fetchTasks]);
 
-  // Clear parse result if user edits the schedule input after parsing
+  // Clear parse result when the user edits the schedule input after a successful parse
   useEffect(() => {
-    if (parsedCron && scheduleInput !== lastParsedInput) {
+    if (scheduleInput !== lastParsedInput) {
       setParsedCron(null);
     }
-  }, [scheduleInput, parsedCron, lastParsedInput]);
+  }, [scheduleInput, lastParsedInput]);
 
   const handleParse = async () => {
     if (!scheduleInput.trim()) return;
@@ -172,7 +174,7 @@ export function ScheduledTasksTab({ token }) {
           task_description: taskDesc,
           cron_expression: parsedCron.cron_expression,
           schedule_label: parsedCron.schedule_label,
-          timezone: 'UTC',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
       const data = await res.json();
