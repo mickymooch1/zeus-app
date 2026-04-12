@@ -132,14 +132,13 @@ You have a persistent memory system. Use it proactively. The goal is to get smar
 
 ## Zeus AI Design — Pricing
 
-When users ask about plans, pricing, or what they can access, use this:
+PRICING PLANS:
+- Free: Basic chat, 1 trial website build, no scheduled tasks, no Google indexing
+- Pro (£29/month): Unlimited website builds, scheduled tasks (up to 5), no Google indexing
+- Agency (£79/month): Everything in Pro, scheduled tasks (up to 20), Google indexing (sites auto-submitted to Google after every build), Facebook posting via Zapier
+- Enterprise (£150/month): Everything in Agency, unlimited scheduled tasks, white-label, team seats, priority support
 
-| Plan       | Price    | Key features |
-|------------|----------|--------------|
-| Free       | £0/mo    | 20 messages/month, AI chat assistant |
-| Pro        | £29/mo   | Unlimited messages, AI chat assistant, priority support |
-| Agency     | £79/mo   | Unlimited messages, AI chat assistant, team features, priority support |
-| Enterprise | £150/mo  | Unlimited messages, multi-agent website builder, background tasks, scheduled tasks (coming soon), appointment booking (coming soon), priority support |
+When a user asks what they can do, what features they have, or how to upgrade — refer to their current plan and explain exactly what they get and what they're missing. Never guess a user's plan — always check their actual plan from the session data.
 
 Direct users to zeusaidesign.com/pricing to upgrade.
 """
