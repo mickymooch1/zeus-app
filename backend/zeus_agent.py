@@ -1427,6 +1427,7 @@ async def _run_agent_loop(
     max_turns: int = 30,
     max_tokens: int = 8000,
     collect_tool_results: bool = False,
+    emit_header: bool = True,
 ) -> str:
     """
     Run a focused single-purpose agentic loop and return the final text output.
@@ -1437,8 +1438,9 @@ async def _run_agent_loop(
     messages: list[dict] = [{"role": "user", "content": prompt}]
     text_parts: list[str] = []
 
-    # Emit stage header before any work begins
-    await on_message({"type": "text", "delta": f"\n\n**{stage_label}**\n"})
+    # Emit stage header before any work begins (suppressed on retries)
+    if emit_header:
+        await on_message({"type": "text", "delta": f"\n\n**{stage_label}**\n"})
 
     for _ in range(max_turns):
         tool_blocks: dict[int, dict] = {}
@@ -1557,6 +1559,8 @@ async def _run_stage_with_retry(
 
     Raises StageFailure if all attempts fail.
     """
+    if max_attempts < 1:
+        raise ValueError(f"max_attempts must be >= 1, got {max_attempts}")
     errors: list[str] = []
     for attempt in range(max_attempts):
         if attempt > 0:
@@ -1585,6 +1589,7 @@ async def _run_stage_with_retry(
                 max_turns=max_turns,
                 max_tokens=max_tokens,
                 collect_tool_results=collect_tool_results,
+                emit_header=(attempt == 0),
             )
         except Exception as exc:
             log.error(
