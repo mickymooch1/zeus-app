@@ -16,3 +16,22 @@ class TestStageFailure:
     def test_is_exception_subclass(self):
         exc = zeus_agent.StageFailure("stage", ["e"])
         assert isinstance(exc, Exception)
+
+
+class TestAddToolErrorHint:
+    def test_error_string_gets_hint_appended(self):
+        result = zeus_agent._add_tool_error_hint("Error: folder not found")
+        assert result.startswith("Error: folder not found")
+        assert "alternative approach" in result
+
+    def test_non_error_string_unchanged(self):
+        result = zeus_agent._add_tool_error_hint("Written 1234 chars to /data/projects/foo/index.html")
+        assert "alternative approach" not in result
+        assert result == "Written 1234 chars to /data/projects/foo/index.html"
+
+    def test_empty_string_unchanged(self):
+        assert zeus_agent._add_tool_error_hint("") == ""
+
+    def test_warning_string_unchanged(self):
+        result = zeus_agent._add_tool_error_hint("Warning: something odd happened")
+        assert "alternative approach" not in result

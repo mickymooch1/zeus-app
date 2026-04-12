@@ -1405,6 +1405,18 @@ class StageFailure(Exception):
         super().__init__(f"{stage} failed after {len(attempts)} attempt(s)")
 
 
+def _add_tool_error_hint(result: str) -> str:
+    """Append a retry hint to tool error results so Claude tries a different approach."""
+    if isinstance(result, str) and result.startswith("Error:"):
+        return (
+            result
+            + "\n\n[This tool call failed. Consider an alternative approach — "
+            "different parameters, a different tool, or a different strategy "
+            "to achieve the same goal.]"
+        )
+    return result
+
+
 async def _run_agent_loop(
     prompt: str,
     system_prompt: str,
@@ -1516,7 +1528,7 @@ async def _run_agent_loop(
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": tb["id"],
-                "content": result,
+                "content": _add_tool_error_hint(result),
             })
 
         messages.append({"role": "user", "content": tool_results})
