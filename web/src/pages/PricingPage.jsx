@@ -40,6 +40,7 @@ const DEFAULT_PLANS = {
       'Custom integrations',
       'White-label options (coming soon)',
       'Dedicated account manager',
+      'Submitted to Google automatically',
     ],
   },
   enterprise: {
@@ -51,6 +52,7 @@ const DEFAULT_PLANS = {
       'Scheduled automation',
       'Appointment booking',
       'Priority support',
+      'Submitted to Google automatically',
     ],
   },
 };
