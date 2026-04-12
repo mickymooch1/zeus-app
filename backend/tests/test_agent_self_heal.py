@@ -161,3 +161,54 @@ class TestRunStageWithRetry:
 
         retry_messages = [m for m in messages if "retrying" in str(m.get("delta", ""))]
         assert len(retry_messages) == 2  # one per failed attempt
+
+
+class TestEmitStageFailure:
+    @pytest.mark.asyncio
+    async def test_planner_failure_includes_hint(self):
+        exc = zeus_agent.StageFailure("🧠 Planner Agent", ["timeout", "API error", "max_tokens hit"])
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        await zeus_agent._emit_stage_failure(exc, "planner", on_msg)
+
+        full_text = "".join(m.get("delta", "") for m in messages)
+        assert "Planner Agent" in full_text
+        assert "3 attempt" in full_text
+        assert "• Attempt 1: timeout" in full_text
+        assert "• Attempt 2: API error" in full_text
+        assert "• Attempt 3: max_tokens hit" in full_text
+        assert "rephrasing" in full_text  # planner-specific hint
+
+    @pytest.mark.asyncio
+    async def test_researcher_failure_includes_hint(self):
+        exc = zeus_agent.StageFailure("🔍 Researcher Agent", ["connection refused"])
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        await zeus_agent._emit_stage_failure(exc, "researcher", on_msg)
+
+        full_text = "".join(m.get("delta", "") for m in messages)
+        assert "unreachable" in full_text  # researcher-specific hint
+
+    @pytest.mark.asyncio
+    async def test_builder_failure_includes_hint(self):
+        exc = zeus_agent.StageFailure("🏗️ Builder Agent", ["permission denied"])
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        await zeus_agent._emit_stage_failure(exc, "builder", on_msg)
+
+        full_text = "".join(m.get("delta", "") for m in messages)
+        assert "writable" in full_text  # builder-specific hint
+
+    @pytest.mark.asyncio
+    async def test_unknown_stage_key_uses_fallback_hint(self):
+        exc = zeus_agent.StageFailure("Unknown Stage", ["err"])
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        await zeus_agent._emit_stage_failure(exc, "unknown_key", on_msg)
+
+        full_text = "".join(m.get("delta", "") for m in messages)
+        assert "Retry" in full_text  # fallback hint

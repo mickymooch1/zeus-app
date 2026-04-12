@@ -1538,6 +1538,43 @@ async def _run_agent_loop(
     return "".join(text_parts).strip()
 
 
+_STAGE_HINTS: dict[str, str] = {
+    "planner": (
+        "Try rephrasing the request with more specific details about the "
+        "business type and location."
+    ),
+    "researcher": (
+        "The sites Zeus tried to fetch may be unreachable. "
+        "Retry in a moment, or simplify the research brief."
+    ),
+    "builder": (
+        "Check that the build directory is writable and retry. "
+        "Try simplifying the request — e.g. 'a basic 3-section site for [business]'."
+    ),
+}
+
+
+async def _emit_stage_failure(
+    exc: "StageFailure",
+    stage_key: str,
+    on_message: Callable[[dict[str, Any]], Awaitable[None]],
+) -> None:
+    """Stream a clean, structured failure message to the user."""
+    hint = _STAGE_HINTS.get(
+        stage_key,
+        "Retry the task. If it keeps failing, try simplifying the request.",
+    )
+    attempts_text = "\n".join(
+        f"• Attempt {i + 1}: {err}" for i, err in enumerate(exc.attempts)
+    )
+    msg = (
+        f"\n\n❌ **{exc.stage} failed after {len(exc.attempts)} attempt(s).**\n\n"
+        f"**What Zeus tried:**\n{attempts_text}\n\n"
+        f"**What to do next:** {hint}\n"
+    )
+    await on_message({"type": "text", "delta": msg})
+
+
 async def _run_stage_with_retry(
     stage_label: str,
     prompt: str,
