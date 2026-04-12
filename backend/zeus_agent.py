@@ -2001,6 +2001,15 @@ report the live URL clearly. Do nothing else.\
             return f"Pipeline aborted: {exc}"
 
     log.info("run_multi_agent: deployer_output=\n%s", deployer_output)
+
+    # ── Submit to Google Indexing API ─────────────────────────────────────────
+    _url_match = re.search(r'https?://\S+\.netlify\.app', deployer_output)
+    if _url_match:
+        _live_url = _url_match.group(0).rstrip(".,)/")
+        _submit_url_to_google(_live_url)
+    else:
+        log.warning("run_multi_agent: no Netlify URL found in deployer_output — skipping Google submission")
+
     return deployer_output
 
 

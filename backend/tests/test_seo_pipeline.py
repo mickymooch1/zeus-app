@@ -77,6 +77,57 @@ class TestSeoFilesWiredIntoPipeline:
         assert "SEO files added" in delta_texts
         mock_generate.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_google_submission_called_with_live_url(self):
+        """_submit_url_to_google must be called with the Netlify URL from deployer_output."""
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        submitted_urls = []
+        def recording_submit(url):
+            submitted_urls.append(url)
+
+        with (
+            patch("zeus_agent._run_stage_with_retry", new=AsyncMock(side_effect=[
+                "SITE_NAME: submit-test\nBrief done.",
+                "Research done.",
+                "Build done.",
+                "✅ Deployed!\n🌐 Live URL: https://submit-test.netlify.app\n📁 Site ID: abc",
+            ])),
+            patch("zeus_agent._generate_seo_files"),
+            patch("zeus_agent._submit_url_to_google", side_effect=recording_submit),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            await zeus_agent.run_multi_agent(
+                "build a site", on_msg, MagicMock(), user_id=None
+            )
+
+        assert submitted_urls == ["https://submit-test.netlify.app"]
+
+    @pytest.mark.asyncio
+    async def test_google_submission_skipped_when_no_url_in_deployer_output(self):
+        """Pipeline must not crash if deployer_output has no recognisable Netlify URL."""
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        submitted_urls = []
+        with (
+            patch("zeus_agent._run_stage_with_retry", new=AsyncMock(side_effect=[
+                "SITE_NAME: no-url-test\nBrief done.",
+                "Research done.",
+                "Build done.",
+                "Deployment result with no URL here.",
+            ])),
+            patch("zeus_agent._generate_seo_files"),
+            patch("zeus_agent._submit_url_to_google", side_effect=lambda u: submitted_urls.append(u)),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            await zeus_agent.run_multi_agent(
+                "build a site", on_msg, MagicMock(), user_id=None
+            )
+
+        assert submitted_urls == []
+
 
 # RSA key generated once per test run (avoid per-test overhead of 2048-bit keygen)
 _TEST_RSA_PEM: str | None = None
