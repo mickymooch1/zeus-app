@@ -35,3 +35,129 @@ class TestAddToolErrorHint:
     def test_warning_string_unchanged(self):
         result = zeus_agent._add_tool_error_hint("Warning: something odd happened")
         assert "alternative approach" not in result
+
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+
+class TestRunStageWithRetry:
+    @pytest.mark.asyncio
+    async def test_succeeds_on_first_attempt(self):
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        with patch("zeus_agent._run_agent_loop", new=AsyncMock(return_value="planner output")):
+            result = await zeus_agent._run_stage_with_retry(
+                stage_label="🧠 Planner Agent",
+                prompt="build a site",
+                system_prompt="you are planner",
+                tools=[],
+                on_message=on_msg,
+                history=MagicMock(),
+            )
+
+        assert result == "planner output"
+        assert not any("retrying" in str(m.get("delta", "")) for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_injects_error_context_on_retry(self):
+        call_prompts = []
+
+        async def fake_loop(prompt, **kwargs):
+            call_prompts.append(prompt)
+            if len(call_prompts) == 1:
+                raise RuntimeError("API overloaded")
+            return "success on retry"
+
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        with patch("zeus_agent._run_agent_loop", side_effect=fake_loop):
+            result = await zeus_agent._run_stage_with_retry(
+                stage_label="🧠 Planner Agent",
+                prompt="build a site",
+                system_prompt="",
+                tools=[],
+                on_message=on_msg,
+                history=MagicMock(),
+            )
+
+        assert result == "success on retry"
+        assert "Previous attempt failed" in call_prompts[1]
+        assert "API overloaded" in call_prompts[1]
+        assert any("retrying" in str(m.get("delta", "")) for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_raises_stage_failure_after_all_attempts(self):
+        async def always_fails(prompt, **kwargs):
+            raise RuntimeError("timeout")
+
+        async def on_msg(m): pass
+
+        with patch("zeus_agent._run_agent_loop", side_effect=always_fails):
+            with pytest.raises(zeus_agent.StageFailure) as exc_info:
+                await zeus_agent._run_stage_with_retry(
+                    stage_label="🏗️ Builder Agent",
+                    prompt="build",
+                    system_prompt="",
+                    tools=[],
+                    on_message=on_msg,
+                    history=MagicMock(),
+                    max_attempts=3,
+                )
+
+        exc = exc_info.value
+        assert exc.stage == "🏗️ Builder Agent"
+        assert len(exc.attempts) == 3
+        assert all("timeout" in e for e in exc.attempts)
+
+    @pytest.mark.asyncio
+    async def test_errors_truncated_to_120_chars(self):
+        long_error = "x" * 300
+
+        async def always_fails(prompt, **kwargs):
+            raise RuntimeError(long_error)
+
+        async def on_msg(m): pass
+
+        with patch("zeus_agent._run_agent_loop", side_effect=always_fails):
+            with pytest.raises(zeus_agent.StageFailure) as exc_info:
+                await zeus_agent._run_stage_with_retry(
+                    stage_label="stage",
+                    prompt="p",
+                    system_prompt="",
+                    tools=[],
+                    on_message=on_msg,
+                    history=MagicMock(),
+                    max_attempts=1,
+                )
+
+        assert len(exc_info.value.attempts[0]) <= 120
+
+    @pytest.mark.asyncio
+    async def test_retry_notice_streamed_between_attempts(self):
+        call_count = 0
+
+        async def fails_twice(prompt, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise RuntimeError("err")
+            return "ok"
+
+        messages = []
+        async def on_msg(m): messages.append(m)
+
+        with patch("zeus_agent._run_agent_loop", side_effect=fails_twice):
+            await zeus_agent._run_stage_with_retry(
+                stage_label="🔍 Researcher Agent",
+                prompt="research",
+                system_prompt="",
+                tools=[],
+                on_message=on_msg,
+                history=MagicMock(),
+                max_attempts=3,
+            )
+
+        retry_messages = [m for m in messages if "retrying" in str(m.get("delta", ""))]
+        assert len(retry_messages) == 2  # one per failed attempt

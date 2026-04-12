@@ -1536,6 +1536,66 @@ async def _run_agent_loop(
     return "".join(text_parts).strip()
 
 
+async def _run_stage_with_retry(
+    stage_label: str,
+    prompt: str,
+    system_prompt: str,
+    tools: list,
+    on_message: Callable[[dict[str, Any]], Awaitable[None]],
+    history: "HistoryStore",
+    max_turns: int = 30,
+    max_tokens: int = 8000,
+    collect_tool_results: bool = False,
+    max_attempts: int = 3,
+) -> str:
+    """
+    Run a pipeline stage with automatic retry on exception.
+
+    On each retry, the error from the previous attempt is prepended to the
+    prompt so the model can adjust its approach. Raw tracebacks are written
+    to the log only — never stored in the attempts list.
+
+    Raises StageFailure if all attempts fail.
+    """
+    errors: list[str] = []
+    for attempt in range(max_attempts):
+        if attempt > 0:
+            truncated = errors[-1]
+            current_prompt = (
+                f"[Previous attempt failed: {truncated}. Try a different approach.]\n\n"
+                + prompt
+            )
+            await on_message({
+                "type": "text",
+                "delta": (
+                    f"\n\n⚠️ {stage_label} — attempt {attempt} failed, "
+                    f"retrying ({attempt + 1}/{max_attempts})...\n"
+                ),
+            })
+        else:
+            current_prompt = prompt
+        try:
+            return await _run_agent_loop(
+                prompt=current_prompt,
+                system_prompt=system_prompt,
+                tools=tools,
+                on_message=on_message,
+                history=history,
+                stage_label=stage_label,
+                max_turns=max_turns,
+                max_tokens=max_tokens,
+                collect_tool_results=collect_tool_results,
+            )
+        except Exception as exc:
+            log.error(
+                "%s attempt %d/%d failed: %s",
+                stage_label, attempt + 1, max_attempts, exc,
+                exc_info=True,
+            )
+            errors.append(str(exc)[:120])
+    raise StageFailure(stage_label, errors)
+
+
 async def run_multi_agent(
     request: str,
     on_message: Callable[[dict[str, Any]], Awaitable[None]],
