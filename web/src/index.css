@@ -1284,3 +1284,54 @@ body {
   transform: translateX(16px);
   background: var(--accent);
 }
+
+/* ── Mobile responsive — dashboard layout ────────────────── */
+
+/* Hamburger button: hidden on desktop, shown on mobile */
+.hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--text);
+  padding: 4px 8px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Dark backdrop rendered behind the open sidebar on mobile */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 199;
+}
+
+@media (max-width: 767px) {
+  .hamburger-btn {
+    display: flex;
+    align-items: center;
+  }
+
+  /* Sidebar slides in from left as an overlay */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 280px;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+  }
+
+  .sidebar--open {
+    transform: translateX(0);
+  }
+
+  /* Chat fills full width — sidebar no longer takes up horizontal space */
+  .dashboard-body {
+    position: relative;
+  }
+}

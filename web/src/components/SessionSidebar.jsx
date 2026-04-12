@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
-export function SessionSidebar({ currentSessionId, onNewSession, onResumeSession }) {
+export function SessionSidebar({ currentSessionId, onNewSession, onResumeSession, isOpen, onClose }) {
   const [sessions, setSessions] = useState([]);
   const [tunnelUrl, setTunnelUrl] = useState(null);
   const { token } = useAuth();
@@ -30,7 +30,7 @@ export function SessionSidebar({ currentSessionId, onNewSession, onResumeSession
   }, [currentSessionId, refresh]);
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' sidebar--open' : ''}`}>
       <div className="sidebar-header">
         <div className="zeus-logo">
           <span className="zeus-icon">⚡</span>

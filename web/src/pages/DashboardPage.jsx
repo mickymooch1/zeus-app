@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChatWindow } from '../components/ChatWindow';
 import { SessionSidebar } from '../components/SessionSidebar';
@@ -20,6 +20,7 @@ function PlanBadge({ status, plan }) {
 export default function DashboardPage() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { messages, sessionId, streaming, sendMessage, newSession, loadSession } =
     useZeusSocket(token);
@@ -44,6 +45,13 @@ export default function DashboardPage() {
   return (
     <div className="dashboard-page">
       <header className="dashboard-header">
+        <button
+          className="hamburger-btn"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open menu"
+        >
+          ☰
+        </button>
         <Link to="/" className="dashboard-logo">
           <span className="zeus-icon">⚡</span>
           <span className="zeus-title">Zeus</span>
@@ -67,10 +75,19 @@ export default function DashboardPage() {
       </header>
 
       <div className="dashboard-body">
+        {sidebarOpen && (
+          <div
+            className="sidebar-backdrop"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
         <SessionSidebar
           currentSessionId={sessionId}
           onNewSession={newSession}
           onResumeSession={handleResumeSession}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
         <ChatWindow
           messages={messages}
