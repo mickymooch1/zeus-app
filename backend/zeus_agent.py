@@ -1553,6 +1553,7 @@ async def _run_agent_loop(
     max_tokens: int = 8000,
     collect_tool_results: bool = False,
     emit_header: bool = True,
+    model: str = "claude-sonnet-4-6",
 ) -> str:
     """
     Run a focused single-purpose agentic loop and return the final text output.
@@ -1571,7 +1572,7 @@ async def _run_agent_loop(
         tool_blocks: dict[int, dict] = {}
 
         stream_kwargs: dict[str, Any] = {
-            "model": "claude-sonnet-4-6",
+            "model": model,
             "max_tokens": max_tokens,
             "system": system_prompt,
             "messages": messages,
@@ -1711,6 +1712,7 @@ async def _run_stage_with_retry(
     max_tokens: int = 8000,
     collect_tool_results: bool = False,
     max_attempts: int = 3,
+    model: str = "claude-sonnet-4-6",
 ) -> str:
     """
     Run a pipeline stage with automatic retry on exception.
@@ -1752,6 +1754,7 @@ async def _run_stage_with_retry(
                 max_tokens=max_tokens,
                 collect_tool_results=collect_tool_results,
                 emit_header=(attempt == 0),
+                model=model,
             )
         except Exception as exc:
             log.error(
@@ -1861,6 +1864,7 @@ Be opinionated. Every decision should feel like it was made for THIS business, n
             tools=[],
             on_message=on_message,
             history=history,
+            model="claude-haiku-4-5-20251001",
         )
     except StageFailure as exc:
         await _emit_stage_failure(exc, "planner", on_message)
@@ -1911,6 +1915,8 @@ Include actual URLs and specific, actionable observations.\
             tools=_RESEARCHER_TOOLS,
             on_message=on_message,
             history=history,
+            max_tokens=4000,
+            model="claude-haiku-4-5-20251001",
         )
     except StageFailure as exc:
         await _emit_stage_failure(exc, "researcher", on_message)
