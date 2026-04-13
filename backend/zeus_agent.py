@@ -654,6 +654,59 @@ def _generate_seo_files(build_dir: str, site_url: str) -> None:
     log.info("_generate_seo_files: wrote sitemap.xml and robots.txt to %s", build_dir)
 
 
+def _write_netlify_toml(build_dir: str) -> None:
+    """Write netlify.toml into build_dir before deployment.
+
+    Sets the publish directory and long-lived cache headers for static assets,
+    with no-cache for index.html so deploys are picked up immediately.
+    """
+    toml = (
+        "[build]\n"
+        '  publish = "."\n'
+        "\n"
+        "# Long-lived cache for hashed static assets\n"
+        "[[headers]]\n"
+        '  for = "/*.css"\n'
+        "  [headers.values]\n"
+        '    Cache-Control = "public, max-age=31536000, immutable"\n'
+        "\n"
+        "[[headers]]\n"
+        '  for = "/*.js"\n'
+        "  [headers.values]\n"
+        '    Cache-Control = "public, max-age=31536000, immutable"\n'
+        "\n"
+        "[[headers]]\n"
+        '  for = "/*.png"\n'
+        "  [headers.values]\n"
+        '    Cache-Control = "public, max-age=31536000, immutable"\n'
+        "\n"
+        "[[headers]]\n"
+        '  for = "/*.jpg"\n'
+        "  [headers.values]\n"
+        '    Cache-Control = "public, max-age=31536000, immutable"\n'
+        "\n"
+        "[[headers]]\n"
+        '  for = "/*.svg"\n'
+        "  [headers.values]\n"
+        '    Cache-Control = "public, max-age=31536000, immutable"\n'
+        "\n"
+        "[[headers]]\n"
+        '  for = "/*.woff2"\n'
+        "  [headers.values]\n"
+        '    Cache-Control = "public, max-age=31536000, immutable"\n'
+        "\n"
+        "# Always revalidate HTML so new deploys are picked up immediately\n"
+        "[[headers]]\n"
+        '  for = "/index.html"\n'
+        "  [headers.values]\n"
+        '    Cache-Control = "public, max-age=0, must-revalidate"\n'
+    )
+    base = pathlib.Path(build_dir)
+    base.mkdir(parents=True, exist_ok=True)
+    (base / "netlify.toml").write_text(toml, encoding="utf-8")
+    log.info("_write_netlify_toml: wrote netlify.toml to %s", build_dir)
+
+
 def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> str:
     try:
         if name == "Bash":
@@ -1929,12 +1982,16 @@ When done, confirm: "Files written to {_build_dir}/"\
 
     await on_message({"type": "text", "delta": f"\n\n✅ **Build verified** — files confirmed at `{_build_dir}/`\n"})
 
-    # ── Stage 3.5: SEO files ──────────────────────────────────────────────────
+    # ── Stage 3.5: SEO + config files ────────────────────────────────────────
     try:
         _generate_seo_files(_build_dir, f"https://{site_name}.netlify.app")
         await on_message({"type": "text", "delta": "\n🔍 **SEO files added** — sitemap.xml and robots.txt\n"})
     except OSError as _seo_err:
         log.warning("_generate_seo_files failed, continuing to deploy: %s", _seo_err)
+    try:
+        _write_netlify_toml(_build_dir)
+    except OSError as _toml_err:
+        log.warning("_write_netlify_toml failed, continuing to deploy: %s", _toml_err)
 
     # ── Stage 4: Deployer ─────────────────────────────────────────────────────
     log.info("run_multi_agent: Deployer stage — site_name=%r  build_dir=%r", site_name, _build_dir)
