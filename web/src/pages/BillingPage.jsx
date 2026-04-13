@@ -244,8 +244,8 @@ export default function BillingPage() {
 
         <p className="billing-note">
           Questions? Email us at{' '}
-          <a href="mailto:support@zeusai.co.uk" className="auth-link">
-            support@zeusai.co.uk
+          <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">
+            dominic.rowle@yahoo.com
           </a>
         </p>
       </div>
