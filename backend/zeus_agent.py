@@ -1840,6 +1840,110 @@ async def run_multi_agent(
             # Fail open: prefer letting the build proceed over blocking on a DB error.
             log.warning("run_multi_agent: could not verify build limit for user %s", user_id)
 
+    # ── Booking form detection ────────────────────────────────────────────────
+    _wants_booking_form = bool(
+        re.search(r'\bbook(?:ing)?\s+(?:form|appointment)', request, re.IGNORECASE)
+    )
+    _booking_email = ""
+    if _wants_booking_form:
+        _em = re.search(r'[\w.+-]+@[\w.-]+\.[a-z]{2,}', request)
+        _booking_email = _em.group(0) if _em else ""
+
+    _line_limit = 600 if _wants_booking_form else 500
+
+    if _wants_booking_form:
+        _form_action = (
+            "https://formspree.io/" + _booking_email
+            if _booking_email
+            else "https://formspree.io/REPLACE_WITH_OWNER_EMAIL"
+        )
+        _booking_form_extra = (
+            "\n\nBOOKING FORM REQUIREMENT:\n"
+            "The brief requests an appointment booking form. You MUST include it as a dedicated section.\n"
+            "Form action (Formspree — no backend needed): " + _form_action + "\n\n"
+            "Required fields: Name, Email, Phone, Service (dropdown with 4–6 options from the brief),\n"
+            "Preferred Date, Preferred Time, Message.\n\n"
+            "Use this HTML structure (adapt all CSS colours and fonts to match the site palette):\n\n"
+            "<section id=\"booking\">\n"
+            "  <div class=\"container\">\n"
+            "    <h2>Book an Appointment</h2>\n"
+            "    <form id=\"booking-form\" action=\"" + _form_action + "\" method=\"POST\">\n"
+            "      <div class=\"form-row\">\n"
+            "        <div class=\"form-group\">\n"
+            "          <label for=\"f-name\">Name *</label>\n"
+            "          <input type=\"text\" id=\"f-name\" name=\"name\" required placeholder=\"Your full name\">\n"
+            "        </div>\n"
+            "        <div class=\"form-group\">\n"
+            "          <label for=\"f-email\">Email *</label>\n"
+            "          <input type=\"email\" id=\"f-email\" name=\"email\" required placeholder=\"your@email.com\">\n"
+            "        </div>\n"
+            "      </div>\n"
+            "      <div class=\"form-row\">\n"
+            "        <div class=\"form-group\">\n"
+            "          <label for=\"f-phone\">Phone</label>\n"
+            "          <input type=\"tel\" id=\"f-phone\" name=\"phone\" placeholder=\"07700 000000\">\n"
+            "        </div>\n"
+            "        <div class=\"form-group\">\n"
+            "          <label for=\"f-service\">Service *</label>\n"
+            "          <select id=\"f-service\" name=\"service\" required>\n"
+            "            <option value=\"\">Select a service...</option>\n"
+            "            <!-- Add 4-6 <option> elements relevant to this business from the brief -->\n"
+            "          </select>\n"
+            "        </div>\n"
+            "      </div>\n"
+            "      <div class=\"form-row\">\n"
+            "        <div class=\"form-group\">\n"
+            "          <label for=\"f-date\">Preferred Date *</label>\n"
+            "          <input type=\"date\" id=\"f-date\" name=\"date\" required>\n"
+            "        </div>\n"
+            "        <div class=\"form-group\">\n"
+            "          <label for=\"f-time\">Preferred Time *</label>\n"
+            "          <input type=\"time\" id=\"f-time\" name=\"time\" required>\n"
+            "        </div>\n"
+            "      </div>\n"
+            "      <div class=\"form-group\">\n"
+            "        <label for=\"f-message\">Message</label>\n"
+            "        <textarea id=\"f-message\" name=\"message\" rows=\"4\" "
+            "placeholder=\"Any additional details...\"></textarea>\n"
+            "      </div>\n"
+            "      <p id=\"form-error\" style=\"display:none;color:#e53935;margin-bottom:1rem;\">"
+            "Something went wrong. Please try again.</p>\n"
+            "      <button type=\"submit\" id=\"form-btn\">Request Appointment</button>\n"
+            "    </form>\n"
+            "  </div>\n"
+            "</section>\n\n"
+            "Add this JavaScript inside the <script> block for AJAX submission "
+            "(keeps user on the page, no redirect):\n\n"
+            "document.getElementById('booking-form').addEventListener('submit', async function(e) {\n"
+            "  e.preventDefault();\n"
+            "  var btn = document.getElementById('form-btn');\n"
+            "  btn.disabled = true; btn.textContent = 'Sending...';\n"
+            "  try {\n"
+            "    var res = await fetch(e.target.action, {\n"
+            "      method: 'POST',\n"
+            "      body: new FormData(e.target),\n"
+            "      headers: { 'Accept': 'application/json' }\n"
+            "    });\n"
+            "    if (res.ok) {\n"
+            "      e.target.innerHTML = '<p style=\"text-align:center;padding:2rem\">"
+            "&#10003; Thanks! We\\'ll be in touch to confirm your appointment.</p>';\n"
+            "    } else {\n"
+            "      document.getElementById('form-error').style.display = 'block';\n"
+            "      btn.disabled = false; btn.textContent = 'Request Appointment';\n"
+            "    }\n"
+            "  } catch(err) {\n"
+            "    document.getElementById('form-error').style.display = 'block';\n"
+            "    btn.disabled = false; btn.textContent = 'Request Appointment';\n"
+            "  }\n"
+            "});\n\n"
+            "Style the booking section with a light background complementing the site palette. "
+            "Add .form-row { display:flex; gap:1rem; } and .form-group { flex:1; display:flex; "
+            "flex-direction:column; gap:0.4rem; } in the <style> block. "
+            "On mobile (max-width:600px) override .form-row to flex-direction:column.\n"
+        )
+    else:
+        _booking_form_extra = ""
+
     # ── Stage 1: Planner ──────────────────────────────────────────────────────
     planner_system = """\
 You are the Planner in a multi-agent website build pipeline — and you think like a senior web designer with 15 years of experience building sites for UK small businesses.
@@ -1982,7 +2086,7 @@ The site slug is: {site_name}
 
 OUTPUT CONSTRAINTS — MUST BE FOLLOWED WITHOUT EXCEPTION:
 - Write ONE file only: {_build_dir}/index.html
-- Maximum 500 lines total
+- Maximum {_line_limit} lines total
 - All CSS must be in a single <style> block inside the HTML — no separate .css files
 - All JS must be in a single <script> block inside the HTML — no separate .js files
 - No external frameworks, libraries, or CDN links (no Bootstrap, Tailwind, jQuery, etc.)
@@ -1995,13 +2099,14 @@ DO NOT use any other directory. DO NOT invent a different folder name.
 DO NOT use relative paths. DO NOT add extra subdirectories.
 
 Your job:
-1. Write a single self-contained index.html under 500 lines
+1. Write a single self-contained index.html under {_line_limit} lines
 2. Use the brief's colour scheme, tone, and content
 3. Draw on the research for copy and layout decisions
 4. Mobile-responsive using simple CSS (flexbox/grid, media queries)
 5. Clean semantic HTML — no unnecessary divs or complexity
 
-When done, confirm: "Files written to {_build_dir}/"\
+When done, confirm: "Files written to {_build_dir}/"
+{_booking_form_extra}\
 """
     builder_prompt = (
         f"Brief from Planner:\n{planner_output}\n\n"
