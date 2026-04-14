@@ -12,7 +12,7 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 print("zeus_agent.py: importing anthropic", file=sys.stderr, flush=True)
@@ -23,10 +23,7 @@ import httpx
 import requests
 from github_push import push_to_github as _push_to_github
 
-try:
-    import db
-except ImportError:
-    db = None  # type: ignore[assignment]
+import db
 
 EXPORT_TAG_RE = re.compile(
     r'\[ZEUS_EXPORT:\s*type=(\w+)\s+title="([^"]+)"\]',
@@ -1795,12 +1792,12 @@ async def run_multi_agent(
     """
     Planner → Researcher → Builder → Deployer pipeline.
     Streams all agent output live via on_message.
-    Enterprise plan required.
+    Build limits are enforced per plan (Free=0, Pro=5, Agency=10, Enterprise=20).
+    Admins have unlimited builds.
     """
     # ── Build limit gate ──────────────────────────────────────────────────────
     if user_id:
         try:
-            from datetime import timezone as _tz
             _db_path = db.get_db_path()
             _user = db.get_user_by_id(_db_path, user_id)
             if _user:
@@ -1808,7 +1805,7 @@ async def run_multi_agent(
                 if not _is_admin:
                     _plan = _user.get("subscription_plan") or "free"
                     _limit = _BUILD_LIMITS.get(_plan, 0)
-                    _month = datetime.now(_tz.utc).strftime("%Y-%m")
+                    _month = datetime.now(timezone.utc).strftime("%Y-%m")
                     _builds_used = db.get_monthly_builds(_db_path, user_id, _month)
                     if _builds_used >= _limit:
                         _hint = _UPGRADE_HINT.get(_plan, "")
@@ -1827,6 +1824,7 @@ async def run_multi_agent(
                         return "Monthly build limit reached."
                     db.increment_builds_count(_db_path, user_id, _month)
         except Exception:
+            # Fail open: prefer letting the build proceed over blocking on a DB error.
             log.warning("run_multi_agent: could not verify build limit for user %s", user_id)
 
     # ── Stage 1: Planner ──────────────────────────────────────────────────────

@@ -80,6 +80,9 @@ def _make_user(plan: str, is_admin: bool = False, status: str = "active") -> dic
     }
 
 
+# Patches target zeus_agent.db.* (not db.*) because zeus_agent imports db at
+# module level. If that import is ever changed to a local import, the patches
+# must be updated to match.
 class TestBuildLimitGate:
     @pytest.mark.asyncio
     async def test_free_user_blocked_immediately(self):
