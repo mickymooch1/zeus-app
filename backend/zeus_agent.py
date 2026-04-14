@@ -1842,7 +1842,7 @@ async def run_multi_agent(
 
     # ── Booking form detection ────────────────────────────────────────────────
     _wants_booking_form = bool(
-        re.search(r'\bbook(?:ing)?\s+(?:form|appointment)', request, re.IGNORECASE)
+        re.search(r'\bbook(?:ing)?\s+form\b', request, re.IGNORECASE)
     )
     _booking_email = ""
     if _wants_booking_form:
