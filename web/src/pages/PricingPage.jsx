@@ -6,11 +6,11 @@ import { useAuth } from '../contexts/AuthContext';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 const FREE_FEATURES = [
-  '20 messages to explore Zeus',
-  'Website builder',
+  '20 messages per month',
+  '0 website builds',
+  'AI chat assistant',
   'Content & copy writing',
-  'Email drafting',
-  'Business advice',
+  'Web research',
 ];
 
 const DEFAULT_PLANS = {
@@ -19,40 +19,39 @@ const DEFAULT_PLANS = {
     price: '£29/mo',
     features: [
       'Unlimited messages',
-      'Persistent memory & learning',
-      'Client & project tracking',
-      'Website builder',
-      'Email drafting',
-      'Content & copy generation',
-      'Netlify deployment integration',
-      'Business operations assistant',
-      'Priority response',
+      '5 website builds/month',
+      'AI chat assistant',
+      'Content & copy writing',
+      'Netlify deployment',
+      'AI image generation',
+      'Email via Gmail',
+      'Client & project CRM',
+      'Priority support',
     ],
   },
   agency: {
     name: 'Agency',
     price: '£79/mo',
     features: [
-      'Everything in Professional',
-      'Team features (coming soon)',
-      'Multiple workspaces (coming soon)',
+      'Unlimited messages',
+      '10 website builds/month',
+      'AI chat assistant',
+      'Everything in Pro',
+      'Team features',
       'Priority support',
-      'Custom integrations',
-      'White-label options (coming soon)',
-      'Dedicated account manager',
-      'Push to Google — sites submitted to Google automatically after every build',
     ],
   },
   enterprise: {
     name: 'Enterprise',
     price: '£150/mo',
     features: [
-      'Multi-agent AI',
+      'Unlimited messages',
+      '20 website builds/month',
+      'Multi-agent website builder',
       'Background tasks',
-      'Scheduled automation',
+      'Scheduled tasks',
       'Appointment booking',
       'Priority support',
-      'Push to Google — sites submitted to Google automatically after every build',
     ],
   },
 };

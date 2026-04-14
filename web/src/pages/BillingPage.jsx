@@ -199,6 +199,7 @@ export default function BillingPage() {
           <ul className="pricing-features" style={{ marginTop: '1rem' }}>
             {(!status?.plan || !isActive) && [
               '20 messages per month',
+              '0 website builds',
               'AI chat assistant',
             ].map((f) => (
               <li key={f} className="plan-feature">
@@ -207,6 +208,7 @@ export default function BillingPage() {
             ))}
             {effectivePlan === 'pro' && isActive && [
               'Unlimited messages',
+              '5 website builds/month',
               'AI chat assistant',
               'Priority support',
             ].map((f) => (
@@ -216,6 +218,7 @@ export default function BillingPage() {
             ))}
             {effectivePlan === 'agency' && isActive && [
               'Unlimited messages',
+              '10 website builds/month',
               'AI chat assistant',
               'Team features',
               'Priority support',
@@ -225,18 +228,16 @@ export default function BillingPage() {
               </li>
             ))}
             {effectivePlan === 'enterprise' && isActive && [
-              { label: 'Unlimited messages', soon: false },
-              { label: 'AI chat assistant', soon: false },
-              { label: 'Multi-agent website builder', soon: false },
-              { label: 'Background tasks', soon: false },
-              { label: 'Scheduled tasks', soon: true },
-              { label: 'Appointment booking', soon: true },
-              { label: 'Priority support', soon: false },
-            ].map(({ label, soon }) => (
-              <li key={label} className="plan-feature">
-                <span className="plan-feature-check">✓</span>
-                {label}
-                {soon && <span className="badge-coming-soon">coming soon</span>}
+              'Unlimited messages',
+              '20 website builds/month',
+              'Multi-agent website builder',
+              'Background tasks',
+              'Scheduled tasks',
+              'Appointment booking',
+              'Priority support',
+            ].map((f) => (
+              <li key={f} className="plan-feature">
+                <span className="plan-feature-check">✓</span>{f}
               </li>
             ))}
           </ul>

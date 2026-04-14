@@ -263,11 +263,10 @@ export default function LandingPage() {
               <ul className="plan-features">
                 <li>✓ 20 messages per month</li>
                 <li>✓ AI chat assistant</li>
-                <li>✓ Website builder</li>
                 <li>✓ Content writing</li>
                 <li>✓ Web research</li>
+                <li className="feat-dim">✗ Website builds</li>
                 <li className="feat-dim">✗ Netlify deployment</li>
-                <li className="feat-dim">✗ Multi-agent builder</li>
               </ul>
               <Link to="/register" className="btn-plan-ghost">Get Started Free</Link>
             </div>
@@ -278,13 +277,12 @@ export default function LandingPage() {
               <p className="plan-desc">Everything you need to run a web design business with AI.</p>
               <ul className="plan-features">
                 <li>✓ Unlimited messages</li>
-                <li>✓ Website builder</li>
+                <li>✓ 5 website builds/month</li>
+                <li>✓ AI chat assistant</li>
                 <li>✓ Deploy to Netlify</li>
-                <li>✓ Upload &amp; unzip projects</li>
                 <li>✓ AI image generation</li>
                 <li>✓ Email via Gmail</li>
                 <li>✓ Client &amp; project CRM</li>
-                <li>✓ Persistent memory</li>
                 <li>✓ Priority support</li>
               </ul>
               <Link to="/register" className="btn-plan-ghost">Start Pro</Link>
@@ -295,11 +293,11 @@ export default function LandingPage() {
               <div className="plan-price">£79<span>/mo</span></div>
               <p className="plan-desc">For teams and agencies running multiple clients at scale.</p>
               <ul className="plan-features">
+                <li>✓ Unlimited messages</li>
+                <li>✓ 10 website builds/month</li>
+                <li>✓ AI chat assistant</li>
                 <li>✓ Everything in Pro</li>
-                <li>✓ Multiple team seats</li>
-                <li>✓ Advanced memory &amp; CRM</li>
-                <li>✓ White-label options</li>
-                <li>✓ Early access to features</li>
+                <li>✓ Team features</li>
                 <li>✓ Priority support</li>
               </ul>
               <Link to="/register" className="btn-plan-ghost">Start Agency</Link>
@@ -312,12 +310,12 @@ export default function LandingPage() {
               <p className="plan-desc">The full Zeus AI power stack. Autonomous agents build and deploy sites while you sleep.</p>
               <ul className="plan-features">
                 <li>✓ Unlimited messages</li>
+                <li>✓ 20 website builds/month</li>
                 <li>✓ Multi-agent website builder</li>
                 <li>✓ Background tasks</li>
+                <li>✓ Scheduled tasks</li>
+                <li>✓ Appointment booking</li>
                 <li>✓ Priority support</li>
-                <li>✓ Everything in Agency</li>
-                <li>⏳ Scheduled tasks <span className="feat-soon">coming soon</span></li>
-                <li>⏳ Appointment booking <span className="feat-soon">coming soon</span></li>
               </ul>
               <Link to="/register" className="btn-plan-primary">Start Enterprise</Link>
             </div>
