@@ -74,7 +74,8 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             CREATE TABLE IF NOT EXISTS monthly_usage (
                 user_id     TEXT NOT NULL,
                 month       TEXT NOT NULL,
-                messages    INTEGER DEFAULT 0,
+                messages    INTEGER NOT NULL DEFAULT 0,
+                builds      INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (user_id, month)
             );
 

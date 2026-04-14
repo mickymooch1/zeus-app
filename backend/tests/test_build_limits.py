@@ -51,3 +51,11 @@ class TestGetMonthlyBuilds:
         db.increment_builds_count(db_path, "user-1", "2026-04")
         assert db.get_monthly_usage(db_path, "user-1", "2026-04") == 2
         assert db.get_monthly_builds(db_path, "user-1", "2026-04") == 1
+
+    def test_increment_usage_does_not_reset_builds(self, tmp_path):
+        """A messages increment on an existing row must not clobber builds."""
+        db_path = _make_db(tmp_path)
+        db.increment_builds_count(db_path, "user-1", "2026-04")  # builds=1, messages=0
+        db.increment_usage(db_path, "user-1", "2026-04")         # messages=1
+        assert db.get_monthly_builds(db_path, "user-1", "2026-04") == 1
+        assert db.get_monthly_usage(db_path, "user-1", "2026-04") == 1
