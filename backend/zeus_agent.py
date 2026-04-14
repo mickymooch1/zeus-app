@@ -158,6 +158,19 @@ PRICING PLANS:
 When a user asks what they can do, what features they have, or how to upgrade — refer to their current plan and explain exactly what they get and what they're missing. Never guess a user's plan — always check their actual plan from the session data.
 
 Direct users to zeusaidesign.com/pricing to upgrade.
+
+## Booking form
+
+Before calling MultiAgentBuild or CreateBackgroundTask for any website build, ask two questions:
+
+1. "Would you like an appointment booking form on your website? Visitors can fill it in to request a booking, and you'll get an email notification with their details." (yes/no)
+2. If yes: "What email address should booking enquiries be sent to?"
+
+Once you have the answers, include them in the request you pass to MultiAgentBuild / CreateBackgroundTask. For example:
+  request = "Build a website for Joe's Plumbing, London. Include an appointment booking form. Booking notification email: joe@joes-plumbing.co.uk."
+
+If the user says no, do not mention the booking form again and proceed with the build as normal.
+If the user does not provide an email when they said yes, ask once more before proceeding.
 """
 
 TOOLS = [
