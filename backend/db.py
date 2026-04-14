@@ -74,7 +74,8 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             CREATE TABLE IF NOT EXISTS monthly_usage (
                 user_id     TEXT NOT NULL,
                 month       TEXT NOT NULL,
-                messages    INTEGER DEFAULT 0,
+                messages    INTEGER NOT NULL DEFAULT 0,
+                builds      INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (user_id, month)
             );
 
@@ -106,11 +107,15 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 ON scheduled_tasks (user_id);
         """)
         # Migrate existing tables — ignore error if column already exists
-        try:
-            conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
-            conn.commit()
-        except Exception:
-            pass
+        for _migration in [
+            "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE monthly_usage ADD COLUMN builds INTEGER NOT NULL DEFAULT 0",
+        ]:
+            try:
+                conn.execute(_migration)
+                conn.commit()
+            except Exception:
+                pass
     finally:
         conn.close()
 
@@ -241,6 +246,36 @@ def reset_monthly_usage(db_path: pathlib.Path, user_id: str) -> None:
     conn = _conn(db_path)
     try:
         conn.execute("DELETE FROM monthly_usage WHERE user_id = ?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_monthly_builds(db_path: pathlib.Path, user_id: str, month: str) -> int:
+    """Return build count for user in given month (YYYY-MM)."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT builds FROM monthly_usage WHERE user_id = ? AND month = ?",
+            (user_id, month),
+        ).fetchone()
+        return row["builds"] if row else 0
+    finally:
+        conn.close()
+
+
+def increment_builds_count(db_path: pathlib.Path, user_id: str, month: str) -> None:
+    """Upsert monthly_usage, incrementing builds by 1."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """
+            INSERT INTO monthly_usage (user_id, month, messages, builds)
+            VALUES (?, ?, 0, 1)
+            ON CONFLICT(user_id, month) DO UPDATE SET builds = builds + 1
+            """,
+            (user_id, month),
+        )
         conn.commit()
     finally:
         conn.close()

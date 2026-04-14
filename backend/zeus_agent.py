@@ -23,6 +23,11 @@ import httpx
 import requests
 from github_push import push_to_github as _push_to_github
 
+try:
+    import db
+except ImportError:
+    db = None  # type: ignore[assignment]
+
 EXPORT_TAG_RE = re.compile(
     r'\[ZEUS_EXPORT:\s*type=(\w+)\s+title="([^"]+)"\]',
     re.IGNORECASE,
@@ -43,6 +48,21 @@ _anthropic_client: anthropic.AsyncAnthropic | None = None
 # Holds references to background task coroutines so they aren't GC'd mid-run
 _bg_tasks: set = set()
 
+
+# Monthly build limits per plan. Admins are always unlimited.
+_BUILD_LIMITS: dict[str, int] = {
+    "free":       0,
+    "pro":        5,
+    "agency":    10,
+    "enterprise": 20,
+}
+
+_UPGRADE_HINT: dict[str, str] = {
+    "free":       "Upgrade to Pro (£29/mo) for 5 builds/month",
+    "pro":        "Upgrade to Agency (£79/mo) for 10 builds/month",
+    "agency":     "Upgrade to Enterprise (£150/mo) for 20 builds/month",
+    "enterprise": "Contact support to discuss higher limits",
+}
 
 def _is_enterprise_or_admin(user: dict) -> bool:
     """Return True if the user has an active enterprise subscription OR is an admin."""
@@ -1777,22 +1797,37 @@ async def run_multi_agent(
     Streams all agent output live via on_message.
     Enterprise plan required.
     """
-    # ── Enterprise gating ─────────────────────────────────────────────────────
+    # ── Build limit gate ──────────────────────────────────────────────────────
     if user_id:
         try:
-            import db as _db
-            _db_path = _db.get_db_path()
-            _user = _db.get_user_by_id(_db_path, user_id)
+            from datetime import timezone as _tz
+            _db_path = db.get_db_path()
+            _user = db.get_user_by_id(_db_path, user_id)
             if _user:
-                if not _is_enterprise_or_admin(_user):
-                    msg = (
-                        "❌ **MultiAgentBuild requires an Enterprise plan.** "
-                        "Upgrade at zeusaidesign.com/pricing to unlock this feature."
-                    )
-                    await on_message({"type": "text", "delta": msg})
-                    return "Enterprise plan required."
+                _is_admin = bool(_user.get("is_admin", 0))
+                if not _is_admin:
+                    _plan = _user.get("subscription_plan") or "free"
+                    _limit = _BUILD_LIMITS.get(_plan, 0)
+                    _month = datetime.now(_tz.utc).strftime("%Y-%m")
+                    _builds_used = db.get_monthly_builds(_db_path, user_id, _month)
+                    if _builds_used >= _limit:
+                        _hint = _UPGRADE_HINT.get(_plan, "")
+                        if _limit == 0:
+                            _msg = (
+                                f"❌ **Website builds aren't included in the Free plan.** "
+                                f"{_hint} at zeusaidesign.com/pricing."
+                            )
+                        else:
+                            _msg = (
+                                f"❌ **You've used all {_limit} of your monthly website builds** "
+                                f"on the {_plan.capitalize()} plan. "
+                                f"{_hint} at zeusaidesign.com/pricing."
+                            )
+                        await on_message({"type": "text", "delta": _msg})
+                        return "Monthly build limit reached."
+                    db.increment_builds_count(_db_path, user_id, _month)
         except Exception:
-            log.warning("run_multi_agent: could not verify enterprise plan for user %s", user_id)
+            log.warning("run_multi_agent: could not verify build limit for user %s", user_id)
 
     # ── Stage 1: Planner ──────────────────────────────────────────────────────
     planner_system = """\
@@ -1868,6 +1903,9 @@ Be opinionated. Every decision should feel like it was made for THIS business, n
         )
     except StageFailure as exc:
         await _emit_stage_failure(exc, "planner", on_message)
+        return f"Pipeline aborted: {exc}"
+    except Exception as exc:
+        log.warning("run_multi_agent: planner stage error: %s", exc)
         return f"Pipeline aborted: {exc}"
 
     # Extract site name from planner output — single source of truth for all stages
