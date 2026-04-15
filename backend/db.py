@@ -105,6 +105,20 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_user
                 ON scheduled_tasks (user_id);
+
+            CREATE TABLE IF NOT EXISTS websites (
+                id                TEXT PRIMARY KEY,
+                user_id           TEXT NOT NULL,
+                netlify_site_id   TEXT NOT NULL,
+                netlify_site_name TEXT NOT NULL,
+                site_url          TEXT NOT NULL,
+                client_name       TEXT,
+                files_json        TEXT,
+                created_at        TEXT NOT NULL,
+                updated_at        TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_websites_user ON websites (user_id);
         """)
         # Migrate existing tables — ignore error if column already exists
         for _migration in [
@@ -495,5 +509,125 @@ def count_active_scheduled_tasks(db_path: pathlib.Path, user_id: str) -> int:
             (user_id,),
         ).fetchone()
         return row["cnt"] if row else 0
+    finally:
+        conn.close()
+
+
+# ── Website CRUD ──────────────────────────────────────────────────────────────
+
+def create_website(
+    db_path: pathlib.Path,
+    user_id: str,
+    netlify_site_id: str,
+    netlify_site_name: str,
+    site_url: str,
+    client_name: str | None,
+    files_json: str | None,
+) -> dict:
+    """Insert a new website record and return it as a dict."""
+    now = datetime.now(timezone.utc).isoformat()
+    website_id = str(uuid.uuid4())
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """
+            INSERT INTO websites
+                (id, user_id, netlify_site_id, netlify_site_name, site_url,
+                 client_name, files_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (website_id, user_id, netlify_site_id, netlify_site_name, site_url,
+             client_name, files_json, now, now),
+        )
+        conn.commit()
+        return get_website_by_id(db_path, website_id, user_id)
+    finally:
+        conn.close()
+
+
+def get_websites_for_user(db_path: pathlib.Path, user_id: str) -> list[dict]:
+    """Return all website records for a user, newest first."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT * FROM websites WHERE user_id = ? ORDER BY updated_at DESC",
+            (user_id,),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_website_by_id(
+    db_path: pathlib.Path, website_id: str, user_id: str
+) -> dict | None:
+    """Return a website record only if it belongs to user_id."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM websites WHERE id = ? AND user_id = ?",
+            (website_id, user_id),
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def get_website_by_netlify_id(
+    db_path: pathlib.Path, netlify_site_id: str, user_id: str
+) -> dict | None:
+    """Return a website record by its Netlify site ID for a given user."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM websites WHERE netlify_site_id = ? AND user_id = ?",
+            (netlify_site_id, user_id),
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def update_website(db_path: pathlib.Path, website_id: str, **fields) -> bool:
+    """Update one or more columns on a website row. Returns True if found."""
+    if not fields:
+        return False
+    now = datetime.now(timezone.utc).isoformat()
+    fields["updated_at"] = now
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [website_id]
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            f"UPDATE websites SET {set_clause} WHERE id = ?", values
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def delete_website(db_path: pathlib.Path, website_id: str, user_id: str) -> bool:
+    """Delete a website record. Returns True if deleted, False if not found."""
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            "DELETE FROM websites WHERE id = ? AND user_id = ?",
+            (website_id, user_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def count_websites_for_user(db_path: pathlib.Path, user_id: str) -> int:
+    """Return how many website records a user has."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) as n FROM websites WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        return row["n"] if row else 0
     finally:
         conn.close()
