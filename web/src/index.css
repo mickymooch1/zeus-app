@@ -931,6 +931,70 @@ body {
 .task-error-note  { color: #f87171; font-size: 0.8rem; margin-top: 0.25rem; }
 .task-url-btn     { align-self: flex-start; margin-top: 0.25rem; }
 
+/* ── Site card extras ────────────────────────────────────────────────────── */
+.task-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 16px;
+}
+.site-url-link {
+  font-size: 0.85rem;
+  color: #a78bfa;
+  text-decoration: none;
+  word-break: break-all;
+}
+.site-url-link:hover { text-decoration: underline; }
+.task-meta { font-size: 0.75rem; color: #666; }
+.task-card-footer { padding: 8px 16px 12px; }
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-box {
+  background: #1a1a2e;
+  border: 1px solid #2e2e4e;
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.modal-box h3 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.form-hint { font-weight: 400; color: #666; }
+.form-input {
+  padding: 8px 12px;
+  border: 1px solid #2e2e4e;
+  border-radius: 6px;
+  background: #13131f;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+}
+.form-input:focus { outline: 2px solid #a78bfa; outline-offset: 1px; }
+.form-error { color: #f87171; font-size: 0.85rem; margin: 0; }
+
 .badge-status {
   font-size: 0.72rem;
   font-weight: 700;
