@@ -196,6 +196,25 @@ def _scheduled_task_limit(user: dict) -> int | None:
     return _SCHEDULED_TASK_LIMITS.get(user.get("subscription_plan"))
 
 
+_WEBSITE_LIMITS: dict[str, int | None] = {
+    "free":       0,
+    "pro":        1,
+    "agency":     5,
+    "enterprise": None,
+}
+
+
+def _website_limit(user: dict) -> int | None:
+    """Return max websites for user's plan, or None for unlimited. Admins unlimited."""
+    if user.get("is_admin"):
+        return None
+    plan = user.get("subscription_plan")
+    status = user.get("subscription_status", "free")
+    if status != "active":
+        return 0
+    return _WEBSITE_LIMITS.get(plan, 0)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global history
@@ -311,6 +330,16 @@ class ExportRequest(BaseModel):
     format: str   # "pdf" or "docx"
     title: str
     doc_type: str
+
+
+class LinkWebsiteRequest(BaseModel):
+    netlify_site_name: str
+    client_name: str | None = None
+
+
+class UpdateWebsiteRequest(BaseModel):
+    client_name: str | None = None
+    sync_files: bool = False
 
 
 # ── Auth routes ───────────────────────────────────────────────────────────────
@@ -855,6 +884,109 @@ async def toggle_scheduled_task(
         _scheduler_mod.set_job_enabled(task_id, False)
 
     return db.get_scheduled_task(db_path, task_id)
+
+
+# ── Websites endpoints ────────────────────────────────────────────────────────
+
+@app.get("/websites")
+async def list_websites(current_user: dict = Depends(auth.get_current_user)):
+    db_path = db.get_db_path()
+    sites = db.get_websites_for_user(db_path, current_user["id"])
+    return [
+        {k: v for k, v in s.items() if k != "files_json"}
+        for s in sites
+    ]
+
+
+@app.post("/websites", status_code=201)
+async def link_website(
+    body: LinkWebsiteRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    db_path = db.get_db_path()
+    limit = _website_limit(current_user)
+    if limit == 0:
+        raise HTTPException(
+            status_code=403,
+            detail="Your plan does not include website management. Upgrade at zeusaidesign.com/pricing.",
+        )
+    if limit is not None:
+        count = db.count_websites_for_user(db_path, current_user["id"])
+        if count >= limit:
+            raise HTTPException(
+                status_code=403,
+                detail=f"You've reached your plan limit of {limit} website{'s' if limit != 1 else ''}. Upgrade to add more.",
+            )
+
+    token = os.environ.get("NETLIFY_TOKEN", "").strip()
+    if not token:
+        raise HTTPException(status_code=503, detail="Netlify integration not configured.")
+
+    try:
+        import netlify_manager
+        site_info = netlify_manager.resolve_site_name(body.netlify_site_name, token)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    existing = db.get_website_by_netlify_id(db_path, site_info["id"], current_user["id"])
+    if existing:
+        raise HTTPException(status_code=409, detail="This Netlify site is already linked to your account.")
+
+    site = db.create_website(
+        db_path,
+        user_id=current_user["id"],
+        netlify_site_id=site_info["id"],
+        netlify_site_name=site_info["name"],
+        site_url=site_info["ssl_url"],
+        client_name=body.client_name,
+        files_json=None,
+    )
+    return {k: v for k, v in site.items() if k != "files_json"}
+
+
+@app.put("/websites/{website_id}")
+async def update_website_record(
+    website_id: str,
+    body: UpdateWebsiteRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    db_path = db.get_db_path()
+    site = db.get_website_by_id(db_path, website_id, current_user["id"])
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found.")
+
+    updates: dict = {}
+    if body.client_name is not None:
+        updates["client_name"] = body.client_name
+
+    if body.sync_files:
+        token = os.environ.get("NETLIFY_TOKEN", "").strip()
+        if not token:
+            raise HTTPException(status_code=503, detail="Netlify integration not configured.")
+        try:
+            import netlify_manager, json as _json
+            files = netlify_manager.fetch_site_files(site["netlify_site_id"], token)
+            updates["files_json"] = _json.dumps(files)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=502, detail=f"Netlify fetch failed: {exc}")
+
+    if updates:
+        db.update_website(db_path, website_id, **updates)
+
+    updated = db.get_website_by_id(db_path, website_id, current_user["id"])
+    return {k: v for k, v in updated.items() if k != "files_json"}
+
+
+@app.delete("/websites/{website_id}", status_code=204)
+async def unlink_website(
+    website_id: str,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    db_path = db.get_db_path()
+    deleted = db.delete_website(db_path, website_id, current_user["id"])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Website not found.")
+    return Response(status_code=204)
 
 
 # ── Tasks endpoints ───────────────────────────────────────────────────────────
