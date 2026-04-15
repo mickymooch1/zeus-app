@@ -9,6 +9,7 @@ import PricingPage from './pages/PricingPage';
 import DashboardPage from './pages/DashboardPage';
 import BillingPage from './pages/BillingPage';
 import TasksPage from './pages/TasksPage';
+import WebsitesPage from './pages/WebsitesPage';
 import AdminPage from './pages/AdminPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
@@ -47,6 +48,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <TasksPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/websites"
+            element={
+              <ProtectedRoute>
+                <WebsitesPage />
               </ProtectedRoute>
             }
           />

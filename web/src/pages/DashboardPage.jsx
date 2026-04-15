@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChatWindow } from '../components/ChatWindow';
 import { SessionSidebar } from '../components/SessionSidebar';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +24,22 @@ export default function DashboardPage() {
 
   const { messages, sessionId, streaming, sendMessage, newSession, loadSession } =
     useZeusSocket(token);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const updateId = searchParams.get('update');
+    const label = searchParams.get('label') || 'your site';
+    if (updateId) {
+      setSearchParams({}, { replace: true });
+      const timer = setTimeout(() => {
+        sendMessage(
+          `I want to update ${label} (website ID: ${updateId}). What changes would you like to make?`
+        );
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleResumeSession = useCallback(
     (id) => {
@@ -62,6 +78,9 @@ export default function DashboardPage() {
             status={user?.subscription_status}
             plan={user?.subscription_plan}
           />
+          <Link to="/websites" className="dashboard-header-link">
+            Websites
+          </Link>
           <Link to="/billing" className="dashboard-header-link">
             {user?.email}
           </Link>
