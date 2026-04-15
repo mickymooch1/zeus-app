@@ -171,6 +171,24 @@ Once you have the answers, include them in the request you pass to MultiAgentBui
 
 If the user says no, do not mention the booking form again and proceed with the build as normal.
 If the user does not provide an email when they said yes, ask once more before proceeding.
+
+## Website management
+
+You have a persistent website registry for each user. Use these tools proactively:
+
+**SaveWebsite(netlify_site_id, netlify_site_name, site_url, client_name, files)** — call at the end of every successful Netlify build. Pass the file dict `{"/index.html": "...", "/style.css": "..."}` as `files`. Also call after every update/redeploy to keep the stored source in sync.
+
+**ListWebsites()** — call when a user refers to an existing site by name ("my plumbing site", "the restaurant website") to get its ID and URL before doing any work on it.
+
+**GetWebsiteFiles(website_id)** — call before editing any existing website. Returns the current source files from the database (or fetches from Netlify if not yet stored). Edit the returned files, redeploy, then call SaveWebsite again with the updated files.
+
+Update workflow:
+1. ListWebsites() → identify the site by name → get its id
+2. GetWebsiteFiles(website_id) → current HTML/CSS/JS
+3. Edit the files as requested
+4. Redeploy to Netlify using DeployToNetlify or Bash with netlify_manager.py
+5. SaveWebsite(..., files=updated_files) → update the DB record
+6. Report the live URL to the user
 """
 
 TOOLS = [
@@ -585,6 +603,58 @@ TOOLS = [
                 },
             },
             "required": ["files", "commit_message"],
+        },
+    },
+    # ── Website management tools ──────────────────────────────────────────────
+    {
+        "name": "SaveWebsite",
+        "description": (
+            "Save or update a deployed website record in the Zeus database. "
+            "Call this automatically at the end of every successful Netlify site build, "
+            "and again after every update/redeploy to keep the stored files in sync. "
+            "Checks the user's plan limit before saving — returns an error string if at limit."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "netlify_site_id":   {"type": "string", "description": "Netlify's internal site UUID"},
+                "netlify_site_name": {"type": "string", "description": "Netlify subdomain slug, e.g. smith-plumbing-abc123"},
+                "site_url":          {"type": "string", "description": "Live HTTPS URL of the deployed site"},
+                "client_name":       {"type": "string", "description": "Human label for the site, e.g. 'Smith Plumbing'"},
+                "files": {
+                    "type": "object",
+                    "description": "Map of file path to content, e.g. {'/index.html': '...', '/style.css': '...'}",
+                    "additionalProperties": {"type": "string"},
+                },
+            },
+            "required": ["netlify_site_id", "netlify_site_name", "site_url"],
+        },
+    },
+    {
+        "name": "GetWebsiteFiles",
+        "description": (
+            "Retrieve the source files for a saved website. "
+            "Returns files from the database if available; falls back to fetching live from Netlify. "
+            "Call this before editing any existing website so you have the current source to work from."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "website_id": {"type": "string", "description": "The website record ID from ListWebsites"},
+            },
+            "required": ["website_id"],
+        },
+    },
+    {
+        "name": "ListWebsites",
+        "description": (
+            "List all websites saved to the user's account. "
+            "Returns id, client_name, site_url, netlify_site_id, netlify_site_name, and updated_at for each. "
+            "Call this when a user refers to an existing site by name to get its ID."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
         },
     },
 ]
@@ -1173,6 +1243,99 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
             except Exception as e:
                 import traceback as _tb
                 return f"Error deploying to Netlify: {e}\n{_tb.format_exc()}"
+
+        elif name == "SaveWebsite":
+            import json as _json
+            _db_path = db.get_db_path()
+            user_id = (history.current_user_id if history and hasattr(history, "current_user_id") else None)
+            if not user_id:
+                return "Error: no active user session — cannot save website."
+
+            user = db.get_user_by_id(_db_path, user_id)
+            plan = user.get("subscription_plan") if user else None
+            status = (user.get("subscription_status") if user else None)
+            is_admin = bool(user.get("is_admin", 0)) if user else False
+            _WEBSITE_LIMITS = {"pro": 1, "agency": 5}
+            if not is_admin and status == "active" and plan in _WEBSITE_LIMITS:
+                limit = _WEBSITE_LIMITS[plan]
+                count = db.count_websites_for_user(_db_path, user_id)
+                if count >= limit:
+                    upgrade_to = "Agency (£79/mo)" if plan == "pro" else "Enterprise (£150/mo)"
+                    return (
+                        f"Your {plan.title()} plan allows {limit} website{'s' if limit != 1 else ''}. "
+                        f"You've reached that limit. Upgrade to {upgrade_to} to manage more sites."
+                    )
+            elif not is_admin and (not status or status != "active"):
+                return "Website management is available on Pro, Agency, and Enterprise plans. Visit zeusaidesign.com/pricing to upgrade."
+
+            files = inp.get("files") or {}
+            files_json = _json.dumps(files) if files else None
+
+            existing = db.get_website_by_netlify_id(_db_path, inp["netlify_site_id"], user_id)
+            if existing:
+                db.update_website(
+                    _db_path, existing["id"],
+                    site_url=inp["site_url"],
+                    client_name=inp.get("client_name", existing["client_name"]),
+                    files_json=files_json if files_json else existing["files_json"],
+                )
+                return f"Website '{inp.get('client_name') or inp['netlify_site_name']}' updated (id={existing['id']})."
+            else:
+                site = db.create_website(
+                    _db_path,
+                    user_id=user_id,
+                    netlify_site_id=inp["netlify_site_id"],
+                    netlify_site_name=inp["netlify_site_name"],
+                    site_url=inp["site_url"],
+                    client_name=inp.get("client_name"),
+                    files_json=files_json,
+                )
+                return f"Website '{inp.get('client_name') or inp['netlify_site_name']}' saved (id={site['id']})."
+
+        elif name == "GetWebsiteFiles":
+            import json as _json
+            _db_path = db.get_db_path()
+            user_id = (history.current_user_id if history and hasattr(history, "current_user_id") else None)
+            if not user_id:
+                return "Error: no active user session."
+            site = db.get_website_by_id(_db_path, inp["website_id"], user_id)
+            if not site:
+                return f"Error: no website with id '{inp['website_id']}' found for your account."
+            if site.get("files_json"):
+                files = _json.loads(site["files_json"])
+                return _json.dumps(files, indent=2)
+            token = os.environ.get("NETLIFY_TOKEN", "").strip()
+            if not token:
+                return "Error: NETLIFY_TOKEN not set — cannot fetch files from Netlify."
+            try:
+                import netlify_manager
+                files = netlify_manager.fetch_site_files(site["netlify_site_id"], token)
+                db.update_website(_db_path, site["id"], files_json=_json.dumps(files))
+                return _json.dumps(files, indent=2)
+            except Exception as exc:
+                return f"Error fetching files from Netlify: {exc}"
+
+        elif name == "ListWebsites":
+            import json as _json
+            _db_path = db.get_db_path()
+            user_id = (history.current_user_id if history and hasattr(history, "current_user_id") else None)
+            if not user_id:
+                return "Error: no active user session."
+            sites = db.get_websites_for_user(_db_path, user_id)
+            if not sites:
+                return "No websites saved yet. Build a site with Zeus and it will appear here automatically."
+            summary = [
+                {
+                    "id": s["id"],
+                    "client_name": s["client_name"] or s["netlify_site_name"],
+                    "site_url": s["site_url"],
+                    "netlify_site_id": s["netlify_site_id"],
+                    "netlify_site_name": s["netlify_site_name"],
+                    "updated_at": s["updated_at"][:10],
+                }
+                for s in sites
+            ]
+            return _json.dumps(summary, indent=2)
 
         else:
             return f"Unknown tool: {name}"
