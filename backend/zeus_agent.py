@@ -981,50 +981,56 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
 
         elif name == "WebSearch":
             query = inp["query"]
-            # DuckDuckGo instant-answer API — no key required
-            ddg = httpx.get(
-                "https://api.duckduckgo.com/",
-                params={"q": query, "format": "json", "no_html": "1", "skip_disambig": "1"},
-                headers={"User-Agent": "Zeus/1.0"},
-                timeout=15,
-                follow_redirects=True,
-            )
-            data = ddg.json()
             parts: list[str] = []
 
-            if data.get("AbstractText"):
-                parts.append(f"Summary: {data['AbstractText']}")
-                if data.get("AbstractURL"):
-                    parts.append(f"Source: {data['AbstractURL']}")
+            # ── Primary: Serper.dev (Google results) ──────────────────────────
+            serper_key = os.environ.get("SERPER_API_KEY", "")
+            if serper_key:
+                try:
+                    serper_resp = httpx.post(
+                        "https://google.serper.dev/search",
+                        json={"q": query, "num": 10},
+                        headers={"X-API-KEY": serper_key, "Content-Type": "application/json"},
+                        timeout=10,
+                    )
+                    serper_resp.raise_for_status()
+                    serper_data = serper_resp.json()
 
-            if data.get("Answer"):
-                parts.append(f"Answer: {data['Answer']}")
+                    if "answerBox" in serper_data:
+                        ab = serper_data["answerBox"]
+                        parts.append(f"Answer: {ab.get('answer') or ab.get('snippet', '')}")
+                        if ab.get("link"):
+                            parts.append(f"Source: {ab['link']}")
 
-            for topic in data.get("RelatedTopics", [])[:8]:
-                if isinstance(topic, dict) and topic.get("Text"):
-                    parts.append(f"- {topic['Text']}")
-                    if topic.get("FirstURL"):
-                        parts.append(f"  {topic['FirstURL']}")
+                    for item in serper_data.get("organic", [])[:8]:
+                        title = item.get("title", "")
+                        url = item.get("link", "")
+                        snippet = item.get("snippet", "")
+                        parts.append(f"{title}\n{url}\n{snippet}")
 
+                except Exception as serper_exc:
+                    log.warning("Serper search failed for %r: %s", query, serper_exc)
+
+            # ── Fallback: DuckDuckGo HTML scrape ─────────────────────────────
             if not parts:
-                # Fall back to fetching DuckDuckGo HTML search results
-                html = httpx.get(
-                    "https://html.duckduckgo.com/html/",
-                    params={"q": query},
-                    headers={"User-Agent": "Mozilla/5.0"},
-                    timeout=15,
-                    follow_redirects=True,
-                )
-                # Extract result snippets with a simple text scan
-                import re
-                snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html.text, re.S)
-                titles = re.findall(r'class="result__a"[^>]*>(.*?)</a>', html.text, re.S)
-                urls = re.findall(r'class="result__url"[^>]*>(.*?)</span>', html.text, re.S)
-                for i, snippet in enumerate(snippets[:6]):
-                    title = re.sub(r"<[^>]+>", "", titles[i]) if i < len(titles) else ""
-                    url = urls[i].strip() if i < len(urls) else ""
-                    clean = re.sub(r"<[^>]+>", "", snippet).strip()
-                    parts.append(f"{title}\n{url}\n{clean}")
+                try:
+                    html_resp = httpx.get(
+                        "https://html.duckduckgo.com/html/",
+                        params={"q": query},
+                        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+                        timeout=15,
+                        follow_redirects=True,
+                    )
+                    snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html_resp.text, re.S)
+                    titles   = re.findall(r'class="result__a"[^>]*>(.*?)</a>', html_resp.text, re.S)
+                    urls     = re.findall(r'class="result__url"[^>]*>(.*?)</span>', html_resp.text, re.S)
+                    for i, snippet in enumerate(snippets[:8]):
+                        title = re.sub(r"<[^>]+>", "", titles[i]).strip() if i < len(titles) else ""
+                        url   = urls[i].strip() if i < len(urls) else ""
+                        clean = re.sub(r"<[^>]+>", "", snippet).strip()
+                        parts.append(f"{title}\n{url}\n{clean}")
+                except Exception as ddg_exc:
+                    log.warning("DuckDuckGo fallback failed for %r: %s", query, ddg_exc)
 
             return "\n".join(parts)[:6000] if parts else f"No results found for: {query}"
 
