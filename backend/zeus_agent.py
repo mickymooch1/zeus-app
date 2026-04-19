@@ -2018,7 +2018,7 @@ async def run_multi_agent(
         _em = re.search(r'[\w.+-]+@[\w.-]+\.[a-z]{2,}', request)
         _booking_email = _em.group(0) if _em else ""
 
-    _line_limit = 600 if _wants_booking_form else 500
+    _line_limit = 1200 if _wants_booking_form else 1000
 
     if _wants_booking_form:
         _form_action = (
@@ -2260,7 +2260,7 @@ OUTPUT CONSTRAINTS — MUST BE FOLLOWED WITHOUT EXCEPTION:
 - All JS must be in a single <script> block inside the HTML — no separate .js files
 - No external frameworks, libraries, or CDN links (no Bootstrap, Tailwind, jQuery, etc.)
 - No base64-encoded images or data URIs
-- No external fonts (use system font stack only: sans-serif, serif, monospace)
+- Google Fonts CDN links are allowed — use a <link> tag in <head> to load typefaces that match the brand
 - Inline styles only where needed for dynamic behaviour; otherwise use the <style> block
 
 DO NOT write style.css, script.js, or any file other than index.html.
@@ -2291,7 +2291,7 @@ When done, confirm: "Files written to {_build_dir}/"
             tools=_BUILDER_TOOLS,
             on_message=on_message,
             history=history,
-            max_tokens=32000,
+            max_tokens=48000,
             max_turns=40,
         )
     except StageFailure as exc:
