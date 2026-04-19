@@ -355,6 +355,27 @@ def get_tasks_for_user(db_path: pathlib.Path, user_id: str) -> list:
         conn.close()
 
 
+def get_all_tasks(db_path: pathlib.Path, limit: int = 500) -> list:
+    """Return all tasks across all users, joined with user email, newest first."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT t.id, t.user_id, t.description, t.status,
+                   t.created_at, t.completed_at,
+                   u.email AS user_email
+            FROM tasks t
+            LEFT JOIN users u ON t.user_id = u.id
+            ORDER BY t.created_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
 def delete_task(db_path: pathlib.Path, task_id: str, user_id: str) -> bool:
     """Delete a task. Returns True if a row was deleted, False if not found."""
     conn = _conn(db_path)

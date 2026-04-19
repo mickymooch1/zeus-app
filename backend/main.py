@@ -693,6 +693,15 @@ async def admin_patch_user(
     return {"ok": True}
 
 
+@app.get("/admin/tasks")
+async def admin_list_tasks(current_user: dict = Depends(auth.get_current_user)):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    db_path = db.get_db_path()
+    db.init_user_tables(db_path)
+    return db.get_all_tasks(db_path)
+
+
 @app.get("/admin/credits")
 async def admin_credits(current_user: dict = Depends(auth.get_current_user)):
     if not current_user.get("is_admin"):
