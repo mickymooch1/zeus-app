@@ -1534,9 +1534,12 @@ class HistoryStore:
         if not row:
             return []
         try:
-            return json.loads(row["data"])
+            msgs = json.loads(row["data"])
         except json.JSONDecodeError:
             return []
+        # Defensive: drop any message with empty content so a corrupted history
+        # doesn't permanently break a session (empty user messages → API 400).
+        return [m for m in msgs if m.get("content") not in ("", [], None)]
 
     def save_messages(self, session_id: str, messages: list) -> None:
         serialized = []
@@ -1544,8 +1547,21 @@ class HistoryStore:
             content = msg.get("content", "")
             if isinstance(content, list):
                 blocks = [s for b in content if (s := _sanitise_block(b)) is not None]
+                if not blocks:
+                    # All blocks were filtered (e.g. image-only message with no text).
+                    # Save a placeholder so the message is never empty — the API
+                    # rejects user messages with content: [].
+                    if msg.get("role") == "user":
+                        blocks = [{"type": "text", "text": "[image]"}]
+                    else:
+                        # Empty assistant message — skip it entirely rather than
+                        # persisting an invalid turn.
+                        continue
                 serialized.append({"role": msg["role"], "content": blocks})
             else:
+                # String content — skip if blank.
+                if not content:
+                    continue
                 serialized.append(msg)
         with self._conn() as conn:
             conn.execute(
@@ -2722,12 +2738,17 @@ async def run_turn_stream(
         for _ in range(60):  # max agentic turns
             tool_blocks: dict[int, dict] = {}
 
+            # Strip any messages with empty content before sending to the API.
+            # Empty user messages (e.g. from image-only uploads saved without text)
+            # cause a 400: "user messages must have non-empty content".
+            safe_messages = [m for m in messages if m.get("content") not in ("", [], None)]
+
             async with client.messages.stream(
                 model="claude-sonnet-4-6",
                 max_tokens=8000,
                 system=system,
                 tools=TOOLS,
-                messages=messages,
+                messages=safe_messages,
             ) as stream:
                 async for event in stream:
                     etype = event.type
