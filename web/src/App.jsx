@@ -11,6 +11,7 @@ import BillingPage from './pages/BillingPage';
 import TasksPage from './pages/TasksPage';
 import WebsitesPage from './pages/WebsitesPage';
 import SongsPage from './pages/SongsPage';
+import SongSharePage from './pages/SongSharePage';
 import AdminPage from './pages/AdminPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
@@ -68,6 +69,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/songs/share/:variantId" element={<SongSharePage />} />
           <Route
             path="/admin"
             element={

@@ -748,6 +748,16 @@ def increment_song_credits(db_path: pathlib.Path, user_id: str, amount: int) -> 
 
 # ── Lyrics CRUD ───────────────────────────────────────────────────────────────
 
+def get_lyric_title(db_path: pathlib.Path, lyric_id: int) -> str | None:
+    """Return the title of a lyric row with no user filter (used by public share endpoint)."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute("SELECT title FROM lyrics WHERE id = ?", (lyric_id,)).fetchone()
+        return row["title"] if row else None
+    finally:
+        conn.close()
+
+
 def get_lyric(db_path: pathlib.Path, lyric_id: int, user_id: str) -> dict | None:
     conn = _conn(db_path)
     try:

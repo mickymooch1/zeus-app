@@ -921,6 +921,24 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
     }
 
 
+@app.get("/api/songs/variants/{variant_id}/public")
+async def get_song_variant_public(variant_id: int):
+    """Public (no auth) endpoint for the share page. Only returns completed variants."""
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant.get("status") != "complete":
+        raise HTTPException(status_code=404, detail="Song not found")
+    title = db.get_lyric_title(db_path, variant["lyric_id"]) or f"Song #{variant_id}"
+    return {
+        "variant_id": variant["id"],
+        "title": title,
+        "genre_tag": variant.get("genre_tag"),
+        "mp3_url": variant.get("mp3_url"),
+        "image_url": variant.get("image_url"),
+        "duration_seconds": variant.get("duration_seconds"),
+    }
+
+
 class SongsTopupRequest(BaseModel):
     pack: str
 

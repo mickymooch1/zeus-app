@@ -125,12 +125,30 @@ function SkeletonCard({ genre }) {
   );
 }
 
+const actionBtnStyle = {
+  flex: 1,
+  padding: '5px 0',
+  borderRadius: 6,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'transparent',
+  color: '#555',
+  fontSize: 11,
+  fontWeight: 500,
+  cursor: 'pointer',
+  letterSpacing: '0.2px',
+  textAlign: 'center',
+  textDecoration: 'none',
+  display: 'block',
+  transition: 'color 0.15s, border-color 0.15s',
+};
+
 // ── SongCard ─────────────────────────────────────────────────────────────────
 function SongCard({ variant, title, activeWsRef }) {
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [wsReady, setWsReady] = useState(false);
+  const [copied, setCopied]   = useState(false);
 
   useEffect(() => {
     if (!variant.mp3_url || !waveRef.current) return;
@@ -173,9 +191,28 @@ function SongCard({ variant, title, activeWsRef }) {
     }
   };
 
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/songs/share/${variant.variant_id}`;
+    const shareData = {
+      title: title || `Song #${variant.variant_id}`,
+      text: 'Listen to my AI-generated song',
+      url: shareUrl,
+    };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch (_) {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (_) {}
+    }
+  };
+
   const dur = variant.duration_seconds;
   const durStr = dur ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}` : '';
   const isFailed = variant.status === 'failed';
+  const safeFilename = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
 
   return (
     <div className="song-card-anim" style={S.card}>
@@ -205,6 +242,16 @@ function SongCard({ variant, title, activeWsRef }) {
           <span style={S.pill}>{gLabel(variant.genre_tag)}</span>
           {durStr && <span style={{ color: '#555', fontSize: 12 }}>{durStr}</span>}
         </div>
+        {!isFailed && variant.mp3_url && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+            <a href={variant.mp3_url} download={safeFilename} style={actionBtnStyle}>
+              ↓ Download
+            </a>
+            <button onClick={handleShare} style={actionBtnStyle}>
+              {copied ? '✓ Copied!' : '↗ Share'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
