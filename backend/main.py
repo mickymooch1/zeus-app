@@ -1010,6 +1010,17 @@ def _decode_yt_state(state: str) -> str | None:
         return None
 
 
+@app.get("/api/youtube/debug")
+async def youtube_debug():
+    """Temporary — verify YouTube env vars are present in production."""
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    return {
+        "GOOGLE_CLIENT_ID_first15": client_id[:15] if client_id else "NOT_SET",
+        "GOOGLE_CLIENT_SECRET_set": bool(client_secret),
+    }
+
+
 @app.get("/api/youtube/auth")
 async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
     """Redirect the browser to Google's OAuth consent screen."""
