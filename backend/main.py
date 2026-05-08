@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import pathlib
+import subprocess
 import sys
 import traceback
 from contextlib import asynccontextmanager
@@ -31,6 +32,7 @@ import auth
 import billing
 import scheduler as _scheduler_mod
 import webhooks as _webhooks_mod
+import youtube_uploader
 
 import io
 import re as _re
@@ -983,7 +985,150 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
         "monthly_allowance": allowance,
         "is_admin": bool(current_user.get("is_admin", 0)),
         "plan": plan,
+        "youtube_connected": bool(current_user.get("youtube_refresh_token")),
     }
+
+
+# ── YouTube OAuth + upload ───────────────────────────────────────────────────
+
+_YOUTUBE_PLANS = {"agency", "enterprise"}
+
+import jwt as _jwt
+
+
+def _make_yt_state(user_id: str) -> str:
+    from datetime import timedelta
+    payload = {"sub": user_id, "exp": datetime.now(timezone.utc) + timedelta(minutes=30)}
+    return _jwt.encode(payload, auth.SECRET_KEY, algorithm="HS256")
+
+
+def _decode_yt_state(state: str) -> str | None:
+    try:
+        payload = _jwt.decode(state, auth.SECRET_KEY, algorithms=["HS256"])
+        return payload.get("sub")
+    except Exception:
+        return None
+
+
+@app.get("/api/youtube/auth")
+async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
+    """Redirect the browser to Google's OAuth consent screen."""
+    if not youtube_uploader.youtube_enabled():
+        raise HTTPException(status_code=503, detail="YouTube integration not configured (GOOGLE_CLIENT_ID/SECRET missing)")
+
+    is_admin = bool(current_user.get("is_admin", 0))
+    plan = current_user.get("subscription_plan")
+    if not is_admin and plan not in _YOUTUBE_PLANS:
+        raise HTTPException(status_code=403, detail="YouTube upload requires Agency plan or above")
+
+    backend_url = os.environ.get("BACKEND_URL", "http://localhost:8080")
+    redirect_uri = f"{backend_url}/api/youtube/callback"
+    state = _make_yt_state(current_user["id"])
+
+    try:
+        auth_url = youtube_uploader.build_auth_url(state=state, redirect_uri=redirect_uri)
+    except Exception as exc:
+        log.exception("youtube_auth: failed to build auth URL")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(auth_url)
+
+
+@app.get("/api/youtube/callback")
+async def youtube_callback(code: str = Query(None), state: str = Query(None), error: str = Query(None)):
+    """Google OAuth callback — exchange code, store refresh token, redirect to /songs."""
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+
+    if error:
+        log.warning("youtube_callback: Google returned error=%s", error)
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(f"{frontend_url}/songs?youtube=error")
+
+    if not code or not state:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(f"{frontend_url}/songs?youtube=error")
+
+    user_id = _decode_yt_state(state)
+    if not user_id:
+        log.warning("youtube_callback: invalid or expired state token")
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(f"{frontend_url}/songs?youtube=error")
+
+    db_path = db.get_db_path()
+    user = db.get_user_by_id(db_path, user_id)
+    if not user:
+        log.warning("youtube_callback: user %s not found", user_id)
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(f"{frontend_url}/songs?youtube=error")
+
+    backend_url = os.environ.get("BACKEND_URL", "http://localhost:8080")
+    redirect_uri = f"{backend_url}/api/youtube/callback"
+
+    try:
+        refresh_token = youtube_uploader.exchange_code(code=code, redirect_uri=redirect_uri)
+    except Exception as exc:
+        log.exception("youtube_callback: token exchange failed")
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(f"{frontend_url}/songs?youtube=error")
+
+    db.update_user(db_path, user_id, youtube_refresh_token=refresh_token)
+    log.info("youtube_callback: stored refresh token for user %s", user_id)
+
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(f"{frontend_url}/songs?youtube=connected")
+
+
+class YouTubeUploadRequest(BaseModel):
+    privacy: str = "unlisted"  # "public" | "unlisted" | "private"
+    title: str | None = None
+
+
+@app.post("/api/songs/variants/{variant_id}/upload-youtube")
+async def upload_to_youtube(
+    variant_id: int,
+    body: YouTubeUploadRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Upload a completed song variant to the user's YouTube channel."""
+    is_admin = bool(current_user.get("is_admin", 0))
+    plan = current_user.get("subscription_plan")
+    if not is_admin and plan not in _YOUTUBE_PLANS:
+        raise HTTPException(status_code=403, detail="YouTube upload requires Agency plan or above")
+
+    if not current_user.get("youtube_refresh_token"):
+        raise HTTPException(status_code=400, detail="YouTube not connected — visit /api/youtube/auth first")
+
+    if body.privacy not in ("public", "unlisted", "private"):
+        raise HTTPException(status_code=400, detail="privacy must be public, unlisted, or private")
+
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Song not found")
+    if variant["status"] != "complete":
+        raise HTTPException(status_code=400, detail="Song is not ready yet")
+
+    title = body.title or db.get_lyric_title(db_path, variant["lyric_id"]) or f"Song #{variant_id}"
+
+    try:
+        youtube_url = youtube_uploader.upload_song_to_youtube(
+            variant=variant,
+            user=current_user,
+            privacy=body.privacy,
+            title=title,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except subprocess.CalledProcessError as exc:
+        log.error("upload_to_youtube: ffmpeg failed: %s", exc.stderr)
+        raise HTTPException(status_code=500, detail="Audio processing failed")
+    except Exception as exc:
+        log.exception("upload_to_youtube: unexpected error")
+        raise HTTPException(status_code=500, detail="Upload failed — please try again")
+
+    db.update_song_variant(db_path, variant_id, youtube_url=youtube_url)
+    return {"youtube_url": youtube_url}
 
 
 # ── Scheduled Tasks ─────────────────────────────────────────────────────────

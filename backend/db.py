@@ -167,6 +167,8 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_variants ADD COLUMN take_number INTEGER DEFAULT 1",
             "ALTER TABLE song_variants ADD COLUMN webhook_secret TEXT",
             "ALTER TABLE song_variants ADD COLUMN image_url TEXT",
+            "ALTER TABLE users ADD COLUMN youtube_refresh_token TEXT",
+            "ALTER TABLE song_variants ADD COLUMN youtube_url TEXT",
         ]:
             try:
                 conn.execute(_migration)
@@ -765,6 +767,20 @@ def get_lyric(db_path: pathlib.Path, lyric_id: int, user_id: str) -> dict | None
             "SELECT * FROM lyrics WHERE id = ? AND user_id = ?", (lyric_id, user_id)
         ).fetchone()
         return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def update_song_variant(db_path: pathlib.Path, variant_id: int, **fields) -> None:
+    """Update one or more columns on a song_variants row."""
+    if not fields:
+        return
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [variant_id]
+    conn = _conn(db_path)
+    try:
+        conn.execute(f"UPDATE song_variants SET {set_clause} WHERE id = ?", values)
+        conn.commit()
     finally:
         conn.close()
 

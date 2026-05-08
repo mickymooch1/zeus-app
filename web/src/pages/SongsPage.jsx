@@ -143,7 +143,7 @@ const actionBtnStyle = {
 };
 
 // ── SongCard ─────────────────────────────────────────────────────────────────
-function SongCard({ variant, title, activeWsRef, canYouTube }) {
+function SongCard({ variant, title, activeWsRef, canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick }) {
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -250,17 +250,27 @@ function SongCard({ variant, title, activeWsRef, canYouTube }) {
             <button onClick={handleShare} style={actionBtnStyle}>
               {copied ? '✓ Copied!' : '↗ Share'}
             </button>
-            <button
-              disabled
-              title={canYouTube ? 'YouTube upload coming soon' : 'Available on Agency plan and above'}
-              style={{
-                ...actionBtnStyle,
-                opacity: canYouTube ? 0.5 : 0.25,
-                cursor: 'not-allowed',
-              }}
-            >
-              ▲ YouTube
-            </button>
+            {!canYouTube ? (
+              <button disabled title="Available on Agency plan and above" style={{ ...actionBtnStyle, opacity: 0.25, cursor: 'not-allowed' }}>
+                ▲ YouTube
+              </button>
+            ) : ytSt === 'done' && ytUrl ? (
+              <a href={ytUrl} target="_blank" rel="noopener noreferrer" style={{ ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
+                ▶ View on YT
+              </a>
+            ) : ytSt === 'uploading' ? (
+              <button disabled style={{ ...actionBtnStyle, opacity: 0.55, cursor: 'default' }}>
+                Uploading…
+              </button>
+            ) : !ytConnected ? (
+              <button onClick={onYouTubeClick} style={{ ...actionBtnStyle, color: '#a78bfa' }}>
+                + Connect YT
+              </button>
+            ) : (
+              <button onClick={onYouTubeClick} style={{ ...actionBtnStyle, color: ytSt === 'error' ? '#f87171' : '#555' }}>
+                {ytSt === 'error' ? 'Retry' : '▲ YouTube'}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -274,7 +284,7 @@ export default function SongsPage() {
   const location = useLocation();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
-  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null });
+  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, youtube_connected: false });
   const [brief, setBrief]               = useState('');
   const [selGenres, setSelGenres]       = useState(new Set());
   const [generating, setGenerating]     = useState(false);
@@ -294,12 +304,20 @@ export default function SongsPage() {
   const [modelVersion, setModelVersion]   = useState('V5');
   const [explicit, setExplicit]           = useState(false);
 
+  // YouTube upload state
+  const [ytStatus, setYtStatus]   = useState({});   // { [variant_id]: 'uploading'|'done'|'error' }
+  const [ytUrls, setYtUrls]       = useState({});   // { [variant_id]: youtube_url }
+  const [ytModal, setYtModal]     = useState(null); // variant object or null
+  const [ytPrivacy, setYtPrivacy] = useState('unlisted');
+
   const activeWsRef  = useRef(null);
   const pollTimerRef = useRef(null);
 
   const isAdmin          = credits.is_admin;
   const canShowExplicit  = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
   const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
+  const youtubeConnected = credits.youtube_connected;
+  const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
   const cost           = selGenres.size;
   const canAfford      = isAdmin || (credits.balance >= cost && cost > 0);
   const canGenerate    = brief.trim().length > 0 && cost > 0 && canAfford && !generating;
@@ -424,6 +442,36 @@ export default function SongsPage() {
     }
   };
 
+  const handleYouTubeClick = (variant) => {
+    if (!canYouTube) return;
+    if (!youtubeConnected) {
+      window.location.href = `${BACKEND_URL}/api/youtube/auth?token=${token}`;
+      return;
+    }
+    setYtModal(variant);
+  };
+
+  const handleYouTubeUpload = async () => {
+    if (!ytModal) return;
+    const vId = ytModal.variant_id;
+    const vTitle = ytModal.title;
+    setYtModal(null);
+    setYtStatus((prev) => ({ ...prev, [vId]: 'uploading' }));
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/songs/variants/${vId}/upload-youtube`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ privacy: ytPrivacy, title: vTitle }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Upload failed');
+      setYtStatus((prev) => ({ ...prev, [vId]: 'done' }));
+      setYtUrls((prev) => ({ ...prev, [vId]: d.youtube_url }));
+    } catch (_) {
+      setYtStatus((prev) => ({ ...prev, [vId]: 'error' }));
+    }
+  };
+
   const toggleGenre = (g) =>
     setSelGenres((prev) => {
       const next = new Set(prev);
@@ -497,6 +545,36 @@ export default function SongsPage() {
               fontSize: 14,
             }}>
               Payment successful — your song credits have been added.
+            </div>
+          )}
+
+          {/* YouTube connected */}
+          {ytConnectedParam === 'connected' && (
+            <div style={{
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.25)',
+              borderRadius: 10,
+              padding: '12px 18px',
+              marginBottom: 24,
+              color: '#f87171',
+              fontWeight: 600,
+              fontSize: 14,
+            }}>
+              YouTube connected — you can now upload songs directly to your channel.
+            </div>
+          )}
+          {ytConnectedParam === 'error' && (
+            <div style={{
+              background: 'rgba(251,191,36,0.08)',
+              border: '1px solid rgba(251,191,36,0.25)',
+              borderRadius: 10,
+              padding: '12px 18px',
+              marginBottom: 24,
+              color: '#fbbf24',
+              fontWeight: 600,
+              fontSize: 14,
+            }}>
+              YouTube connection failed — please try again.
             </div>
           )}
 
@@ -880,6 +958,10 @@ export default function SongsPage() {
                       title={activeJob.title}
                       activeWsRef={activeWsRef}
                       canYouTube={canYouTube}
+                      ytConnected={youtubeConnected}
+                      ytStatus={ytStatus[v.variant_id]}
+                      ytUrl={ytUrls[v.variant_id]}
+                      onYouTubeClick={() => handleYouTubeClick({ ...v, title: activeJob.title })}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -903,6 +985,10 @@ export default function SongsPage() {
                     title={v.title}
                     activeWsRef={activeWsRef}
                     canYouTube={canYouTube}
+                    ytConnected={youtubeConnected}
+                    ytStatus={ytStatus[v.variant_id]}
+                    ytUrl={ytUrls[v.variant_id]}
+                    onYouTubeClick={() => handleYouTubeClick(v)}
                   />
                 ))}
               </div>
@@ -921,6 +1007,85 @@ export default function SongsPage() {
 
         </div>
       </div>
+
+      {/* ── YouTube upload modal ──────────────────────────────────────── */}
+      {ytModal && (
+        <div
+          onClick={() => setYtModal(null)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#12121e',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 16,
+              padding: '28px 28px 24px',
+              width: '100%',
+              maxWidth: 380,
+            }}
+          >
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2d9f3', marginBottom: 6 }}>
+              Upload to YouTube
+            </h3>
+            <p style={{ fontSize: 13, color: '#555', marginBottom: 20 }}>
+              {ytModal.title || `Song #${ytModal.variant_id}`}
+            </p>
+
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+              Privacy
+            </label>
+            <select
+              value={ytPrivacy}
+              onChange={(e) => setYtPrivacy(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 8,
+                padding: '10px 12px',
+                color: '#c4b5fd',
+                fontSize: 14,
+                outline: 'none',
+                marginBottom: 24,
+              }}
+            >
+              <option value="unlisted">Unlisted (only people with the link)</option>
+              <option value="public">Public</option>
+              <option value="private">Private (only you)</option>
+            </select>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setYtModal(null)}
+                style={{
+                  flex: 1, padding: '11px 0', borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleYouTubeUpload}
+                style={{
+                  flex: 1, padding: '11px 0', borderRadius: 8,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+                  color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
