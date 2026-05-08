@@ -736,6 +736,58 @@ async def admin_credits(current_user: dict = Depends(auth.get_current_user)):
         return {"balance": None, "message": "Balance unavailable"}
 
 
+@app.post("/admin/test-song-pipeline")
+async def admin_test_song_pipeline(current_user: dict = Depends(auth.get_current_user)):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    import lyrics as _lyrics_mod
+    import songs as _songs_mod
+    from song_genres import GENRE_PRESETS as _GENRE_PRESETS
+
+    db_path = db.get_db_path()
+    user_id = current_user["id"]
+
+    db.upsert_song_credits(db_path, user_id, balance=10, monthly_allowance=10)
+    log.info("admin_test_song_pipeline: granted 10 credits to %s", user_id)
+
+    try:
+        lyric_result = _lyrics_mod.generate_lyrics(
+            user_id,
+            "30-second jingle for a Manchester coffee shop, Friday vibes",
+            db_path,
+        )
+    except Exception as exc:
+        log.exception("admin_test_song_pipeline: lyrics generation failed")
+        raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
+
+    lyric_id = lyric_result["lyric_id"]
+    log.info("admin_test_song_pipeline: lyric_id=%s title=%r", lyric_id, lyric_result["title"])
+
+    try:
+        variant_result = _songs_mod.generate_song_variant(
+            user_id=user_id,
+            lyric_id=lyric_id,
+            style_prompt=_GENRE_PRESETS["pop"],
+            genre_tag="pop",
+            db_path=db_path,
+        )
+    except Exception as exc:
+        log.exception("admin_test_song_pipeline: variant submission failed")
+        raise HTTPException(status_code=500, detail=f"Variant submission failed: {exc}")
+
+    variant_row = db.get_song_variant_by_id(db_path, variant_result["variant_id"])
+    log.info("admin_test_song_pipeline: variant_id=%s task_id=%s",
+             variant_result["variant_id"], variant_row["provider_job_id"] if variant_row else None)
+
+    return {
+        "lyric_id": lyric_id,
+        "variant_id": variant_result["variant_id"],
+        "task_id": variant_row["provider_job_id"] if variant_row else None,
+        "message": "Submitted to Apiframe. Webhook should fire in 30-90s.",
+    }
+
+
 # ── Scheduled Tasks ─────────────────────────────────────────────────────────
 
 class ScheduledTaskParseRequest(BaseModel):
