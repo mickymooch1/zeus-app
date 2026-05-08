@@ -265,7 +265,7 @@ export default function SongsPage() {
           });
           if (!vr.ok) return [];
           const d = await vr.json();
-          return (d.variants || []).map((v) => ({ ...v, title: lyric.title }));
+          return (d.variants || []).map((v) => ({ ...v, title: lyric.title, lyric_id: lyric.id }));
         })
       );
       setLibrary(groups.flat().sort((a, b) => b.variant_id - a.variant_id));
