@@ -24,6 +24,8 @@ import requests
 from github_push import push_to_github as _push_to_github
 
 import db
+import lyrics as _lyrics_mod
+import songs as _songs_mod
 
 EXPORT_TAG_RE = re.compile(
     r'\[ZEUS_EXPORT:\s*type=(\w+)\s+title="([^"]+)"\]',
@@ -655,6 +657,74 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {},
+        },
+    },
+    # ── Song generation tools ──────────────────────────────────────────────────
+    {
+        "name": "GenerateLyrics",
+        "description": (
+            "Generate song lyrics for a user using AI. "
+            "Call this when the user asks to write lyrics, create a song, or compose music words. "
+            "Returns a lyric_id you can pass to GenerateSongVariant or GenerateMultipleVariants."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "brief": {
+                    "type": "string",
+                    "description": "Description of the song: theme, mood, style, target audience, any specific words or phrases to include",
+                },
+            },
+            "required": ["brief"],
+        },
+    },
+    {
+        "name": "GenerateSongVariant",
+        "description": (
+            "Submit lyrics to Suno via Apiframe to generate an MP3. Costs 1 song credit. "
+            "Returns immediately with a variant_id — the MP3 is delivered asynchronously via webhook "
+            "and will be ready in 30–90 seconds. Use GenerateLyrics first to get a lyric_id."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "lyric_id": {
+                    "type": "integer",
+                    "description": "ID returned by GenerateLyrics",
+                },
+                "style_prompt": {
+                    "type": "string",
+                    "description": "Musical style description, e.g. 'upbeat country pop with acoustic guitar'",
+                },
+                "genre_tag": {
+                    "type": "string",
+                    "description": "Short genre label, e.g. 'country', 'pop', 'hiphop'",
+                },
+            },
+            "required": ["lyric_id", "style_prompt", "genre_tag"],
+        },
+    },
+    {
+        "name": "GenerateMultipleVariants",
+        "description": (
+            "Generate the same lyrics in multiple genres simultaneously. "
+            "Costs 1 song credit per genre. Available genres: country, reggae, pop, rock, hiphop, lofi, edm, acoustic. "
+            "Use GenerateLyrics first to get a lyric_id."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "lyric_id": {
+                    "type": "integer",
+                    "description": "ID returned by GenerateLyrics",
+                },
+                "genres": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of genre tags to generate. Max 7. E.g. ['pop', 'rock', 'acoustic']",
+                },
+            },
+            "required": ["lyric_id", "genres"],
         },
     },
 ]
@@ -1342,6 +1412,41 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                 for s in sites
             ]
             return _json.dumps(summary, indent=2)
+
+        elif name == "GenerateLyrics":
+            user_id = (history.current_user_id if history and hasattr(history, "current_user_id") else None)
+            if not user_id:
+                return "Error: no active user session."
+            _db_path = db.get_db_path()
+            result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=inp["brief"], db_path=_db_path)
+            return json.dumps(result)
+
+        elif name == "GenerateSongVariant":
+            user_id = (history.current_user_id if history and hasattr(history, "current_user_id") else None)
+            if not user_id:
+                return "Error: no active user session."
+            _db_path = db.get_db_path()
+            result = _songs_mod.generate_song_variant(
+                user_id=user_id,
+                lyric_id=int(inp["lyric_id"]),
+                style_prompt=inp["style_prompt"],
+                genre_tag=inp["genre_tag"],
+                db_path=str(_db_path),
+            )
+            return json.dumps(result)
+
+        elif name == "GenerateMultipleVariants":
+            user_id = (history.current_user_id if history and hasattr(history, "current_user_id") else None)
+            if not user_id:
+                return "Error: no active user session."
+            _db_path = db.get_db_path()
+            result = _songs_mod.generate_multiple_variants(
+                user_id=user_id,
+                lyric_id=int(inp["lyric_id"]),
+                genres=inp["genres"],
+                db_path=str(_db_path),
+            )
+            return json.dumps(result)
 
         else:
             return f"Unknown tool: {name}"

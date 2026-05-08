@@ -788,6 +788,50 @@ async def admin_test_song_pipeline(current_user: dict = Depends(auth.get_current
     }
 
 
+# ── Song API endpoints ───────────────────────────────────────────────────────
+
+@app.get("/api/lyrics/{lyric_id}")
+async def get_lyric(lyric_id: int, current_user: dict = Depends(auth.get_current_user)):
+    db_path = db.get_db_path()
+    row = db.get_lyric(db_path, lyric_id)
+    if not row or row["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Lyric not found")
+    return {"lyric_id": row["id"], "title": row["title"], "lyrics_text": row["lyrics_text"]}
+
+
+@app.get("/api/lyrics/{lyric_id}/variants")
+async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.get_current_user)):
+    db_path = db.get_db_path()
+    lyric = db.get_lyric(db_path, lyric_id)
+    if not lyric or lyric["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Lyric not found")
+    variants = db.get_song_variants_for_lyric(db_path, lyric_id)
+    return {
+        "lyric_id": lyric_id,
+        "variants": [
+            {
+                "variant_id": v["id"],
+                "genre_tag": v["genre_tag"],
+                "take_number": v["take_number"],
+                "status": v["status"],
+                "mp3_url": v["mp3_url"],
+                "duration_seconds": v["duration_seconds"],
+            }
+            for v in (variants or [])
+        ],
+    }
+
+
+@app.get("/api/users/me/song_credits")
+async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user)):
+    db_path = db.get_db_path()
+    row = db.get_song_credits(db_path, current_user["id"])
+    return {
+        "balance": row["balance"] if row else 0,
+        "monthly_allowance": row["monthly_allowance"] if row else 0,
+    }
+
+
 # ── Scheduled Tasks ─────────────────────────────────────────────────────────
 
 class ScheduledTaskParseRequest(BaseModel):
