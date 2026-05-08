@@ -1013,6 +1013,8 @@ def _decode_yt_state(state: str) -> str | None:
 @app.get("/api/youtube/auth")
 async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
     """Redirect the browser to Google's OAuth consent screen."""
+    _gid = os.environ.get("GOOGLE_CLIENT_ID", "NOT_SET")
+    log.info("youtube_auth: GOOGLE_CLIENT_ID first10=%r", _gid[:10])
     if not youtube_uploader.youtube_enabled():
         raise HTTPException(status_code=503, detail="YouTube integration not configured (GOOGLE_CLIENT_ID/SECRET missing)")
 
