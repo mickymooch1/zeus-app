@@ -77,45 +77,113 @@ async def apiframe_webhook(request: Request):
         logger.warning("Unexpected webhook event=%r status=%r body=%r", event, job_status, body)
         return {"ok": True, "status": "unexpected"}
 
-    # Completed — download the result MP3 and record the permanent URL
-    result_url = body.get("result")
-    if not result_url:
-        logger.error("Completed webhook missing result URL: %r", body)
+    # Completed — extract tracks from result dict
+    result = body.get("result")
+    if not result or not isinstance(result, dict):
+        logger.error("Completed webhook missing/invalid result: %r", body)
         conn = sqlite3.connect(DB_PATH)
         try:
-            cur = conn.cursor()
-            cur.execute(
-                "UPDATE song_variants SET status = 'failed' WHERE id = ?",
-                (variant_id,),
-            )
+            conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
             conn.commit()
         finally:
             conn.close()
-        return {"ok": True, "status": "no_result_url"}
+        return {"ok": True, "status": "no_result"}
+
+    tracks = result.get("tracks", [])
+    if not tracks:
+        logger.error("Completed webhook has no tracks: %r", result)
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "status": "no_tracks"}
+
+    # Look up the original variant row now — needed for take 2 insertion
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        orig = conn.execute(
+            "SELECT lyric_id, user_id, style_prompt, genre_tag, provider_job_id FROM song_variants WHERE id = ?",
+            (variant_id,),
+        ).fetchone()
+    finally:
+        conn.close()
 
     os.makedirs(STORAGE_PATH, exist_ok=True)
-    local_path = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
-    download = requests.get(result_url, timeout=120)
-    download.raise_for_status()
-    with open(local_path, "wb") as fh:
-        fh.write(download.content)
 
-    permanent_url = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
+    # ── Take 1: update existing variant row ──────────────────────────────────
+    track1 = tracks[0]
+    temp_url1 = track1["audioUrl"]
+    duration1 = round(track1.get("duration", 0))
+
+    logger.info("Apiframe webhook: downloading take 1 from %s", temp_url1)
+    dl1 = requests.get(temp_url1, timeout=120)
+    dl1.raise_for_status()
+    local_path1 = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
+    with open(local_path1, "wb") as fh:
+        fh.write(dl1.content)
+    permanent_url1 = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
 
     conn = sqlite3.connect(DB_PATH)
     try:
-        cur = conn.cursor()
-        cur.execute(
+        conn.execute(
             """UPDATE song_variants
-               SET status = 'complete',
-                   mp3_url = ?,
-                   completed_at = CURRENT_TIMESTAMP
+               SET status = 'complete', mp3_url = ?, duration_seconds = ?,
+                   take_number = 1, completed_at = CURRENT_TIMESTAMP
                WHERE id = ?""",
-            (permanent_url, variant_id),
+            (permanent_url1, duration1, variant_id),
         )
         conn.commit()
     finally:
         conn.close()
+    logger.info("Apiframe webhook take 1 complete: variant_id=%d url=%s", variant_id, permanent_url1)
 
-    logger.info("Apiframe webhook complete: variant_id=%d url=%s", variant_id, permanent_url)
-    return {"ok": True, "status": "complete", "url": permanent_url}
+    # ── Take 2: insert new row, download second track if present ─────────────
+    take2_variant_id = None
+    permanent_url2 = None
+
+    if len(tracks) >= 2 and orig:
+        track2 = tracks[1]
+        temp_url2 = track2["audioUrl"]
+        duration2 = round(track2.get("duration", 0))
+
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """INSERT INTO song_variants
+                   (lyric_id, user_id, style_prompt, genre_tag, provider_job_id,
+                    take_number, status, duration_seconds, completed_at)
+                   VALUES (?, ?, ?, ?, ?, 2, 'complete', ?, CURRENT_TIMESTAMP)""",
+                (orig[0], orig[1], orig[2], orig[3], orig[4], duration2),
+            )
+            take2_variant_id = cur.lastrowid
+            conn.commit()
+        finally:
+            conn.close()
+
+        logger.info("Apiframe webhook: downloading take 2 from %s", temp_url2)
+        dl2 = requests.get(temp_url2, timeout=120)
+        dl2.raise_for_status()
+        local_path2 = os.path.join(STORAGE_PATH, f"{take2_variant_id}.mp3")
+        with open(local_path2, "wb") as fh:
+            fh.write(dl2.content)
+        permanent_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.mp3"
+
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute(
+                "UPDATE song_variants SET mp3_url = ? WHERE id = ?",
+                (permanent_url2, take2_variant_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
+
+    payload = {"ok": True, "status": "complete", "take1_url": permanent_url1}
+    if take2_variant_id:
+        payload["take2_variant_id"] = take2_variant_id
+        payload["take2_url"] = permanent_url2
+    return payload
