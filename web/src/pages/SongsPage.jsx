@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import WaveSurfer from 'wavesurfer.js';
 import { useAuth } from '../contexts/AuthContext';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
-const GENRES = ['country', 'reggae', 'pop', 'rock', 'hiphop', 'lofi', 'edm', 'acoustic', 'irishjig', 'irishfolk'];
-const GENRE_LABEL = { hiphop: 'Hip-hop', lofi: 'Lo-Fi', edm: 'EDM', irishjig: 'Irish Jig', irishfolk: 'Irish Folk' };
-const GENRE_DISPLAY = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
+const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk'];
+const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk' };
+const gLabel = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
 
 const SONG_PACKS = [
   { pack: 'song_pack_10',  label: 'Buy 10 songs',  price: '£8'  },
@@ -14,443 +15,615 @@ const SONG_PACKS = [
   { pack: 'song_pack_200', label: 'Buy 200 songs', price: '£99' },
 ];
 
-const STATUS_CLASS = {
-  pending:    'badge-status badge-status--pending',
-  generating: 'badge-status badge-status--running',
-  complete:   'badge-status badge-status--done',
-  failed:     'badge-status badge-status--failed',
+const PAGE_CSS = `
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%);  }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.song-card-anim { animation: fadeInUp 0.3s ease both; }
+.songs-textarea:focus { border-color: rgba(167,139,250,0.4) !important; }
+`;
+
+// ── shared style objects ─────────────────────────────────────────────────────
+const S = {
+  card: {
+    background: '#12121e',
+    border: '1px solid rgba(255,255,255,0.07)',
+    borderRadius: 12,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  artBox: {
+    width: '100%',
+    aspectRatio: '1 / 1',
+    objectFit: 'cover',
+    display: 'block',
+  },
+  artPlaceholder: {
+    background: 'linear-gradient(135deg, #1a1040 0%, #0e0e22 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardBody: {
+    padding: '12px 14px 14px',
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  cardTitle: {
+    color: '#e2d9f3',
+    fontWeight: 600,
+    fontSize: 14,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    marginTop: 4,
+  },
+  pill: {
+    background: 'rgba(167,139,250,0.15)',
+    color: '#c4b5fd',
+    border: '1px solid rgba(167,139,250,0.3)',
+    borderRadius: 20,
+    padding: '2px 10px',
+    fontSize: 11,
+    fontWeight: 500,
+    flexShrink: 0,
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+    gap: 16,
+  },
 };
 
-function VariantCard({ variant }) {
-  const isDone = variant.status === 'complete';
-  const isFailed = variant.status === 'failed';
-  const cardClass = `task-card ${isDone ? 'task-card--done' : isFailed ? 'task-card--failed' : 'task-card--running'}`;
+const playBtnStyle = (active, ready) => ({
+  width: 32,
+  height: 32,
+  borderRadius: '50%',
+  border: 'none',
+  background: active ? '#7c3aed' : 'rgba(167,139,250,0.12)',
+  color: '#c4b5fd',
+  cursor: ready ? 'pointer' : 'default',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 11,
+  flexShrink: 0,
+  transition: 'background 0.2s',
+  opacity: ready ? 1 : 0.35,
+});
 
+// ── SkeletonCard ─────────────────────────────────────────────────────────────
+function SkeletonCard({ genre }) {
   return (
-    <div className={cardClass} style={{ marginBottom: 8 }}>
-      <div className="task-card-header">
-        <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>
-          {GENRE_DISPLAY(variant.genre_tag)}
-          {variant.take_number > 1 && <span style={{ color: '#888', fontSize: 12 }}> · take {variant.take_number}</span>}
-        </span>
-        <span className={STATUS_CLASS[variant.status] || 'badge-status'}>
-          {variant.status}
-        </span>
+    <div style={S.card}>
+      <div style={{ ...S.artBox, ...S.artPlaceholder, position: 'relative', overflow: 'hidden' }}>
+        <span style={{ fontSize: 40, opacity: 0.12 }}>♫</span>
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)',
+            animation: 'shimmer 1.8s ease-in-out infinite',
+          }} />
+        </div>
       </div>
-      {isDone && variant.mp3_url && (
-        <div style={{ padding: '8px 16px 12px' }}>
-          <audio
-            controls
-            src={variant.mp3_url}
-            style={{ width: '100%', accentColor: '#a78bfa' }}
-          />
-          {variant.duration_seconds > 0 && (
-            <span className="task-card-meta">{variant.duration_seconds}s</span>
-          )}
+      <div style={S.cardBody}>
+        <div style={{ height: 40, borderRadius: 4, background: 'rgba(255,255,255,0.04)', marginBottom: 10 }} />
+        <div style={{ height: 13, borderRadius: 4, background: 'rgba(255,255,255,0.04)', width: '60%', marginBottom: 10 }} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {genre && <span style={S.pill}>{gLabel(genre)}</span>}
+          <span style={{ color: '#444', fontSize: 12 }}>~60s</span>
         </div>
-      )}
-      {isFailed && (
-        <div style={{ padding: '4px 16px 12px' }}>
-          <span style={{ color: '#f87171', fontSize: 13 }}>Generation failed — credit not refunded</span>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
 
-function ActiveJob({ job }) {
-  const allDone = job.variants.every((v) => v.status === 'complete' || v.status === 'failed');
-  const doneCount = job.variants.filter((v) => v.status === 'complete').length;
+// ── SongCard ─────────────────────────────────────────────────────────────────
+function SongCard({ variant, title, activeWsRef }) {
+  const waveRef = useRef(null);
+  const wsRef   = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [wsReady, setWsReady] = useState(false);
 
-  return (
-    <div style={{ marginBottom: 32 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12 }}>
-        <h2 style={{ color: '#e2d9f3', margin: 0, fontSize: '1rem', fontWeight: 700 }}>
-          {job.title}
-        </h2>
-        <span style={{ color: '#888', fontSize: 13 }}>
-          {allDone ? `${doneCount} of ${job.variants.length} ready` : 'Generating…'}
-        </span>
-      </div>
-      {job.variants.map((v) => (
-        <VariantCard key={v.variant_id} variant={v} />
-      ))}
-    </div>
-  );
-}
+  useEffect(() => {
+    if (!variant.mp3_url || !waveRef.current) return;
+    const ws = WaveSurfer.create({
+      container:     waveRef.current,
+      url:           variant.mp3_url,
+      waveColor:     '#252535',
+      progressColor: '#a78bfa',
+      height:        40,
+      barWidth:      2,
+      barGap:        1,
+      barRadius:     2,
+      cursorWidth:   0,
+      normalize:     true,
+      interact:      true,
+    });
+    ws.on('ready',  () => setWsReady(true));
+    ws.on('play',   () => setPlaying(true));
+    ws.on('pause',  () => setPlaying(false));
+    ws.on('finish', () => setPlaying(false));
+    wsRef.current = ws;
+    return () => {
+      ws.destroy();
+      wsRef.current = null;
+      setWsReady(false);
+      setPlaying(false);
+    };
+  }, [variant.mp3_url]);
 
-function HistoryItem({ lyric, token }) {
-  const [variants, setVariants] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
-
-  const toggle = async () => {
-    if (open) { setOpen(false); return; }
-    setOpen(true);
-    if (variants !== null) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/lyrics/${lyric.id}/variants`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setVariants(data.variants);
-      }
-    } finally {
-      setLoading(false);
+  const handlePlay = () => {
+    if (!wsRef.current || !wsReady) return;
+    if (activeWsRef.current && activeWsRef.current !== wsRef.current) {
+      activeWsRef.current.pause();
+    }
+    if (playing) {
+      wsRef.current.pause();
+    } else {
+      wsRef.current.play();
+      activeWsRef.current = wsRef.current;
     }
   };
 
-  const date = lyric.created_at
-    ? new Date(lyric.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-    : '';
+  const dur = variant.duration_seconds;
+  const durStr = dur ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}` : '';
+  const isFailed = variant.status === 'failed';
 
   return (
-    <div className="task-card" style={{ marginBottom: 8 }}>
-      <div
-        className="task-card-header"
-        style={{ cursor: 'pointer', userSelect: 'none' }}
-        onClick={toggle}
-      >
-        <span style={{ fontWeight: 600, color: '#e2d9f3' }}>
-          {lyric.title || `Lyric #${lyric.id}`}
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {date && <span className="task-card-meta">{date}</span>}
-          <span style={{ color: '#666', fontSize: 12 }}>{open ? '▲' : '▼'}</span>
-        </span>
-      </div>
-      {open && (
-        <div style={{ padding: '4px 16px 12px' }}>
-          {loading && <p style={{ color: '#888', fontSize: 13 }}>Loading…</p>}
-          {!loading && variants && variants.length === 0 && (
-            <p style={{ color: '#888', fontSize: 13 }}>No variants yet.</p>
-          )}
-          {!loading && variants && variants.map((v) => (
-            <VariantCard key={v.variant_id} variant={v} />
-          ))}
+    <div className="song-card-anim" style={S.card}>
+      {variant.image_url ? (
+        <img src={variant.image_url} alt={title} style={S.artBox} />
+      ) : (
+        <div style={{ ...S.artBox, ...S.artPlaceholder }}>
+          <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
         </div>
       )}
+
+      <div style={S.cardBody}>
+        {isFailed ? (
+          <div style={{ height: 40, display: 'flex', alignItems: 'center' }}>
+            <span style={{ color: '#f87171', fontSize: 12 }}>Generation failed</span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <button onClick={handlePlay} disabled={!wsReady} style={playBtnStyle(playing, wsReady)}>
+              {playing ? '⏸' : '▶'}
+            </button>
+            <div ref={waveRef} style={{ flex: 1, opacity: wsReady ? 1 : 0.2, transition: 'opacity 0.4s', minWidth: 0 }} />
+          </div>
+        )}
+        <div style={S.cardTitle}>{title || `Song #${variant.variant_id}`}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+          <span style={S.pill}>{gLabel(variant.genre_tag)}</span>
+          {durStr && <span style={{ color: '#555', fontSize: 12 }}>{durStr}</span>}
+        </div>
+      </div>
     </div>
   );
 }
 
+// ── SongsPage ────────────────────────────────────────────────────────────────
 export default function SongsPage() {
   const { token, user } = useAuth();
   const location = useLocation();
-
-  const [credits, setCredits] = useState({ balance: 0, monthly_allowance: 0 });
-  const [brief, setBrief] = useState('');
-  const [selectedGenres, setSelectedGenres] = useState(new Set());
-  const [generating, setGenerating] = useState(false);
-  const [activeJob, setActiveJob] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [error, setError] = useState('');
-  const [topupLoading, setTopupLoading] = useState(null); // pack key being purchased
-
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
+  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0 });
+  const [brief, setBrief]               = useState('');
+  const [selGenres, setSelGenres]       = useState(new Set());
+  const [generating, setGenerating]     = useState(false);
+  const [activeJob, setActiveJob]       = useState(null);
+  const [library, setLibrary]           = useState([]);
+  const [error, setError]               = useState('');
+  const [topupLoading, setTopupLoading] = useState(null);
+
+  const activeWsRef  = useRef(null);
   const pollTimerRef = useRef(null);
 
-  const cost = selectedGenres.size;
-  const canAfford = credits.balance >= cost && cost > 0;
-  const canGenerate = brief.trim().length > 0 && cost > 0 && canAfford && !generating;
+  const cost           = selGenres.size;
+  const canAfford      = credits.balance >= cost && cost > 0;
+  const canGenerate    = brief.trim().length > 0 && cost > 0 && canAfford && !generating;
+  const creditExceeded = cost > 0 && cost > credits.balance;
 
-  const fetchCredits = async () => {
+  const fetchCredits = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/users/me/song_credits`, {
+      const r = await fetch(`${BACKEND_URL}/api/users/me/song_credits`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setCredits(await res.json());
+      if (r.ok) setCredits(await r.json());
     } catch (_) {}
-  };
+  }, [token]);
 
-  const fetchHistory = async () => {
+  const fetchLibrary = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/lyrics`, {
+      const r = await fetch(`${BACKEND_URL}/api/lyrics`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setHistory(data.lyrics || []);
-      }
+      if (!r.ok) return;
+      const { lyrics } = await r.json();
+      const groups = await Promise.all(
+        (lyrics || []).map(async (lyric) => {
+          const vr = await fetch(`${BACKEND_URL}/api/lyrics/${lyric.id}/variants`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!vr.ok) return [];
+          const d = await vr.json();
+          return (d.variants || []).map((v) => ({ ...v, title: lyric.title }));
+        })
+      );
+      setLibrary(groups.flat().sort((a, b) => b.variant_id - a.variant_id));
     } catch (_) {}
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchCredits();
-    fetchHistory();
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchLibrary();
+  }, [fetchCredits, fetchLibrary]);
 
-  // Polling — reschedule while any variant is still in progress
+  // Polling
   useEffect(() => {
     if (!activeJob) return;
-
     const allSettled = activeJob.variants.every(
       (v) => v.status === 'complete' || v.status === 'failed'
     );
-
     if (allSettled) {
-      fetchCredits();
-      fetchHistory();
+      Promise.all([fetchCredits(), fetchLibrary()]).then(() => setActiveJob(null));
       return;
     }
-
     pollTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `${BACKEND_URL}/api/lyrics/${activeJob.lyric_id}/variants`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setActiveJob((prev) => prev && ({ ...prev, variants: data.variants }));
+        const r = await fetch(`${BACKEND_URL}/api/lyrics/${activeJob.lyric_id}/variants`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (r.ok) {
+          const d = await r.json();
+          setActiveJob((prev) =>
+            prev
+              ? { ...prev, variants: d.variants.map((v) => ({ ...v, title: prev.title })) }
+              : null
+          );
         }
       } catch (_) {}
     }, 5000);
-
     return () => clearTimeout(pollTimerRef.current);
-  }, [activeJob, token]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleTopup = async (pack) => {
-    setTopupLoading(pack);
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/songs/topup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ pack }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to start checkout');
-      window.location.href = data.url;
-    } catch (err) {
-      setError(err.message);
-      setTopupLoading(null);
-    }
-  };
-
-  const toggleGenre = (genre) => {
-    setSelectedGenres((prev) => {
-      const next = new Set(prev);
-      if (next.has(genre)) next.delete(genre);
-      else next.add(genre);
-      return next;
-    });
-  };
+  }, [activeJob, token, fetchCredits, fetchLibrary]);
 
   const handleGenerate = async () => {
     setError('');
     setGenerating(true);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/songs/generate`, {
+      const r = await fetch(`${BACKEND_URL}/api/songs/generate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          brief: brief.trim(),
-          genres: Array.from(selectedGenres),
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ brief: brief.trim(), genres: Array.from(selGenres) }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Generation failed');
-      setActiveJob({ lyric_id: data.lyric_id, title: data.title, variants: data.variants });
-      setCredits((prev) => ({ ...prev, balance: Math.max(0, prev.balance - cost) }));
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Generation failed');
+      setActiveJob({
+        lyric_id: d.lyric_id,
+        title: d.title,
+        variants: d.variants.map((v) => ({ ...v, title: d.title })),
+      });
+      setCredits((p) => ({ ...p, balance: Math.max(0, p.balance - cost) }));
       setBrief('');
-      setSelectedGenres(new Set());
-    } catch (err) {
-      setError(err.message);
+      setSelGenres(new Set());
+    } catch (e) {
+      setError(e.message);
     } finally {
       setGenerating(false);
     }
   };
 
-  const creditLabel = `${credits.balance} song${credits.balance !== 1 ? 's' : ''} remaining this month`;
-  const creditExceeded = cost > 0 && cost > credits.balance;
+  const handleTopup = async (pack) => {
+    setTopupLoading(pack);
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/songs/topup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pack }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Checkout failed');
+      window.location.href = d.url;
+    } catch (e) {
+      setError(e.message);
+      setTopupLoading(null);
+    }
+  };
+
+  const toggleGenre = (g) =>
+    setSelGenres((prev) => {
+      const next = new Set(prev);
+      next.has(g) ? next.delete(g) : next.add(g);
+      return next;
+    });
+
+  const { balance, monthly_allowance: allowance } = credits;
+  const pct      = allowance > 0 ? Math.min(100, (balance / allowance) * 100) : 0;
+  const barColor = pct > 30 ? '#a78bfa' : pct > 10 ? '#fbbf24' : '#f87171';
+
+  const activeLyricId    = activeJob?.lyric_id;
+  const filteredLibrary  = library.filter((v) => v.lyric_id !== activeLyricId);
 
   return (
-    <div className="tasks-page">
-      {/* Header */}
-      <header className="dashboard-header">
-        <Link to="/dashboard" className="dashboard-logo">
-          <span className="zeus-icon">⚡</span>
-          <span className="zeus-title">Zeus</span>
-        </Link>
-        <nav className="dashboard-header-right">
-          <Link to="/dashboard" className="dashboard-header-link">Chat</Link>
-          <Link to="/songs" className="dashboard-header-link" style={{ fontWeight: 600 }}>Songs</Link>
-          <Link to="/websites" className="dashboard-header-link">Websites</Link>
-          <Link to="/tasks" className="dashboard-header-link">Tasks</Link>
-          <Link to="/billing" className="dashboard-header-link">{user?.email}</Link>
-        </nav>
-      </header>
+    <>
+      <style>{PAGE_CSS}</style>
+      <div style={{ background: '#0b0b14', minHeight: '100vh', color: '#f0eeff' }}>
 
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '32px 24px' }}>
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <header className="dashboard-header">
+          <Link to="/dashboard" className="dashboard-logo">
+            <span className="zeus-icon">⚡</span>
+            <span className="zeus-title">Zeus</span>
+          </Link>
+          <nav className="dashboard-header-right">
+            <Link to="/dashboard" className="dashboard-header-link">Chat</Link>
+            <Link to="/songs" className="dashboard-header-link" style={{ fontWeight: 700, color: '#c4b5fd' }}>Songs</Link>
+            <Link to="/websites" className="dashboard-header-link">Websites</Link>
+            <Link to="/tasks" className="dashboard-header-link">Tasks</Link>
+            <Link to="/billing" className="dashboard-header-link">{user?.email}</Link>
+          </nav>
+        </header>
 
-        {/* Credit banner */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: credits.balance === 0 ? 'rgba(251,191,36,0.08)' : 'rgba(167,139,250,0.08)',
-          border: `1px solid ${credits.balance === 0 ? 'rgba(251,191,36,0.25)' : 'rgba(167,139,250,0.2)'}`,
-          borderRadius: 8,
-          padding: '12px 16px',
-          marginBottom: 28,
-        }}>
-          <span style={{ color: credits.balance === 0 ? '#fbbf24' : '#a78bfa', fontWeight: 600, fontSize: 14 }}>
-            {creditLabel}
-          </span>
-          {credits.balance === 0 && (
-            <Link to="/billing" style={{ color: '#fbbf24', fontSize: 13, textDecoration: 'underline' }}>
-              Upgrade for more →
-            </Link>
-          )}
+        {/* ── Credit strip ───────────────────────────────────────────────── */}
+        <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '10px 32px' }}>
+          <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${pct}%`,
+                background: barColor,
+                borderRadius: 3,
+                transition: 'width 0.5s, background 0.5s',
+              }} />
+            </div>
+            <span style={{ fontSize: 13, color: '#666', whiteSpace: 'nowrap' }}>
+              {balance} / {allowance} songs
+            </span>
+            {balance <= 2 && (
+              <Link to="/billing" style={{ fontSize: 13, color: barColor, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                Top up →
+              </Link>
+            )}
+          </div>
         </div>
 
-        {/* Top-up success banner */}
-        {topupSuccess && (
+        {/* ── Main content ───────────────────────────────────────────────── */}
+        <div style={{ maxWidth: 880, margin: '0 auto', padding: '32px 24px 80px' }}>
+
+          {/* Top-up success */}
+          {topupSuccess && (
+            <div style={{
+              background: 'rgba(52,211,153,0.08)',
+              border: '1px solid rgba(52,211,153,0.25)',
+              borderRadius: 10,
+              padding: '12px 18px',
+              marginBottom: 24,
+              color: '#34d399',
+              fontWeight: 600,
+              fontSize: 14,
+            }}>
+              Payment successful — your song credits have been added.
+            </div>
+          )}
+
+          {/* ── Creation panel ─────────────────────────────────────────── */}
           <div style={{
-            background: 'rgba(52,211,153,0.1)',
-            border: '1px solid rgba(52,211,153,0.3)',
-            borderRadius: 8,
-            padding: '12px 16px',
-            marginBottom: 20,
-            color: '#34d399',
-            fontWeight: 600,
-            fontSize: 14,
+            background: 'rgba(255,255,255,0.025)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 16,
+            padding: '28px 28px 24px',
+            marginBottom: 12,
           }}>
-            Payment successful — your song credits have been added!
-          </div>
-        )}
+            <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f0eeff', marginBottom: 4 }}>
+              Create a Song
+            </h1>
+            <p style={{ color: '#555', fontSize: 14, marginBottom: 22 }}>
+              Describe your song — Zeus writes the lyrics, Suno turns them into music.
+            </p>
 
-        {/* Generator form */}
-        <section style={{ marginBottom: 36 }}>
-          <h1 style={{ color: '#e2d9f3', fontSize: '1.4rem', fontWeight: 700, marginBottom: 4 }}>
-            Song Generator
-          </h1>
-          <p style={{ color: '#888', fontSize: 14, marginBottom: 20 }}>
-            Describe your song and pick genres — Zeus writes the lyrics and Suno turns them into MP3s.
-          </p>
-
-          <label className="form-label" style={{ display: 'block', marginBottom: 16 }}>
-            Song brief
             <textarea
-              className="form-input"
-              rows={3}
-              placeholder="e.g. An upbeat jingle for a Manchester coffee shop with Friday-morning energy…"
+              className="songs-textarea"
               value={brief}
               onChange={(e) => setBrief(e.target.value)}
-              style={{ marginTop: 6, resize: 'vertical', fontFamily: 'inherit' }}
+              placeholder="e.g. An upbeat jingle for a Manchester coffee shop with Friday-morning energy…"
+              rows={3}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 10,
+                padding: '12px 14px',
+                color: '#f0eeff',
+                fontSize: 15,
+                resize: 'vertical',
+                fontFamily: 'inherit',
+                outline: 'none',
+                marginBottom: 20,
+                transition: 'border-color 0.2s',
+              }}
             />
-          </label>
 
-          <div style={{ marginBottom: 8 }}>
-            <span className="form-label">Genres</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-              {GENRES.map((genre) => {
-                const selected = selectedGenres.has(genre);
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>
+              Style
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
+              {GENRES.map((g) => {
+                const sel = selGenres.has(g);
                 return (
                   <button
-                    key={genre}
-                    type="button"
-                    onClick={() => toggleGenre(genre)}
+                    key={g}
+                    onClick={() => toggleGenre(g)}
                     style={{
-                      padding: '6px 14px',
+                      padding: '7px 16px',
                       borderRadius: 20,
-                      border: `1px solid ${selected ? '#a78bfa' : 'rgba(167,139,250,0.25)'}`,
-                      background: selected ? 'rgba(167,139,250,0.2)' : 'transparent',
-                      color: selected ? '#c4b5fd' : '#888',
+                      border: `1px solid ${sel ? '#a78bfa' : 'rgba(255,255,255,0.1)'}`,
+                      background: sel ? 'rgba(167,139,250,0.18)' : 'rgba(255,255,255,0.03)',
+                      color: sel ? '#c4b5fd' : '#666',
                       fontSize: 13,
-                      fontWeight: selected ? 600 : 400,
+                      fontWeight: sel ? 600 : 400,
                       cursor: 'pointer',
                       transition: 'all 0.15s',
                     }}
                   >
-                    {GENRE_DISPLAY(genre)}
+                    {gLabel(g)}
                   </button>
                 );
               })}
             </div>
-          </div>
 
-          {/* Cost preview */}
-          {cost > 0 && (
-            <p style={{
-              fontSize: 13,
-              margin: '10px 0 16px',
-              color: creditExceeded ? '#f87171' : '#888',
-              fontWeight: creditExceeded ? 600 : 400,
-            }}>
-              Will use {cost} of your {credits.balance} remaining credit{credits.balance !== 1 ? 's' : ''}.
-              {creditExceeded && ' Not enough credits — '}
-              {creditExceeded && <Link to="/billing" style={{ color: '#f87171' }}>upgrade to continue</Link>}
-            </p>
-          )}
-          {cost === 0 && <div style={{ height: 16 }} />}
+            {/* Cost preview */}
+            {cost > 0 ? (
+              <p style={{
+                fontSize: 13,
+                color: creditExceeded ? '#f87171' : '#666',
+                marginBottom: 16,
+                fontWeight: creditExceeded ? 600 : 400,
+              }}>
+                Will use {cost} of your {balance} remaining credit{balance !== 1 ? 's' : ''}.
+                {creditExceeded && (
+                  <> <Link to="/billing" style={{ color: '#f87171' }}>Top up to continue →</Link></>
+                )}
+              </p>
+            ) : (
+              <div style={{ height: 16 }} />
+            )}
 
-          {/* Generate / Upgrade button */}
-          {credits.balance === 0 && cost === 0 ? (
-            <Link to="/billing" className="btn btn-primary">
-              Upgrade to get more songs
-            </Link>
-          ) : (
             <button
-              className="btn btn-primary"
               onClick={handleGenerate}
               disabled={!canGenerate}
-              style={{ opacity: canGenerate ? 1 : 0.45 }}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: 10,
+                border: 'none',
+                background: canGenerate
+                  ? 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)'
+                  : 'rgba(255,255,255,0.05)',
+                color: canGenerate ? '#fff' : '#444',
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: canGenerate ? 'pointer' : 'default',
+                transition: 'all 0.2s',
+                letterSpacing: '0.2px',
+              }}
             >
-              {generating ? 'Generating lyrics…' : `Generate${cost > 0 ? ` (${cost} credit${cost !== 1 ? 's' : ''})` : ''}`}
+              {generating
+                ? 'Generating lyrics…'
+                : cost > 0
+                  ? `Generate — ${cost} credit${cost !== 1 ? 's' : ''}`
+                  : 'Select a style to generate'}
             </button>
-          )}
 
-          {error && <p className="form-error" style={{ marginTop: 12 }}>{error}</p>}
-        </section>
+            {error && (
+              <p style={{ color: '#f87171', fontSize: 13, marginTop: 12 }}>{error}</p>
+            )}
+          </div>
 
-        {/* Top-up packs */}
-        <section style={{ marginBottom: 36 }}>
-          <h2 style={{ color: '#e2d9f3', fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>
-            Top up credits
-          </h2>
-          <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>
-            One-time purchase — credits never expire.
-          </p>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {/* ── Top-up row ─────────────────────────────────────────────── */}
+          <div style={{
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+            marginBottom: 44,
+            padding: '8px 0',
+          }}>
             {SONG_PACKS.map(({ pack, label, price }) => (
               <button
                 key={pack}
-                className="btn btn-outline"
                 onClick={() => handleTopup(pack)}
                 disabled={topupLoading !== null}
-                style={{ minWidth: 160 }}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'transparent',
+                  color: '#666',
+                  fontSize: 12,
+                  cursor: topupLoading ? 'default' : 'pointer',
+                }}
               >
-                {topupLoading === pack
-                  ? 'Redirecting…'
-                  : `${label} — ${price}`}
+                {topupLoading === pack ? 'Redirecting…' : `${label} — ${price}`}
               </button>
             ))}
           </div>
-        </section>
 
-        {/* Active job results */}
-        {activeJob && <ActiveJob job={activeJob} />}
+          {/* ── Currently generating ───────────────────────────────────── */}
+          {activeJob && (
+            <section style={{ marginBottom: 48 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+                <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', margin: 0 }}>
+                  {activeJob.title}
+                </h2>
+                <span style={{
+                  background: 'rgba(167,139,250,0.1)',
+                  color: '#a78bfa',
+                  borderRadius: 20,
+                  padding: '3px 12px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}>
+                  Generating — usually ready in 60 seconds
+                </span>
+              </div>
+              <div style={S.grid}>
+                {activeJob.variants.map((v) =>
+                  v.status === 'complete' || v.status === 'failed' ? (
+                    <SongCard
+                      key={v.variant_id}
+                      variant={v}
+                      title={activeJob.title}
+                      activeWsRef={activeWsRef}
+                    />
+                  ) : (
+                    <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
+                  )
+                )}
+              </div>
+            </section>
+          )}
 
-        {/* Song history */}
-        {history.length > 0 && (
-          <section>
-            <h2 style={{ color: '#e2d9f3', fontSize: '1rem', fontWeight: 700, marginBottom: 12 }}>
-              Previous songs
-            </h2>
-            {history.map((lyric) => (
-              <HistoryItem key={lyric.id} lyric={lyric} token={token} />
-            ))}
-          </section>
-        )}
+          {/* ── Library ────────────────────────────────────────────────── */}
+          {filteredLibrary.length > 0 && (
+            <section>
+              <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', marginBottom: 20 }}>
+                Your Songs
+              </h2>
+              <div style={S.grid}>
+                {filteredLibrary.map((v) => (
+                  <SongCard
+                    key={v.variant_id}
+                    variant={v}
+                    title={v.title}
+                    activeWsRef={activeWsRef}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
+          {/* ── Empty state ────────────────────────────────────────────── */}
+          {!activeJob && filteredLibrary.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '80px 0' }}>
+              <div style={{ fontSize: 56, marginBottom: 16, opacity: 0.15 }}>♫</div>
+              <p style={{ fontSize: 15, color: '#555' }}>
+                No songs yet — create your first one above.
+              </p>
+            </div>
+          )}
+
+        </div>
       </div>
-    </div>
+    </>
   );
 }
