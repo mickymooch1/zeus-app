@@ -228,6 +228,7 @@ export default function SongsPage() {
   // Advanced options
   const [showAdvanced, setShowAdvanced]   = useState(false);
   const [vocalGender, setVocalGender]     = useState('');    // '' | 'm' | 'f'
+  const [accent, setAccent]               = useState('');    // '' = Default
   const [creativity, setCreativity]       = useState(50);    // 0–100
   const [styleWeight, setStyleWeight]     = useState(70);    // 0–100
   const [tempo, setTempo]                 = useState('');    // '' | 'slow' | 'medium' | 'fast' | 'custom'
@@ -317,6 +318,7 @@ export default function SongsPage() {
           genres: Array.from(selGenres),
           ...(showAdvanced ? {
             vocal_gender: vocalGender || undefined,
+            accent: accent || undefined,
             creativity: creativity / 100,
             style_weight: styleWeight / 100,
             tempo: tempo || undefined,
@@ -555,6 +557,30 @@ export default function SongsPage() {
                       >{label}</button>
                     ))}
                   </div>
+                </div>
+
+                {/* Accent */}
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Accent</p>
+                  <select
+                    value={accent}
+                    onChange={(e) => setAccent(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 6,
+                      padding: '6px 10px',
+                      color: accent ? '#c4b5fd' : '#555',
+                      fontSize: 13,
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="">Default</option>
+                    {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish'].map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Model version */}

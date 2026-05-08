@@ -800,6 +800,7 @@ class SongsGenerateRequest(BaseModel):
     tempo: str | None = None             # "slow" | "medium" | "fast" | "custom"
     tempo_bpm: int | None = None         # used when tempo == "custom"
     model_version: str | None = None     # "V4.5" | "V4.5 Plus" | "V5" | "V5.5"
+    accent: str | None = None            # e.g. "British" → appended to style string
 
 
 @app.post("/api/songs/generate")
@@ -838,15 +839,18 @@ async def songs_generate(
     if body.model_version in ("V4.5", "V4.5 Plus", "V5", "V5.5"):
         extra_suno_params["model_version"] = body.model_version
 
-    tempo_suffix: str | None = None
+    style_suffix_parts: list[str] = []
     if body.tempo == "slow":
-        tempo_suffix = "slow tempo"
+        style_suffix_parts.append("slow tempo")
     elif body.tempo == "medium":
-        tempo_suffix = "medium tempo"
+        style_suffix_parts.append("medium tempo")
     elif body.tempo == "fast":
-        tempo_suffix = "fast tempo"
+        style_suffix_parts.append("fast tempo")
     elif body.tempo == "custom" and body.tempo_bpm:
-        tempo_suffix = f"{max(40, min(300, body.tempo_bpm))} BPM"
+        style_suffix_parts.append(f"{max(40, min(300, body.tempo_bpm))} BPM")
+    if body.accent:
+        style_suffix_parts.append(f"{body.accent} accent vocals")
+    tempo_suffix = ", ".join(style_suffix_parts) or None
 
     try:
         variant_result = _songs_mod.generate_multiple_variants(
