@@ -1013,8 +1013,8 @@ def _decode_yt_state(state: str) -> str | None:
 @app.get("/api/youtube/debug")
 async def youtube_debug():
     """Temporary — verify YouTube env vars are present in production."""
-    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
-    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
     return {
         "GOOGLE_CLIENT_ID_first15": client_id[:15] if client_id else "NOT_SET",
         "GOOGLE_CLIENT_SECRET_set": bool(client_secret),
@@ -1024,7 +1024,7 @@ async def youtube_debug():
 @app.get("/api/youtube/auth")
 async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
     """Redirect the browser to Google's OAuth consent screen."""
-    _gid = os.environ.get("GOOGLE_CLIENT_ID", "NOT_SET")
+    _gid = os.environ.get("GOOGLE_CLIENT_ID", "NOT_SET").strip()
     log.info("youtube_auth: GOOGLE_CLIENT_ID first10=%r", _gid[:10])
     if not youtube_uploader.youtube_enabled():
         raise HTTPException(status_code=503, detail="YouTube integration not configured (GOOGLE_CLIENT_ID/SECRET missing)")

@@ -13,8 +13,8 @@ import httpx
 
 log = logging.getLogger("zeus.youtube")
 
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
 YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 _CLIENT_CONFIG = {
