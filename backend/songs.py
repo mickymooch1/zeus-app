@@ -1,3 +1,4 @@
+import logging
 import os
 import pathlib
 import secrets
@@ -8,6 +9,8 @@ APIFRAME_BASE = "https://api.apiframe.pro"
 WEBHOOK_URL = os.environ.get("SONG_WEBHOOK_URL", "")
 
 import db
+
+log = logging.getLogger("zeus.songs")
 
 
 class InsufficientCreditsError(Exception):
@@ -81,6 +84,12 @@ def generate_song_variant(
             (webhook_secret, variant_id),
         )
         conn.commit()
+
+        # --- DEBUG: key diagnostics (remove after confirming auth works) ---
+        _key = APIFRAME_API_KEY
+        log.info("APIFRAME_KEY_DEBUG first6=%r last4=%r len=%d repr=%r auth_header=%r",
+                 _key[:6], _key[-4:], len(_key), _key, _key)
+        # --- END DEBUG ---
 
         response = requests.post(
             f"{APIFRAME_BASE}/suno-imagine",
