@@ -1034,8 +1034,7 @@ async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
     if not is_admin and plan not in _YOUTUBE_PLANS:
         raise HTTPException(status_code=403, detail="YouTube upload requires Agency plan or above")
 
-    backend_url = os.environ.get("BACKEND_URL", "http://localhost:8080")
-    redirect_uri = f"{backend_url}/api/youtube/callback"
+    redirect_uri = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
     state = _make_yt_state(current_user["id"])
 
     try:
@@ -1075,8 +1074,7 @@ async def youtube_callback(code: str = Query(None), state: str = Query(None), er
         from fastapi.responses import RedirectResponse
         return RedirectResponse(f"{frontend_url}/songs?youtube=error")
 
-    backend_url = os.environ.get("BACKEND_URL", "http://localhost:8080")
-    redirect_uri = f"{backend_url}/api/youtube/callback"
+    redirect_uri = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
 
     try:
         refresh_token = youtube_uploader.exchange_code(code=code, redirect_uri=redirect_uri)
