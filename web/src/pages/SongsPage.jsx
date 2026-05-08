@@ -225,6 +225,15 @@ export default function SongsPage() {
   const [error, setError]               = useState('');
   const [topupLoading, setTopupLoading] = useState(null);
 
+  // Advanced options
+  const [showAdvanced, setShowAdvanced]   = useState(false);
+  const [vocalGender, setVocalGender]     = useState('');    // '' | 'm' | 'f'
+  const [creativity, setCreativity]       = useState(50);    // 0–100
+  const [styleWeight, setStyleWeight]     = useState(70);    // 0–100
+  const [tempo, setTempo]                 = useState('');    // '' | 'slow' | 'medium' | 'fast' | 'custom'
+  const [tempoBpm, setTempoBpm]           = useState(120);
+  const [modelVersion, setModelVersion]   = useState('V5');
+
   const activeWsRef  = useRef(null);
   const pollTimerRef = useRef(null);
 
@@ -303,7 +312,18 @@ export default function SongsPage() {
       const r = await fetch(`${BACKEND_URL}/api/songs/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ brief: brief.trim(), genres: Array.from(selGenres) }),
+        body: JSON.stringify({
+          brief: brief.trim(),
+          genres: Array.from(selGenres),
+          ...(showAdvanced ? {
+            vocal_gender: vocalGender || undefined,
+            creativity: creativity / 100,
+            style_weight: styleWeight / 100,
+            tempo: tempo || undefined,
+            tempo_bpm: tempo === 'custom' ? tempoBpm : undefined,
+            model_version: modelVersion,
+          } : {}),
+        }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || 'Generation failed');
@@ -480,6 +500,152 @@ export default function SongsPage() {
                 );
               })}
             </div>
+
+            {/* ── Advanced options toggle ─────────────────────────────── */}
+            <div style={{ marginBottom: showAdvanced ? 12 : 18 }}>
+              <button
+                onClick={() => setShowAdvanced((v) => !v)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#555',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: 0,
+                  letterSpacing: '0.2px',
+                }}
+              >
+                Advanced options {showAdvanced ? '▴' : '▾'}
+              </button>
+            </div>
+
+            {/* ── Advanced panel ─────────────────────────────────────── */}
+            {showAdvanced && (
+              <div style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 10,
+                padding: '18px 20px',
+                marginBottom: 18,
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '20px 28px',
+              }}>
+                {/* Vocal gender */}
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Vocal Gender</p>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[['', 'Either'], ['m', 'Male'], ['f', 'Female']].map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => setVocalGender(val)}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: 6,
+                          border: `1px solid ${vocalGender === val ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`,
+                          background: vocalGender === val ? 'rgba(167,139,250,0.15)' : 'transparent',
+                          color: vocalGender === val ? '#c4b5fd' : '#555',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Model version */}
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Model</p>
+                  <select
+                    value={modelVersion}
+                    onChange={(e) => setModelVersion(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 6,
+                      padding: '6px 10px',
+                      color: '#c4b5fd',
+                      fontSize: 13,
+                      outline: 'none',
+                    }}
+                  >
+                    {['V4.5', 'V4.5 Plus', 'V5', 'V5.5'].map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Creativity slider */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', margin: 0 }}>Creativity</p>
+                    <span style={{ fontSize: 11, color: '#a78bfa' }}>{creativity}%</span>
+                  </div>
+                  <input
+                    type="range" min={0} max={100} value={creativity}
+                    onChange={(e) => setCreativity(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }}
+                  />
+                </div>
+
+                {/* Style strength slider */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', margin: 0 }}>Style Strength</p>
+                    <span style={{ fontSize: 11, color: '#a78bfa' }}>{styleWeight}%</span>
+                  </div>
+                  <input
+                    type="range" min={0} max={100} value={styleWeight}
+                    onChange={(e) => setStyleWeight(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }}
+                  />
+                </div>
+
+                {/* Tempo */}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Tempo</p>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {[['', 'Default'], ['slow', 'Slow'], ['medium', 'Medium'], ['fast', 'Fast'], ['custom', 'Custom BPM']].map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => setTempo(val)}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: 6,
+                          border: `1px solid ${tempo === val ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`,
+                          background: tempo === val ? 'rgba(167,139,250,0.15)' : 'transparent',
+                          color: tempo === val ? '#c4b5fd' : '#555',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >{label}</button>
+                    ))}
+                    {tempo === 'custom' && (
+                      <input
+                        type="number" min={40} max={300} value={tempoBpm}
+                        onChange={(e) => setTempoBpm(Number(e.target.value))}
+                        style={{
+                          width: 72,
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: 6,
+                          padding: '5px 8px',
+                          color: '#c4b5fd',
+                          fontSize: 12,
+                          outline: 'none',
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Cost preview */}
             {cost > 0 ? (

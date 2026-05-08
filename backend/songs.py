@@ -39,6 +39,7 @@ def generate_song_variant(
     style_prompt: str,
     genre_tag: str,
     db_path: str,
+    extra_suno_params: dict | None = None,
 ) -> dict:
     """
     Submit a song generation job to Apiframe v2.
@@ -90,15 +91,16 @@ def generate_song_variant(
                 "Content-Type": "application/json",
             },
             json={
-                "prompt": lyrics,                        # the lyrics go in `prompt` when custom_mode=true
-                "model": "suno",                         # always "suno" at the top level for Suno
+                "prompt": lyrics,
+                "model": "suno",
                 "webhookUrl": f"{WEBHOOK_URL}?variant_id={variant_id}",
                 "webhookEvents": ["completed", "failed"],
                 "sunoParams": {
-                    "custom_mode": True,                 # because we're providing real lyrics
+                    "custom_mode": True,
                     "instrumental": False,
                     "model_version": "V5",
-                    "style": style_prompt[:1000],        # v2 caps style at 1,000 chars
+                    "style": style_prompt[:1000],
+                    **(extra_suno_params or {}),
                 },
             },
             timeout=30,
@@ -145,6 +147,8 @@ def generate_multiple_variants(
     lyric_id: int,
     genres: list[str],
     db_path: str,
+    extra_suno_params: dict | None = None,
+    tempo_suffix: str | None = None,
 ) -> dict:
     """Generate the same lyrics in multiple genres. Costs len(genres) credits."""
     from song_genres import GENRE_PRESETS
@@ -171,12 +175,16 @@ def generate_multiple_variants(
 
     variants = []
     for genre in valid_genres:
+        style = GENRE_PRESETS[genre]
+        if tempo_suffix:
+            style = f"{style}, {tempo_suffix}"
         result = generate_song_variant(
             user_id=user_id,
             lyric_id=lyric_id,
-            style_prompt=GENRE_PRESETS[genre],
+            style_prompt=style,
             genre_tag=genre,
             db_path=db_path,
+            extra_suno_params=extra_suno_params,
         )
         variants.append({"genre": genre, **result})
 

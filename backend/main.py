@@ -793,6 +793,13 @@ async def admin_test_song_pipeline(current_user: dict = Depends(auth.get_current
 class SongsGenerateRequest(BaseModel):
     brief: str = Field(min_length=1, max_length=2000)
     genres: list[str] = Field(min_length=1, max_length=7)
+    # Advanced generation controls (all optional)
+    vocal_gender: str | None = None      # "m" or "f" → sunoParams.vocal_gender
+    creativity: float | None = None      # 0.0–1.0 → sunoParams.weirdness_constraint
+    style_weight: float | None = None    # 0.0–1.0 → sunoParams.style_weight
+    tempo: str | None = None             # "slow" | "medium" | "fast" | "custom"
+    tempo_bpm: int | None = None         # used when tempo == "custom"
+    model_version: str | None = None     # "V4.5" | "V4.5 Plus" | "V5" | "V5.5"
 
 
 @app.post("/api/songs/generate")
@@ -820,12 +827,35 @@ async def songs_generate(
 
     lyric_id = lyric_result["lyric_id"]
 
+    # Build extra sunoParams from advanced controls
+    extra_suno_params: dict = {}
+    if body.vocal_gender in ("m", "f"):
+        extra_suno_params["vocal_gender"] = body.vocal_gender
+    if body.creativity is not None:
+        extra_suno_params["weirdness_constraint"] = max(0.0, min(1.0, body.creativity))
+    if body.style_weight is not None:
+        extra_suno_params["style_weight"] = max(0.0, min(1.0, body.style_weight))
+    if body.model_version in ("V4.5", "V4.5 Plus", "V5", "V5.5"):
+        extra_suno_params["model_version"] = body.model_version
+
+    tempo_suffix: str | None = None
+    if body.tempo == "slow":
+        tempo_suffix = "slow tempo"
+    elif body.tempo == "medium":
+        tempo_suffix = "medium tempo"
+    elif body.tempo == "fast":
+        tempo_suffix = "fast tempo"
+    elif body.tempo == "custom" and body.tempo_bpm:
+        tempo_suffix = f"{max(40, min(300, body.tempo_bpm))} BPM"
+
     try:
         variant_result = _songs_mod.generate_multiple_variants(
             user_id=user_id,
             lyric_id=lyric_id,
             genres=body.genres,
             db_path=str(db_path),
+            extra_suno_params=extra_suno_params or None,
+            tempo_suffix=tempo_suffix,
         )
     except InsufficientCreditsError as exc:
         raise HTTPException(status_code=402, detail=str(exc))
