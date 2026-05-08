@@ -1035,6 +1035,7 @@ async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
         raise HTTPException(status_code=403, detail="YouTube upload requires Agency plan or above")
 
     redirect_uri = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
+    log.info("youtube_auth: redirect_uri first30=%r", redirect_uri[:30])
     state = _make_yt_state(current_user["id"])
 
     try:
