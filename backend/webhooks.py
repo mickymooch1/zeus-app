@@ -1,146 +1,121 @@
-import logging
+"""Apiframe v2 webhook handler.
+
+Verifies HMAC-SHA256 signature using a signing secret derived from the API key
+(SHA256(api_key)), per https://apiframe.ai/docs/webhooks.
+"""
 import os
-
+import hmac
+import hashlib
+import sqlite3
+import logging
 import requests
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Request, HTTPException
 
-import db
+logger = logging.getLogger("zeus.webhooks")
 
 router = APIRouter()
-log = logging.getLogger("zeus.webhooks")
 
-STORAGE_PATH = os.environ.get("SONG_STORAGE_PATH", "/data/songs")
-PUBLIC_BASE_URL = os.environ.get("SONG_PUBLIC_BASE_URL", "https://zeusaidesign.com/files/songs")
+APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]
+SIGNING_SECRET = hashlib.sha256(APIFRAME_API_KEY.encode()).hexdigest()
+STORAGE_PATH = os.environ["SONG_STORAGE_PATH"]
+PUBLIC_BASE_URL = os.environ["SONG_PUBLIC_BASE_URL"]
+DB_PATH = os.environ.get("DB_PATH", "/data/zeus.db")
+
+
+def _verify_signature(raw_body: bytes, signature_header: str) -> bool:
+    if not signature_header:
+        return False
+    expected = "sha256=" + hmac.new(
+        SIGNING_SECRET.encode(), raw_body, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(signature_header, expected)
 
 
 @router.post("/webhooks/apiframe")
-async def apiframe_webhook(
-    request: Request,
-    x_webhook_secret: str | None = Header(None),
-):
-    variant_id_str = request.query_params.get("variant_id")
-    if not variant_id_str:
-        raise HTTPException(400, "Missing variant_id")
-    try:
-        variant_id = int(variant_id_str)
-    except ValueError:
-        raise HTTPException(400, "Invalid variant_id")
+async def apiframe_webhook(request: Request):
+    raw_body = await request.body()
+    signature = request.headers.get("X-Webhook-Signature", "")
 
-    db_path = db.get_db_path()
-
-    # Auth: look up stored secret before touching the body
-    variant = db.get_song_variant_by_id(db_path, variant_id)
-    if not variant:
-        raise HTTPException(404, "Variant not found")
-
-    stored_secret = variant.get("webhook_secret")
-    if not stored_secret or x_webhook_secret != stored_secret:
-        log.warning("apiframe_webhook: secret mismatch for variant %s", variant_id)
-        raise HTTPException(401, "Invalid webhook secret")
+    if not _verify_signature(raw_body, signature):
+        logger.warning("Apiframe webhook signature verification failed")
+        raise HTTPException(401, "Invalid signature")
 
     body = await request.json()
-    status = body.get("status")
-    log.info("apiframe_webhook: variant=%s status=%s", variant_id, status)
+    variant_id = request.query_params.get("variant_id")
+    if not variant_id:
+        raise HTTPException(400, "Missing variant_id")
+    try:
+        variant_id = int(variant_id)
+    except ValueError:
+        raise HTTPException(400, "variant_id must be an integer")
 
-    # Not finished — mark failed. No credit refund: Apiframe already charged once
-    # they accepted the job and returned a task_id.
-    if status != "finished":
-        conn = db._conn(db_path)
+    event = body.get("event")
+    job_status = body.get("status")
+    logger.info("Apiframe webhook variant_id=%d event=%s status=%s", variant_id, event, job_status)
+
+    # Failed: mark variant failed, do NOT refund (Apiframe credits are non-refundable
+    # once the job is accepted — the credit was already deducted from the user's balance,
+    # so we leave that as-is and just record the failure)
+    if event == "failed" or job_status == "FAILED":
+        conn = sqlite3.connect(DB_PATH)
         try:
-            conn.execute(
+            cur = conn.cursor()
+            cur.execute(
                 "UPDATE song_variants SET status = 'failed' WHERE id = ?",
                 (variant_id,),
             )
             conn.commit()
         finally:
             conn.close()
-        log.warning("apiframe_webhook: variant %s failed (status=%s), no refund", variant_id, status)
         return {"ok": True, "status": "failed"}
 
-    songs = body.get("songs", [])
-    if not songs:
-        raise HTTPException(400, "Webhook payload missing songs array")
+    # Progress: ignore for now (we only subscribed to completed + failed)
+    if event == "progress" or job_status == "PROCESSING":
+        return {"ok": True, "status": "progress_ignored"}
+
+    if event != "completed" and job_status != "COMPLETED":
+        logger.warning("Unexpected webhook event=%r status=%r body=%r", event, job_status, body)
+        return {"ok": True, "status": "unexpected"}
+
+    # Completed — download the result MP3 and record the permanent URL
+    result_url = body.get("result")
+    if not result_url:
+        logger.error("Completed webhook missing result URL: %r", body)
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE song_variants SET status = 'failed' WHERE id = ?",
+                (variant_id,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "status": "no_result_url"}
 
     os.makedirs(STORAGE_PATH, exist_ok=True)
+    local_path = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
+    download = requests.get(result_url, timeout=120)
+    download.raise_for_status()
+    with open(local_path, "wb") as fh:
+        fh.write(download.content)
 
-    # ── Take 1: update the existing variant row ───────────────────────────────
-    song1 = songs[0]
-    temp_url1 = song1["audio_url"]
-    local_path1 = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
+    permanent_url = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
 
-    log.info("apiframe_webhook: downloading take 1 from %s", temp_url1)
-    dl1 = requests.get(temp_url1, timeout=120)
-    dl1.raise_for_status()
-    with open(local_path1, "wb") as fh:
-        fh.write(dl1.content)
-    permanent_url1 = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
-    log.info("apiframe_webhook: take 1 saved to %s", local_path1)
-
-    conn = db._conn(db_path)
+    conn = sqlite3.connect(DB_PATH)
     try:
-        conn.execute(
+        cur = conn.cursor()
+        cur.execute(
             """UPDATE song_variants
                SET status = 'complete',
                    mp3_url = ?,
-                   take_number = 1,
                    completed_at = CURRENT_TIMESTAMP
                WHERE id = ?""",
-            (permanent_url1, variant_id),
+            (permanent_url, variant_id),
         )
         conn.commit()
     finally:
         conn.close()
 
-    # ── Take 2: insert a new variant row, then download ───────────────────────
-    take2_variant_id = None
-    permanent_url2 = None
-
-    if len(songs) >= 2:
-        song2 = songs[1]
-        temp_url2 = song2["audio_url"]
-
-        conn = db._conn(db_path)
-        try:
-            cur = conn.cursor()
-            cur.execute(
-                """INSERT INTO song_variants
-                   (lyric_id, user_id, style_prompt, genre_tag,
-                    provider_job_id, take_number, status, completed_at)
-                   VALUES (?, ?, ?, ?, ?, 2, 'complete', CURRENT_TIMESTAMP)""",
-                (
-                    variant["lyric_id"],
-                    variant["user_id"],
-                    variant["style_prompt"],
-                    variant["genre_tag"],
-                    variant["provider_job_id"],
-                ),
-            )
-            take2_variant_id = cur.lastrowid
-            conn.commit()
-        finally:
-            conn.close()
-
-        log.info("apiframe_webhook: downloading take 2 from %s", temp_url2)
-        local_path2 = os.path.join(STORAGE_PATH, f"{take2_variant_id}.mp3")
-        dl2 = requests.get(temp_url2, timeout=120)
-        dl2.raise_for_status()
-        with open(local_path2, "wb") as fh:
-            fh.write(dl2.content)
-        permanent_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.mp3"
-        log.info("apiframe_webhook: take 2 saved to %s", local_path2)
-
-        conn = db._conn(db_path)
-        try:
-            conn.execute(
-                "UPDATE song_variants SET mp3_url = ? WHERE id = ?",
-                (permanent_url2, take2_variant_id),
-            )
-            conn.commit()
-        finally:
-            conn.close()
-
-    result: dict = {"ok": True, "status": "complete", "take1_url": permanent_url1}
-    if take2_variant_id:
-        result["take2_variant_id"] = take2_variant_id
-        result["take2_url"] = permanent_url2
-    return result
+    logger.info("Apiframe webhook complete: variant_id=%d url=%s", variant_id, permanent_url)
+    return {"ok": True, "status": "complete", "url": permanent_url}
