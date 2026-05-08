@@ -30,6 +30,7 @@ import db
 import auth
 import billing
 import scheduler as _scheduler_mod
+import webhooks as _webhooks_mod
 
 import io
 import re as _re
@@ -279,6 +280,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(_webhooks_mod.router)
 
 
 @app.exception_handler(Exception)
@@ -1243,6 +1245,13 @@ async def ad_poster():
 </html>"""
     return HTMLResponse(content=html)
 
+
+# Serve downloaded song MP3s from the Railway volume.
+# MUST be mounted before the SPA catch-all below — order matters in FastAPI routing.
+from fastapi.staticfiles import StaticFiles as _StaticFiles
+_song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
+_song_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/songs", _StaticFiles(directory=str(_song_storage)), name="songs")
 
 # Serve built React app from web/dist/
 # Mount /assets for Vite bundles, then a catch-all that returns index.html for

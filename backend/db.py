@@ -119,11 +119,52 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
             CREATE INDEX IF NOT EXISTS idx_websites_user ON websites (user_id);
+
+            CREATE TABLE IF NOT EXISTS lyrics (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    TEXT NOT NULL,
+                brief      TEXT NOT NULL,
+                lyrics_text TEXT NOT NULL,
+                title      TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS song_variants (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                lyric_id         INTEGER NOT NULL,
+                user_id          TEXT NOT NULL,
+                style_prompt     TEXT NOT NULL,
+                genre_tag        TEXT,
+                provider_job_id  TEXT,
+                status           TEXT DEFAULT 'pending',
+                mp3_url          TEXT,
+                duration_seconds INTEGER,
+                take_number      INTEGER DEFAULT 1,
+                webhook_secret   TEXT,
+                created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at     TIMESTAMP,
+                FOREIGN KEY (lyric_id) REFERENCES lyrics(id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS song_credits (
+                user_id           TEXT PRIMARY KEY,
+                balance           INTEGER NOT NULL DEFAULT 0,
+                monthly_allowance INTEGER NOT NULL DEFAULT 0,
+                last_reset        TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_song_variants_status ON song_variants(status);
+            CREATE INDEX IF NOT EXISTS idx_song_variants_lyric  ON song_variants(lyric_id);
         """)
         # Migrate existing tables — ignore error if column already exists
         for _migration in [
             "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE monthly_usage ADD COLUMN builds INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE song_variants ADD COLUMN take_number INTEGER DEFAULT 1",
+            "ALTER TABLE song_variants ADD COLUMN webhook_secret TEXT",
         ]:
             try:
                 conn.execute(_migration)
@@ -650,5 +691,95 @@ def count_websites_for_user(db_path: pathlib.Path, user_id: str) -> int:
             "SELECT COUNT(*) as n FROM websites WHERE user_id = ?", (user_id,)
         ).fetchone()
         return row["n"] if row else 0
+    finally:
+        conn.close()
+
+
+# ── Song credits CRUD ─────────────────────────────────────────────────────────
+
+def get_song_credits(db_path: pathlib.Path, user_id: str) -> dict | None:
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM song_credits WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def upsert_song_credits(
+    db_path: pathlib.Path,
+    user_id: str,
+    balance: int,
+    monthly_allowance: int,
+) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """INSERT INTO song_credits (user_id, balance, monthly_allowance, last_reset)
+               VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+               ON CONFLICT(user_id) DO UPDATE SET
+                   balance = ?,
+                   monthly_allowance = ?,
+                   last_reset = CURRENT_TIMESTAMP""",
+            (user_id, balance, monthly_allowance, balance, monthly_allowance),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def increment_song_credits(db_path: pathlib.Path, user_id: str, amount: int) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """INSERT INTO song_credits (user_id, balance, monthly_allowance)
+               VALUES (?, ?, 0)
+               ON CONFLICT(user_id) DO UPDATE SET balance = balance + ?""",
+            (user_id, amount, amount),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ── Lyrics CRUD ───────────────────────────────────────────────────────────────
+
+def get_lyric(db_path: pathlib.Path, lyric_id: int, user_id: str) -> dict | None:
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM lyrics WHERE id = ? AND user_id = ?", (lyric_id, user_id)
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def get_song_variant_by_id(db_path: pathlib.Path, variant_id: int) -> dict | None:
+    """Look up a song_variants row by ID (no user filter — used by webhook)."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM song_variants WHERE id = ?", (variant_id,)
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def get_song_variants_for_lyric(
+    db_path: pathlib.Path, lyric_id: int, user_id: str
+) -> list[dict]:
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            """SELECT * FROM song_variants
+               WHERE lyric_id = ? AND user_id = ?
+               ORDER BY created_at ASC""",
+            (lyric_id, user_id),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
     finally:
         conn.close()
