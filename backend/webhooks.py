@@ -125,14 +125,27 @@ async def apiframe_webhook(request: Request):
         fh.write(dl1.content)
     permanent_url1 = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
 
+    permanent_image_url1 = None
+    temp_image_url1 = track1.get("imageUrl")
+    if temp_image_url1:
+        logger.info("Apiframe webhook: downloading take 1 cover art from %s", temp_image_url1)
+        try:
+            img1 = requests.get(temp_image_url1, timeout=60)
+            img1.raise_for_status()
+            with open(os.path.join(STORAGE_PATH, f"{variant_id}.jpg"), "wb") as fh:
+                fh.write(img1.content)
+            permanent_image_url1 = f"{PUBLIC_BASE_URL}/{variant_id}.jpg"
+        except Exception as exc:
+            logger.warning("Apiframe webhook: failed to download take 1 cover art: %s", exc)
+
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.execute(
             """UPDATE song_variants
-               SET status = 'complete', mp3_url = ?, duration_seconds = ?,
+               SET status = 'complete', mp3_url = ?, image_url = ?, duration_seconds = ?,
                    take_number = 1, completed_at = CURRENT_TIMESTAMP
                WHERE id = ?""",
-            (permanent_url1, duration1, variant_id),
+            (permanent_url1, permanent_image_url1, duration1, variant_id),
         )
         conn.commit()
     finally:
@@ -171,11 +184,24 @@ async def apiframe_webhook(request: Request):
             fh.write(dl2.content)
         permanent_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.mp3"
 
+        permanent_image_url2 = None
+        temp_image_url2 = track2.get("imageUrl")
+        if temp_image_url2:
+            logger.info("Apiframe webhook: downloading take 2 cover art from %s", temp_image_url2)
+            try:
+                img2 = requests.get(temp_image_url2, timeout=60)
+                img2.raise_for_status()
+                with open(os.path.join(STORAGE_PATH, f"{take2_variant_id}.jpg"), "wb") as fh:
+                    fh.write(img2.content)
+                permanent_image_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.jpg"
+            except Exception as exc:
+                logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
+
         conn = sqlite3.connect(DB_PATH)
         try:
             conn.execute(
-                "UPDATE song_variants SET mp3_url = ? WHERE id = ?",
-                (permanent_url2, take2_variant_id),
+                "UPDATE song_variants SET mp3_url = ?, image_url = ? WHERE id = ?",
+                (permanent_url2, permanent_image_url2, take2_variant_id),
             )
             conn.commit()
         finally:

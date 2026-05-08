@@ -876,6 +876,7 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
                 "take_number": v["take_number"],
                 "status": v["status"],
                 "mp3_url": v["mp3_url"],
+                "image_url": v["image_url"],
                 "duration_seconds": v["duration_seconds"],
             }
             for v in (variants or [])

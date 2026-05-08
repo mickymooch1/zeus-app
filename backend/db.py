@@ -139,6 +139,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 provider_job_id  TEXT,
                 status           TEXT DEFAULT 'pending',
                 mp3_url          TEXT,
+                image_url        TEXT,
                 duration_seconds INTEGER,
                 take_number      INTEGER DEFAULT 1,
                 webhook_secret   TEXT,
@@ -165,6 +166,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE monthly_usage ADD COLUMN builds INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE song_variants ADD COLUMN take_number INTEGER DEFAULT 1",
             "ALTER TABLE song_variants ADD COLUMN webhook_secret TEXT",
+            "ALTER TABLE song_variants ADD COLUMN image_url TEXT",
         ]:
             try:
                 conn.execute(_migration)
