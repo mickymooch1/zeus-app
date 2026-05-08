@@ -1073,7 +1073,7 @@ async def youtube_callback(code: str = Query(None), state: str = Query(None), er
     redirect_uri = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
 
     try:
-        refresh_token = youtube_uploader.exchange_code(code=code, redirect_uri=redirect_uri)
+        refresh_token = youtube_uploader.exchange_code(code=code, redirect_uri=redirect_uri, state=state)
     except Exception as exc:
         log.exception("youtube_callback: token exchange failed")
         from fastapi.responses import RedirectResponse

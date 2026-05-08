@@ -27,14 +27,15 @@ _CLIENT_CONFIG = {
 }
 
 
+_pkce_store: dict[str, str] = {}
+
+
 def youtube_enabled() -> bool:
     return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 
 
-def build_auth_url(state: str, redirect_uri: str) -> str:
-    """Return the Google OAuth consent-screen URL."""
-    from google_auth_oauthlib.flow import Flow
-    config = {
+def _flow_config() -> dict:
+    return {
         "web": {
             "client_id": GOOGLE_CLIENT_ID,
             "client_secret": GOOGLE_CLIENT_SECRET,
@@ -42,30 +43,34 @@ def build_auth_url(state: str, redirect_uri: str) -> str:
             "token_uri": "https://oauth2.googleapis.com/token",
         }
     }
-    flow = Flow.from_client_config(config, scopes=YOUTUBE_SCOPES, redirect_uri=redirect_uri)
+
+
+def build_auth_url(state: str, redirect_uri: str) -> str:
+    """Return the Google OAuth consent-screen URL, storing the PKCE verifier for the callback."""
+    from google_auth_oauthlib.flow import Flow
+    flow = Flow.from_client_config(_flow_config(), scopes=YOUTUBE_SCOPES, redirect_uri=redirect_uri)
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         prompt="consent",
         state=state,
-        code_challenge_method=None,
     )
+    # Store PKCE verifier so exchange_code() can pass it back to Google
+    verifier = getattr(flow.oauth2session._client, "verifier", None)
+    if verifier:
+        _pkce_store[state] = verifier
+        log.debug("build_auth_url: stored PKCE verifier for state %s", state[:8])
     return auth_url
 
 
-def exchange_code(code: str, redirect_uri: str) -> str:
+def exchange_code(code: str, redirect_uri: str, state: str | None = None) -> str:
     """Exchange OAuth authorisation code for a refresh token."""
     from google_auth_oauthlib.flow import Flow
-    config = {
-        "web": {
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-        }
-    }
-    flow = Flow.from_client_config(config, scopes=YOUTUBE_SCOPES, redirect_uri=redirect_uri)
-    flow.fetch_token(code=code)
+    flow = Flow.from_client_config(_flow_config(), scopes=YOUTUBE_SCOPES, redirect_uri=redirect_uri)
+    code_verifier = _pkce_store.pop(state, None) if state else None
+    if code_verifier:
+        log.debug("exchange_code: using PKCE verifier for state %s", state[:8])
+    flow.fetch_token(code=code, code_verifier=code_verifier)
     creds = flow.credentials
     if not creds.refresh_token:
         raise ValueError(
