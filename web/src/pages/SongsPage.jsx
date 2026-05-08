@@ -263,7 +263,7 @@ export default function SongsPage() {
   const location = useLocation();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
-  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false });
+  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null });
   const [brief, setBrief]               = useState('');
   const [selGenres, setSelGenres]       = useState(new Set());
   const [generating, setGenerating]     = useState(false);
@@ -281,11 +281,13 @@ export default function SongsPage() {
   const [tempo, setTempo]                 = useState('');    // '' | 'slow' | 'medium' | 'fast' | 'custom'
   const [tempoBpm, setTempoBpm]           = useState(120);
   const [modelVersion, setModelVersion]   = useState('V5');
+  const [explicit, setExplicit]           = useState(false);
 
   const activeWsRef  = useRef(null);
   const pollTimerRef = useRef(null);
 
-  const isAdmin        = credits.is_admin;
+  const isAdmin          = credits.is_admin;
+  const canShowExplicit  = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
   const cost           = selGenres.size;
   const canAfford      = isAdmin || (credits.balance >= cost && cost > 0);
   const canGenerate    = brief.trim().length > 0 && cost > 0 && canAfford && !generating;
@@ -372,6 +374,7 @@ export default function SongsPage() {
             tempo: tempo || undefined,
             tempo_bpm: tempo === 'custom' ? tempoBpm : undefined,
             model_version: modelVersion,
+            explicit: explicit || undefined,
           } : {}),
         }),
       });
@@ -718,6 +721,46 @@ export default function SongsPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Explicit content — agency / enterprise only */}
+                {canShowExplicit && (
+                  <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                      <div
+                        onClick={() => setExplicit((v) => !v)}
+                        style={{
+                          width: 36,
+                          height: 20,
+                          borderRadius: 10,
+                          background: explicit ? '#7c3aed' : 'rgba(255,255,255,0.08)',
+                          position: 'relative',
+                          flexShrink: 0,
+                          transition: 'background 0.2s',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <div style={{
+                          position: 'absolute',
+                          top: 3,
+                          left: explicit ? 19 : 3,
+                          width: 14,
+                          height: 14,
+                          borderRadius: '50%',
+                          background: '#fff',
+                          transition: 'left 0.2s',
+                        }} />
+                      </div>
+                      <span style={{ fontSize: 12, color: explicit ? '#c4b5fd' : '#555', fontWeight: 500 }}>
+                        Explicit content
+                      </span>
+                    </label>
+                    {explicit && (
+                      <p style={{ fontSize: 11, color: '#f87171', marginTop: 8, lineHeight: 1.5 }}>
+                        May include strong language. You are responsible for content generated.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

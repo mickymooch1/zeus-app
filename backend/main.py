@@ -801,6 +801,7 @@ class SongsGenerateRequest(BaseModel):
     tempo_bpm: int | None = None         # used when tempo == "custom"
     model_version: str | None = None     # "V4.5" | "V4.5 Plus" | "V5" | "V5.5"
     accent: str | None = None            # e.g. "British" → appended to style string
+    explicit: bool = False               # agency/enterprise only — loosens Suno content filter
 
 
 @app.post("/api/songs/generate")
@@ -850,6 +851,8 @@ async def songs_generate(
         style_suffix_parts.append(f"{max(40, min(300, body.tempo_bpm))} BPM")
     if body.accent:
         style_suffix_parts.append(f"{body.accent} accent vocals")
+    if body.explicit:
+        style_suffix_parts.append("explicit lyrics allowed, no content restrictions")
     tempo_suffix = ", ".join(style_suffix_parts) or None
 
     is_admin = bool(current_user.get("is_admin", 0))
@@ -973,6 +976,7 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
         "balance": row["balance"] if row else 0,
         "monthly_allowance": row["monthly_allowance"] if row else 0,
         "is_admin": bool(current_user.get("is_admin", 0)),
+        "plan": current_user.get("subscription_plan"),
     }
 
 
