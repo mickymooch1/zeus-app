@@ -38,6 +38,7 @@ export function Navbar() {
           {user ? (
             <>
               <Link to="/dashboard" className="btn btn-sm btn-ghost">Dashboard</Link>
+              <Link to="/songs" className="btn btn-sm btn-ghost">Songs</Link>
               {(user.is_admin || (user.subscription_plan === 'enterprise' && user.subscription_status === 'active')) && (
                 <Link to="/tasks" className="btn btn-sm btn-ghost">Tasks</Link>
               )}

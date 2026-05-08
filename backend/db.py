@@ -783,3 +783,30 @@ def get_song_variants_for_lyric(
         return [_row_to_dict(r) for r in rows]
     finally:
         conn.close()
+
+
+def list_lyrics_for_user(db_path: pathlib.Path, user_id: str) -> list[dict]:
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT id, title, created_at FROM lyrics WHERE user_id = ? ORDER BY id DESC",
+            (user_id,),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def reset_song_credits_balance(db_path: pathlib.Path, user_id: str) -> None:
+    """Reset balance back to monthly_allowance — called on Stripe monthly renewal."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """UPDATE song_credits
+               SET balance = monthly_allowance, last_reset = CURRENT_TIMESTAMP
+               WHERE user_id = ?""",
+            (user_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()

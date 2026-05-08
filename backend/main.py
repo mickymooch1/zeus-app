@@ -790,11 +790,71 @@ async def admin_test_song_pipeline(current_user: dict = Depends(auth.get_current
 
 # ── Song API endpoints ───────────────────────────────────────────────────────
 
+class SongsGenerateRequest(BaseModel):
+    brief: str = Field(min_length=1, max_length=2000)
+    genres: list[str] = Field(min_length=1, max_length=7)
+
+
+@app.post("/api/songs/generate")
+async def songs_generate(
+    body: SongsGenerateRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    import lyrics as _lyrics_mod
+    import songs as _songs_mod
+    from songs import InsufficientCreditsError
+
+    db_path = db.get_db_path()
+    user_id = current_user["id"]
+
+    # Lazy-init 1 free credit for users with no credits row yet
+    credits_row = db.get_song_credits(db_path, user_id)
+    if credits_row is None:
+        db.upsert_song_credits(db_path, user_id, balance=1, monthly_allowance=1)
+
+    try:
+        lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path)
+    except Exception as exc:
+        log.exception("songs_generate: lyrics generation failed")
+        raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
+
+    lyric_id = lyric_result["lyric_id"]
+
+    try:
+        variant_result = _songs_mod.generate_multiple_variants(
+            user_id=user_id,
+            lyric_id=lyric_id,
+            genres=body.genres,
+            db_path=str(db_path),
+        )
+    except InsufficientCreditsError as exc:
+        raise HTTPException(status_code=402, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        log.exception("songs_generate: variant submission failed")
+        raise HTTPException(status_code=500, detail=f"Song submission failed: {exc}")
+
+    return {
+        "lyric_id": lyric_id,
+        "title": lyric_result["title"],
+        "variants": variant_result["variants"],
+    }
+
+
+@app.get("/api/lyrics")
+async def list_lyrics(current_user: dict = Depends(auth.get_current_user)):
+    db_path = db.get_db_path()
+    lyrics = db.list_lyrics_for_user(db_path, current_user["id"])
+    return {"lyrics": lyrics}
+
+
 @app.get("/api/lyrics/{lyric_id}")
 async def get_lyric(lyric_id: int, current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()
-    row = db.get_lyric(db_path, lyric_id)
-    if not row or row["user_id"] != current_user["id"]:
+    user_id = current_user["id"]
+    row = db.get_lyric(db_path, lyric_id, user_id)
+    if not row:
         raise HTTPException(status_code=404, detail="Lyric not found")
     return {"lyric_id": row["id"], "title": row["title"], "lyrics_text": row["lyrics_text"]}
 
@@ -802,10 +862,11 @@ async def get_lyric(lyric_id: int, current_user: dict = Depends(auth.get_current
 @app.get("/api/lyrics/{lyric_id}/variants")
 async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()
-    lyric = db.get_lyric(db_path, lyric_id)
-    if not lyric or lyric["user_id"] != current_user["id"]:
+    user_id = current_user["id"]
+    lyric = db.get_lyric(db_path, lyric_id, user_id)
+    if not lyric:
         raise HTTPException(status_code=404, detail="Lyric not found")
-    variants = db.get_song_variants_for_lyric(db_path, lyric_id)
+    variants = db.get_song_variants_for_lyric(db_path, lyric_id, user_id)
     return {
         "lyric_id": lyric_id,
         "variants": [

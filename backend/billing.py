@@ -70,6 +70,12 @@ _PRICE_ID_TO_PLAN = {
     ENTERPRISE_PRICE_ID: "enterprise",
 }
 
+_PLAN_SONG_CREDITS = {
+    "pro": 10,
+    "agency": 20,
+    "enterprise": 50,
+}
+
 # ── Stripe setup ──────────────────────────────────────────────────────────────
 
 _STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
@@ -202,6 +208,8 @@ def _handle_event(event) -> None:
 
     if event_type == "checkout.session.completed":
         _handle_checkout_completed(db_path, data)
+    elif event_type == "invoice.payment_succeeded":
+        _handle_invoice_paid(db_path, data)
     elif event_type == "customer.subscription.updated":
         _handle_subscription_updated(db_path, data)
     elif event_type == "customer.subscription.deleted":
@@ -262,6 +270,25 @@ def _handle_checkout_completed(db_path, session) -> None:
 
     db.update_user(db_path, user["id"], **updates)
     log.info("Activated %s plan for user %s", plan, user["id"])
+
+    allowance = _PLAN_SONG_CREDITS.get(plan, 1)
+    db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
+    log.info("Granted %d song credits (%s plan) to user %s", allowance, plan, user["id"])
+
+
+def _handle_invoice_paid(db_path, invoice) -> None:
+    """Reset monthly song credit balance on recurring Stripe invoice."""
+    if invoice.get("billing_reason") != "subscription_cycle":
+        return
+    customer_id = invoice.get("customer")
+    if not customer_id:
+        return
+    user = _find_user_by_customer(db_path, customer_id)
+    if not user:
+        log.warning("invoice.payment_succeeded: no user for customer %s", customer_id)
+        return
+    db.reset_song_credits_balance(db_path, user["id"])
+    log.info("Monthly song credits reset for user %s", user["id"])
 
 
 def _handle_subscription_updated(db_path, subscription) -> None:
