@@ -76,6 +76,27 @@ _PLAN_SONG_CREDITS = {
     "enterprise": 50,
 }
 
+SONG_PACKS = {
+    "song_pack_10": {
+        "credits": 10,
+        "label": "10 songs",
+        "price": "£8",
+        "price_id": os.environ.get("STRIPE_SONG_PACK_10_PRICE_ID", ""),
+    },
+    "song_pack_50": {
+        "credits": 50,
+        "label": "50 songs",
+        "price": "£30",
+        "price_id": os.environ.get("STRIPE_SONG_PACK_50_PRICE_ID", ""),
+    },
+    "song_pack_200": {
+        "credits": 200,
+        "label": "200 songs",
+        "price": "£99",
+        "price_id": os.environ.get("STRIPE_SONG_PACK_200_PRICE_ID", ""),
+    },
+}
+
 # ── Stripe setup ──────────────────────────────────────────────────────────────
 
 _STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
@@ -133,6 +154,40 @@ def create_checkout_session(user: dict, plan: str, success_url: str, cancel_url:
                 "user_id": user["id"],
                 "plan": plan,
             }
+        },
+    }
+
+    if customer_id:
+        params["customer"] = customer_id
+    else:
+        params["customer_email"] = user["email"]
+
+    session = stripe.checkout.Session.create(**params)
+    return session.url
+
+
+def create_song_pack_checkout_session(user: dict, pack: str, success_url: str, cancel_url: str) -> str:
+    """Create a one-time Stripe Checkout Session for a song credit top-up pack."""
+    stripe = _get_stripe()
+
+    if pack not in SONG_PACKS:
+        raise ValueError(f"Unknown song pack: {pack}")
+
+    price_id = SONG_PACKS[pack]["price_id"]
+    if not price_id:
+        raise ValueError(f"No Stripe price ID configured for pack '{pack}' — set STRIPE_{pack.upper()}_PRICE_ID")
+
+    customer_id = user.get("stripe_customer_id")
+
+    params: dict = {
+        "payment_method_types": ["card"],
+        "line_items": [{"price": price_id, "quantity": 1}],
+        "mode": "payment",
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "metadata": {
+            "user_id": user["id"],
+            "song_pack": pack,
         },
     }
 
@@ -219,11 +274,33 @@ def _handle_event(event) -> None:
 
 
 def _handle_checkout_completed(db_path, session) -> None:
-    """Handle successful checkout — activate subscription."""
+    """Handle successful checkout — subscription activation or song credit top-up."""
     customer_email = session.get("customer_email")
     customer_id = session.get("customer")
     subscription_id = session.get("subscription")
     user_id = session.get("metadata", {}).get("user_id")
+
+    # ── One-time payment: song credit top-up ─────────────────────────────────
+    if session.get("mode") == "payment":
+        pack = session.get("metadata", {}).get("song_pack")
+        if pack and pack in SONG_PACKS:
+            user = None
+            if customer_email:
+                user = db.get_user_by_email(db_path, customer_email)
+            if not user and customer_id:
+                user = _find_user_by_customer(db_path, customer_id)
+            if not user and user_id:
+                user = db.get_user_by_id(db_path, user_id)
+            if user:
+                credits = SONG_PACKS[pack]["credits"]
+                db.increment_song_credits(db_path, user["id"], credits)
+                log.info("Song top-up: added %d credits (%s) to user %s", credits, pack, user["id"])
+            else:
+                log.warning("Song top-up: could not find user (email=%s customer=%s user_id=%s)",
+                            customer_email, customer_id, user_id)
+        else:
+            log.warning("checkout.session.completed payment: unrecognised pack %r — ignoring", pack)
+        return
 
     # Determine plan from the subscription's price ID
     plan = None

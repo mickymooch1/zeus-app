@@ -884,6 +884,32 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
     }
 
 
+class SongsTopupRequest(BaseModel):
+    pack: str
+
+
+@app.post("/api/songs/topup")
+async def songs_topup(
+    body: SongsTopupRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not billing.stripe_enabled():
+        raise HTTPException(status_code=503, detail="Billing is not configured")
+    origin = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    success_url = f"{origin}/songs?topup=success"
+    cancel_url = f"{origin}/songs"
+    try:
+        url = billing.create_song_pack_checkout_session(
+            current_user, body.pack, success_url, cancel_url
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        log.exception("Song pack checkout error")
+        raise HTTPException(status_code=500, detail="Failed to create checkout session")
+    return {"url": url}
+
+
 @app.get("/api/users/me/song_credits")
 async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()

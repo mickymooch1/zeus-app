@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
@@ -7,6 +7,12 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 const GENRES = ['country', 'reggae', 'pop', 'rock', 'hiphop', 'lofi', 'edm', 'acoustic', 'irishjig', 'irishfolk'];
 const GENRE_LABEL = { hiphop: 'Hip-hop', lofi: 'Lo-Fi', edm: 'EDM', irishjig: 'Irish Jig', irishfolk: 'Irish Folk' };
 const GENRE_DISPLAY = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
+
+const SONG_PACKS = [
+  { pack: 'song_pack_10',  label: 'Buy 10 songs',  price: '£8'  },
+  { pack: 'song_pack_50',  label: 'Buy 50 songs',  price: '£30' },
+  { pack: 'song_pack_200', label: 'Buy 200 songs', price: '£99' },
+];
 
 const STATUS_CLASS = {
   pending:    'badge-status badge-status--pending',
@@ -132,6 +138,7 @@ function HistoryItem({ lyric, token }) {
 
 export default function SongsPage() {
   const { token, user } = useAuth();
+  const location = useLocation();
 
   const [credits, setCredits] = useState({ balance: 0, monthly_allowance: 0 });
   const [brief, setBrief] = useState('');
@@ -140,6 +147,9 @@ export default function SongsPage() {
   const [activeJob, setActiveJob] = useState(null);
   const [history, setHistory] = useState([]);
   const [error, setError] = useState('');
+  const [topupLoading, setTopupLoading] = useState(null); // pack key being purchased
+
+  const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
   const pollTimerRef = useRef(null);
 
@@ -202,6 +212,23 @@ export default function SongsPage() {
 
     return () => clearTimeout(pollTimerRef.current);
   }, [activeJob, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTopup = async (pack) => {
+    setTopupLoading(pack);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/songs/topup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pack }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to start checkout');
+      window.location.href = data.url;
+    } catch (err) {
+      setError(err.message);
+      setTopupLoading(null);
+    }
+  };
 
   const toggleGenre = (genre) => {
     setSelectedGenres((prev) => {
@@ -282,6 +309,22 @@ export default function SongsPage() {
             </Link>
           )}
         </div>
+
+        {/* Top-up success banner */}
+        {topupSuccess && (
+          <div style={{
+            background: 'rgba(52,211,153,0.1)',
+            border: '1px solid rgba(52,211,153,0.3)',
+            borderRadius: 8,
+            padding: '12px 16px',
+            marginBottom: 20,
+            color: '#34d399',
+            fontWeight: 600,
+            fontSize: 14,
+          }}>
+            Payment successful — your song credits have been added!
+          </div>
+        )}
 
         {/* Generator form */}
         <section style={{ marginBottom: 36 }}>
@@ -365,6 +408,31 @@ export default function SongsPage() {
           )}
 
           {error && <p className="form-error" style={{ marginTop: 12 }}>{error}</p>}
+        </section>
+
+        {/* Top-up packs */}
+        <section style={{ marginBottom: 36 }}>
+          <h2 style={{ color: '#e2d9f3', fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>
+            Top up credits
+          </h2>
+          <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>
+            One-time purchase — credits never expire.
+          </p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {SONG_PACKS.map(({ pack, label, price }) => (
+              <button
+                key={pack}
+                className="btn btn-outline"
+                onClick={() => handleTopup(pack)}
+                disabled={topupLoading !== null}
+                style={{ minWidth: 160 }}
+              >
+                {topupLoading === pack
+                  ? 'Redirecting…'
+                  : `${label} — ${price}`}
+              </button>
+            ))}
+          </div>
         </section>
 
         {/* Active job results */}
