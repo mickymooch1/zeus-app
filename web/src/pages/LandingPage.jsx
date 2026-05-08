@@ -265,6 +265,7 @@ export default function LandingPage() {
                 <li>✓ AI chat assistant</li>
                 <li>✓ Content writing</li>
                 <li>✓ Web research</li>
+                <li>✓ 5 AI songs/month</li>
                 <li className="feat-dim">✗ Website builds</li>
                 <li className="feat-dim">✗ Netlify deployment</li>
               </ul>
@@ -284,6 +285,8 @@ export default function LandingPage() {
                 <li>✓ Email via Gmail</li>
                 <li>✓ Client &amp; project CRM</li>
                 <li>✓ Priority support</li>
+                <li>✓ 20 AI songs/month</li>
+                <li>✓ AI song download &amp; share</li>
               </ul>
               <Link to="/register" className="btn-plan-ghost">Start Pro</Link>
             </div>
@@ -299,12 +302,16 @@ export default function LandingPage() {
                 <li>✓ Everything in Pro</li>
                 <li>✓ Team features</li>
                 <li>✓ Priority support</li>
+                <li>✓ 70 AI songs/month</li>
+                <li>✓ YouTube music upload</li>
+                <li>✓ Explicit content toggle</li>
+                <li>✓ Google indexing</li>
+                <li>✓ Facebook posting</li>
               </ul>
               <Link to="/register" className="btn-plan-ghost">Start Agency</Link>
             </div>
 
             <div className="price-card price-featured price-enterprise">
-              <div className="plan-badge plan-badge--enterprise">Best Plan</div>
               <div className="plan-name">Enterprise</div>
               <div className="plan-price">£150<span>/mo</span></div>
               <p className="plan-desc">The full Zeus AI power stack. Autonomous agents build and deploy sites while you sleep.</p>
@@ -316,6 +323,8 @@ export default function LandingPage() {
                 <li>✓ Scheduled tasks</li>
                 <li>✓ Appointment booking</li>
                 <li>✓ Priority support</li>
+                <li>✓ 100 AI songs/month</li>
+                <li>✓ All Agency music features</li>
               </ul>
               <Link to="/register" className="btn-plan-primary">Start Enterprise</Link>
             </div>

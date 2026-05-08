@@ -11,6 +11,7 @@ const FREE_FEATURES = [
   'AI chat assistant',
   'Content & copy writing',
   'Web research',
+  '5 AI songs/month',
 ];
 
 const DEFAULT_PLANS = {
@@ -27,6 +28,8 @@ const DEFAULT_PLANS = {
       'Email via Gmail',
       'Client & project CRM',
       'Priority support',
+      '20 AI songs/month',
+      'AI song download & share',
     ],
   },
   agency: {
@@ -39,6 +42,11 @@ const DEFAULT_PLANS = {
       'Everything in Pro',
       'Team features',
       'Priority support',
+      '70 AI songs/month',
+      'YouTube music upload',
+      'Explicit content toggle',
+      'Google indexing',
+      'Facebook posting',
     ],
   },
   enterprise: {
@@ -52,6 +60,8 @@ const DEFAULT_PLANS = {
       'Scheduled tasks',
       'Appointment booking',
       'Priority support',
+      '100 AI songs/month',
+      'All Agency music features',
     ],
   },
 };
