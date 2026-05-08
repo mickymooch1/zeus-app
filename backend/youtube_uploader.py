@@ -48,6 +48,7 @@ def build_auth_url(state: str, redirect_uri: str) -> str:
         include_granted_scopes="true",
         prompt="consent",
         state=state,
+        code_challenge_method=None,
     )
     return auth_url
 
