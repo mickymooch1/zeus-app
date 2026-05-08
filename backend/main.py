@@ -816,10 +816,12 @@ async def songs_generate(
     db_path = db.get_db_path()
     user_id = current_user["id"]
 
-    # Lazy-init 1 free credit for users with no credits row yet
+    # Lazy-init free credits for users with no credits row yet
     credits_row = db.get_song_credits(db_path, user_id)
     if credits_row is None:
-        db.upsert_song_credits(db_path, user_id, balance=1, monthly_allowance=1)
+        db.upsert_song_credits(db_path, user_id,
+                               balance=billing.FREE_SONG_CREDITS,
+                               monthly_allowance=billing.FREE_SONG_CREDITS)
 
     try:
         lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path)
@@ -972,11 +974,15 @@ async def songs_topup(
 async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()
     row = db.get_song_credits(db_path, current_user["id"])
+    plan = current_user.get("subscription_plan")
+    # Derive allowance from the current plan so the banner denominator is always correct,
+    # even if the DB monthly_allowance is stale from an earlier credit tier.
+    allowance = billing._PLAN_SONG_CREDITS.get(plan, billing.FREE_SONG_CREDITS)
     return {
         "balance": row["balance"] if row else 0,
-        "monthly_allowance": row["monthly_allowance"] if row else 0,
+        "monthly_allowance": allowance,
         "is_admin": bool(current_user.get("is_admin", 0)),
-        "plan": current_user.get("subscription_plan"),
+        "plan": plan,
     }
 
 

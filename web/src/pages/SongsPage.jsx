@@ -143,7 +143,7 @@ const actionBtnStyle = {
 };
 
 // ── SongCard ─────────────────────────────────────────────────────────────────
-function SongCard({ variant, title, activeWsRef }) {
+function SongCard({ variant, title, activeWsRef, canYouTube }) {
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -250,6 +250,17 @@ function SongCard({ variant, title, activeWsRef }) {
             <button onClick={handleShare} style={actionBtnStyle}>
               {copied ? '✓ Copied!' : '↗ Share'}
             </button>
+            <button
+              disabled
+              title={canYouTube ? 'YouTube upload coming soon' : 'Available on Agency plan and above'}
+              style={{
+                ...actionBtnStyle,
+                opacity: canYouTube ? 0.5 : 0.25,
+                cursor: 'not-allowed',
+              }}
+            >
+              ▲ YouTube
+            </button>
           </div>
         )}
       </div>
@@ -288,6 +299,7 @@ export default function SongsPage() {
 
   const isAdmin          = credits.is_admin;
   const canShowExplicit  = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
+  const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
   const cost           = selGenres.size;
   const canAfford      = isAdmin || (credits.balance >= cost && cost > 0);
   const canGenerate    = brief.trim().length > 0 && cost > 0 && canAfford && !generating;
@@ -867,6 +879,7 @@ export default function SongsPage() {
                       variant={v}
                       title={activeJob.title}
                       activeWsRef={activeWsRef}
+                      canYouTube={canYouTube}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -889,6 +902,7 @@ export default function SongsPage() {
                     variant={v}
                     title={v.title}
                     activeWsRef={activeWsRef}
+                    canYouTube={canYouTube}
                   />
                 ))}
               </div>

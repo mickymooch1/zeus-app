@@ -70,10 +70,12 @@ _PRICE_ID_TO_PLAN = {
     ENTERPRISE_PRICE_ID: "enterprise",
 }
 
+FREE_SONG_CREDITS = 5
+
 _PLAN_SONG_CREDITS = {
-    "pro": 10,
-    "agency": 20,
-    "enterprise": 50,
+    "pro": 20,
+    "agency": 70,
+    "enterprise": 100,
 }
 
 SONG_PACKS = {
@@ -348,7 +350,7 @@ def _handle_checkout_completed(db_path, session) -> None:
     db.update_user(db_path, user["id"], **updates)
     log.info("Activated %s plan for user %s", plan, user["id"])
 
-    allowance = _PLAN_SONG_CREDITS.get(plan, 1)
+    allowance = _PLAN_SONG_CREDITS.get(plan, FREE_SONG_CREDITS)
     db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
     log.info("Granted %d song credits (%s plan) to user %s", allowance, plan, user["id"])
 
@@ -364,8 +366,10 @@ def _handle_invoice_paid(db_path, invoice) -> None:
     if not user:
         log.warning("invoice.payment_succeeded: no user for customer %s", customer_id)
         return
-    db.reset_song_credits_balance(db_path, user["id"])
-    log.info("Monthly song credits reset for user %s", user["id"])
+    plan = user.get("subscription_plan")
+    allowance = _PLAN_SONG_CREDITS.get(plan, FREE_SONG_CREDITS)
+    db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
+    log.info("Monthly song credits reset for user %s: %d credits (%s plan)", user["id"], allowance, plan)
 
 
 def _handle_subscription_updated(db_path, subscription) -> None:
