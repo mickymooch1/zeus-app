@@ -222,11 +222,6 @@ def _website_limit(user: dict) -> int | None:
 async def lifespan(app: FastAPI):
     global history
     log.info("Startup: initialising HistoryStore")
-    _sensitive = {"ANTHROPIC_API_KEY", "SECRET_KEY", "DATABASE_URL", "PASSWORD", "JWT_SECRET",
-                  "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"}
-    for _k, _v in sorted(os.environ.items()):
-        _display = f"***({len(_v)} chars)" if _k in _sensitive else _v
-        log.info("  ENV %s=%s", _k, _display)
     try:
         history = HistoryStore()
         log.info("HistoryStore ready at %s", history.dir)
