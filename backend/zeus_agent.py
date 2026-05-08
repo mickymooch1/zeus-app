@@ -708,7 +708,7 @@ TOOLS = [
         "name": "GenerateMultipleVariants",
         "description": (
             "Generate the same lyrics in multiple genres simultaneously. "
-            "Costs 1 song credit per genre. Available genres: country, reggae, pop, rock, hiphop, lofi, edm, acoustic. "
+            "Costs 1 song credit per genre. Available genres: country, reggae, pop, rock, hiphop, lofi, edm, acoustic, irishjig, irishfolk. "
             "Use GenerateLyrics first to get a lyric_id."
         ),
         "input_schema": {

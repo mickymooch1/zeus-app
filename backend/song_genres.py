@@ -7,4 +7,6 @@ GENRE_PRESETS = {
     "lofi":     "lo-fi hip-hop, dusty piano, vinyl crackle, mellow vocals, 75 BPM",
     "edm":      "EDM, four-on-the-floor kick, big synth lead, energetic vocals, 128 BPM",
     "acoustic": "acoustic singer-songwriter, fingerpicked guitar, intimate vocals, 90 BPM",
+    "irishjig":  "Irish jig, fiddle, tin whistle, accordion, fast tempo, 160 BPM, energetic traditional Irish dance music",
+    "irishfolk": "Irish folk song, acoustic guitar, fiddle, storytelling vocals, slow to moderate tempo, traditional Celtic feel",
 }
