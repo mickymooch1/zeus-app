@@ -15,7 +15,9 @@ class InsufficientCreditsError(Exception):
     """Raised when a user does not have enough song credits."""
 
 
-def _check_and_deduct_credit(cur, user_id) -> None:
+def _check_and_deduct_credit(cur, user_id, is_admin: bool = False) -> None:
+    if is_admin:
+        return
     cur.execute("SELECT balance FROM song_credits WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
     if not row or row[0] < 1:
@@ -40,16 +42,18 @@ def generate_song_variant(
     genre_tag: str,
     db_path: str,
     extra_suno_params: dict | None = None,
+    is_admin: bool = False,
 ) -> dict:
     """
     Submit a song generation job to Apiframe v2.
     Costs 1 song credit (1 credit = 11 Apiframe credits = 1 finished track).
     Returns immediately with variant_id; the actual MP3 arrives later via webhook.
+    Admin users bypass credit check entirely.
     """
     conn = sqlite3.connect(db_path)
     try:
         cur = conn.cursor()
-        _check_and_deduct_credit(cur, user_id)
+        _check_and_deduct_credit(cur, user_id, is_admin=is_admin)
 
         cur.execute(
             "SELECT lyrics_text FROM lyrics WHERE id = ? AND user_id = ?",
@@ -125,11 +129,12 @@ def generate_song_variant(
             conn.close()
 
     except Exception as exc:
-        # Submission failed before Apiframe accepted the job — refund credit, mark variant failed
+        # Submission failed before Apiframe accepted the job — refund credit (unless admin), mark variant failed
         conn = sqlite3.connect(db_path)
         try:
             cur = conn.cursor()
-            _refund_credit(cur, user_id)
+            if not is_admin:
+                _refund_credit(cur, user_id)
             cur.execute(
                 "UPDATE song_variants SET status = 'failed' WHERE id = ?",
                 (variant_id,),
@@ -149,8 +154,10 @@ def generate_multiple_variants(
     db_path: str,
     extra_suno_params: dict | None = None,
     tempo_suffix: str | None = None,
+    is_admin: bool = False,
 ) -> dict:
-    """Generate the same lyrics in multiple genres. Costs len(genres) credits."""
+    """Generate the same lyrics in multiple genres. Costs len(genres) credits.
+    Admin users bypass credit checks entirely."""
     from song_genres import GENRE_PRESETS
 
     valid_genres = [g for g in genres if g in GENRE_PRESETS]
@@ -159,19 +166,20 @@ def generate_multiple_variants(
     if len(valid_genres) > 7:
         raise ValueError("Maximum 7 variants per request")
 
-    conn = sqlite3.connect(db_path)
-    try:
-        cur = conn.cursor()
-        cur.execute("SELECT balance FROM song_credits WHERE user_id = ?", (user_id,))
-        row = cur.fetchone()
-        available = row[0] if row else 0
-    finally:
-        conn.close()
+    if not is_admin:
+        conn = sqlite3.connect(db_path)
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT balance FROM song_credits WHERE user_id = ?", (user_id,))
+            row = cur.fetchone()
+            available = row[0] if row else 0
+        finally:
+            conn.close()
 
-    if available < len(valid_genres):
-        raise InsufficientCreditsError(
-            f"Need {len(valid_genres)} credits, have {available}"
-        )
+        if available < len(valid_genres):
+            raise InsufficientCreditsError(
+                f"Need {len(valid_genres)} credits, have {available}"
+            )
 
     variants = []
     for genre in valid_genres:
@@ -185,6 +193,7 @@ def generate_multiple_variants(
             genre_tag=genre,
             db_path=db_path,
             extra_suno_params=extra_suno_params,
+            is_admin=is_admin,
         )
         variants.append({"genre": genre, **result})
 

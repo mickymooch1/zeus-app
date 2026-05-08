@@ -852,6 +852,8 @@ async def songs_generate(
         style_suffix_parts.append(f"{body.accent} accent vocals")
     tempo_suffix = ", ".join(style_suffix_parts) or None
 
+    is_admin = bool(current_user.get("is_admin", 0))
+
     try:
         variant_result = _songs_mod.generate_multiple_variants(
             user_id=user_id,
@@ -860,6 +862,7 @@ async def songs_generate(
             db_path=str(db_path),
             extra_suno_params=extra_suno_params or None,
             tempo_suffix=tempo_suffix,
+            is_admin=is_admin,
         )
     except InsufficientCreditsError as exc:
         raise HTTPException(status_code=402, detail=str(exc))
@@ -951,6 +954,7 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
     return {
         "balance": row["balance"] if row else 0,
         "monthly_allowance": row["monthly_allowance"] if row else 0,
+        "is_admin": bool(current_user.get("is_admin", 0)),
     }
 
 

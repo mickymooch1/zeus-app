@@ -216,7 +216,7 @@ export default function SongsPage() {
   const location = useLocation();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
-  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0 });
+  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false });
   const [brief, setBrief]               = useState('');
   const [selGenres, setSelGenres]       = useState(new Set());
   const [generating, setGenerating]     = useState(false);
@@ -238,10 +238,11 @@ export default function SongsPage() {
   const activeWsRef  = useRef(null);
   const pollTimerRef = useRef(null);
 
+  const isAdmin        = credits.is_admin;
   const cost           = selGenres.size;
-  const canAfford      = credits.balance >= cost && cost > 0;
+  const canAfford      = isAdmin || (credits.balance >= cost && cost > 0);
   const canGenerate    = brief.trim().length > 0 && cost > 0 && canAfford && !generating;
-  const creditExceeded = cost > 0 && cost > credits.balance;
+  const creditExceeded = !isAdmin && cost > 0 && cost > credits.balance;
 
   const fetchCredits = useCallback(async () => {
     try {
@@ -369,8 +370,8 @@ export default function SongsPage() {
     });
 
   const { balance, monthly_allowance: allowance } = credits;
-  const pct      = allowance > 0 ? Math.min(100, (balance / allowance) * 100) : 0;
-  const barColor = pct > 30 ? '#a78bfa' : pct > 10 ? '#fbbf24' : '#f87171';
+  const pct      = isAdmin ? 100 : (allowance > 0 ? Math.min(100, (balance / allowance) * 100) : 0);
+  const barColor = isAdmin ? '#a78bfa' : (pct > 30 ? '#a78bfa' : pct > 10 ? '#fbbf24' : '#f87171');
 
   const activeLyricId    = activeJob?.lyric_id;
   const filteredLibrary  = library.filter((v) => v.lyric_id !== activeLyricId);
@@ -408,9 +409,9 @@ export default function SongsPage() {
               }} />
             </div>
             <span style={{ fontSize: 13, color: '#666', whiteSpace: 'nowrap' }}>
-              {balance} / {allowance} songs
+              {isAdmin ? 'Unlimited' : `${balance} / ${allowance} songs`}
             </span>
-            {balance <= 2 && (
+            {!isAdmin && balance <= 2 && (
               <Link to="/billing" style={{ fontSize: 13, color: barColor, fontWeight: 600, whiteSpace: 'nowrap' }}>
                 Top up →
               </Link>
@@ -681,7 +682,7 @@ export default function SongsPage() {
                 marginBottom: 16,
                 fontWeight: creditExceeded ? 600 : 400,
               }}>
-                Will use {cost} of your {balance} remaining credit{balance !== 1 ? 's' : ''}.
+                {isAdmin ? `Generating ${cost} variant${cost !== 1 ? 's' : ''} (unlimited).` : `Will use ${cost} of your ${balance} remaining credit${balance !== 1 ? 's' : ''}.`}
                 {creditExceeded && (
                   <> <Link to="/billing" style={{ color: '#f87171' }}>Top up to continue →</Link></>
                 )}
