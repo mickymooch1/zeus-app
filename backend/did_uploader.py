@@ -75,7 +75,7 @@ def upload_audio_to_did(mp3_path: pathlib.Path) -> str:
             with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
                 compressed_path = tmp.name
             subprocess.run(
-                ["ffmpeg", "-i", str(mp3_path), "-b:a", "128k", "-y", compressed_path],
+                ["ffmpeg", "-i", str(mp3_path), "-b:a", "64k", "-y", compressed_path],
                 check=True,
                 capture_output=True,
             )
