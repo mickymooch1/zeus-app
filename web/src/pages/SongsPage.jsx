@@ -1439,12 +1439,13 @@ export default function SongsPage() {
                 marginBottom: 20,
               }}>
                 {avatars.map((av) => {
-                  const sel = selectedAvatarUrl === av.url;
+                  const sel = selectedAvatarUrl === av.image_url;
+                  const isFemale = av.id.startsWith('w');
                   return (
                     <button
                       key={av.id}
                       className="avatar-thumb"
-                      onClick={() => setSelectedAvatarUrl(av.url)}
+                      onClick={() => setSelectedAvatarUrl(av.image_url)}
                       style={{
                         border: `2px solid ${sel ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`,
                         borderRadius: 10,
@@ -1460,8 +1461,8 @@ export default function SongsPage() {
                       }}
                     >
                       <img
-                        src={av.url}
-                        alt={av.label}
+                        src={av.image_url}
+                        alt={av.name}
                         style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }}
                       />
                       <span style={{
@@ -1474,20 +1475,18 @@ export default function SongsPage() {
                         color: sel ? '#c4b5fd' : '#666',
                         padding: '5px 4px',
                       }}>
-                        {av.label}
-                        {av.gender && (
-                          <span style={{
-                            fontSize: 9,
-                            fontWeight: 600,
-                            color: av.gender === 'F' ? '#f9a8d4' : '#93c5fd',
-                            background: av.gender === 'F' ? 'rgba(249,168,212,0.12)' : 'rgba(147,197,253,0.12)',
-                            borderRadius: 4,
-                            padding: '1px 4px',
-                            letterSpacing: '0.3px',
-                          }}>
-                            {av.gender === 'F' ? 'F' : 'M'}
-                          </span>
-                        )}
+                        {av.name}
+                        <span style={{
+                          fontSize: 9,
+                          fontWeight: 600,
+                          color: isFemale ? '#f9a8d4' : '#93c5fd',
+                          background: isFemale ? 'rgba(249,168,212,0.12)' : 'rgba(147,197,253,0.12)',
+                          borderRadius: 4,
+                          padding: '1px 4px',
+                          letterSpacing: '0.3px',
+                        }}>
+                          {isFemale ? 'F' : 'M'}
+                        </span>
                       </span>
                     </button>
                   );

@@ -27,44 +27,19 @@ def _auth() -> dict:
 
 
 # Preset avatar images shown in the avatar picker modal.
-# All URLs are D-ID's own reliably-hosted DefaultPresenters CDN.
 GENRE_AVATARS: list[dict] = [
-    {
-        "id": "noelle",
-        "label": "Noelle",
-        "gender": "F",
-        "url": "https://create-images-results.d-id.com/DefaultPresenters/Noelle_f/image.png",
-    },
-    {
-        "id": "anna",
-        "label": "Anna",
-        "gender": "F",
-        "url": "https://create-images-results.d-id.com/DefaultPresenters/Anna_f/image.png",
-    },
-    {
-        "id": "amy",
-        "label": "Amy",
-        "gender": "F",
-        "url": "https://create-images-results.d-id.com/DefaultPresenters/Amy_f/image.png",
-    },
-    {
-        "id": "jack",
-        "label": "Jack",
-        "gender": "M",
-        "url": "https://create-images-results.d-id.com/DefaultPresenters/Jack_m/image.png",
-    },
-    {
-        "id": "ethan",
-        "label": "Ethan",
-        "gender": "M",
-        "url": "https://create-images-results.d-id.com/DefaultPresenters/Ethan_m/image.png",
-    },
-    {
-        "id": "will",
-        "label": "Will",
-        "gender": "M",
-        "url": "https://create-images-results.d-id.com/DefaultPresenters/Will_m/image.png",
-    },
+    {"id": "w1", "name": "Sophie", "image_url": "https://randomuser.me/api/portraits/women/1.jpg"},
+    {"id": "w2", "name": "Maria",  "image_url": "https://randomuser.me/api/portraits/women/2.jpg"},
+    {"id": "w3", "name": "Emily",  "image_url": "https://randomuser.me/api/portraits/women/3.jpg"},
+    {"id": "w4", "name": "Aisha",  "image_url": "https://randomuser.me/api/portraits/women/4.jpg"},
+    {"id": "w5", "name": "Priya",  "image_url": "https://randomuser.me/api/portraits/women/5.jpg"},
+    {"id": "w6", "name": "Zoe",    "image_url": "https://randomuser.me/api/portraits/women/6.jpg"},
+    {"id": "m1", "name": "James",  "image_url": "https://randomuser.me/api/portraits/men/1.jpg"},
+    {"id": "m2", "name": "Marcus", "image_url": "https://randomuser.me/api/portraits/men/2.jpg"},
+    {"id": "m3", "name": "Carlos", "image_url": "https://randomuser.me/api/portraits/men/3.jpg"},
+    {"id": "m4", "name": "Raj",    "image_url": "https://randomuser.me/api/portraits/men/4.jpg"},
+    {"id": "m5", "name": "Tyler",  "image_url": "https://randomuser.me/api/portraits/men/5.jpg"},
+    {"id": "m6", "name": "Daniel", "image_url": "https://randomuser.me/api/portraits/men/6.jpg"},
 ]
 
 
