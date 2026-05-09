@@ -13,7 +13,6 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urlencode
 
-import httpx
 import requests
 
 log = logging.getLogger("zeus.youtube")
@@ -81,7 +80,7 @@ def exchange_code(code: str, redirect_uri: str, state: str | None = None) -> str
 
 def upload_song_to_youtube(variant: dict, user: dict, privacy: str, title: str) -> str:
     """
-    Download MP3 + cover art, mux into MP4 via ffmpeg, upload to YouTube.
+    Read MP3 + cover art from the Railway volume, mux into MP4 via ffmpeg, upload to YouTube.
     Returns the YouTube video URL (https://youtu.be/<id>).
     """
     from google.oauth2.credentials import Credentials
@@ -93,37 +92,21 @@ def upload_song_to_youtube(variant: dict, user: dict, privacy: str, title: str) 
         raise ValueError("YouTube not connected")
 
     variant_id = variant["id"]
-    mp3_url = variant.get("mp3_url")
-    if not mp3_url:
-        raise ValueError("Variant has no MP3 URL yet")
-
-    image_url = variant.get("image_url")
     privacy = privacy or "unlisted"
+
+    storage_path = os.environ["SONG_STORAGE_PATH"]  # e.g. /data/songs
+    mp3_src = Path(storage_path) / f"{variant_id}.mp3"
+    img_src = Path(storage_path) / f"{variant_id}.jpg"
+
+    if not mp3_src.exists():
+        raise ValueError(f"MP3 not found on volume: {mp3_src}")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
-        mp3_path = tmp / f"{variant_id}.mp3"
-        img_path = tmp / f"{variant_id}.jpg"
+        img_path = img_src if img_src.exists() else tmp / f"{variant_id}.jpg"
         mp4_path = tmp / f"{variant_id}.mp4"
 
-        # Download MP3
-        with httpx.Client(timeout=120) as client:
-            r = client.get(mp3_url)
-            r.raise_for_status()
-            mp3_path.write_bytes(r.content)
-
-        # Download cover art — fall back to black frame on failure
-        if image_url:
-            try:
-                with httpx.Client(timeout=30) as client:
-                    r = client.get(image_url)
-                    r.raise_for_status()
-                    img_path.write_bytes(r.content)
-            except Exception as exc:
-                log.warning("Could not fetch cover art (%s) — using black frame", exc)
-                image_url = None
-
-        if not image_url:
+        if not img_src.exists():
             subprocess.run(
                 ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=1280x720:r=1",
                  "-frames:v", "1", str(img_path)],
@@ -135,7 +118,7 @@ def upload_song_to_youtube(variant: dict, user: dict, privacy: str, title: str) 
             [
                 "ffmpeg", "-y",
                 "-loop", "1", "-i", str(img_path),
-                "-i", str(mp3_path),
+                "-i", str(mp3_src),
                 "-c:v", "libx264", "-tune", "stillimage",
                 "-c:a", "aac", "-b:a", "192k",
                 "-pix_fmt", "yuv420p",
