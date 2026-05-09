@@ -8,6 +8,7 @@ import os
 import pathlib
 import subprocess
 import tempfile
+import time
 
 import requests
 
@@ -148,12 +149,27 @@ def submit_avatar_video(
     if webhook_url:
         body["webhook"] = webhook_url
 
-    resp = requests.post(
-        f"{DID_BASE}/talks",
-        json=body,
-        headers=_auth(),
-        timeout=60,
-    )
+    _RETRY_DELAYS = [10, 20, 30]
+    resp = None
+    for attempt, delay in enumerate([0] + _RETRY_DELAYS, start=1):
+        if delay:
+            log.warning("submit_avatar_video: attempt %d — waiting %ds before retry", attempt, delay)
+            time.sleep(delay)
+        resp = requests.post(
+            f"{DID_BASE}/talks",
+            json=body,
+            headers=_auth(),
+            timeout=60,
+        )
+        if resp.status_code not in (503, 504):
+            break
+        log.warning("submit_avatar_video: D-ID returned %s on attempt %d", resp.status_code, attempt)
+    else:
+        raise ValueError(
+            f"D-ID submission failed after {len(_RETRY_DELAYS) + 1} attempts: "
+            f"{resp.status_code} {resp.text[:300]}"
+        )
+
     if not resp.ok:
         raise ValueError(
             f"D-ID submission failed: {resp.status_code} {resp.text[:300]}"
