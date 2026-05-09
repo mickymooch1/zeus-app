@@ -114,6 +114,66 @@ def upload_audio_to_did(mp3_path: pathlib.Path) -> str:
     return audio_url
 
 
+def upload_image_to_did(jpeg_path: pathlib.Path) -> str:
+    """
+    Upload a JPEG file to D-ID's /images endpoint.
+    Returns the D-ID-hosted image URL to pass as source_url to /talks.
+    """
+    if not did_enabled():
+        raise ValueError("DID_API_KEY is not configured")
+
+    if not jpeg_path.exists():
+        raise ValueError(f"Image file not found: {jpeg_path}")
+
+    log.info("upload_image_to_did: uploading %s (%d bytes)", jpeg_path.name, jpeg_path.stat().st_size)
+
+    with jpeg_path.open("rb") as fh:
+        resp = requests.post(
+            f"{DID_BASE}/images",
+            headers={"Authorization": _auth_header_value()},
+            files={"image": (jpeg_path.name[:50], fh, "image/jpeg")},
+            timeout=60,
+        )
+
+    if not resp.ok:
+        raise ValueError(f"D-ID image upload failed: {resp.status_code} {resp.text[:300]}")
+
+    data = resp.json()
+    image_url = data.get("url")
+    if not image_url:
+        raise ValueError(f"D-ID image upload returned no URL: {data!r}")
+
+    log.info("upload_image_to_did: %s → %s", jpeg_path.name, image_url[:100])
+    return image_url
+
+
+_ZEUS_PUBLIC_PREFIX = "https://zeusaidesign.com/files/avatars/"
+_AVATARS_LOCAL_DIR  = "/data/avatars"
+
+
+def _resolve_source_url(source_url: str) -> str:
+    """
+    If source_url points to a locally-stored avatar (zeusaidesign.com or relative
+    /files/avatars/ path), upload it to D-ID /images and return the D-ID URL.
+    External URLs (e.g. randomuser.me) are returned unchanged.
+    """
+    local_path: pathlib.Path | None = None
+
+    if source_url.startswith(_ZEUS_PUBLIC_PREFIX):
+        filename = source_url[len(_ZEUS_PUBLIC_PREFIX):]
+        local_path = pathlib.Path(_AVATARS_LOCAL_DIR) / filename
+    elif source_url.startswith("/files/avatars/"):
+        filename = source_url[len("/files/avatars/"):]
+        local_path = pathlib.Path(_AVATARS_LOCAL_DIR) / filename
+
+    if local_path is not None:
+        log.info("_resolve_source_url: uploading local avatar %s to D-ID", local_path)
+        return upload_image_to_did(local_path)
+
+    log.info("_resolve_source_url: using external URL directly: %s", source_url[:80])
+    return source_url
+
+
 def submit_avatar_video(
     *,
     mp3_path: pathlib.Path,
@@ -136,8 +196,13 @@ def submit_avatar_video(
     did_audio_url = upload_audio_to_did(mp3_path)
     log.info("submit_avatar_video: using D-ID audio URL %s", did_audio_url[:100])
 
+    # Upload locally-stored portrait/avatar images to D-ID so it doesn't need to
+    # fetch from zeusaidesign.com (which may not be reachable from D-ID's servers).
+    did_source_url = _resolve_source_url(source_url)
+    log.info("submit_avatar_video: source_url resolved to %s", did_source_url[:100])
+
     body: dict = {
-        "source_url": source_url,
+        "source_url": did_source_url,
         "script": {
             "type": "audio",
             "audio_url": did_audio_url,
