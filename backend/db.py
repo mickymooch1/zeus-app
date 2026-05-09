@@ -157,6 +157,14 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
 
+            CREATE TABLE IF NOT EXISTS video_credits (
+                user_id           TEXT PRIMARY KEY,
+                balance           INTEGER NOT NULL DEFAULT 0,
+                monthly_allowance INTEGER NOT NULL DEFAULT 0,
+                last_reset        TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_song_variants_status ON song_variants(status);
             CREATE INDEX IF NOT EXISTS idx_song_variants_lyric  ON song_variants(lyric_id);
         """)
@@ -847,6 +855,72 @@ def reset_song_credits_balance(db_path: pathlib.Path, user_id: str) -> None:
             """UPDATE song_credits
                SET balance = monthly_allowance, last_reset = CURRENT_TIMESTAMP
                WHERE user_id = ?""",
+            (user_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ── Video credits CRUD ────────────────────────────────────────────────────────
+
+def get_video_credits(db_path: pathlib.Path, user_id: str) -> dict | None:
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM video_credits WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def upsert_video_credits(
+    db_path: pathlib.Path,
+    user_id: str,
+    balance: int,
+    monthly_allowance: int,
+) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """INSERT INTO video_credits (user_id, balance, monthly_allowance, last_reset)
+               VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+               ON CONFLICT(user_id) DO UPDATE SET
+                   balance = ?,
+                   monthly_allowance = ?,
+                   last_reset = CURRENT_TIMESTAMP""",
+            (user_id, balance, monthly_allowance, balance, monthly_allowance),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def check_and_deduct_video_credit(db_path: pathlib.Path, user_id: str) -> bool:
+    """Atomically deduct 1 credit. Returns True on success, False if balance is 0."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT balance FROM video_credits WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if not row or row["balance"] < 1:
+            return False
+        conn.execute(
+            "UPDATE video_credits SET balance = balance - 1 WHERE user_id = ?",
+            (user_id,),
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def refund_video_credit(db_path: pathlib.Path, user_id: str) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE video_credits SET balance = balance + 1 WHERE user_id = ?",
             (user_id,),
         )
         conn.commit()

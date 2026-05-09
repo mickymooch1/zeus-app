@@ -78,6 +78,11 @@ _PLAN_SONG_CREDITS = {
     "enterprise": 100,
 }
 
+_PLAN_VIDEO_CREDITS = {
+    "agency": 5,
+    "enterprise": 15,
+}
+
 SONG_PACKS = {
     "song_pack_10": {
         "credits": 10,
@@ -354,6 +359,11 @@ def _handle_checkout_completed(db_path, session) -> None:
     db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
     log.info("Granted %d song credits (%s plan) to user %s", allowance, plan, user["id"])
 
+    video_allowance = _PLAN_VIDEO_CREDITS.get(plan, 0)
+    if video_allowance > 0:
+        db.upsert_video_credits(db_path, user["id"], balance=video_allowance, monthly_allowance=video_allowance)
+        log.info("Granted %d video credits (%s plan) to user %s", video_allowance, plan, user["id"])
+
 
 def _handle_invoice_paid(db_path, invoice) -> None:
     """Reset monthly song credit balance on recurring Stripe invoice."""
@@ -370,6 +380,11 @@ def _handle_invoice_paid(db_path, invoice) -> None:
     allowance = _PLAN_SONG_CREDITS.get(plan, FREE_SONG_CREDITS)
     db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
     log.info("Monthly song credits reset for user %s: %d credits (%s plan)", user["id"], allowance, plan)
+
+    video_allowance = _PLAN_VIDEO_CREDITS.get(plan, 0)
+    if video_allowance > 0:
+        db.upsert_video_credits(db_path, user["id"], balance=video_allowance, monthly_allowance=video_allowance)
+        log.info("Monthly video credits reset for user %s: %d credits (%s plan)", user["id"], video_allowance, plan)
 
 
 def _handle_subscription_updated(db_path, subscription) -> None:

@@ -147,7 +147,7 @@ const actionBtnStyle = {
 function SongCard({
   variant, title, activeWsRef,
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
-  canDid, didSt, videoUrl, onAvatarClick,
+  canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
 }) {
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
@@ -221,11 +221,18 @@ function SongCard({
 
   // ── Avatar video button state ──────────────────────────────────────────────
   let avatarBtn;
-  if (!canDid) {
+  if (!didPlanOk) {
     avatarBtn = (
       <button disabled title="Available on Agency plan and above"
         style={{ ...actionBtnStyle, opacity: 0.25, cursor: 'not-allowed' }}>
         ◉ Avatar
+      </button>
+    );
+  } else if (!isAdmin && videoCredits === 0) {
+    avatarBtn = (
+      <button disabled title="No avatar video credits remaining"
+        style={{ ...actionBtnStyle, opacity: 0.35, cursor: 'not-allowed', color: '#f87171' }}>
+        ◉ No credits
       </button>
     );
   } else if (didSt === 'processing') {
@@ -354,7 +361,7 @@ export default function SongsPage() {
   const location = useLocation();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
-  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, youtube_connected: false });
+  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0 });
   const [brief, setBrief]               = useState('');
   const [selGenres, setSelGenres]       = useState(new Set());
   const [generating, setGenerating]     = useState(false);
@@ -401,7 +408,8 @@ export default function SongsPage() {
   const isAdmin          = credits.is_admin;
   const canShowExplicit  = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
   const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
-  const canDid           = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
+  const didPlanOk        = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
+  const canDid           = didPlanOk && (isAdmin || credits.video_credits > 0);
   const youtubeConnected = credits.youtube_connected;
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
   const cost           = selGenres.size;
@@ -755,6 +763,11 @@ export default function SongsPage() {
             <span style={{ fontSize: 13, color: '#666', whiteSpace: 'nowrap' }}>
               {isAdmin ? 'Unlimited' : `${balance} / ${allowance} songs`}
             </span>
+            {didPlanOk && !isAdmin && (
+              <span style={{ fontSize: 13, color: credits.video_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
+                · {credits.video_credits} avatar video{credits.video_credits !== 1 ? 's' : ''} remaining
+              </span>
+            )}
             {!isAdmin && balance <= 2 && (
               <Link to="/billing" style={{ fontSize: 13, color: barColor, fontWeight: 600, whiteSpace: 'nowrap' }}>
                 Top up →
@@ -1258,6 +1271,9 @@ export default function SongsPage() {
                       didSt={didStatus[v.variant_id]}
                       videoUrl={videoUrls[v.variant_id]}
                       onAvatarClick={() => handleAvatarClick({ ...v, title: activeJob.title })}
+                      videoCredits={credits.video_credits}
+                      didPlanOk={didPlanOk}
+                      isAdmin={isAdmin}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -1289,6 +1305,9 @@ export default function SongsPage() {
                     didSt={didStatus[v.variant_id]}
                     videoUrl={videoUrls[v.variant_id]}
                     onAvatarClick={() => handleAvatarClick(v)}
+                    videoCredits={credits.video_credits}
+                    didPlanOk={didPlanOk}
+                    isAdmin={isAdmin}
                   />
                 ))}
               </div>

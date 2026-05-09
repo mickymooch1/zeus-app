@@ -983,16 +983,20 @@ async def songs_topup(
 async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()
     row = db.get_song_credits(db_path, current_user["id"])
+    video_row = db.get_video_credits(db_path, current_user["id"])
     plan = current_user.get("subscription_plan")
-    # Derive allowance from the current plan so the banner denominator is always correct,
-    # even if the DB monthly_allowance is stale from an earlier credit tier.
+    # Derive allowances from the current plan so denominators are always correct
+    # even if DB monthly_allowance is stale from an earlier credit tier.
     allowance = billing._PLAN_SONG_CREDITS.get(plan, billing.FREE_SONG_CREDITS)
+    video_allowance = billing._PLAN_VIDEO_CREDITS.get(plan, 0)
     return {
         "balance": row["balance"] if row else 0,
         "monthly_allowance": allowance,
         "is_admin": bool(current_user.get("is_admin", 0)),
         "plan": plan,
         "youtube_connected": bool(current_user.get("youtube_refresh_token")),
+        "video_credits": video_row["balance"] if video_row else 0,
+        "video_monthly_allowance": video_allowance,
     }
 
 
@@ -1268,6 +1272,15 @@ async def create_avatar_video(
     if not variant.get("mp3_url"):
         raise HTTPException(status_code=400, detail="Song has no audio URL")
 
+    # Deduct 1 video credit before calling D-ID (admin bypasses)
+    if not is_admin:
+        deducted = db.check_and_deduct_video_credit(db_path, current_user["id"])
+        if not deducted:
+            raise HTTPException(
+                status_code=402,
+                detail="No avatar video credits remaining. Your allowance resets at the next billing cycle.",
+            )
+
     backend_url = os.environ.get("BACKEND_URL", "").strip().rstrip("/")
 
     # Resolve relative avatar URLs to absolute so D-ID can fetch them
@@ -1302,9 +1315,13 @@ async def create_avatar_video(
         )
     except ValueError as exc:
         log.error("create_avatar_video: D-ID rejected request for variant %s: %s", variant_id, exc)
+        if not is_admin:
+            db.refund_video_credit(db_path, current_user["id"])
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception:
         log.exception("create_avatar_video: D-ID submission failed for variant %s", variant_id)
+        if not is_admin:
+            db.refund_video_credit(db_path, current_user["id"])
         raise HTTPException(status_code=500, detail="D-ID submission failed — try again")
 
     db.update_song_variant(db_path, variant_id, did_job_id=job_id)
