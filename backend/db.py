@@ -787,6 +787,18 @@ def update_song_variant(db_path: pathlib.Path, variant_id: int, **fields) -> Non
         conn.close()
 
 
+def get_song_variant_by_did_job_id(db_path: pathlib.Path, job_id: str) -> dict | None:
+    """Look up a song_variants row by did_job_id — used by the D-ID webhook."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM song_variants WHERE did_job_id = ?", (job_id,)
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
 def get_song_variant_by_id(db_path: pathlib.Path, variant_id: int) -> dict | None:
     """Look up a song_variants row by ID (no user filter — used by webhook)."""
     conn = _conn(db_path)

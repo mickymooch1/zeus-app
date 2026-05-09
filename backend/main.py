@@ -7,6 +7,7 @@ import pathlib
 import subprocess
 import sys
 import traceback
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -14,7 +15,7 @@ from datetime import datetime, timezone
 # crashes even if the import chain below fails.
 print("zeus main.py: starting imports", file=sys.stderr, flush=True)
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
@@ -30,6 +31,7 @@ from tunnel import get_tunnel_url, start_tunnel_background, stop_tunnel
 import db
 import auth
 import billing
+import did_uploader
 import scheduler as _scheduler_mod
 import webhooks as _webhooks_mod
 import youtube_uploader
@@ -1139,6 +1141,202 @@ async def upload_to_youtube(
 
     db.update_song_variant(db_path, variant_id, youtube_url=youtube_url)
     return {"youtube_url": youtube_url}
+
+
+# ── D-ID avatar lip-sync endpoints ───────────────────────────────────────────
+
+_DID_PLANS = {"agency", "enterprise"}
+
+
+@app.get("/api/did/avatars")
+async def list_did_avatars(current_user: dict = Depends(auth.get_current_user)):
+    """Return preset avatar list for the avatar picker modal."""
+    is_admin = bool(current_user.get("is_admin", 0))
+    plan = current_user.get("subscription_plan")
+    if not is_admin and plan not in _DID_PLANS:
+        raise HTTPException(status_code=403, detail="Avatar videos require Agency plan or above")
+    return {"avatars": did_uploader.GENRE_AVATARS}
+
+
+class CreateAvatarVideoRequest(BaseModel):
+    source_url: str  # preset URL or /files/avatars/<filename>
+
+
+@app.post("/api/songs/variants/{variant_id}/create-avatar-video")
+async def create_avatar_video(
+    variant_id: int,
+    body: CreateAvatarVideoRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Submit a D-ID lip-sync job for a completed song variant."""
+    is_admin = bool(current_user.get("is_admin", 0))
+    plan = current_user.get("subscription_plan")
+    if not is_admin and plan not in _DID_PLANS:
+        raise HTTPException(status_code=403, detail="Avatar videos require Agency plan or above")
+
+    if not did_uploader.did_enabled():
+        raise HTTPException(status_code=503, detail="D-ID integration not configured (DID_API_KEY missing)")
+
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Song not found")
+    if variant["status"] != "complete":
+        raise HTTPException(status_code=400, detail="Song is not ready yet")
+    if not variant.get("mp3_url"):
+        raise HTTPException(status_code=400, detail="Song has no audio URL")
+
+    backend_url = os.environ.get("BACKEND_URL", "").strip().rstrip("/")
+
+    # Resolve relative avatar URLs to absolute so D-ID can fetch them
+    source_url = body.source_url
+    if source_url.startswith("/"):
+        if not backend_url:
+            raise HTTPException(
+                status_code=503,
+                detail="BACKEND_URL not configured — cannot resolve uploaded avatar URL",
+            )
+        source_url = backend_url + source_url
+
+    webhook_url = f"{backend_url}/webhooks/did" if backend_url else None
+
+    try:
+        job_id = did_uploader.submit_avatar_video(
+            audio_url=variant["mp3_url"],
+            source_url=source_url,
+            webhook_url=webhook_url,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        log.exception("create_avatar_video: D-ID submission failed for variant %s", variant_id)
+        raise HTTPException(status_code=500, detail="D-ID submission failed — try again")
+
+    db.update_song_variant(db_path, variant_id, did_job_id=job_id)
+    log.info("create_avatar_video: variant=%s job_id=%s", variant_id, job_id)
+    return {"job_id": job_id, "status": "processing"}
+
+
+@app.post("/api/avatars/upload")
+async def upload_avatar_photo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Upload a custom face photo to use as a D-ID avatar source."""
+    is_admin = bool(current_user.get("is_admin", 0))
+    plan = current_user.get("subscription_plan")
+    if not is_admin and plan not in _DID_PLANS:
+        raise HTTPException(status_code=403, detail="Avatar videos require Agency plan or above")
+
+    content_type = file.content_type or ""
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image (JPEG, PNG, WebP, etc.)")
+
+    ext = pathlib.Path(file.filename or "photo.jpg").suffix.lower() or ".jpg"
+    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+        raise HTTPException(status_code=400, detail="Unsupported image format — use JPEG, PNG, or WebP")
+
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image must be under 10 MB")
+
+    filename = f"{uuid.uuid4()}{ext}"
+    dest = pathlib.Path("/data/avatars") / filename
+    dest.write_bytes(data)
+    log.info("upload_avatar_photo: saved %s (%d bytes) for user %s", filename, len(data), current_user["id"])
+    return {"url": f"/files/avatars/{filename}", "filename": filename}
+
+
+@app.post("/webhooks/did")
+async def did_webhook(request: Request):
+    """D-ID callback — fires when a talk job finishes. Downloads the MP4 and updates DB."""
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    job_id = payload.get("id")
+    status = payload.get("status")
+    result_url = payload.get("result_url")
+
+    log.info("did_webhook: job_id=%s status=%s", job_id, status)
+
+    if not job_id or status not in ("done", "error"):
+        return {"ok": True}
+
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_did_job_id(db_path, job_id)
+    if not variant:
+        log.warning("did_webhook: no variant found for job_id=%s", job_id)
+        return {"ok": True}
+
+    variant_id = variant["id"]
+
+    if status == "error":
+        log.error("did_webhook: D-ID job %s failed: %s", job_id, payload.get("error"))
+        db.update_song_variant(db_path, variant_id, did_job_id=None)
+        return {"ok": True}
+
+    if not result_url:
+        log.warning("did_webhook: done but no result_url for job %s", job_id)
+        return {"ok": True}
+
+    mp4_path = pathlib.Path("/data/videos") / f"{variant_id}.mp4"
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.get(result_url)
+            resp.raise_for_status()
+            mp4_path.write_bytes(resp.content)
+    except Exception:
+        log.exception("did_webhook: failed to download MP4 for variant %s", variant_id)
+        return {"ok": True}
+
+    video_url = f"/files/videos/{variant_id}.mp4"
+    db.update_song_variant(db_path, variant_id, video_url=video_url)
+    log.info("did_webhook: variant=%s video stored at %s", variant_id, mp4_path)
+    return {"ok": True}
+
+
+@app.get("/api/songs/variants/{variant_id}/did-status")
+async def did_status(
+    variant_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Poll D-ID job status. Downloads the MP4 if done and not yet stored (webhook fallback)."""
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    if variant.get("video_url"):
+        return {"status": "done", "video_url": variant["video_url"]}
+
+    job_id = variant.get("did_job_id")
+    if not job_id:
+        return {"status": "none", "video_url": None}
+
+    try:
+        result = did_uploader.get_job_status(job_id)
+    except Exception as exc:
+        log.exception("did_status: get_job_status failed for variant %s", variant_id)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    if result["status"] == "done" and result.get("result_url"):
+        mp4_path = pathlib.Path("/data/videos") / f"{variant_id}.mp4"
+        if not mp4_path.exists():
+            try:
+                async with httpx.AsyncClient(timeout=120) as client:
+                    resp = await client.get(result["result_url"])
+                    resp.raise_for_status()
+                    mp4_path.write_bytes(resp.content)
+            except Exception:
+                log.exception("did_status: download failed for variant %s", variant_id)
+        if mp4_path.exists():
+            video_url = f"/files/videos/{variant_id}.mp4"
+            db.update_song_variant(db_path, variant_id, video_url=video_url)
+            return {"status": "done", "video_url": video_url}
+
+    return {"status": result["status"], "video_url": None}
 
 
 # ── Scheduled Tasks ─────────────────────────────────────────────────────────
