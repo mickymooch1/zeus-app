@@ -1414,8 +1414,20 @@ export default function SongsPage() {
             <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2d9f3', marginBottom: 4 }}>
               Create Avatar Video
             </h3>
-            <p style={{ fontSize: 13, color: '#555', marginBottom: 20 }}>
+            <p style={{ fontSize: 13, color: '#555', marginBottom: 16 }}>
               Pick a presenter — they'll lip-sync to your song.
+            </p>
+            <p style={{
+              fontSize: 12,
+              color: '#4a4a6a',
+              background: 'rgba(167,139,250,0.06)',
+              border: '1px solid rgba(167,139,250,0.12)',
+              borderRadius: 8,
+              padding: '8px 12px',
+              marginBottom: 20,
+              lineHeight: 1.5,
+            }}>
+              For best lip-sync quality, use a clear frontal face photo. Upload your own for a custom performer.
             </p>
 
             {/* Preset avatars grid */}
@@ -1453,14 +1465,29 @@ export default function SongsPage() {
                         style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }}
                       />
                       <span style={{
-                        display: 'block',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 4,
                         fontSize: 11,
                         fontWeight: 500,
                         color: sel ? '#c4b5fd' : '#666',
-                        padding: '5px 0',
-                        textAlign: 'center',
+                        padding: '5px 4px',
                       }}>
                         {av.label}
+                        {av.gender && (
+                          <span style={{
+                            fontSize: 9,
+                            fontWeight: 600,
+                            color: av.gender === 'F' ? '#f9a8d4' : '#93c5fd',
+                            background: av.gender === 'F' ? 'rgba(249,168,212,0.12)' : 'rgba(147,197,253,0.12)',
+                            borderRadius: 4,
+                            padding: '1px 4px',
+                            letterSpacing: '0.3px',
+                          }}>
+                            {av.gender === 'F' ? 'F' : 'M'}
+                          </span>
+                        )}
                       </span>
                     </button>
                   );

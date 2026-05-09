@@ -27,37 +27,43 @@ def _auth() -> dict:
 
 
 # Preset avatar images shown in the avatar picker modal.
-# source_url must be a publicly accessible face photo that D-ID accepts.
+# All URLs are D-ID's own reliably-hosted DefaultPresenters CDN.
 GENRE_AVATARS: list[dict] = [
     {
-        "id": "emma",
-        "label": "Emma",
-        "url": "https://d-id-public-bucket.s3.amazonaws.com/alice.jpg",
+        "id": "noelle",
+        "label": "Noelle",
+        "gender": "F",
+        "url": "https://create-images-results.d-id.com/DefaultPresenters/Noelle_f/image.png",
     },
     {
-        "id": "james",
-        "label": "James",
-        "url": "https://d-id-public-bucket.s3.amazonaws.com/or.jpg",
+        "id": "anna",
+        "label": "Anna",
+        "gender": "F",
+        "url": "https://create-images-results.d-id.com/DefaultPresenters/Anna_f/image.png",
     },
     {
-        "id": "sofia",
-        "label": "Sofia",
-        "url": "https://d-id-public-bucket.s3.us-east-1.amazonaws.com/ai-sdr/women_5.jpeg",
+        "id": "amy",
+        "label": "Amy",
+        "gender": "F",
+        "url": "https://create-images-results.d-id.com/DefaultPresenters/Amy_f/image.png",
     },
     {
-        "id": "marcus",
-        "label": "Marcus",
-        "url": "https://d-id-public-bucket.s3.us-east-1.amazonaws.com/ai-sdr/men_4.jpeg",
+        "id": "jack",
+        "label": "Jack",
+        "gender": "M",
+        "url": "https://create-images-results.d-id.com/DefaultPresenters/Jack_m/image.png",
     },
     {
-        "id": "aisha",
-        "label": "Aisha",
-        "url": "https://d-id-public-bucket.s3.us-east-1.amazonaws.com/ai-sdr/women_2.jpeg",
+        "id": "ethan",
+        "label": "Ethan",
+        "gender": "M",
+        "url": "https://create-images-results.d-id.com/DefaultPresenters/Ethan_m/image.png",
     },
     {
-        "id": "carlos",
-        "label": "Carlos",
-        "url": "https://d-id-public-bucket.s3.us-east-1.amazonaws.com/ai-sdr/men_2.jpeg",
+        "id": "will",
+        "label": "Will",
+        "gender": "M",
+        "url": "https://create-images-results.d-id.com/DefaultPresenters/Will_m/image.png",
     },
 ]
 
