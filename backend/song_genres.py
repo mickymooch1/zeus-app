@@ -9,4 +9,7 @@ GENRE_PRESETS = {
     "acoustic": "acoustic singer-songwriter, fingerpicked guitar, intimate vocals, 90 BPM",
     "irishjig":  "Irish jig, fiddle, tin whistle, accordion, fast tempo, 160 BPM, energetic traditional Irish dance music",
     "irishfolk": "Irish folk song, acoustic guitar, fiddle, storytelling vocals, slow to moderate tempo, traditional Celtic feel",
+    "blues":     "blues, electric guitar, soulful vocals, slow to mid tempo, 12-bar blues progression",
+    "soul":      "soul music, warm brass, gospel-influenced vocals, rhythm section, emotional delivery",
+    "rnb":       "R&B, smooth production, silky vocals, bass-forward, contemporary feel, 90 BPM",
 }
