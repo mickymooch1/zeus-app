@@ -1248,6 +1248,9 @@ async def create_avatar_video(
     current_user: dict = Depends(auth.get_current_user),
 ):
     """Submit a D-ID lip-sync job for a completed song variant."""
+    log.info("create_avatar_video: variant_id=%s user=%s body=%r",
+             variant_id, current_user.get("id"), body.dict())
+
     is_admin = bool(current_user.get("is_admin", 0))
     plan = current_user.get("subscription_plan")
     if not is_admin and plan not in _DID_PLANS:
@@ -1279,6 +1282,9 @@ async def create_avatar_video(
 
     webhook_url = f"{backend_url}/webhooks/did" if backend_url else None
 
+    log.info("create_avatar_video: submitting to D-ID — source_url=%r audio_url=%r webhook=%r",
+             source_url, variant["mp3_url"], webhook_url)
+
     try:
         job_id = did_uploader.submit_avatar_video(
             audio_url=variant["mp3_url"],
@@ -1286,6 +1292,7 @@ async def create_avatar_video(
             webhook_url=webhook_url,
         )
     except ValueError as exc:
+        log.error("create_avatar_video: D-ID rejected request for variant %s: %s", variant_id, exc)
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception:
         log.exception("create_avatar_video: D-ID submission failed for variant %s", variant_id)
