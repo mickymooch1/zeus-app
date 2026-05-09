@@ -22,7 +22,9 @@ GENRE_PORTRAIT_PROMPTS = {
     "edm":       "Professional portrait photo, EDM producer, clear frontal face, colorful dramatic lighting, energetic, photorealistic",
     "acoustic":  "Professional portrait photo, acoustic singer, clear frontal face, warm natural lighting, intimate, photorealistic",
     "irishjig":  "Professional portrait photo, Irish musician, clear frontal face, warm pub lighting, authentic, photorealistic",
-    "irishfolk": "Professional portrait photo, Irish folk singer, clear frontal face, firelight ambiance, soulful, photorealistic",
+    "irishfolk":   "Professional portrait photo, Irish folk singer, clear frontal face, firelight ambiance, soulful, photorealistic",
+    "bluessoul":   "Professional portrait photo, blues soul musician, clear frontal face, warm amber studio lighting, emotional expression, photorealistic",
+    "drumandbass": "Professional portrait photo, drum and bass DJ and producer, clear frontal face, dramatic purple and blue studio lighting, intense expression, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"

@@ -11,5 +11,7 @@ GENRE_PRESETS = {
     "irishfolk": "Irish folk song, acoustic guitar, fiddle, storytelling vocals, slow to moderate tempo, traditional Celtic feel",
     "blues":     "blues, electric guitar, soulful vocals, slow to mid tempo, 12-bar blues progression",
     "soul":      "soul music, warm brass, gospel-influenced vocals, rhythm section, emotional delivery",
-    "rnb":       "R&B, smooth production, silky vocals, bass-forward, contemporary feel, 90 BPM",
+    "rnb":        "R&B, smooth production, silky vocals, bass-forward, contemporary feel, 90 BPM",
+    "bluessoul":  "blues soul fusion, soulful vocals, warm guitar, gospel undertones, emotional delivery, slow to mid tempo",
+    "drumandbass": "drum and bass, heavy rolling bassline, fast breakbeats, 170 BPM, electronic production, UK rave energy",
 }
