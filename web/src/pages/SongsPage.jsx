@@ -401,9 +401,15 @@ export default function SongsPage() {
   const [didStatus, setDidStatus]                 = useState({});
   const [videoUrls, setVideoUrls]                 = useState({});
 
-  const activeWsRef  = useRef(null);
-  const pollTimerRef = useRef(null);
-  const photoInputRef = useRef(null);
+  // Portrait generation state
+  const [portraitGenerating, setPortraitGenerating] = useState(false);
+  const [portraitJobId, setPortraitJobId]           = useState(null);
+  const [portraitImageUrl, setPortraitImageUrl]     = useState(null);
+
+  const activeWsRef     = useRef(null);
+  const pollTimerRef    = useRef(null);
+  const photoInputRef   = useRef(null);
+  const portraitPollRef = useRef(null);
 
   const isAdmin          = credits.is_admin;
   const canShowExplicit  = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
@@ -534,6 +540,36 @@ export default function SongsPage() {
     return () => clearTimeout(timer);
   }, [didStatus, token]);
 
+  // Portrait generation polling (5s)
+  useEffect(() => {
+    if (!portraitJobId) return;
+    const poll = async () => {
+      try {
+        const r = await fetch(`${BACKEND_URL}/api/did/portrait-status/${portraitJobId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok) { portraitPollRef.current = setTimeout(poll, 5000); return; }
+        const d = await r.json();
+        if (d.status === 'completed' && d.image_url) {
+          setPortraitImageUrl(d.image_url);
+          setSelectedAvatarUrl(d.image_url);
+          setPortraitGenerating(false);
+          setPortraitJobId(null);
+        } else if (d.status === 'failed') {
+          setPortraitGenerating(false);
+          setPortraitJobId(null);
+          setError('Portrait generation failed — try again');
+        } else {
+          portraitPollRef.current = setTimeout(poll, 5000);
+        }
+      } catch (_) {
+        portraitPollRef.current = setTimeout(poll, 5000);
+      }
+    };
+    portraitPollRef.current = setTimeout(poll, 5000);
+    return () => { if (portraitPollRef.current) clearTimeout(portraitPollRef.current); };
+  }, [portraitJobId, token]);
+
   const handleGenerate = async () => {
     setError('');
     setGenerating(true);
@@ -645,9 +681,20 @@ export default function SongsPage() {
 
   // ── D-ID handlers ──────────────────────────────────────────────────────────
 
+  const closeAvatarModal = () => {
+    setAvatarModal(null);
+    setPortraitGenerating(false);
+    setPortraitJobId(null);
+    setPortraitImageUrl(null);
+    if (portraitPollRef.current) clearTimeout(portraitPollRef.current);
+  };
+
   const handleAvatarClick = async (variant) => {
     if (!canDid) return;
     setSelectedAvatarUrl(null);
+    setPortraitGenerating(false);
+    setPortraitJobId(null);
+    setPortraitImageUrl(null);
     setAvatarModal(variant);
     if (avatars.length === 0) {
       try {
@@ -682,6 +729,30 @@ export default function SongsPage() {
     } finally {
       setUploadingPhoto(false);
       if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  const handleGeneratePortrait = async (gender) => {
+    if (!avatarModal || portraitGenerating) return;
+    setPortraitGenerating(true);
+    setPortraitImageUrl(null);
+    setPortraitJobId(null);
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/did/generate-portrait`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          genre: avatarModal.genre_tag || 'pop',
+          gender,
+          variant_id: avatarModal.variant_id,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Portrait generation failed');
+      setPortraitJobId(d.job_id);
+    } catch (err) {
+      setPortraitGenerating(false);
+      setError(err.message);
     }
   };
 
@@ -1409,7 +1480,7 @@ export default function SongsPage() {
       {/* ── Avatar picker modal ───────────────────────────────────────────── */}
       {avatarModal && (
         <div
-          onClick={() => setAvatarModal(null)}
+          onClick={closeAvatarModal}
           style={{
             position: 'fixed', inset: 0,
             background: 'rgba(0,0,0,0.75)',
@@ -1556,10 +1627,93 @@ export default function SongsPage() {
               </div>
             </div>
 
+            {/* Generate AI Performer */}
+            <div style={{
+              borderTop: '1px solid rgba(255,255,255,0.06)',
+              paddingTop: 16,
+              marginBottom: 24,
+            }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>
+                Generate AI Performer
+              </p>
+              {portraitImageUrl ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <button
+                    onClick={() => setSelectedAvatarUrl(portraitImageUrl)}
+                    style={{
+                      border: `2px solid ${selectedAvatarUrl === portraitImageUrl ? '#a78bfa' : 'rgba(255,255,255,0.15)'}`,
+                      borderRadius: 10,
+                      padding: 0,
+                      overflow: 'hidden',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      width: 80,
+                      height: 80,
+                      flexShrink: 0,
+                      transition: 'border-color 0.15s',
+                    }}
+                  >
+                    <img src={portraitImageUrl} alt="AI Generated" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </button>
+                  <div>
+                    <span style={{
+                      display: 'inline-block', fontSize: 10, fontWeight: 700, color: '#a78bfa',
+                      background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.25)',
+                      borderRadius: 4, padding: '2px 7px', letterSpacing: '0.3px',
+                      textTransform: 'uppercase', marginBottom: 6,
+                    }}>AI Generated</span>
+                    <p style={{ fontSize: 12, color: '#555', margin: '0 0 4px' }}>
+                      {selectedAvatarUrl === portraitImageUrl ? 'Selected — click Create Video' : 'Click to select'}
+                    </p>
+                    <button
+                      onClick={() => {
+                        if (selectedAvatarUrl === portraitImageUrl) setSelectedAvatarUrl(null);
+                        setPortraitImageUrl(null);
+                        setPortraitJobId(null);
+                      }}
+                      style={{ fontSize: 11, color: '#444', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                    >
+                      Regenerate
+                    </button>
+                  </div>
+                </div>
+              ) : portraitGenerating ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, color: '#666' }}>Generating portrait (~30s)…</span>
+                  <span style={{ fontSize: 14, color: '#444', letterSpacing: 2 }}>···</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => handleGeneratePortrait('m')}
+                    style={{
+                      padding: '7px 18px', borderRadius: 8,
+                      border: '1px solid rgba(147,197,253,0.3)',
+                      background: 'rgba(147,197,253,0.06)',
+                      color: '#93c5fd', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    }}
+                  >
+                    ♂ Male
+                  </button>
+                  <button
+                    onClick={() => handleGeneratePortrait('f')}
+                    style={{
+                      padding: '7px 18px', borderRadius: 8,
+                      border: '1px solid rgba(249,168,212,0.3)',
+                      background: 'rgba(249,168,212,0.06)',
+                      color: '#f9a8d4', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    }}
+                  >
+                    ♀ Female
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Actions */}
             <div style={{ display: 'flex', gap: 10 }}>
               <button
-                onClick={() => setAvatarModal(null)}
+                onClick={closeAvatarModal}
                 style={{
                   flex: 1, padding: '11px 0', borderRadius: 8,
                   border: '1px solid rgba(255,255,255,0.1)',

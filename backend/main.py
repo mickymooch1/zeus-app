@@ -1241,6 +1241,99 @@ async def list_did_avatars(current_user: dict = Depends(auth.get_current_user)):
     return {"avatars": did_uploader.GENRE_AVATARS}
 
 
+class GeneratePortraitRequest(BaseModel):
+    genre: str
+    gender: str   # "m" or "f"
+    variant_id: int
+
+
+@app.post("/api/did/generate-portrait")
+async def generate_portrait(
+    body: GeneratePortraitRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Submit an AI portrait generation job to Apiframe for use as a D-ID source."""
+    is_admin = bool(current_user.get("is_admin", 0))
+    plan = current_user.get("subscription_plan")
+    if not is_admin and plan not in _DID_PLANS:
+        raise HTTPException(status_code=403, detail="AI portraits require Agency plan or above")
+
+    if body.gender not in ("m", "f"):
+        raise HTTPException(status_code=400, detail="gender must be 'm' or 'f'")
+
+    backend_url = os.environ.get("BACKEND_URL", "").strip().rstrip("/")
+    if not backend_url:
+        raise HTTPException(status_code=503, detail="BACKEND_URL not configured")
+
+    import portrait_generator as _portrait_mod
+    webhook_url = f"{backend_url}/webhooks/portrait?variant_id={body.variant_id}"
+
+    try:
+        job_id = _portrait_mod.submit_portrait_generation(
+            genre=body.genre,
+            gender=body.gender,
+            webhook_url=webhook_url,
+        )
+    except Exception as exc:
+        log.exception("generate_portrait: Apiframe submission failed")
+        raise HTTPException(status_code=500, detail=f"Portrait generation failed: {exc}")
+
+    return {"job_id": job_id}
+
+
+@app.get("/api/did/portrait-status/{job_id}")
+async def portrait_status(
+    job_id: str,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Poll Apiframe for portrait job status."""
+    import portrait_generator as _portrait_mod
+    try:
+        result = _portrait_mod.get_portrait_job_status(job_id)
+    except Exception as exc:
+        log.exception("portrait_status: poll failed for job_id=%s", job_id)
+        raise HTTPException(status_code=500, detail=str(exc))
+    return result
+
+
+@app.post("/webhooks/portrait")
+async def portrait_webhook(
+    request: Request,
+    variant_id: int = Query(None),
+):
+    """Apiframe callback — fires when portrait generation completes. Stores image locally."""
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    log.info("portrait_webhook: variant_id=%s status=%s keys=%s",
+             variant_id, payload.get("status"), list(payload.keys()))
+
+    import portrait_generator as _portrait_mod
+    status = payload.get("status", "unknown")
+    image_url = _portrait_mod._extract_image_url(payload)
+
+    if not image_url or status not in ("completed",):
+        return {"ok": True}
+
+    if not variant_id:
+        log.warning("portrait_webhook: missing variant_id query param")
+        return {"ok": True}
+
+    dest = pathlib.Path("/data/avatars") / f"{variant_id}_portrait.jpg"
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.get(image_url)
+            resp.raise_for_status()
+            dest.write_bytes(resp.content)
+        log.info("portrait_webhook: saved %s (%d bytes)", dest, len(resp.content))
+    except Exception:
+        log.exception("portrait_webhook: failed to download portrait for variant %s", variant_id)
+
+    return {"ok": True}
+
+
 class CreateAvatarVideoRequest(BaseModel):
     source_url: str  # preset URL or /files/avatars/<filename>
 
