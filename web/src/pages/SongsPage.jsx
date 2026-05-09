@@ -380,6 +380,11 @@ export default function SongsPage() {
   const [ytModal, setYtModal]     = useState(null);
   const [ytPrivacy, setYtPrivacy] = useState('unlisted');
 
+  // Inspired-by artist state
+  const [inspiredBy, setInspiredBy]               = useState('');
+  const [artistDescriptors, setArtistDescriptors] = useState('');
+  const [artistLoading, setArtistLoading]         = useState(false);
+
   // D-ID avatar video state
   const [avatarModal, setAvatarModal]             = useState(null);
   const [avatars, setAvatars]                     = useState([]);
@@ -531,6 +536,7 @@ export default function SongsPage() {
         body: JSON.stringify({
           brief: brief.trim(),
           genres: Array.from(selGenres),
+          inspired_by_descriptors: artistDescriptors || undefined,
           ...(showAdvanced ? {
             vocal_gender: vocalGender || undefined,
             accent: accent || undefined,
@@ -553,6 +559,8 @@ export default function SongsPage() {
       setCredits((p) => ({ ...p, balance: Math.max(0, p.balance - cost) }));
       setBrief('');
       setSelGenres(new Set());
+      setInspiredBy('');
+      setArtistDescriptors('');
     } catch (e) {
       setError(e.message);
     } finally {
@@ -574,6 +582,26 @@ export default function SongsPage() {
     } catch (e) {
       setError(e.message);
       setTopupLoading(null);
+    }
+  };
+
+  const handleArtistLookup = async () => {
+    const name = inspiredBy.trim();
+    if (!name) { setArtistDescriptors(''); return; }
+    setArtistLoading(true);
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/songs/artist-style`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ artist_name: name }),
+      });
+      const d = await r.json();
+      if (r.ok) setArtistDescriptors(d.style_descriptors || '');
+      else setArtistDescriptors('');
+    } catch (_) {
+      setArtistDescriptors('');
+    } finally {
+      setArtistLoading(false);
     }
   };
 
@@ -848,6 +876,64 @@ export default function SongsPage() {
                   </button>
                 );
               })}
+            </div>
+
+            {/* ── Inspired by artist ─────────────────────────────────── */}
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  value={inspiredBy}
+                  onChange={(e) => {
+                    setInspiredBy(e.target.value);
+                    if (artistDescriptors) setArtistDescriptors('');
+                  }}
+                  onBlur={handleArtistLookup}
+                  placeholder="Inspired by artist (e.g. Bob Marley) — optional"
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 10,
+                    padding: '10px 14px',
+                    paddingRight: artistLoading ? 36 : 14,
+                    color: '#f0eeff',
+                    fontSize: 14,
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                  }}
+                />
+                {artistLoading && (
+                  <span style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: 12,
+                    color: '#555',
+                  }}>
+                    ···
+                  </span>
+                )}
+              </div>
+              {artistDescriptors && !artistLoading && (
+                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, color: '#444', fontWeight: 600, letterSpacing: '0.4px', textTransform: 'uppercase', flexShrink: 0 }}>Style:</span>
+                  {artistDescriptors.split(',').map((d, i) => (
+                    <span key={i} style={{
+                      background: 'rgba(167,139,250,0.08)',
+                      border: '1px solid rgba(167,139,250,0.2)',
+                      color: '#9b8ec4',
+                      borderRadius: 12,
+                      padding: '2px 8px',
+                      fontSize: 11,
+                    }}>
+                      {d.trim()}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* ── Advanced options toggle ─────────────────────────────── */}

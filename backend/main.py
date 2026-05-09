@@ -806,6 +806,7 @@ class SongsGenerateRequest(BaseModel):
     model_version: str | None = None     # "V4.5" | "V4.5 Plus" | "V5" | "V5.5"
     accent: str | None = None            # e.g. "British" → appended to style string
     explicit: bool = False               # agency/enterprise only — loosens Suno content filter
+    inspired_by_descriptors: str | None = None  # from /api/songs/artist-style
 
 
 @app.post("/api/songs/generate")
@@ -872,6 +873,7 @@ async def songs_generate(
             extra_suno_params=extra_suno_params or None,
             tempo_suffix=tempo_suffix,
             is_admin=is_admin,
+            inspired_by_descriptors=body.inspired_by_descriptors or None,
         )
     except InsufficientCreditsError as exc:
         raise HTTPException(status_code=402, detail=str(exc))
@@ -992,6 +994,72 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
         "plan": plan,
         "youtube_connected": bool(current_user.get("youtube_refresh_token")),
     }
+
+
+# ── Artist style lookup ──────────────────────────────────────────────────────
+
+class ArtistStyleRequest(BaseModel):
+    artist_name: str = Field(min_length=1, max_length=100)
+
+
+@app.post("/api/songs/artist-style")
+async def artist_style(
+    body: ArtistStyleRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Look up an artist's musical style via Serper, then distil to style descriptors
+    using Claude Haiku. Returns {"style_descriptors": "comma, separated, list"}.
+    """
+    serper_key = os.environ.get("SERPER_API_KEY", "").strip()
+    if not serper_key:
+        raise HTTPException(status_code=503, detail="Artist style lookup not configured (SERPER_API_KEY missing)")
+
+    artist = body.artist_name.strip()
+    query = f"{artist} music style genre instruments tempo vocal characteristics"
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            serper_resp = await client.post(
+                "https://google.serper.dev/search",
+                headers={"X-API-KEY": serper_key, "Content-Type": "application/json"},
+                json={"q": query, "num": 5},
+            )
+        serper_resp.raise_for_status()
+        serper_data = serper_resp.json()
+    except Exception as exc:
+        log.warning("artist_style: Serper call failed for %r: %s", artist, exc)
+        raise HTTPException(status_code=502, detail="Style lookup failed — try again")
+
+    snippets = [
+        item.get("snippet", "").strip()
+        for item in serper_data.get("organic", [])[:3]
+        if item.get("snippet", "").strip()
+    ]
+    if not snippets:
+        raise HTTPException(status_code=404, detail=f"No style information found for '{artist}'")
+
+    search_text = "\n".join(snippets)
+
+    try:
+        haiku = get_anthropic_client().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            system=(
+                f"Extract 8-12 music style descriptors from these search results about {artist}. "
+                "Output ONLY a comma-separated list of descriptors suitable for a music generation "
+                "style prompt. Example: reggae, off-beat rhythm guitar, warm bassline, political "
+                "lyrics, 80 BPM, Jamaican vocal delivery. Nothing else."
+            ),
+            messages=[{"role": "user", "content": search_text}],
+        )
+    except Exception as exc:
+        log.exception("artist_style: Haiku call failed for %r", artist)
+        raise HTTPException(status_code=500, detail="Style extraction failed — try again")
+
+    descriptors = haiku.content[0].text.strip()
+    log.info("artist_style: artist=%r descriptors=%r", artist, descriptors[:80])
+    return {"style_descriptors": descriptors}
 
 
 # ── YouTube OAuth + upload ───────────────────────────────────────────────────

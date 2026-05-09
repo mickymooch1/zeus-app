@@ -155,6 +155,7 @@ def generate_multiple_variants(
     extra_suno_params: dict | None = None,
     tempo_suffix: str | None = None,
     is_admin: bool = False,
+    inspired_by_descriptors: str | None = None,
 ) -> dict:
     """Generate the same lyrics in multiple genres. Costs len(genres) credits.
     Admin users bypass credit checks entirely."""
@@ -186,6 +187,8 @@ def generate_multiple_variants(
         style = GENRE_PRESETS[genre]
         if tempo_suffix:
             style = f"{style}, {tempo_suffix}"
+        if inspired_by_descriptors:
+            style = f"{style}, {inspired_by_descriptors}"
         result = generate_song_variant(
             user_id=user_id,
             lyric_id=lyric_id,
