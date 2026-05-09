@@ -6,6 +6,8 @@ import base64
 import logging
 import os
 import pathlib
+import subprocess
+import tempfile
 
 import requests
 
@@ -62,16 +64,42 @@ def upload_audio_to_did(mp3_path: pathlib.Path) -> str:
         raise ValueError(f"MP3 file not found on disk: {mp3_path}")
 
     header_value = _auth_header_value()
-    log.info("upload_audio_to_did: uploading %s (%d bytes)", mp3_path.name, mp3_path.stat().st_size)
+    original_size = mp3_path.stat().st_size
+    log.info("upload_audio_to_did: uploading %s (%d bytes)", mp3_path.name, original_size)
 
-    filename = mp3_path.name[:50]  # D-ID enforces 50-char filename limit
-    with mp3_path.open("rb") as fh:
-        resp = requests.post(
-            f"{DID_BASE}/audios",
-            headers={"Authorization": header_value},
-            files={"audio": (filename, fh, "audio/mpeg")},
-            timeout=60,
-        )
+    # D-ID /audios limit is 6 MB. Compress to 128 kbps if the file is at risk of exceeding it.
+    compressed_path: str | None = None
+    upload_path = mp3_path
+    if original_size > 5 * 1024 * 1024:
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+                compressed_path = tmp.name
+            subprocess.run(
+                ["ffmpeg", "-i", str(mp3_path), "-b:a", "128k", "-y", compressed_path],
+                check=True,
+                capture_output=True,
+            )
+            upload_path = pathlib.Path(compressed_path)
+            log.info(
+                "upload_audio_to_did: compressed %d → %d bytes",
+                original_size, upload_path.stat().st_size,
+            )
+        except subprocess.CalledProcessError as exc:
+            log.warning("upload_audio_to_did: ffmpeg compression failed, using original: %s", exc.stderr)
+            upload_path = mp3_path
+
+    try:
+        filename = mp3_path.name[:50]  # D-ID enforces 50-char filename limit
+        with upload_path.open("rb") as fh:
+            resp = requests.post(
+                f"{DID_BASE}/audios",
+                headers={"Authorization": header_value},
+                files={"audio": (filename, fh, "audio/mpeg")},
+                timeout=60,
+            )
+    finally:
+        if compressed_path and os.path.exists(compressed_path):
+            os.unlink(compressed_path)
 
     if not resp.ok:
         raise ValueError(f"D-ID audio upload failed: {resp.status_code} {resp.text[:300]}")
