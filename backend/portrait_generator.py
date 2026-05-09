@@ -30,55 +30,6 @@ GENRE_PORTRAIT_PROMPTS = {
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"
 
 
-def _extract_image_url(data: dict) -> str | None:
-    """Extract image URL from various Apiframe response shapes."""
-    # Top-level scalar keys
-    for key in ("imageUrl", "image_url", "url"):
-        val = data.get(key)
-        if isinstance(val, str) and val.startswith("http"):
-            return val
-
-    # result block (gpt-image-2 v2 shape)
-    result = data.get("result")
-    if isinstance(result, dict):
-        for key in ("image_url", "imageUrl", "url"):
-            val = result.get(key)
-            if isinstance(val, str) and val.startswith("http"):
-                return val
-        imgs = result.get("images")
-        if isinstance(imgs, list) and imgs:
-            item = imgs[0]
-            if isinstance(item, str) and item.startswith("http"):
-                return item
-            if isinstance(item, dict):
-                for key in ("url", "imageUrl", "image_url"):
-                    val = item.get(key)
-                    if isinstance(val, str) and val.startswith("http"):
-                        return val
-
-    # output block
-    output = data.get("output")
-    if isinstance(output, list) and output:
-        item = output[0]
-        if isinstance(item, str) and item.startswith("http"):
-            return item
-        if isinstance(item, dict):
-            for key in ("url", "imageUrl", "image_url"):
-                val = item.get(key)
-                if isinstance(val, str) and val.startswith("http"):
-                    return val
-    if isinstance(output, dict):
-        for key in ("url", "imageUrl", "image_url", "image"):
-            val = output.get(key)
-            if isinstance(val, str) and val.startswith("http"):
-                return val
-        imgs = output.get("images")
-        if isinstance(imgs, list) and imgs:
-            item = imgs[0]
-            return item if isinstance(item, str) else None
-
-    return None
-
 
 def submit_portrait_generation(genre: str, gender: str, webhook_url: str) -> str:
     """Submit portrait generation to Apiframe. Returns job_id."""
@@ -128,12 +79,13 @@ def get_portrait_job_status(job_id: str) -> dict:
     data = resp.json()
     status = data.get("status", "unknown")
 
-    log.info(f"Portrait job keys: {list(data.keys())}")
-    log.info(f"Portrait result field: {data.get('result')}")
-    log.info(f"Portrait output field: {data.get('output')}")
-    log.info(f"Portrait images field: {data.get('images')}")
+    log.info("get_portrait_job_status: job_id=%s status=%s", job_id, status)
 
-    image_url = _extract_image_url(data) if status == "completed" else None
-    log.info(f"Portrait extracted_image_url: {image_url}")
+    if status == "completed":
+        result = data.get("result") or {}
+        images = result.get("images", [])
+        image_url = images[0] if images else None
+    else:
+        image_url = None
 
     return {"status": status, "image_url": image_url}
