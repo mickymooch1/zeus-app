@@ -30,6 +30,11 @@ GENRE_PORTRAIT_PROMPTS = {
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"
 
 
+def _extract_image_url(payload: dict) -> str | None:
+    result = payload.get("result") or {}
+    images = result.get("images", [])
+    return images[0] if images else None
+
 
 def submit_portrait_generation(genre: str, gender: str, webhook_url: str) -> str:
     """Submit portrait generation to Apiframe. Returns job_id."""
@@ -78,15 +83,11 @@ def get_portrait_job_status(job_id: str) -> dict:
     resp.raise_for_status()
     data = resp.json()
     status = data.get("status", "unknown")
+    status_lower = status.lower() if isinstance(status, str) else status
 
-    log.info("get_portrait_job_status: job_id=%s status=%s", job_id, status)
+    log.info("get_portrait_job_status: job_id=%s status=%r", job_id, status)
 
-    if status == "completed":
-        result = data.get("result") or {}
-        images = result.get("images", [])
-        image_url = images[0] if images else None
-    else:
-        image_url = None
+    image_url = _extract_image_url(data) if status_lower == "completed" else None
 
     log.info(f"Returning to frontend: image_url={image_url}")
-    return {"status": status, "image_url": image_url}
+    return {"status": status_lower, "image_url": image_url}
