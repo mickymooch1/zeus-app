@@ -32,22 +32,51 @@ _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, s
 
 def _extract_image_url(data: dict) -> str | None:
     """Extract image URL from various Apiframe response shapes."""
+    # Top-level scalar keys
     for key in ("imageUrl", "image_url", "url"):
         val = data.get(key)
         if isinstance(val, str) and val.startswith("http"):
             return val
+
+    # result block (gpt-image-2 v2 shape)
+    result = data.get("result")
+    if isinstance(result, dict):
+        for key in ("image_url", "imageUrl", "url"):
+            val = result.get(key)
+            if isinstance(val, str) and val.startswith("http"):
+                return val
+        imgs = result.get("images")
+        if isinstance(imgs, list) and imgs:
+            item = imgs[0]
+            if isinstance(item, str) and item.startswith("http"):
+                return item
+            if isinstance(item, dict):
+                for key in ("url", "imageUrl", "image_url"):
+                    val = item.get(key)
+                    if isinstance(val, str) and val.startswith("http"):
+                        return val
+
+    # output block
     output = data.get("output")
     if isinstance(output, list) and output:
         item = output[0]
-        return item if isinstance(item, str) else None
+        if isinstance(item, str) and item.startswith("http"):
+            return item
+        if isinstance(item, dict):
+            for key in ("url", "imageUrl", "image_url"):
+                val = item.get(key)
+                if isinstance(val, str) and val.startswith("http"):
+                    return val
     if isinstance(output, dict):
-        for key in ("url", "imageUrl", "image"):
+        for key in ("url", "imageUrl", "image_url", "image"):
             val = output.get(key)
             if isinstance(val, str) and val.startswith("http"):
                 return val
         imgs = output.get("images")
         if isinstance(imgs, list) and imgs:
-            return imgs[0]
+            item = imgs[0]
+            return item if isinstance(item, str) else None
+
     return None
 
 
@@ -97,9 +126,14 @@ def get_portrait_job_status(job_id: str) -> dict:
     )
     resp.raise_for_status()
     data = resp.json()
-    log.info("get_portrait_job_status: job_id=%s raw=%r", job_id, str(data)[:300])
-
     status = data.get("status", "unknown")
+
+    if status == "completed":
+        log.info("get_portrait_job_status: COMPLETED job_id=%s FULL_RESPONSE=%s", job_id, data)
+    else:
+        log.info("get_portrait_job_status: job_id=%s status=%s raw=%r", job_id, status, str(data)[:300])
+
     image_url = _extract_image_url(data) if status == "completed" else None
+    log.info("get_portrait_job_status: job_id=%s extracted_image_url=%r", job_id, image_url)
 
     return {"status": status, "image_url": image_url}
