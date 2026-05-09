@@ -152,7 +152,7 @@ def submit_avatar_video(
         f"{DID_BASE}/talks",
         json=body,
         headers=_auth(),
-        timeout=30,
+        timeout=60,
     )
     if not resp.ok:
         raise ValueError(
