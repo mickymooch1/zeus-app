@@ -1123,12 +1123,20 @@ async def upload_to_youtube(
 
     title = body.title or db.get_lyric_title(db_path, variant["lyric_id"]) or f"Song #{variant_id}"
 
+    # Prefer the D-ID avatar video (full motion) over the still-image mux when available.
+    prebuilt_mp4 = None
+    if variant.get("video_url"):
+        prebuilt_mp4 = pathlib.Path("/data/videos") / f"{variant_id}.mp4"
+        if not prebuilt_mp4.exists():
+            prebuilt_mp4 = None  # file missing — fall back to FFmpeg mux
+
     try:
         youtube_url = youtube_uploader.upload_song_to_youtube(
             variant=variant,
             user=current_user,
             privacy=body.privacy,
             title=title,
+            prebuilt_mp4=prebuilt_mp4,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

@@ -78,9 +78,20 @@ def exchange_code(code: str, redirect_uri: str, state: str | None = None) -> str
     return refresh_token
 
 
-def upload_song_to_youtube(variant: dict, user: dict, privacy: str, title: str) -> str:
+def upload_song_to_youtube(
+    variant: dict,
+    user: dict,
+    privacy: str,
+    title: str,
+    prebuilt_mp4: Path | None = None,
+) -> str:
     """
-    Read MP3 + cover art from the Railway volume, mux into MP4 via ffmpeg, upload to YouTube.
+    Upload a song variant to YouTube.
+
+    If prebuilt_mp4 points to an existing file (e.g. a D-ID avatar video), it is
+    uploaded directly and FFmpeg is skipped entirely.  Otherwise the usual path
+    applies: read MP3 + cover art from the Railway volume and mux via ffmpeg.
+
     Returns the YouTube video URL (https://youtu.be/<id>).
     """
     from google.oauth2.credentials import Credentials
@@ -94,6 +105,42 @@ def upload_song_to_youtube(variant: dict, user: dict, privacy: str, title: str) 
     variant_id = variant["id"]
     privacy = privacy or "unlisted"
 
+    def _upload(mp4_path: Path) -> str:
+        creds = Credentials(
+            token=None,
+            refresh_token=refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=GOOGLE_CLIENT_ID,
+            client_secret=GOOGLE_CLIENT_SECRET,
+            scopes=YOUTUBE_SCOPES,
+        )
+        yt = build("youtube", "v3", credentials=creds)
+        video_title = (title or f"Song #{variant_id}")[:100]
+        body = {
+            "snippet": {
+                "title": video_title,
+                "description": "AI-generated song created with Zeus AI · zeusaidesign.com",
+                "tags": ["ai music", "zeus ai", "suno", "ai generated"],
+                "categoryId": "10",
+            },
+            "status": {"privacyStatus": privacy},
+        }
+        media = MediaFileUpload(str(mp4_path), mimetype="video/mp4", resumable=True)
+        insert_request = yt.videos().insert(part="snippet,status", body=body, media_body=media)
+        response = None
+        while response is None:
+            _, response = insert_request.next_chunk()
+        video_id = response["id"]
+        log.info("YouTube upload complete: video_id=%s variant_id=%s user=%s",
+                 video_id, variant_id, user["id"])
+        return f"https://youtu.be/{video_id}"
+
+    # Fast path — prebuilt MP4 (e.g. D-ID avatar video); no FFmpeg needed.
+    if prebuilt_mp4 is not None and Path(prebuilt_mp4).exists():
+        log.info("upload_song_to_youtube: using prebuilt MP4 %s", prebuilt_mp4)
+        return _upload(Path(prebuilt_mp4))
+
+    # Standard path — mux still image + MP3 into MP4 with ffmpeg.
     storage_path = os.environ["SONG_STORAGE_PATH"]  # e.g. /data/songs
     mp3_src = Path(storage_path) / f"{variant_id}.mp3"
     img_src = Path(storage_path) / f"{variant_id}.jpg"
@@ -113,7 +160,6 @@ def upload_song_to_youtube(variant: dict, user: dict, privacy: str, title: str) 
                 check=True, capture_output=True,
             )
 
-        # Mux still image + audio into MP4
         subprocess.run(
             [
                 "ffmpeg", "-y",
@@ -128,38 +174,4 @@ def upload_song_to_youtube(variant: dict, user: dict, privacy: str, title: str) 
             check=True, capture_output=True,
         )
 
-        # Authenticate with YouTube
-        creds = Credentials(
-            token=None,
-            refresh_token=refresh_token,
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=GOOGLE_CLIENT_ID,
-            client_secret=GOOGLE_CLIENT_SECRET,
-            scopes=YOUTUBE_SCOPES,
-        )
-        youtube = build("youtube", "v3", credentials=creds)
-
-        video_title = (title or f"Song #{variant_id}")[:100]
-        body = {
-            "snippet": {
-                "title": video_title,
-                "description": "AI-generated song created with Zeus AI · zeusaidesign.com",
-                "tags": ["ai music", "zeus ai", "suno", "ai generated"],
-                "categoryId": "10",
-            },
-            "status": {"privacyStatus": privacy},
-        }
-
-        media = MediaFileUpload(str(mp4_path), mimetype="video/mp4", resumable=True)
-        insert_request = youtube.videos().insert(
-            part="snippet,status", body=body, media_body=media
-        )
-
-        response = None
-        while response is None:
-            _, response = insert_request.next_chunk()
-
-        video_id = response["id"]
-        log.info("YouTube upload complete: video_id=%s variant_id=%s user=%s",
-                 video_id, variant_id, user["id"])
-        return f"https://youtu.be/{video_id}"
+        return _upload(mp4_path)
