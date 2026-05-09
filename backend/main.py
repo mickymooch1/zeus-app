@@ -251,6 +251,11 @@ async def lifespan(app: FastAPI):
         log.exception("FATAL: user table init failed")
         raise
 
+    # Ensure persistent storage directories exist for avatars and D-ID videos
+    for _d in ("/data/avatars", "/data/videos"):
+        pathlib.Path(_d).mkdir(parents=True, exist_ok=True)
+    log.info("Storage directories ready: /data/avatars, /data/videos")
+
     api_key_set = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
     log.info("ANTHROPIC_API_KEY present: %s", api_key_set)
     if not api_key_set:
@@ -1652,6 +1657,14 @@ from fastapi.staticfiles import StaticFiles as _StaticFiles
 _song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
 _song_storage.mkdir(parents=True, exist_ok=True)
 app.mount("/files/songs", _StaticFiles(directory=str(_song_storage)), name="songs")
+
+_avatar_storage = pathlib.Path("/data/avatars")
+_avatar_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/avatars", _StaticFiles(directory=str(_avatar_storage)), name="avatars")
+
+_video_storage = pathlib.Path("/data/videos")
+_video_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/videos", _StaticFiles(directory=str(_video_storage)), name="videos")
 
 # Serve built React app from web/dist/
 # Mount /assets for Vite bundles, then a catch-all that returns index.html for
