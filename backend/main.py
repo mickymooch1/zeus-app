@@ -1034,7 +1034,7 @@ async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
     state = _make_yt_state(current_user["id"])
 
     try:
-        auth_url = youtube_uploader.build_auth_url(state=state, redirect_uri=redirect_uri)
+        auth_url = youtube_uploader.build_auth_url(state=state)
     except Exception as exc:
         log.exception("youtube_auth: failed to build auth URL")
         raise HTTPException(status_code=500, detail=str(exc))

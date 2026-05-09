@@ -1,83 +1,82 @@
 """
 youtube_uploader.py — YouTube OAuth + upload for Zeus.
-Requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET env vars.
+Requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and YOUTUBE_REDIRECT_URI env vars.
 ffmpeg must be installed in the runtime environment (added to Dockerfile Stage 2).
 """
+import base64
+import hashlib
 import logging
 import os
+import secrets
 import subprocess
 import tempfile
 from pathlib import Path
+from urllib.parse import urlencode
 
 import httpx
+import requests
 
 log = logging.getLogger("zeus.youtube")
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
-YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+YOUTUBE_REDIRECT_URI = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
+YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
+YOUTUBE_SCOPES = [YOUTUBE_SCOPE]
 
-_CLIENT_CONFIG = {
-    "web": {
-        "client_id": GOOGLE_CLIENT_ID,
-        "client_secret": GOOGLE_CLIENT_SECRET,
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-    }
-}
-
-
-_pkce_store: dict[str, str] = {}
+_pkce_store: dict[str, str] = {}  # state -> verifier
 
 
 def youtube_enabled() -> bool:
     return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 
 
-def _flow_config() -> dict:
-    return {
-        "web": {
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-        }
+def build_auth_url(state: str) -> str:
+    """Build the Google OAuth consent-screen URL with PKCE, storing the verifier for the callback."""
+    verifier = secrets.token_urlsafe(96)
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode()).digest()
+    ).rstrip(b"=").decode()
+    _pkce_store[state] = verifier
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": YOUTUBE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": YOUTUBE_SCOPE,
+        "access_type": "offline",
+        "prompt": "consent",
+        "state": state,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
     }
-
-
-def build_auth_url(state: str, redirect_uri: str) -> str:
-    """Return the Google OAuth consent-screen URL, storing the PKCE verifier for the callback."""
-    from google_auth_oauthlib.flow import Flow
-    flow = Flow.from_client_config(_flow_config(), scopes=YOUTUBE_SCOPES, redirect_uri=redirect_uri)
-    auth_url, _ = flow.authorization_url(
-        access_type="offline",
-        include_granted_scopes="true",
-        prompt="consent",
-        state=state,
-    )
-    # Store PKCE verifier so exchange_code() can pass it back to Google
-    verifier = getattr(flow.oauth2session._client, "verifier", None)
-    if verifier:
-        _pkce_store[state] = verifier
-        log.debug("build_auth_url: stored PKCE verifier for state %s", state[:8])
-    return auth_url
+    return "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(params)
 
 
 def exchange_code(code: str, redirect_uri: str, state: str | None = None) -> str:
-    """Exchange OAuth authorisation code for a refresh token."""
-    from google_auth_oauthlib.flow import Flow
-    flow = Flow.from_client_config(_flow_config(), scopes=YOUTUBE_SCOPES, redirect_uri=redirect_uri)
-    code_verifier = _pkce_store.pop(state, None) if state else None
-    if code_verifier:
-        log.debug("exchange_code: using PKCE verifier for state %s", state[:8])
-    flow.fetch_token(code=code, code_verifier=code_verifier)
-    creds = flow.credentials
-    if not creds.refresh_token:
+    """Exchange an OAuth authorisation code for a refresh token."""
+    verifier = _pkce_store.pop(state, None) if state else None
+    resp = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "code": code,
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+            "code_verifier": verifier,
+        },
+        timeout=30,
+    )
+    data = resp.json()
+    if "error" in data:
+        raise ValueError(f"Token exchange failed: {data}")
+    refresh_token = data.get("refresh_token")
+    if not refresh_token:
         raise ValueError(
             "Google did not return a refresh token. "
             "The user may have already authorised this app — revoke access at myaccount.google.com and try again."
         )
-    return creds.refresh_token
+    return refresh_token
 
 
 def upload_song_to_youtube(variant: dict, user: dict, privacy: str, title: str) -> str:
