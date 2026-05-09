@@ -5,6 +5,7 @@ Requires DID_API_KEY env var.
 import base64
 import logging
 import os
+import pathlib
 
 import requests
 
@@ -18,9 +19,13 @@ def did_enabled() -> bool:
     return bool(DID_API_KEY)
 
 
-def _auth() -> dict:
+def _auth_header_value() -> str:
     creds = base64.b64encode(f"{DID_API_KEY}:".encode()).decode()
-    header_value = f"Basic {creds}"
+    return f"Basic {creds}"
+
+
+def _auth() -> dict:
+    header_value = _auth_header_value()
     log.info("D-ID auth header (first 20): %r", header_value[:20])
     return {
         "Authorization": header_value,
@@ -45,16 +50,51 @@ GENRE_AVATARS: list[dict] = [
 ]
 
 
+def upload_audio_to_did(mp3_path: pathlib.Path) -> str:
+    """
+    Upload an MP3 file to D-ID's /audios endpoint.
+    Returns the D-ID-hosted audio URL to pass to the talks job.
+    """
+    if not did_enabled():
+        raise ValueError("DID_API_KEY is not configured")
+
+    if not mp3_path.exists():
+        raise ValueError(f"MP3 file not found on disk: {mp3_path}")
+
+    header_value = _auth_header_value()
+    log.info("upload_audio_to_did: uploading %s (%d bytes)", mp3_path.name, mp3_path.stat().st_size)
+
+    filename = mp3_path.name[:50]  # D-ID enforces 50-char filename limit
+    with mp3_path.open("rb") as fh:
+        resp = requests.post(
+            f"{DID_BASE}/audios",
+            headers={"Authorization": header_value},
+            files={"audio": (filename, fh, "audio/mpeg")},
+            timeout=60,
+        )
+
+    if not resp.ok:
+        raise ValueError(f"D-ID audio upload failed: {resp.status_code} {resp.text[:300]}")
+
+    data = resp.json()
+    audio_url = data.get("url")
+    if not audio_url:
+        raise ValueError(f"D-ID audio upload returned no URL: {data!r}")
+
+    log.info("upload_audio_to_did: %s → %s", mp3_path.name, audio_url[:100])
+    return audio_url
+
+
 def submit_avatar_video(
     *,
-    audio_url: str,
+    mp3_path: pathlib.Path,
     source_url: str,
     webhook_url: str | None = None,
 ) -> str:
     """
-    Submit a lip-sync talk job to D-ID.
+    Pre-upload the MP3 to D-ID then submit a lip-sync talk job.
 
-    audio_url   — publicly accessible MP3 (e.g. Suno CDN URL stored in mp3_url)
+    mp3_path    — local path to the song MP3 (e.g. /data/songs/<variant_id>.mp3)
     source_url  — face image URL (preset or user-uploaded /files/avatars/<file>)
     webhook_url — optional Zeus webhook that D-ID will POST to on completion
 
@@ -63,22 +103,15 @@ def submit_avatar_video(
     if not did_enabled():
         raise ValueError("DID_API_KEY is not configured")
 
-    try:
-        head = requests.head(audio_url, timeout=10, allow_redirects=True)
-        log.info(
-            "D-ID audio_url check: status=%s content-type=%s url=%r",
-            head.status_code,
-            head.headers.get("content-type"),
-            audio_url[:120],
-        )
-    except Exception as exc:
-        log.warning("D-ID audio_url check failed: %s", exc)
+    # Pre-upload audio so D-ID fetches from its own S3, bypassing Railway URL reachability issues.
+    did_audio_url = upload_audio_to_did(mp3_path)
+    log.info("submit_avatar_video: using D-ID audio URL %s", did_audio_url[:100])
 
     body: dict = {
         "source_url": source_url,
         "script": {
             "type": "audio",
-            "audio_url": audio_url,
+            "audio_url": did_audio_url,
         },
         "config": {
             "stitch": True,
@@ -99,7 +132,7 @@ def submit_avatar_video(
         )
 
     job_id = resp.json()["id"]
-    log.info("did submit_avatar_video: job_id=%s source=%s", job_id, source_url[:60])
+    log.info("submit_avatar_video: job_id=%s source=%s", job_id, source_url[:60])
     return job_id
 
 

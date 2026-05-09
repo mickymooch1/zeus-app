@@ -1282,12 +1282,21 @@ async def create_avatar_video(
 
     webhook_url = f"{backend_url}/webhooks/did" if backend_url else None
 
-    log.info("create_avatar_video: submitting to D-ID — source_url=%r audio_url=%r webhook=%r",
-             source_url, variant["mp3_url"], webhook_url)
+    # Resolve local MP3 path — pre-uploaded to D-ID to avoid Railway URL reachability issues
+    song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
+    mp3_path = song_storage / f"{variant_id}.mp3"
+    if not mp3_path.exists():
+        raise HTTPException(
+            status_code=400,
+            detail=f"MP3 file not found on disk ({mp3_path}) — cannot submit to D-ID",
+        )
+
+    log.info("create_avatar_video: submitting to D-ID — source_url=%r mp3_path=%s webhook=%r",
+             source_url, mp3_path, webhook_url)
 
     try:
         job_id = did_uploader.submit_avatar_video(
-            audio_url=variant["mp3_url"],
+            mp3_path=mp3_path,
             source_url=source_url,
             webhook_url=webhook_url,
         )
