@@ -148,6 +148,7 @@ function SongCard({
   variant, title, activeWsRef,
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
+  onDelete, deleting,
 }) {
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
@@ -348,6 +349,21 @@ function SongCard({
               {ytBtn}
               {avatarBtn}
             </div>
+            {/* Row 3: Delete */}
+            <div style={{ display: 'flex', marginTop: 6 }}>
+              <button
+                onClick={onDelete}
+                disabled={deleting}
+                style={{
+                  ...actionBtnStyle,
+                  color: deleting ? '#444' : '#555',
+                  cursor: deleting ? 'default' : 'pointer',
+                  opacity: deleting ? 0.5 : 1,
+                }}
+              >
+                {deleting ? 'Deleting…' : '✕ Delete'}
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -405,6 +421,10 @@ export default function SongsPage() {
   const [portraitGenerating, setPortraitGenerating] = useState(false);
   const [portraitJobId, setPortraitJobId]           = useState(null);
   const [portraitImageUrl, setPortraitImageUrl]     = useState(null);
+  const [portraitTimedOut, setPortraitTimedOut]     = useState(false);
+
+  // Delete state
+  const [deletingVariants, setDeletingVariants]     = useState(new Set());
 
   const activeWsRef     = useRef(null);
   const pollTimerRef    = useRef(null);
@@ -540,10 +560,18 @@ export default function SongsPage() {
     return () => clearTimeout(timer);
   }, [didStatus, token]);
 
-  // Portrait generation polling (5s)
+  // Portrait generation polling (5s, max 36 polls = 3 min)
   useEffect(() => {
     if (!portraitJobId) return;
+    let pollCount = 0;
     const poll = async () => {
+      pollCount += 1;
+      if (pollCount > 36) {
+        setPortraitGenerating(false);
+        setPortraitJobId(null);
+        setPortraitTimedOut(true);
+        return;
+      }
       try {
         const r = await fetch(`${BACKEND_URL}/api/did/portrait-status/${portraitJobId}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -686,6 +714,7 @@ export default function SongsPage() {
     setPortraitGenerating(false);
     setPortraitJobId(null);
     setPortraitImageUrl(null);
+    setPortraitTimedOut(false);
     if (portraitPollRef.current) clearTimeout(portraitPollRef.current);
   };
 
@@ -695,6 +724,7 @@ export default function SongsPage() {
     setPortraitGenerating(false);
     setPortraitJobId(null);
     setPortraitImageUrl(null);
+    setPortraitTimedOut(false);
     setAvatarModal(variant);
     if (avatars.length === 0) {
       try {
@@ -737,6 +767,7 @@ export default function SongsPage() {
     setPortraitGenerating(true);
     setPortraitImageUrl(null);
     setPortraitJobId(null);
+    setPortraitTimedOut(false);
     try {
       const r = await fetch(`${BACKEND_URL}/api/did/generate-portrait`, {
         method: 'POST',
@@ -753,6 +784,37 @@ export default function SongsPage() {
     } catch (err) {
       setPortraitGenerating(false);
       setError(err.message);
+    }
+  };
+
+  const handlePortraitRetry = () => {
+    setPortraitTimedOut(false);
+    setPortraitGenerating(false);
+    setPortraitJobId(null);
+    setPortraitImageUrl(null);
+  };
+
+  const handleDeleteVariant = async (variantId) => {
+    setDeletingVariants((prev) => new Set(prev).add(variantId));
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.detail || 'Delete failed');
+      }
+      setLibrary((prev) => prev.filter((v) => v.variant_id !== variantId));
+      setActiveJob((prev) => {
+        if (!prev) return prev;
+        const variants = prev.variants.filter((v) => v.variant_id !== variantId);
+        return variants.length === 0 ? null : { ...prev, variants };
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeletingVariants((prev) => { const s = new Set(prev); s.delete(variantId); return s; });
     }
   };
 
@@ -1345,6 +1407,8 @@ export default function SongsPage() {
                       videoCredits={credits.video_credits}
                       didPlanOk={didPlanOk}
                       isAdmin={isAdmin}
+                      onDelete={() => handleDeleteVariant(v.variant_id)}
+                      deleting={deletingVariants.has(v.variant_id)}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -1379,6 +1443,8 @@ export default function SongsPage() {
                     videoCredits={credits.video_credits}
                     didPlanOk={didPlanOk}
                     isAdmin={isAdmin}
+                    onDelete={() => handleDeleteVariant(v.variant_id)}
+                    deleting={deletingVariants.has(v.variant_id)}
                   />
                 ))}
               </div>
@@ -1636,7 +1702,24 @@ export default function SongsPage() {
               <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>
                 Generate AI Performer
               </p>
-              {portraitImageUrl ? (
+              {portraitTimedOut ? (
+                <div>
+                  <p style={{ fontSize: 13, color: '#f87171', marginBottom: 10 }}>
+                    Portrait generation timed out — Apiframe may be unavailable. Please try again.
+                  </p>
+                  <button
+                    onClick={handlePortraitRetry}
+                    style={{
+                      padding: '7px 18px', borderRadius: 8,
+                      border: '1px solid rgba(248,113,113,0.35)',
+                      background: 'rgba(248,113,113,0.08)',
+                      color: '#f87171', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    }}
+                  >
+                    ↺ Retry
+                  </button>
+                </div>
+              ) : portraitImageUrl ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <button
                     onClick={() => setSelectedAvatarUrl(portraitImageUrl)}

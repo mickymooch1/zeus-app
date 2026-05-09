@@ -1422,6 +1422,37 @@ async def create_avatar_video(
     return {"job_id": job_id, "status": "processing"}
 
 
+@app.delete("/api/songs/variants/{variant_id}")
+async def delete_song_variant(
+    variant_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Delete a song variant (and its associated files) owned by the current user."""
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    deleted = db.delete_song_variant(db_path, variant_id, current_user["id"])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    # Best-effort cleanup of associated files
+    for path in [
+        pathlib.Path(f"/data/songs/{variant_id}.mp3"),
+        pathlib.Path(f"/data/videos/{variant_id}.mp4"),
+        pathlib.Path(f"/data/avatars/{variant_id}_portrait.jpg"),
+    ]:
+        try:
+            if path.exists():
+                path.unlink()
+        except Exception:
+            pass
+
+    log.info("delete_song_variant: deleted variant %s for user %s", variant_id, current_user["id"])
+    return {"deleted": True}
+
+
 @app.post("/api/avatars/upload")
 async def upload_avatar_photo(
     file: UploadFile = File(...),

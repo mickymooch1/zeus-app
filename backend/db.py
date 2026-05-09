@@ -819,6 +819,20 @@ def get_song_variant_by_id(db_path: pathlib.Path, variant_id: int) -> dict | Non
         conn.close()
 
 
+def delete_song_variant(db_path: pathlib.Path, variant_id: int, user_id: str) -> bool:
+    """Delete a song_variants row owned by user_id. Returns True if deleted."""
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            "DELETE FROM song_variants WHERE id = ? AND user_id = ?",
+            (variant_id, user_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def get_song_variants_for_lyric(
     db_path: pathlib.Path, lyric_id: int, user_id: str
 ) -> list[dict]:
