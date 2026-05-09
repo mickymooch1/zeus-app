@@ -1046,29 +1046,27 @@ async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
 @app.get("/api/youtube/callback")
 async def youtube_callback(code: str = Query(None), state: str = Query(None), error: str = Query(None)):
     """Google OAuth callback — exchange code, store refresh token, redirect to /songs."""
-    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
-
     if error:
         log.warning("youtube_callback: Google returned error=%s", error)
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(f"{frontend_url}/songs?youtube=error")
+        return RedirectResponse("/songs?youtube=error")
 
     if not code or not state:
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(f"{frontend_url}/songs?youtube=error")
+        return RedirectResponse("/songs?youtube=error")
 
     user_id = _decode_yt_state(state)
     if not user_id:
         log.warning("youtube_callback: invalid or expired state token")
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(f"{frontend_url}/songs?youtube=error")
+        return RedirectResponse("/songs?youtube=error")
 
     db_path = db.get_db_path()
     user = db.get_user_by_id(db_path, user_id)
     if not user:
         log.warning("youtube_callback: user %s not found", user_id)
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(f"{frontend_url}/songs?youtube=error")
+        return RedirectResponse("/songs?youtube=error")
 
     redirect_uri = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
 
@@ -1077,13 +1075,13 @@ async def youtube_callback(code: str = Query(None), state: str = Query(None), er
     except Exception as exc:
         log.exception("youtube_callback: token exchange failed")
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(f"{frontend_url}/songs?youtube=error")
+        return RedirectResponse("/songs?youtube=error")
 
     db.update_user(db_path, user_id, youtube_refresh_token=refresh_token)
     log.info("youtube_callback: stored refresh token for user %s", user_id)
 
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(f"{frontend_url}/songs?youtube=connected")
+    return RedirectResponse("/songs?youtube=connected")
 
 
 class YouTubeUploadRequest(BaseModel):
