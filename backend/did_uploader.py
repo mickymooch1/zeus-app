@@ -63,6 +63,17 @@ def submit_avatar_video(
     if not did_enabled():
         raise ValueError("DID_API_KEY is not configured")
 
+    try:
+        head = requests.head(audio_url, timeout=10, allow_redirects=True)
+        log.info(
+            "D-ID audio_url check: status=%s content-type=%s url=%r",
+            head.status_code,
+            head.headers.get("content-type"),
+            audio_url[:120],
+        )
+    except Exception as exc:
+        log.warning("D-ID audio_url check failed: %s", exc)
+
     body: dict = {
         "source_url": source_url,
         "script": {
