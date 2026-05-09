@@ -26,6 +26,7 @@ const PAGE_CSS = `
 }
 .song-card-anim { animation: fadeInUp 0.3s ease both; }
 .songs-textarea:focus { border-color: rgba(167,139,250,0.4) !important; }
+.avatar-thumb:hover { border-color: #a78bfa !important; opacity: 1 !important; }
 `;
 
 // ── shared style objects ─────────────────────────────────────────────────────
@@ -143,7 +144,11 @@ const actionBtnStyle = {
 };
 
 // ── SongCard ─────────────────────────────────────────────────────────────────
-function SongCard({ variant, title, activeWsRef, canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick }) {
+function SongCard({
+  variant, title, activeWsRef,
+  canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
+  canDid, didSt, videoUrl, onAvatarClick,
+}) {
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -214,6 +219,74 @@ function SongCard({ variant, title, activeWsRef, canYouTube, ytConnected, ytStat
   const isFailed = variant.status === 'failed';
   const safeFilename = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
 
+  // ── Avatar video button state ──────────────────────────────────────────────
+  let avatarBtn;
+  if (!canDid) {
+    avatarBtn = (
+      <button disabled title="Available on Agency plan and above"
+        style={{ ...actionBtnStyle, opacity: 0.25, cursor: 'not-allowed' }}>
+        ◉ Avatar
+      </button>
+    );
+  } else if (didSt === 'processing') {
+    avatarBtn = (
+      <button disabled style={{ ...actionBtnStyle, opacity: 0.55, cursor: 'default' }}>
+        Making…
+      </button>
+    );
+  } else if (didSt === 'done' && videoUrl) {
+    avatarBtn = (
+      <button onClick={onAvatarClick}
+        style={{ ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
+        ◉ Redo
+      </button>
+    );
+  } else {
+    avatarBtn = (
+      <button onClick={onAvatarClick}
+        style={{ ...actionBtnStyle, color: didSt === 'error' ? '#f87171' : '#555' }}>
+        {didSt === 'error' ? 'Retry' : '◉ Avatar'}
+      </button>
+    );
+  }
+
+  // ── YouTube button state ───────────────────────────────────────────────────
+  let ytBtn;
+  if (!canYouTube) {
+    ytBtn = (
+      <button disabled title="Available on Agency plan and above"
+        style={{ ...actionBtnStyle, opacity: 0.25, cursor: 'not-allowed' }}>
+        ▲ YouTube
+      </button>
+    );
+  } else if (ytSt === 'done' && ytUrl) {
+    ytBtn = (
+      <a href={ytUrl} target="_blank" rel="noopener noreferrer"
+        style={{ ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
+        ▶ View on YT
+      </a>
+    );
+  } else if (ytSt === 'uploading') {
+    ytBtn = (
+      <button disabled style={{ ...actionBtnStyle, opacity: 0.55, cursor: 'default' }}>
+        Uploading…
+      </button>
+    );
+  } else if (!ytConnected) {
+    ytBtn = (
+      <button onClick={onYouTubeClick} style={{ ...actionBtnStyle, color: '#a78bfa' }}>
+        + Connect YT
+      </button>
+    );
+  } else {
+    ytBtn = (
+      <button onClick={onYouTubeClick}
+        style={{ ...actionBtnStyle, color: ytSt === 'error' ? '#f87171' : '#555' }}>
+        {ytSt === 'error' ? 'Retry YT' : '▲ YouTube'}
+      </button>
+    );
+  }
+
   return (
     <div className="song-card-anim" style={S.card}>
       {variant.image_url ? (
@@ -222,6 +295,16 @@ function SongCard({ variant, title, activeWsRef, canYouTube, ytConnected, ytStat
         <div style={{ ...S.artBox, ...S.artPlaceholder }}>
           <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
         </div>
+      )}
+
+      {/* Inline video player — shown when avatar video is ready */}
+      {videoUrl && (
+        <video
+          src={`${BACKEND_URL}${videoUrl}`}
+          controls
+          playsInline
+          style={{ width: '100%', display: 'block', background: '#000', maxHeight: 180 }}
+        />
       )}
 
       <div style={S.cardBody}>
@@ -243,35 +326,22 @@ function SongCard({ variant, title, activeWsRef, canYouTube, ytConnected, ytStat
           {durStr && <span style={{ color: '#555', fontSize: 12 }}>{durStr}</span>}
         </div>
         {!isFailed && variant.mp3_url && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-            <a href={variant.mp3_url} download={safeFilename} style={actionBtnStyle}>
-              ↓ Download
-            </a>
-            <button onClick={handleShare} style={actionBtnStyle}>
-              {copied ? '✓ Copied!' : '↗ Share'}
-            </button>
-            {!canYouTube ? (
-              <button disabled title="Available on Agency plan and above" style={{ ...actionBtnStyle, opacity: 0.25, cursor: 'not-allowed' }}>
-                ▲ YouTube
-              </button>
-            ) : ytSt === 'done' && ytUrl ? (
-              <a href={ytUrl} target="_blank" rel="noopener noreferrer" style={{ ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
-                ▶ View on YT
+          <>
+            {/* Row 1: Download + Share */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+              <a href={variant.mp3_url} download={safeFilename} style={actionBtnStyle}>
+                ↓ Download
               </a>
-            ) : ytSt === 'uploading' ? (
-              <button disabled style={{ ...actionBtnStyle, opacity: 0.55, cursor: 'default' }}>
-                Uploading…
+              <button onClick={handleShare} style={actionBtnStyle}>
+                {copied ? '✓ Copied!' : '↗ Share'}
               </button>
-            ) : !ytConnected ? (
-              <button onClick={onYouTubeClick} style={{ ...actionBtnStyle, color: '#a78bfa' }}>
-                + Connect YT
-              </button>
-            ) : (
-              <button onClick={onYouTubeClick} style={{ ...actionBtnStyle, color: ytSt === 'error' ? '#f87171' : '#555' }}>
-                {ytSt === 'error' ? 'Retry' : '▲ YouTube'}
-              </button>
-            )}
-          </div>
+            </div>
+            {/* Row 2: YouTube + Avatar Video */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              {ytBtn}
+              {avatarBtn}
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -295,27 +365,38 @@ export default function SongsPage() {
 
   // Advanced options
   const [showAdvanced, setShowAdvanced]   = useState(false);
-  const [vocalGender, setVocalGender]     = useState('');    // '' | 'm' | 'f'
-  const [accent, setAccent]               = useState('');    // '' = Default
-  const [creativity, setCreativity]       = useState(50);    // 0–100
-  const [styleWeight, setStyleWeight]     = useState(70);    // 0–100
-  const [tempo, setTempo]                 = useState('');    // '' | 'slow' | 'medium' | 'fast' | 'custom'
+  const [vocalGender, setVocalGender]     = useState('');
+  const [accent, setAccent]               = useState('');
+  const [creativity, setCreativity]       = useState(50);
+  const [styleWeight, setStyleWeight]     = useState(70);
+  const [tempo, setTempo]                 = useState('');
   const [tempoBpm, setTempoBpm]           = useState(120);
   const [modelVersion, setModelVersion]   = useState('V5');
   const [explicit, setExplicit]           = useState(false);
 
   // YouTube upload state
-  const [ytStatus, setYtStatus]   = useState({});   // { [variant_id]: 'uploading'|'done'|'error' }
-  const [ytUrls, setYtUrls]       = useState({});   // { [variant_id]: youtube_url }
-  const [ytModal, setYtModal]     = useState(null); // variant object or null
+  const [ytStatus, setYtStatus]   = useState({});
+  const [ytUrls, setYtUrls]       = useState({});
+  const [ytModal, setYtModal]     = useState(null);
   const [ytPrivacy, setYtPrivacy] = useState('unlisted');
+
+  // D-ID avatar video state
+  const [avatarModal, setAvatarModal]             = useState(null);
+  const [avatars, setAvatars]                     = useState([]);
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto]       = useState(false);
+  const [avatarSubmitting, setAvatarSubmitting]   = useState(false);
+  const [didStatus, setDidStatus]                 = useState({});
+  const [videoUrls, setVideoUrls]                 = useState({});
 
   const activeWsRef  = useRef(null);
   const pollTimerRef = useRef(null);
+  const photoInputRef = useRef(null);
 
   const isAdmin          = credits.is_admin;
   const canShowExplicit  = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
   const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
+  const canDid           = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
   const youtubeConnected = credits.youtube_connected;
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
   const cost           = selGenres.size;
@@ -349,7 +430,34 @@ export default function SongsPage() {
           return (d.variants || []).map((v) => ({ ...v, title: lyric.title, lyric_id: lyric.id }));
         })
       );
-      setLibrary(groups.flat().sort((a, b) => b.variant_id - a.variant_id));
+      const flat = groups.flat().sort((a, b) => b.variant_id - a.variant_id);
+      setLibrary(flat);
+
+      // Sync D-ID state from DB — DB wins over stale UI state
+      const newDidSt = {};
+      const newVidUrls = {};
+      for (const v of flat) {
+        if (v.video_url) {
+          newDidSt[v.variant_id] = 'done';
+          newVidUrls[v.variant_id] = v.video_url;
+        } else if (v.did_job_id) {
+          newDidSt[v.variant_id] = 'processing';
+        }
+      }
+      setDidStatus((prev) => ({ ...prev, ...newDidSt }));
+      setVideoUrls((prev) => ({ ...prev, ...newVidUrls }));
+
+      // Sync YouTube URLs from DB
+      const newYtUrls = {};
+      const newYtSt = {};
+      for (const v of flat) {
+        if (v.youtube_url) {
+          newYtUrls[v.variant_id] = v.youtube_url;
+          newYtSt[v.variant_id] = 'done';
+        }
+      }
+      setYtUrls((prev) => ({ ...prev, ...newYtUrls }));
+      setYtStatus((prev) => ({ ...prev, ...newYtSt }));
     } catch (_) {}
   }, [token]);
 
@@ -358,7 +466,7 @@ export default function SongsPage() {
     fetchLibrary();
   }, [fetchCredits, fetchLibrary]);
 
-  // Polling
+  // Song generation polling (5s)
   useEffect(() => {
     if (!activeJob) return;
     const allSettled = activeJob.variants.every(
@@ -385,6 +493,33 @@ export default function SongsPage() {
     }, 5000);
     return () => clearTimeout(pollTimerRef.current);
   }, [activeJob, token, fetchCredits, fetchLibrary]);
+
+  // D-ID avatar video polling (10s) — only while jobs are in flight
+  useEffect(() => {
+    const processingIds = Object.entries(didStatus)
+      .filter(([, st]) => st === 'processing')
+      .map(([id]) => Number(id));
+    if (processingIds.length === 0) return;
+
+    const timer = setTimeout(async () => {
+      for (const vid of processingIds) {
+        try {
+          const r = await fetch(`${BACKEND_URL}/api/songs/variants/${vid}/did-status`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!r.ok) continue;
+          const d = await r.json();
+          if (d.status === 'done' && d.video_url) {
+            setDidStatus((prev) => ({ ...prev, [vid]: 'done' }));
+            setVideoUrls((prev) => ({ ...prev, [vid]: d.video_url }));
+          } else if (d.status === 'error') {
+            setDidStatus((prev) => ({ ...prev, [vid]: 'error' }));
+          }
+        } catch (_) {}
+      }
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [didStatus, token]);
 
   const handleGenerate = async () => {
     setError('');
@@ -472,6 +607,70 @@ export default function SongsPage() {
     }
   };
 
+  // ── D-ID handlers ──────────────────────────────────────────────────────────
+
+  const handleAvatarClick = async (variant) => {
+    if (!canDid) return;
+    setSelectedAvatarUrl(null);
+    setAvatarModal(variant);
+    if (avatars.length === 0) {
+      try {
+        const r = await fetch(`${BACKEND_URL}/api/did/avatars`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (r.ok) {
+          const d = await r.json();
+          setAvatars(d.avatars || []);
+        }
+      } catch (_) {}
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch(`${BACKEND_URL}/api/avatars/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Upload failed');
+      setSelectedAvatarUrl(d.url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  const handleAvatarSubmit = async () => {
+    if (!avatarModal || !selectedAvatarUrl || avatarSubmitting) return;
+    const vId = avatarModal.variant_id;
+    setAvatarSubmitting(true);
+    setAvatarModal(null);
+    setDidStatus((prev) => ({ ...prev, [vId]: 'processing' }));
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/songs/variants/${vId}/create-avatar-video`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ source_url: selectedAvatarUrl }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Submission failed');
+    } catch (err) {
+      setDidStatus((prev) => ({ ...prev, [vId]: 'error' }));
+      setError(err.message);
+    } finally {
+      setAvatarSubmitting(false);
+    }
+  };
+
   const toggleGenre = (g) =>
     setSelGenres((prev) => {
       const next = new Set(prev);
@@ -489,6 +688,13 @@ export default function SongsPage() {
   return (
     <>
       <style>{PAGE_CSS}</style>
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        style={{ display: 'none' }}
+        onChange={handlePhotoUpload}
+      />
       <div style={{ background: '#0b0b14', minHeight: '100vh', color: '#f0eeff' }}>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -548,15 +754,15 @@ export default function SongsPage() {
             </div>
           )}
 
-          {/* YouTube connected */}
+          {/* YouTube connected banner */}
           {ytConnectedParam === 'connected' && (
             <div style={{
-              background: 'rgba(239,68,68,0.08)',
-              border: '1px solid rgba(239,68,68,0.25)',
+              background: 'rgba(52,211,153,0.08)',
+              border: '1px solid rgba(52,211,153,0.25)',
               borderRadius: 10,
               padding: '12px 18px',
               marginBottom: 24,
-              color: '#f87171',
+              color: '#34d399',
               fontWeight: 600,
               fontSize: 14,
             }}>
@@ -812,7 +1018,7 @@ export default function SongsPage() {
                   </div>
                 </div>
 
-                {/* Explicit content — agency / enterprise only */}
+                {/* Explicit content */}
                 {canShowExplicit && (
                   <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
@@ -962,6 +1168,10 @@ export default function SongsPage() {
                       ytStatus={ytStatus[v.variant_id]}
                       ytUrl={ytUrls[v.variant_id]}
                       onYouTubeClick={() => handleYouTubeClick({ ...v, title: activeJob.title })}
+                      canDid={canDid}
+                      didSt={didStatus[v.variant_id]}
+                      videoUrl={videoUrls[v.variant_id]}
+                      onAvatarClick={() => handleAvatarClick({ ...v, title: activeJob.title })}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -989,6 +1199,10 @@ export default function SongsPage() {
                     ytStatus={ytStatus[v.variant_id]}
                     ytUrl={ytUrls[v.variant_id]}
                     onYouTubeClick={() => handleYouTubeClick(v)}
+                    canDid={canDid}
+                    didSt={didStatus[v.variant_id]}
+                    videoUrl={videoUrls[v.variant_id]}
+                    onAvatarClick={() => handleAvatarClick(v)}
                   />
                 ))}
               </div>
@@ -1008,7 +1222,7 @@ export default function SongsPage() {
         </div>
       </div>
 
-      {/* ── YouTube upload modal ──────────────────────────────────────── */}
+      {/* ── YouTube upload modal ──────────────────────────────────────────── */}
       {ytModal && (
         <div
           onClick={() => setYtModal(null)}
@@ -1081,6 +1295,164 @@ export default function SongsPage() {
                 }}
               >
                 Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Avatar picker modal ───────────────────────────────────────────── */}
+      {avatarModal && (
+        <div
+          onClick={() => setAvatarModal(null)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#12121e',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 16,
+              padding: '28px 28px 24px',
+              width: '100%',
+              maxWidth: 480,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+          >
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2d9f3', marginBottom: 4 }}>
+              Create Avatar Video
+            </h3>
+            <p style={{ fontSize: 13, color: '#555', marginBottom: 20 }}>
+              Pick a presenter — they'll lip-sync to your song.
+            </p>
+
+            {/* Preset avatars grid */}
+            {avatars.length > 0 ? (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 10,
+                marginBottom: 20,
+              }}>
+                {avatars.map((av) => {
+                  const sel = selectedAvatarUrl === av.url;
+                  return (
+                    <button
+                      key={av.id}
+                      className="avatar-thumb"
+                      onClick={() => setSelectedAvatarUrl(av.url)}
+                      style={{
+                        border: `2px solid ${sel ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`,
+                        borderRadius: 10,
+                        padding: 0,
+                        overflow: 'hidden',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        opacity: sel ? 1 : 0.65,
+                        transition: 'border-color 0.15s, opacity 0.15s',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'stretch',
+                      }}
+                    >
+                      <img
+                        src={av.url}
+                        alt={av.label}
+                        style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }}
+                      />
+                      <span style={{
+                        display: 'block',
+                        fontSize: 11,
+                        fontWeight: 500,
+                        color: sel ? '#c4b5fd' : '#666',
+                        padding: '5px 0',
+                        textAlign: 'center',
+                      }}>
+                        {av.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ height: 40, display: 'flex', alignItems: 'center', marginBottom: 20 }}>
+                <span style={{ color: '#444', fontSize: 13 }}>Loading avatars…</span>
+              </div>
+            )}
+
+            {/* Custom photo upload */}
+            <div style={{
+              borderTop: '1px solid rgba(255,255,255,0.06)',
+              paddingTop: 16,
+              marginBottom: 24,
+            }}>
+              <p style={{ fontSize: 12, color: '#555', marginBottom: 10 }}>
+                Or upload your own photo (JPEG / PNG / WebP, under 10 MB):
+              </p>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  style={{
+                    padding: '7px 16px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    background: 'rgba(255,255,255,0.04)',
+                    color: '#888',
+                    fontSize: 12,
+                    cursor: uploadingPhoto ? 'default' : 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  {uploadingPhoto ? 'Uploading…' : 'Choose Photo'}
+                </button>
+                {selectedAvatarUrl && selectedAvatarUrl.startsWith('/files/avatars/') && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <img
+                      src={`${BACKEND_URL}${selectedAvatarUrl}`}
+                      alt="Custom"
+                      style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', border: '2px solid #a78bfa' }}
+                    />
+                    <span style={{ fontSize: 11, color: '#a78bfa' }}>Custom photo selected</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setAvatarModal(null)}
+                style={{
+                  flex: 1, padding: '11px 0', borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAvatarSubmit}
+                disabled={!selectedAvatarUrl || avatarSubmitting}
+                style={{
+                  flex: 1, padding: '11px 0', borderRadius: 8,
+                  border: 'none',
+                  background: selectedAvatarUrl
+                    ? 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)'
+                    : 'rgba(255,255,255,0.05)',
+                  color: selectedAvatarUrl ? '#fff' : '#444',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: selectedAvatarUrl ? 'pointer' : 'default',
+                }}
+              >
+                {avatarSubmitting ? 'Submitting…' : 'Create Video'}
               </button>
             </div>
           </div>
