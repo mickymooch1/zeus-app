@@ -1,6 +1,8 @@
 """portrait_generator.py — AI performer portrait generation via Apiframe."""
 import logging
 import os
+import subprocess
+import tempfile
 
 import requests
 
@@ -8,6 +10,7 @@ log = logging.getLogger("zeus.portrait")
 
 APIFRAME_API_KEY = os.environ.get("APIFRAME_API_KEY", "").strip()
 APIFRAME_BASE = "https://api.apiframe.ai"
+ZEUS_PUBLIC_URL = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
 
 GENRE_PORTRAIT_PROMPTS = {
     "blues":     "Professional portrait photo, blues musician, clear frontal face, warm amber lighting, vintage microphone, photorealistic, film grain",
@@ -34,6 +37,29 @@ def _extract_image_url(payload: dict) -> str | None:
     result = payload.get("result") or {}
     images = result.get("images", [])
     return images[0] if images else None
+
+
+def _convert_webp_to_jpeg(webp_url: str, job_id: str) -> str:
+    """Download a WebP URL, convert to JPEG via ffmpeg, return local /files/avatars URL."""
+    os.makedirs("/data/avatars", exist_ok=True)
+    webp_tmp = None
+    try:
+        resp = requests.get(webp_url, timeout=30)
+        resp.raise_for_status()
+        with tempfile.NamedTemporaryFile(suffix=".webp", delete=False) as tmp:
+            tmp.write(resp.content)
+            webp_tmp = tmp.name
+        jpeg_path = f"/data/avatars/{job_id}.jpg"
+        subprocess.run(
+            ["ffmpeg", "-i", webp_tmp, "-q:v", "2", "-y", jpeg_path],
+            check=True,
+            capture_output=True,
+        )
+        log.info("_convert_webp_to_jpeg: saved %s", jpeg_path)
+        return f"{ZEUS_PUBLIC_URL}/files/avatars/{job_id}.jpg"
+    finally:
+        if webp_tmp and os.path.exists(webp_tmp):
+            os.unlink(webp_tmp)
 
 
 def submit_portrait_generation(genre: str, gender: str, webhook_url: str) -> str:
@@ -88,6 +114,13 @@ def get_portrait_job_status(job_id: str) -> dict:
     log.info("get_portrait_job_status: job_id=%s status=%r", job_id, status)
 
     image_url = _extract_image_url(data) if status_lower == "completed" else None
+
+    if image_url and image_url.lower().endswith(".webp"):
+        log.info("get_portrait_job_status: converting WebP to JPEG for job %s", job_id)
+        try:
+            image_url = _convert_webp_to_jpeg(image_url, job_id)
+        except Exception as exc:
+            log.warning("get_portrait_job_status: WebP conversion failed: %s — using original URL", exc)
 
     log.info(f"Returning to frontend: image_url={image_url}")
     return {"status": status_lower, "image_url": image_url}

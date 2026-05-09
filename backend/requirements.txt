@@ -18,3 +18,4 @@ google-auth-oauthlib>=1.2.0
 google-api-python-client>=2.120.0
 python-multipart>=0.0.9
 requests>=2.31.0
+Pillow>=10.0.0
