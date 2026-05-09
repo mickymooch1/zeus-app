@@ -128,12 +128,12 @@ def get_portrait_job_status(job_id: str) -> dict:
     data = resp.json()
     status = data.get("status", "unknown")
 
-    if status == "completed":
-        log.info("get_portrait_job_status: COMPLETED job_id=%s FULL_RESPONSE=%s", job_id, data)
-    else:
-        log.info("get_portrait_job_status: job_id=%s status=%s raw=%r", job_id, status, str(data)[:300])
+    log.info(f"Portrait job keys: {list(data.keys())}")
+    log.info(f"Portrait result field: {data.get('result')}")
+    log.info(f"Portrait output field: {data.get('output')}")
+    log.info(f"Portrait images field: {data.get('images')}")
 
     image_url = _extract_image_url(data) if status == "completed" else None
-    log.info("get_portrait_job_status: job_id=%s extracted_image_url=%r", job_id, image_url)
+    log.info(f"Portrait extracted_image_url: {image_url}")
 
     return {"status": status, "image_url": image_url}
