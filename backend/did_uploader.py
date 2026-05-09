@@ -20,8 +20,10 @@ def did_enabled() -> bool:
 
 def _auth() -> dict:
     creds = base64.b64encode(f"{DID_API_KEY}:".encode()).decode()
+    header_value = f"Basic {creds}"
+    log.info("D-ID auth header (first 20): %r", header_value[:20])
     return {
-        "Authorization": f"Basic {creds}",
+        "Authorization": header_value,
         "Content-Type": "application/json",
     }
 
