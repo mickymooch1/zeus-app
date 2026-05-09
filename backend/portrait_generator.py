@@ -88,4 +88,5 @@ def get_portrait_job_status(job_id: str) -> dict:
     else:
         image_url = None
 
+    log.info(f"Returning to frontend: image_url={image_url}")
     return {"status": status, "image_url": image_url}
