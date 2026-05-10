@@ -28,6 +28,8 @@ const PAGE_CSS = `
 .song-card-anim { animation: fadeInUp 0.3s ease both; }
 .songs-textarea:focus { border-color: rgba(167,139,250,0.4) !important; }
 .avatar-thumb:hover { border-color: #a78bfa !important; opacity: 1 !important; }
+.genre-pill:hover { border-color: rgba(255,255,255,0.65) !important; background: rgba(255,255,255,0.13) !important; color: #fff !important; }
+.genre-pill--sel:hover { background: #6d28d9 !important; }
 `;
 
 // ── shared style objects ─────────────────────────────────────────────────────
@@ -995,14 +997,15 @@ export default function SongsPage() {
                   <button
                     key={g}
                     onClick={() => toggleGenre(g)}
+                    className={sel ? 'genre-pill genre-pill--sel' : 'genre-pill'}
                     style={{
-                      padding: '7px 16px',
+                      padding: '8px 16px',
                       borderRadius: 20,
-                      border: `1px solid ${sel ? '#a78bfa' : 'rgba(255,255,255,0.1)'}`,
-                      background: sel ? 'rgba(167,139,250,0.18)' : 'rgba(255,255,255,0.03)',
-                      color: sel ? '#c4b5fd' : '#666',
-                      fontSize: 13,
-                      fontWeight: sel ? 600 : 400,
+                      border: sel ? 'none' : '2px solid rgba(255,255,255,0.4)',
+                      background: sel ? '#7c3aed' : 'rgba(255,255,255,0.08)',
+                      color: sel ? '#fff' : 'rgba(255,255,255,0.85)',
+                      fontSize: 14,
+                      fontWeight: 600,
                       cursor: 'pointer',
                       transition: 'all 0.15s',
                     }}
