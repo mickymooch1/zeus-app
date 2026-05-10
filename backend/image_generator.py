@@ -150,11 +150,10 @@ def process_pending_image_jobs() -> None:
         job_id = row["job_id"]
         request_id = row["fal_request_id"]
         try:
-            status_resp = requests.get(
-                f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}/status",
-                headers=headers,
-                timeout=15,
-            )
+            status_url = f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}/status"
+            result_url = f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}"
+            log.info(f"Trying status URL: {status_url}")
+            status_resp = requests.get(status_url, headers=headers, timeout=15)
             if status_resp.status_code in (404, 405, 410):
                 # fal.ai returns 4xx on /status once a job finishes and the queue
                 # slot is cleaned up — but the result URL may still work.
@@ -162,11 +161,8 @@ def process_pending_image_jobs() -> None:
                     "process_pending_image_jobs: job_id=%s /status HTTP %d — trying result URL",
                     job_id, status_resp.status_code,
                 )
-                result_resp = requests.get(
-                    f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}",
-                    headers=headers,
-                    timeout=15,
-                )
+                log.info(f"Trying result URL: {result_url}")
+                result_resp = requests.get(result_url, headers=headers, timeout=15)
                 if result_resp.status_code in (404, 405, 410):
                     created_at_str = row.get("created_at", "")
                     try:
@@ -206,11 +202,8 @@ def process_pending_image_jobs() -> None:
                 log.debug("process_pending_image_jobs: job_id=%s status=%s", job_id, status)
                 continue
 
-            result_resp = requests.get(
-                f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}",
-                headers=headers,
-                timeout=15,
-            )
+            log.info(f"Trying result URL: {result_url}")
+            result_resp = requests.get(result_url, headers=headers, timeout=15)
             result_resp.raise_for_status()
             images = result_resp.json().get("images", [])
             if not images:
