@@ -1148,7 +1148,19 @@ export default function SongsPage() {
                     }}
                   >
                     <option value="">Default</option>
-                    {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish'].map((a) => (
+                    {[
+                      'British',
+                      'American (Southern)',
+                      'Irish',
+                      'Scottish',
+                      'Australian',
+                      'Caribbean',
+                      'French',
+                      'Spanish',
+                      'American Soul',
+                      'Jamaican',
+                      'D&B MC',
+                    ].map((a) => (
                       <option key={a} value={a}>{a}</option>
                     ))}
                   </select>

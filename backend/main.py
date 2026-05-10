@@ -886,7 +886,12 @@ async def songs_generate(
     elif body.tempo == "custom" and body.tempo_bpm:
         style_suffix_parts.append(f"{max(40, min(300, body.tempo_bpm))} BPM")
     if body.accent:
-        style_suffix_parts.append(f"{body.accent} accent vocals")
+        _ACCENT_DESCRIPTORS = {
+            "American Soul": "American soul vocal delivery, Southern warmth, gospel inflection",
+            "Jamaican": "Jamaican vocal delivery, patois inflection, reggae-influenced rhythm",
+            "D&B MC": "UK drum and bass MC style, rapid-fire lyrics, London accent, hype vocal energy",
+        }
+        style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
     if body.explicit:
         style_suffix_parts.append("explicit lyrics allowed, no content restrictions")
     tempo_suffix = ", ".join(style_suffix_parts) or None
