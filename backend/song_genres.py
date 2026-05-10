@@ -14,4 +14,5 @@ GENRE_PRESETS = {
     "rnb":        "R&B, smooth production, silky vocals, bass-forward, contemporary feel, 90 BPM",
     "bluessoul":  "blues soul fusion, soulful vocals, warm guitar, gospel undertones, emotional delivery, slow to mid tempo",
     "drumandbass": "drum and bass, heavy rolling bassline, fast breakbeats, 170 BPM, electronic production, UK rave energy",
+    "grime":       "grime, aggressive 140 BPM beat, dark synth stabs, UK drill influence, fast paced MCing, East London sound",
 }
