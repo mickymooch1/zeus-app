@@ -21,13 +21,21 @@ Hard rules:
 - No markdown, no commentary. JSON only."""
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path) -> dict:
+_EXPLICIT_ADDENDUM = (
+    "\n\nThis is an explicit track. Include strong language, profanity, and adult themes "
+    "authentically. Do not self-censor — write the lyrics as a real explicit song would be written."
+)
+
+
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False) -> dict:
     client = Anthropic()
+
+    system = LYRIC_SYSTEM_PROMPT + (_EXPLICIT_ADDENDUM if explicit else "")
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1500,
-        system=LYRIC_SYSTEM_PROMPT,
+        system=system,
         messages=[{"role": "user", "content": brief}],
     )
 
