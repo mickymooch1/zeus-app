@@ -264,9 +264,38 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("ANTHROPIC_API_KEY is not set — add it to Railway → Service → Variables")
     get_anthropic_client()  # validate key and warm up client at startup
     log.info("Anthropic client initialised")
+    # One-time migration: give song credits to any user who doesn't have a record yet
+    try:
+        _backfilled = db.backfill_missing_song_credits(
+            _db_path, billing._PLAN_SONG_CREDITS, billing.FREE_SONG_CREDITS
+        )
+        if _backfilled:
+            log.info("Song credit backfill: created records for %d user(s)", _backfilled)
+    except Exception:
+        log.exception("Song credit backfill failed (non-fatal)")
+
     try:
         _scheduler_mod.init_scheduler(history)
         log.info("Scheduler initialised")
+
+        # Monthly job: reset free-tier song credits on the 1st of each month at 00:05 UTC
+        def _reset_free_credits_job():
+            try:
+                _path = db.get_db_path()
+                n = db.reset_free_tier_song_credits(_path, billing.FREE_SONG_CREDITS)
+                log.info("Monthly free credit reset: %d user(s) reset to %d credits", n, billing.FREE_SONG_CREDITS)
+            except Exception:
+                log.exception("Monthly free credit reset failed")
+
+        from apscheduler.triggers.cron import CronTrigger as _CronTrigger
+        _scheduler_mod._scheduler.add_job(
+            _reset_free_credits_job,
+            trigger=_CronTrigger(day=1, hour=0, minute=5, timezone="UTC"),
+            id="free_credit_monthly_reset",
+            replace_existing=True,
+        )
+        log.info("Registered monthly free credit reset job (1st of month, 00:05 UTC)")
+
         if _RAILWAY:
             log.info("Running on Railway — skipping cloudflared tunnel (not installed)")
             yield
@@ -982,15 +1011,19 @@ async def songs_topup(
 @app.get("/api/users/me/song_credits")
 async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()
-    row = db.get_song_credits(db_path, current_user["id"])
-    video_row = db.get_video_credits(db_path, current_user["id"])
     plan = current_user.get("subscription_plan")
-    # Derive allowances from the current plan so denominators are always correct
-    # even if DB monthly_allowance is stale from an earlier credit tier.
+    status = current_user.get("subscription_status", "free")
     allowance = billing._PLAN_SONG_CREDITS.get(plan, billing.FREE_SONG_CREDITS)
     video_allowance = billing._PLAN_VIDEO_CREDITS.get(plan, 0)
+
+    # Auto-provision credits on first visit — free users get FREE_SONG_CREDITS
+    is_paid = status == "active" and plan in billing.PLANS
+    default_credits = allowance if is_paid else billing.FREE_SONG_CREDITS
+    row = db.ensure_free_song_credits(db_path, current_user["id"], balance=default_credits, monthly_allowance=default_credits)
+
+    video_row = db.get_video_credits(db_path, current_user["id"])
     return {
-        "balance": row["balance"] if row else 0,
+        "balance": row["balance"],
         "monthly_allowance": allowance,
         "is_admin": bool(current_user.get("is_admin", 0)),
         "plan": plan,

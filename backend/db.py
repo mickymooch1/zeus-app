@@ -744,6 +744,81 @@ def upsert_song_credits(
         conn.close()
 
 
+def ensure_free_song_credits(db_path: pathlib.Path, user_id: str, balance: int = 5, monthly_allowance: int = 5) -> dict:
+    """Create a song_credits record if one doesn't exist yet. Returns the (possibly new) row."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """INSERT OR IGNORE INTO song_credits (user_id, balance, monthly_allowance, last_reset)
+               VALUES (?, ?, ?, CURRENT_TIMESTAMP)""",
+            (user_id, balance, monthly_allowance),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM song_credits WHERE user_id = ?", (user_id,)).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def reset_free_tier_song_credits(db_path: pathlib.Path, free_credits: int = 5) -> int:
+    """
+    Reset song credit balance to free_credits for any free-tier user whose
+    last_reset is over 28 days ago (or NULL). Returns the number of users reset.
+    """
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            """UPDATE song_credits
+               SET balance = ?, last_reset = CURRENT_TIMESTAMP
+               WHERE user_id IN (
+                   SELECT sc.user_id FROM song_credits sc
+                   JOIN users u ON u.id = sc.user_id
+                   WHERE (u.subscription_status IS NULL OR u.subscription_status = 'free')
+                     AND (sc.last_reset IS NULL
+                          OR julianday('now') - julianday(sc.last_reset) >= 28)
+               )""",
+            (free_credits,),
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def backfill_missing_song_credits(db_path: pathlib.Path, plan_credits: dict, free_credits: int = 5) -> int:
+    """
+    One-time migration: create song_credits rows for any user who doesn't have one.
+    Paid users get their plan's allowance; free users get free_credits.
+    Returns count of rows created.
+    """
+    conn = _conn(db_path)
+    try:
+        users = conn.execute(
+            """SELECT u.id, u.subscription_plan, u.subscription_status
+               FROM users u
+               LEFT JOIN song_credits sc ON sc.user_id = u.id
+               WHERE sc.user_id IS NULL"""
+        ).fetchall()
+        count = 0
+        for row in users:
+            plan = row["subscription_plan"]
+            status = row["subscription_status"]
+            if status == "active" and plan in plan_credits:
+                credits = plan_credits[plan]
+            else:
+                credits = free_credits
+            conn.execute(
+                """INSERT OR IGNORE INTO song_credits (user_id, balance, monthly_allowance, last_reset)
+                   VALUES (?, ?, ?, CURRENT_TIMESTAMP)""",
+                (row["id"], credits, credits),
+            )
+            count += 1
+        conn.commit()
+        return count
+    finally:
+        conn.close()
+
+
 def increment_song_credits(db_path: pathlib.Path, user_id: str, amount: int) -> None:
     conn = _conn(db_path)
     try:
