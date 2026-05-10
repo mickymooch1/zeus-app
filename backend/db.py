@@ -167,6 +167,12 @@ def init_user_tables(db_path: pathlib.Path) -> None:
 
             CREATE INDEX IF NOT EXISTS idx_song_variants_status ON song_variants(status);
             CREATE INDEX IF NOT EXISTS idx_song_variants_lyric  ON song_variants(lyric_id);
+
+            CREATE TABLE IF NOT EXISTS fal_image_jobs (
+                job_id         TEXT PRIMARY KEY,
+                fal_request_id TEXT NOT NULL,
+                created_at     TEXT DEFAULT (datetime('now'))
+            );
         """)
         # Migrate existing tables — ignore error if column already exists
         for _migration in [
@@ -1013,5 +1019,31 @@ def refund_video_credit(db_path: pathlib.Path, user_id: str) -> None:
             (user_id,),
         )
         conn.commit()
+    finally:
+        conn.close()
+
+
+def save_fal_image_job(db_path: pathlib.Path, job_id: str, fal_request_id: str) -> None:
+    """Persist a fal.ai job_id → request_id mapping for later polling."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO fal_image_jobs (job_id, fal_request_id) VALUES (?, ?)",
+            (job_id, fal_request_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_fal_request_id(db_path: pathlib.Path, job_id: str) -> str | None:
+    """Return the fal.ai request_id for a local job_id, or None if not found."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT fal_request_id FROM fal_image_jobs WHERE job_id = ?",
+            (job_id,),
+        ).fetchone()
+        return row["fal_request_id"] if row else None
     finally:
         conn.close()

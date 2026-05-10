@@ -22,47 +22,51 @@ class TestSubmitImageGeneration:
         import image_generator
         mock_resp = _make_resp({"request_id": "fal-req-abc"})
         with patch("image_generator.FAL_API_KEY", "test-key"), \
-             patch("requests.post", return_value=mock_resp):
-            job_id = image_generator.submit_image_generation(
-                "a dog", "1:1", "flux", "https://example.com/webhooks/image"
-            )
-        assert isinstance(job_id, str) and len(job_id) == 32  # uuid4().hex
+             patch("requests.post", return_value=mock_resp), \
+             patch("db.save_fal_image_job"), \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")):
+            job_id = image_generator.submit_image_generation("a dog", "1:1")
+        assert isinstance(job_id, str) and len(job_id) == 32
 
     def test_maps_social_ratio_to_square_1_1(self):
         import image_generator
         mock_resp = _make_resp({"request_id": "fal-req-abc"})
         with patch("image_generator.FAL_API_KEY", "test-key"), \
-             patch("requests.post", return_value=mock_resp) as mock_post:
-            image_generator.submit_image_generation("a dog", "1:1", webhook_url="https://example.com/webhooks/image")
-        body = mock_post.call_args.kwargs["json"]
-        assert body["image_size"] == "square_1_1"
+             patch("requests.post", return_value=mock_resp) as mock_post, \
+             patch("db.save_fal_image_job"), \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")):
+            image_generator.submit_image_generation("a dog", "1:1")
+        assert mock_post.call_args.kwargs["json"]["image_size"] == "square_1_1"
 
     def test_maps_hero_ratio_to_landscape_16_9(self):
         import image_generator
         mock_resp = _make_resp({"request_id": "fal-req-abc"})
         with patch("image_generator.FAL_API_KEY", "test-key"), \
-             patch("requests.post", return_value=mock_resp) as mock_post:
-            image_generator.submit_image_generation("hero", "16:9", webhook_url="https://example.com/webhooks/image")
-        body = mock_post.call_args.kwargs["json"]
-        assert body["image_size"] == "landscape_16_9"
+             patch("requests.post", return_value=mock_resp) as mock_post, \
+             patch("db.save_fal_image_job"), \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")):
+            image_generator.submit_image_generation("hero", "16:9")
+        assert mock_post.call_args.kwargs["json"]["image_size"] == "landscape_16_9"
 
-    def test_webhook_url_includes_job_id_query_param(self):
+    def test_no_fal_webhook_in_body(self):
         import image_generator
         mock_resp = _make_resp({"request_id": "fal-req-abc"})
         with patch("image_generator.FAL_API_KEY", "test-key"), \
-             patch("requests.post", return_value=mock_resp) as mock_post:
-            job_id = image_generator.submit_image_generation("a dog", "1:1", webhook_url="https://example.com/webhooks/image")
-        body = mock_post.call_args.kwargs["json"]
-        assert body["_fal_webhook"] == f"https://example.com/webhooks/image?job_id={job_id}"
+             patch("requests.post", return_value=mock_resp) as mock_post, \
+             patch("db.save_fal_image_job"), \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")):
+            image_generator.submit_image_generation("a dog", "1:1", webhook_url="https://example.com/webhooks/image")
+        assert "_fal_webhook" not in mock_post.call_args.kwargs["json"]
 
-    def test_omits_fal_webhook_when_no_webhook_url(self):
+    def test_saves_mapping_to_db(self):
         import image_generator
-        mock_resp = _make_resp({"request_id": "fal-req-abc"})
+        mock_resp = _make_resp({"request_id": "fal-req-xyz"})
         with patch("image_generator.FAL_API_KEY", "test-key"), \
-             patch("requests.post", return_value=mock_resp) as mock_post:
-            image_generator.submit_image_generation("a dog", "1:1")
-        body = mock_post.call_args.kwargs["json"]
-        assert "_fal_webhook" not in body
+             patch("requests.post", return_value=mock_resp), \
+             patch("db.save_fal_image_job") as mock_save, \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")):
+            job_id = image_generator.submit_image_generation("a dog", "1:1")
+        mock_save.assert_called_once_with(pathlib.Path("/tmp/test.db"), job_id, "fal-req-xyz")
 
     def test_raises_if_no_api_key(self):
         import image_generator
@@ -78,34 +82,45 @@ class TestSubmitImageGeneration:
             with pytest.raises(RuntimeError, match="request_id"):
                 image_generator.submit_image_generation("a dog", "1:1")
 
-    def test_stores_request_id_in_job_map(self):
-        import image_generator
-        image_generator._job_request_map.clear()
-        mock_resp = _make_resp({"request_id": "fal-req-xyz"})
-        with patch("image_generator.FAL_API_KEY", "test-key"), \
-             patch("requests.post", return_value=mock_resp):
-            job_id = image_generator.submit_image_generation("a dog", "1:1")
-        assert image_generator._job_request_map[job_id] == "fal-req-xyz"
-
 
 class TestGetImageJobStatus:
-    def test_completed_fetches_result_and_returns_url(self):
+    def test_returns_completed_from_disk_without_api_call(self, tmp_path):
         import image_generator
-        image_generator._job_request_map["local-id"] = "fal-req-123"
+        dest = tmp_path / "local-id.jpg"
+        dest.write_bytes(b"fake")
+        with patch("image_generator.FAL_API_KEY", "test-key"), \
+             patch("image_generator.ZEUS_PUBLIC_URL", "https://zeusaidesign.com"), \
+             patch("image_generator.pathlib.Path") as mock_path:
+            mock_path.return_value.__truediv__.return_value.exists.return_value = True
+            result = image_generator.get_image_job_status("local-id")
+        assert result["status"] == "COMPLETED"
+        assert "local-id" in result["image_url"]
+
+    def test_completed_downloads_and_returns_public_url(self):
+        import image_generator
         status_resp = _make_resp({"status": "COMPLETED"})
         result_resp = _make_resp({"images": [{"url": "https://fal.media/files/img.jpg"}]})
         with patch("image_generator.FAL_API_KEY", "test-key"), \
-             patch("requests.get", side_effect=[status_resp, result_resp]):
+             patch("image_generator.pathlib.Path") as mock_path_cls, \
+             patch("db.get_fal_request_id", return_value="fal-req-123"), \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")), \
+             patch("requests.get", side_effect=[status_resp, result_resp]), \
+             patch("image_generator.download_and_save_image", return_value="https://zeusaidesign.com/files/images/local-id.jpg") as mock_dl:
+            mock_path_cls.return_value.__truediv__.return_value.exists.return_value = False
             result = image_generator.get_image_job_status("local-id")
         assert result["status"] == "COMPLETED"
-        assert result["image_url"] == "https://fal.media/files/img.jpg"
+        assert result["image_url"] == "https://zeusaidesign.com/files/images/local-id.jpg"
+        mock_dl.assert_called_once_with("local-id", "https://fal.media/files/img.jpg")
 
     def test_in_progress_returns_none_url(self):
         import image_generator
-        image_generator._job_request_map["local-id"] = "fal-req-123"
         status_resp = _make_resp({"status": "IN_PROGRESS"})
         with patch("image_generator.FAL_API_KEY", "test-key"), \
+             patch("image_generator.pathlib.Path") as mock_path_cls, \
+             patch("db.get_fal_request_id", return_value="fal-req-123"), \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")), \
              patch("requests.get", return_value=status_resp):
+            mock_path_cls.return_value.__truediv__.return_value.exists.return_value = False
             result = image_generator.get_image_job_status("local-id")
         assert result["status"] == "IN_PROGRESS"
         assert result["image_url"] is None
