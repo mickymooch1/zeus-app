@@ -296,16 +296,6 @@ async def lifespan(app: FastAPI):
         )
         log.info("Registered monthly free credit reset job (1st of month, 00:05 UTC)")
 
-        # Interval job: poll fal.ai every 30 s and download completed images automatically
-        import image_generator as _img_gen_mod
-        from apscheduler.triggers.interval import IntervalTrigger as _IntervalTrigger
-        _scheduler_mod._scheduler.add_job(
-            _img_gen_mod.process_pending_image_jobs,
-            trigger=_IntervalTrigger(seconds=30),
-            id="fal_image_poll",
-            replace_existing=True,
-        )
-        log.info("Registered fal.ai image polling job (every 30 s)")
 
         if _RAILWAY:
             log.info("Running on Railway — skipping cloudflared tunnel (not installed)")
@@ -1649,10 +1639,8 @@ async def generate_image(
 ):
     import image_generator as _img
     aspect_ratio = _IMAGE_USE_CASE_RATIO.get(body.use_case, "1:1")
-    zeus_url = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
-    webhook_url = f"{zeus_url}/webhooks/image"
-    job_id = _img.submit_image_generation(body.prompt, aspect_ratio, body.model, webhook_url)
-    public_url = f"{zeus_url}/files/images/{job_id}.jpg"
+    public_url = _img.submit_image_generation(body.prompt, aspect_ratio, body.model)
+    job_id = public_url.rsplit("/", 1)[-1].replace(".jpg", "")
     return {"job_id": job_id, "url": public_url}
 
 

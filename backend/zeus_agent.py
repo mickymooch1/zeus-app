@@ -1009,14 +1009,10 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
             use_case = inp.get("use_case", "social")
             model = inp.get("model", "flux")
             aspect_ratio = _use_case_ratio.get(use_case, "1:1")
-            zeus_url = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
-            webhook_url = f"{zeus_url}/webhooks/image"
-            job_id = _img_mod.submit_image_generation(prompt, aspect_ratio, model, webhook_url)
-            public_url = f"{zeus_url}/files/images/{job_id}.jpg"
+            public_url = _img_mod.submit_image_generation(prompt, aspect_ratio, model)
             return (
-                f"Generating your image — it'll be ready at {public_url} in about 30 seconds.\n\n"
-                f"You can share that URL directly or embed it in a website. "
-                f"Job ID: {job_id}"
+                f"Your image is ready: {public_url}\n\n"
+                f"You can share that URL directly or embed it in a website."
             )
 
         elif name == "StockPrice":

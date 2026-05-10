@@ -35,7 +35,8 @@ class TestGenerateImageEndpoint:
         app = _main.app
         app.dependency_overrides[auth.get_current_user] = _test_user
         try:
-            with patch("image_generator.submit_image_generation", return_value="job-xyz123"):
+            with patch("image_generator.submit_image_generation",
+                       return_value="https://zeusaidesign.com/files/images/abc123.jpg"):
                 with TestClient(app) as client:
                     resp = client.post(
                         "/api/images/generate",
@@ -45,9 +46,8 @@ class TestGenerateImageEndpoint:
             app.dependency_overrides.pop(auth.get_current_user, None)
         assert resp.status_code == 200
         data = resp.json()
-        assert data["job_id"] == "job-xyz123"
-        assert "job-xyz123" in data["url"]
-        assert data["url"].endswith(".jpg")
+        assert data["job_id"] == "abc123"
+        assert data["url"] == "https://zeusaidesign.com/files/images/abc123.jpg"
 
     def test_hero_use_case_passes_16_9_ratio(self):
         import auth
@@ -56,9 +56,9 @@ class TestGenerateImageEndpoint:
         app.dependency_overrides[auth.get_current_user] = _test_user
         captured = {}
 
-        def _fake_submit(prompt, aspect_ratio, model="flux", webhook_url=""):
+        def _fake_submit(prompt, aspect_ratio, model="flux"):
             captured["aspect_ratio"] = aspect_ratio
-            return "job-abc"
+            return "https://zeusaidesign.com/files/images/job-abc.jpg"
 
         try:
             with patch("image_generator.submit_image_generation", side_effect=_fake_submit):
@@ -78,9 +78,9 @@ class TestGenerateImageEndpoint:
         app.dependency_overrides[auth.get_current_user] = _test_user
         captured = {}
 
-        def _fake_submit(prompt, aspect_ratio, model="flux", webhook_url=""):
+        def _fake_submit(prompt, aspect_ratio, model="flux"):
             captured["aspect_ratio"] = aspect_ratio
-            return "job-def"
+            return "https://zeusaidesign.com/files/images/job-def.jpg"
 
         try:
             with patch("image_generator.submit_image_generation", side_effect=_fake_submit):
