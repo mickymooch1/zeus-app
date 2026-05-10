@@ -18,4 +18,5 @@ GENRE_PRESETS = {
     "ukgarage":    "UK garage, 2-step rhythm, pitched vocals, 130 BPM, shuffled hi-hats, bouncy bassline, late 90s London underground sound",
     "jungle":      "jungle music, Amen breakbeat, reggae samples, ragga vocals, sub bass, 160 BPM, early 90s UK rave sound, dark atmospheric",
     "bassline":    "bassline house, heavy 4x4 kick, wobbling sub bassline, pitched male vocals, 130 BPM, Sheffield underground sound, raw club energy",
+    "house":       "house music, 4x4 kick drum, soulful vocals, deep bassline, 126 BPM, Chicago roots, uplifting club energy, classic house piano",
 }
