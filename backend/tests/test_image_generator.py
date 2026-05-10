@@ -45,7 +45,7 @@ class TestSubmitImageGeneration:
              patch("requests.post", return_value=fal_resp) as mock_post, \
              patch("image_generator.download_and_save_image", return_value="https://zeusaidesign.com/files/images/abc.jpg"):
             image_generator.submit_image_generation("a dog", "1:1")
-        assert mock_post.call_args.kwargs["json"]["image_size"] == "square_1_1"
+        assert mock_post.call_args.kwargs["json"]["image_size"] == "square_hd"
 
     def test_maps_hero_ratio_to_landscape_16_9(self):
         import image_generator

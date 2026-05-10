@@ -16,7 +16,7 @@ FAL_MODEL = "fal-ai/flux/dev"
 ZEUS_PUBLIC_URL = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
 
 _RATIO_TO_FAL_SIZE: dict[str, str] = {
-    "1:1":  "square_1_1",
+    "1:1":  "square_hd",
     "16:9": "landscape_16_9",
     "9:16": "portrait_9_16",
     "3:1":  "landscape_4_3",
