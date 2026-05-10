@@ -330,18 +330,30 @@ TOOLS = [
     {
         "name": "GenerateImage",
         "description": (
-            "Generate an image from a text prompt using AI and return a URL the user can view. "
-            "Use this when asked to create, design, or visualise anything — logos, banners, "
-            "illustrations, mockups, background images, etc."
+            "Generate an AI image using Flux (photorealistic) or GPT-Image-2 (illustrated). "
+            "Use for website hero images, social media posts, banners, blog headers, or any "
+            "visual content. Submits async generation and returns the future public URL immediately. "
+            "Tell the user the image will be ready in about 30 seconds."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "prompt": {"type": "string", "description": "Detailed description of the image to generate"},
-                "width":  {"type": "integer", "description": "Image width in pixels (default 1024)"},
-                "height": {"type": "integer", "description": "Image height in pixels (default 1024)"},
+                "prompt": {
+                    "type": "string",
+                    "description": "Detailed description of the image. Be specific about style, colours, mood, and content.",
+                },
+                "use_case": {
+                    "type": "string",
+                    "enum": ["hero", "social", "portrait", "banner"],
+                    "description": "hero=website hero 16:9, social=square 1:1, portrait=Instagram story 9:16, banner=wide 3:1",
+                },
+                "model": {
+                    "type": "string",
+                    "enum": ["flux", "gpt-image-2"],
+                    "description": "flux for photorealistic, gpt-image-2 for illustrated/artistic style",
+                },
             },
-            "required": ["prompt"],
+            "required": ["prompt", "use_case"],
         },
     },
     {
@@ -991,20 +1003,21 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                 return f"Error sending email: {exc}"
 
         elif name == "GenerateImage":
-            import urllib.parse
+            import image_generator as _img_mod
+            _use_case_ratio = {"hero": "16:9", "social": "1:1", "portrait": "9:16", "banner": "3:1"}
             prompt = inp["prompt"]
-            width  = int(inp.get("width", 1024))
-            height = int(inp.get("height", 1024))
-            encoded = urllib.parse.quote(prompt)
-            url = f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&nologo=true"
-            # Verify the image is reachable
-            try:
-                check = httpx.head(url, timeout=20, follow_redirects=True)
-                if check.status_code >= 400:
-                    return f"Image generation failed (HTTP {check.status_code}). Try a different prompt."
-            except Exception:
-                pass  # Return the URL anyway — HEAD may be blocked but GET will work
-            return f"Generated image URL: {url}\n\nPrompt used: {prompt}"
+            use_case = inp.get("use_case", "social")
+            model = inp.get("model", "flux")
+            aspect_ratio = _use_case_ratio.get(use_case, "1:1")
+            zeus_url = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
+            webhook_url = f"{zeus_url}/webhooks/image"
+            job_id = _img_mod.submit_image_generation(prompt, aspect_ratio, model, webhook_url)
+            public_url = f"{zeus_url}/files/images/{job_id}.jpg"
+            return (
+                f"Generating your image — it'll be ready at {public_url} in about 30 seconds.\n\n"
+                f"You can share that URL directly or embed it in a website. "
+                f"Job ID: {job_id}"
+            )
 
         elif name == "StockPrice":
             ticker = inp["ticker"].upper().strip()
