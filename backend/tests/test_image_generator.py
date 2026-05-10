@@ -48,7 +48,7 @@ class TestSubmitImageGeneration:
             image_generator.submit_image_generation("hero", "16:9")
         assert mock_post.call_args.kwargs["json"]["image_size"] == "landscape_16_9"
 
-    def test_no_fal_webhook_in_body(self):
+    def test_webhook_passed_as_query_param_not_body(self):
         import image_generator
         mock_resp = _make_resp({"request_id": "fal-req-abc"})
         with patch("image_generator.FAL_API_KEY", "test-key"), \
@@ -56,7 +56,20 @@ class TestSubmitImageGeneration:
              patch("db.save_fal_image_job"), \
              patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")):
             image_generator.submit_image_generation("a dog", "1:1", webhook_url="https://example.com/webhooks/image")
+        called_url = mock_post.call_args.args[0]
+        assert "fal_webhook=https://example.com/webhooks/image" in called_url
         assert "_fal_webhook" not in mock_post.call_args.kwargs["json"]
+
+    def test_no_webhook_in_url_when_not_provided(self):
+        import image_generator
+        mock_resp = _make_resp({"request_id": "fal-req-abc"})
+        with patch("image_generator.FAL_API_KEY", "test-key"), \
+             patch("requests.post", return_value=mock_resp) as mock_post, \
+             patch("db.save_fal_image_job"), \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")):
+            image_generator.submit_image_generation("a dog", "1:1")
+        called_url = mock_post.call_args.args[0]
+        assert "fal_webhook" not in called_url
 
     def test_saves_mapping_to_db(self):
         import image_generator

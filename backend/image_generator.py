@@ -28,7 +28,7 @@ def submit_image_generation(
     prompt: str,
     aspect_ratio: str,
     model: str = "flux",
-    webhook_url: str = "",   # kept for caller compatibility, no longer used
+    webhook_url: str = "",
 ) -> str:
     """Submit image generation to fal.ai. Returns local job_id."""
     if not FAL_API_KEY:
@@ -37,9 +37,13 @@ def submit_image_generation(
     job_id = uuid.uuid4().hex
     image_size = _RATIO_TO_FAL_SIZE.get(aspect_ratio, "square_1_1")
 
+    submit_url = f"{FAL_BASE}/{FAL_MODEL}"
+    if webhook_url:
+        submit_url = f"{submit_url}?fal_webhook={webhook_url}"
+
     response = requests.post(
-        f"{FAL_BASE}/{FAL_MODEL}",
-        headers={"Authorization": f"Key {FAL_API_KEY}", "Content-Type": "application/json"},
+        submit_url,
+        headers={"Authorization": f"Key {FAL_API_KEY}"},
         json={
             "prompt": prompt,
             "image_size": image_size,
@@ -87,7 +91,7 @@ def get_image_job_status(job_id: str) -> dict:
             job_id, request_id, status_resp.status_code,
         )
         result_resp = requests.get(
-            f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}",
+            f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}/response",
             headers=headers,
             timeout=15,
         )
@@ -116,7 +120,7 @@ def get_image_job_status(job_id: str) -> dict:
         return {"status": status, "image_url": None}
 
     result_resp = requests.get(
-        f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}",
+        f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}/response",
         headers=headers,
         timeout=15,
     )
@@ -151,7 +155,7 @@ def process_pending_image_jobs() -> None:
         request_id = row["fal_request_id"]
         try:
             status_url = f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}/status"
-            result_url = f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}"
+            result_url = f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}/response"
             log.info(f"Trying status URL: {status_url}")
             status_resp = requests.get(status_url, headers=headers, timeout=15)
             if status_resp.status_code in (404, 405, 410):
