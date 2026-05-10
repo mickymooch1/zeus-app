@@ -1,17 +1,31 @@
-"""image_generator.py — AI image generation via Apiframe Flux."""
+"""image_generator.py — AI image generation via fal.ai Flux."""
 import logging
 import os
 import pathlib
 import subprocess
 import tempfile
+import uuid
 
 import requests
 
 log = logging.getLogger("zeus.image")
 
-APIFRAME_API_KEY = os.environ.get("APIFRAME_API_KEY", "").strip()
-APIFRAME_BASE = "https://api.apiframe.ai"
+FAL_API_KEY = os.environ.get("FAL_API_KEY", "").strip()
+FAL_BASE = "https://queue.fal.run"
+FAL_MODEL = "fal-ai/flux/dev"
 ZEUS_PUBLIC_URL = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
+
+# aspect_ratio strings (from main.py / zeus_agent.py) → fal.ai image_size param
+_RATIO_TO_FAL_SIZE: dict[str, str] = {
+    "1:1":  "square_1_1",
+    "16:9": "landscape_16_9",
+    "9:16": "portrait_9_16",
+    "3:1":  "landscape_4_3",
+}
+
+# In-process map from our local job_id (UUID) → fal.ai request_id, used for polling.
+# Acceptable for a single-instance Railway deployment.
+_job_request_map: dict[str, str] = {}
 
 
 def submit_image_generation(
@@ -20,52 +34,69 @@ def submit_image_generation(
     model: str = "flux",
     webhook_url: str = "",
 ) -> str:
-    """Submit image generation to Apiframe. Returns job_id."""
-    if not APIFRAME_API_KEY:
-        raise ValueError("APIFRAME_API_KEY is not configured")
+    """Submit image generation to fal.ai. Returns local job_id."""
+    if not FAL_API_KEY:
+        raise ValueError("FAL_API_KEY is not configured")
+
+    job_id = uuid.uuid4().hex
+    image_size = _RATIO_TO_FAL_SIZE.get(aspect_ratio, "square_1_1")
 
     body: dict = {
         "prompt": prompt,
-        "model": model,
-        "aspectRatio": aspect_ratio,
+        "image_size": image_size,
+        "num_images": 1,
+        "enable_safety_checker": False,
     }
     if webhook_url:
-        body["webhookUrl"] = webhook_url
-        body["webhookEvents"] = ["completed", "failed"]
+        body["_fal_webhook"] = f"{webhook_url}?job_id={job_id}"
 
     response = requests.post(
-        f"{APIFRAME_BASE}/v2/images/generate",
-        headers={"X-API-Key": APIFRAME_API_KEY, "Content-Type": "application/json"},
+        f"{FAL_BASE}/{FAL_MODEL}",
+        headers={"Authorization": f"Key {FAL_API_KEY}", "Content-Type": "application/json"},
         json=body,
         timeout=30,
     )
     response.raise_for_status()
     data = response.json()
-    job_id = data.get("jobId")
-    if not job_id:
-        raise RuntimeError(f"Apiframe response missing jobId: {data!r}")
-    log.info("submit_image_generation: job_id=%s model=%s ratio=%s", job_id, model, aspect_ratio)
+    request_id = data.get("request_id")
+    if not request_id:
+        raise RuntimeError(f"fal.ai response missing request_id: {data!r}")
+
+    _job_request_map[job_id] = request_id
+    log.info("submit_image_generation: job_id=%s request_id=%s size=%s", job_id, request_id, image_size)
     return job_id
 
 
 def get_image_job_status(job_id: str) -> dict:
-    """Poll Apiframe for image job status. Returns {status, image_url}."""
-    if not APIFRAME_API_KEY:
-        raise ValueError("APIFRAME_API_KEY is not configured")
+    """Poll fal.ai for image job status. Returns {status, image_url}."""
+    if not FAL_API_KEY:
+        raise ValueError("FAL_API_KEY is not configured")
 
-    response = requests.get(
-        f"{APIFRAME_BASE}/v2/jobs/{job_id}",
-        headers={"X-API-Key": APIFRAME_API_KEY},
+    request_id = _job_request_map.get(job_id, job_id)
+    headers = {"Authorization": f"Key {FAL_API_KEY}"}
+
+    status_resp = requests.get(
+        f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}/status",
+        headers=headers,
         timeout=15,
     )
-    response.raise_for_status()
-    data = response.json()
-    status = data.get("status", "").upper()
+    status_resp.raise_for_status()
+    status = status_resp.json().get("status", "").upper()
+
     image_url = None
     if status == "COMPLETED":
-        result = data.get("result") or {}
-        images = result.get("images", [])
-        image_url = images[0] if images else None
+        result_resp = requests.get(
+            f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}",
+            headers=headers,
+            timeout=15,
+        )
+        result_resp.raise_for_status()
+        images = result_resp.json().get("images", [])
+        if images:
+            entry = images[0]
+            image_url = entry["url"] if isinstance(entry, dict) else entry
+
+    log.info("get_image_job_status: job_id=%s status=%s", job_id, status)
     return {"status": status, "image_url": image_url}
 
 

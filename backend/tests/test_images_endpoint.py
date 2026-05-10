@@ -133,35 +133,51 @@ class TestImageStatusEndpoint:
 
 
 class TestImageWebhookEndpoint:
-    def test_completed_event_downloads_and_saves(self):
+    def test_fal_payload_with_query_param_job_id(self):
         import main as _main
         app = _main.app
         with patch(
             "image_generator.download_and_save_image",
-            return_value="https://zeusaidesign.com/files/images/job-abc.jpg",
+            return_value="https://zeusaidesign.com/files/images/local-job-id.jpg",
+        ) as mock_dl:
+            with TestClient(app) as client:
+                resp = client.post(
+                    "/webhooks/image?job_id=local-job-id",
+                    json={
+                        "request_id": "fal-req-abc",
+                        "images": [{"url": "https://fal.media/files/img.jpg", "width": 1024, "height": 1024}],
+                    },
+                )
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+        mock_dl.assert_called_once_with("local-job-id", "https://fal.media/files/img.jpg")
+
+    def test_falls_back_to_request_id_when_no_query_param(self):
+        import main as _main
+        app = _main.app
+        with patch(
+            "image_generator.download_and_save_image",
+            return_value="https://zeusaidesign.com/files/images/fal-req-abc.jpg",
         ) as mock_dl:
             with TestClient(app) as client:
                 resp = client.post(
                     "/webhooks/image",
                     json={
-                        "jobId": "job-abc",
-                        "event": "completed",
-                        "status": "COMPLETED",
-                        "result": {"images": ["https://cdn.apiframe.ai/img.jpg"]},
+                        "request_id": "fal-req-abc",
+                        "images": [{"url": "https://fal.media/files/img.jpg"}],
                     },
                 )
         assert resp.status_code == 200
-        assert resp.json()["ok"] is True
-        mock_dl.assert_called_once_with("job-abc", "https://cdn.apiframe.ai/img.jpg")
+        mock_dl.assert_called_once_with("fal-req-abc", "https://fal.media/files/img.jpg")
 
-    def test_failed_event_returns_ok_without_download(self):
+    def test_no_images_returns_ok_without_download(self):
         import main as _main
         app = _main.app
         with patch("image_generator.download_and_save_image") as mock_dl:
             with TestClient(app) as client:
                 resp = client.post(
-                    "/webhooks/image",
-                    json={"jobId": "job-abc", "event": "failed", "status": "FAILED"},
+                    "/webhooks/image?job_id=local-job-id",
+                    json={"request_id": "fal-req-abc", "images": []},
                 )
         assert resp.status_code == 200
         mock_dl.assert_not_called()
@@ -170,5 +186,5 @@ class TestImageWebhookEndpoint:
         import main as _main
         app = _main.app
         with TestClient(app) as client:
-            resp = client.post("/webhooks/image", json={"event": "completed"})
+            resp = client.post("/webhooks/image", json={"images": []})
         assert resp.status_code == 400

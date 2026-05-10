@@ -1655,20 +1655,18 @@ async def image_status(job_id: str, user: dict = Depends(auth.get_current_user))
 async def image_webhook(request: Request):
     import image_generator as _img
     body = await request.json()
-    job_id = body.get("jobId")
+    # job_id arrives as a query param we embedded in the webhook URL at submit time;
+    # fall back to fal.ai's request_id in the payload body.
+    job_id = request.query_params.get("job_id") or body.get("request_id")
     if not job_id:
-        raise HTTPException(status_code=400, detail="Missing jobId")
-    event = body.get("event", "")
-    status = body.get("status", "").upper()
-    if event == "failed" or status == "FAILED":
-        log.warning("Image generation failed for job %s", job_id)
-        return {"ok": True}
-    result = body.get("result") or {}
-    images = result.get("images", [])
+        raise HTTPException(status_code=400, detail="Missing job_id")
+    images = body.get("images", [])
     if not images:
-        log.warning("Image webhook completed but no images for job %s", job_id)
+        log.warning("Image webhook: no images in payload for job %s", job_id)
         return {"ok": True}
-    public_url = _img.download_and_save_image(job_id, images[0])
+    entry = images[0]
+    image_url = entry["url"] if isinstance(entry, dict) else entry
+    public_url = _img.download_and_save_image(job_id, image_url)
     log.info("Image webhook: saved job %s → %s", job_id, public_url)
     return {"ok": True, "url": public_url}
 
