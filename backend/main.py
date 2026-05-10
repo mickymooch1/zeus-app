@@ -254,9 +254,9 @@ async def lifespan(app: FastAPI):
         raise
 
     # Ensure persistent storage directories exist for avatars and D-ID videos
-    for _d in ("/data/avatars", "/data/videos"):
+    for _d in ("/data/avatars", "/data/videos", "/data/images"):
         pathlib.Path(_d).mkdir(parents=True, exist_ok=True)
-    log.info("Storage directories ready: /data/avatars, /data/videos")
+    log.info("Storage directories ready: /data/avatars, /data/videos, /data/images")
 
     api_key_set = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
     log.info("ANTHROPIC_API_KEY present: %s", api_key_set)
@@ -1615,6 +1615,64 @@ async def did_status(
     return {"status": result["status"], "video_url": None}
 
 
+# ── Image Generation ─────────────────────────────────────────────────────────
+
+_IMAGE_USE_CASE_RATIO = {
+    "hero":     "16:9",
+    "social":   "1:1",
+    "portrait": "9:16",
+    "banner":   "3:1",
+}
+
+
+class ImageGenerateRequest(BaseModel):
+    prompt: str
+    use_case: str = "social"  # hero | social | portrait | banner
+    model: str = "flux"       # flux | gpt-image-2
+
+
+@app.post("/api/images/generate")
+async def generate_image(
+    body: ImageGenerateRequest,
+    user: dict = Depends(auth.get_current_user),
+):
+    import image_generator as _img
+    aspect_ratio = _IMAGE_USE_CASE_RATIO.get(body.use_case, "1:1")
+    zeus_url = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
+    webhook_url = f"{zeus_url}/webhooks/image"
+    job_id = _img.submit_image_generation(body.prompt, aspect_ratio, body.model, webhook_url)
+    public_url = f"{zeus_url}/files/images/{job_id}.jpg"
+    return {"job_id": job_id, "url": public_url}
+
+
+@app.get("/api/images/status/{job_id}")
+async def image_status(job_id: str, user: dict = Depends(auth.get_current_user)):
+    import image_generator as _img
+    return _img.get_image_job_status(job_id)
+
+
+@app.post("/webhooks/image")
+async def image_webhook(request: Request):
+    import image_generator as _img
+    body = await request.json()
+    job_id = body.get("jobId")
+    if not job_id:
+        raise HTTPException(status_code=400, detail="Missing jobId")
+    event = body.get("event", "")
+    status = body.get("status", "").upper()
+    if event == "failed" or status == "FAILED":
+        log.warning("Image generation failed for job %s", job_id)
+        return {"ok": True}
+    result = body.get("result") or {}
+    images = result.get("images", [])
+    if not images:
+        log.warning("Image webhook completed but no images for job %s", job_id)
+        return {"ok": True}
+    public_url = _img.download_and_save_image(job_id, images[0])
+    log.info("Image webhook: saved job %s → %s", job_id, public_url)
+    return {"ok": True, "url": public_url}
+
+
 # ── Scheduled Tasks ─────────────────────────────────────────────────────────
 
 class ScheduledTaskParseRequest(BaseModel):
@@ -2139,6 +2197,10 @@ app.mount("/files/avatars", _StaticFiles(directory=str(_avatar_storage)), name="
 _video_storage = pathlib.Path("/data/videos")
 _video_storage.mkdir(parents=True, exist_ok=True)
 app.mount("/files/videos", _StaticFiles(directory=str(_video_storage)), name="videos")
+
+_image_storage = pathlib.Path("/data/images")
+_image_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/images", _StaticFiles(directory=str(_image_storage)), name="images")
 
 # Serve built React app from web/dist/
 # Mount /assets for Vite bundles, then a catch-all that returns index.html for
