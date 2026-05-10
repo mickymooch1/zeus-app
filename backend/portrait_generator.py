@@ -29,6 +29,9 @@ GENRE_PORTRAIT_PROMPTS = {
     "bluessoul":   "Professional portrait photo, blues soul musician, clear frontal face, warm amber studio lighting, emotional expression, photorealistic",
     "drumandbass": "Professional portrait photo, drum and bass DJ and producer, clear frontal face, dramatic purple and blue studio lighting, intense expression, photorealistic",
     "grime":       "Professional portrait photo, grime MC, clear frontal face, dramatic urban studio lighting, intense focused expression, photorealistic",
+    "ukgarage":    "Professional portrait photo, UK garage MC, clear frontal face, urban neon studio lighting, confident expression, photorealistic",
+    "jungle":      "Professional portrait photo, jungle MC, clear frontal face, dramatic dark rave lighting, intense expression, photorealistic",
+    "bassline":    "Professional portrait photo, bassline MC, clear frontal face, underground club lighting, energetic expression, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"

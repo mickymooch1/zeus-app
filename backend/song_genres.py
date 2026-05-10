@@ -15,4 +15,7 @@ GENRE_PRESETS = {
     "bluessoul":  "blues soul fusion, soulful vocals, warm guitar, gospel undertones, emotional delivery, slow to mid tempo",
     "drumandbass": "drum and bass, heavy rolling bassline, fast breakbeats, 170 BPM, electronic production, UK rave energy",
     "grime":       "grime, aggressive 140 BPM beat, dark synth stabs, UK drill influence, fast paced MCing, East London sound",
+    "ukgarage":    "UK garage, 2-step rhythm, pitched vocals, 130 BPM, shuffled hi-hats, bouncy bassline, late 90s London underground sound",
+    "jungle":      "jungle music, Amen breakbeat, reggae samples, ragga vocals, sub bass, 160 BPM, early 90s UK rave sound, dark atmospheric",
+    "bassline":    "bassline house, heavy 4x4 kick, wobbling sub bassline, pitched male vocals, 130 BPM, Sheffield underground sound, raw club energy",
 }

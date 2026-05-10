@@ -890,6 +890,7 @@ async def songs_generate(
             "American Soul": "American soul vocal delivery, Southern warmth, gospel inflection",
             "Jamaican": "Jamaican vocal delivery, patois inflection, reggae-influenced rhythm",
             "D&B MC": "UK drum and bass MC style, rapid-fire lyrics, London accent, hype vocal energy",
+            "UK Rave MC": "UK rave MC vocal style, deep ragga-influenced delivery, hyped crowd control, London/Birmingham underground patois",
         }
         style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
     if body.explicit:
