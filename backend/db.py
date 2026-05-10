@@ -1056,7 +1056,7 @@ def get_pending_fal_image_jobs(db_path: pathlib.Path) -> list[dict]:
     conn = _conn(db_path)
     try:
         rows = conn.execute(
-            "SELECT job_id, fal_request_id FROM fal_image_jobs WHERE image_url IS NULL"
+            "SELECT job_id, fal_request_id, created_at FROM fal_image_jobs WHERE image_url IS NULL"
         ).fetchall()
         return [dict(r) for r in rows]
     finally:

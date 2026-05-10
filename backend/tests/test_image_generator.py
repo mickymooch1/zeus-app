@@ -219,26 +219,44 @@ class TestProcessPendingImageJobs:
             image_generator.process_pending_image_jobs()
         mock_get.assert_not_called()
 
-    def test_marks_expired_when_both_status_and_result_return_405(self):
+    def test_marks_expired_when_both_status_and_result_return_405_and_job_is_old(self):
         import image_generator
+        from datetime import datetime, timezone, timedelta
+        old_ts = (datetime.now(timezone.utc) - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
         expired_resp = _make_resp({}, status_code=405)
         expired_resp.raise_for_status = MagicMock()
         with patch("image_generator.FAL_API_KEY", "test-key"), \
              patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")), \
-             patch("db.get_pending_fal_image_jobs", return_value=[{"job_id": "j1", "fal_request_id": "r1"}]), \
+             patch("db.get_pending_fal_image_jobs", return_value=[{"job_id": "j1", "fal_request_id": "r1", "created_at": old_ts}]), \
              patch("requests.get", return_value=expired_resp), \
              patch("db.update_fal_image_job_url") as mock_update:
             image_generator.process_pending_image_jobs()
         mock_update.assert_called_once_with(pathlib.Path("/tmp/test.db"), "j1", "EXPIRED")
 
+    def test_skips_young_job_when_both_status_and_result_return_405(self):
+        import image_generator
+        from datetime import datetime, timezone
+        young_ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        expired_resp = _make_resp({}, status_code=405)
+        expired_resp.raise_for_status = MagicMock()
+        with patch("image_generator.FAL_API_KEY", "test-key"), \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")), \
+             patch("db.get_pending_fal_image_jobs", return_value=[{"job_id": "j1", "fal_request_id": "r1", "created_at": young_ts}]), \
+             patch("requests.get", return_value=expired_resp), \
+             patch("db.update_fal_image_job_url") as mock_update:
+            image_generator.process_pending_image_jobs()
+        mock_update.assert_not_called()
+
     def test_recovers_via_result_url_when_status_returns_405(self):
         import image_generator
+        from datetime import datetime, timezone
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         status_405 = _make_resp({}, status_code=405)
         status_405.raise_for_status = MagicMock()
         result_resp = _make_resp({"images": [{"url": "https://fal.media/files/img.jpg"}]})
         with patch("image_generator.FAL_API_KEY", "test-key"), \
              patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")), \
-             patch("db.get_pending_fal_image_jobs", return_value=[{"job_id": "j1", "fal_request_id": "r1"}]), \
+             patch("db.get_pending_fal_image_jobs", return_value=[{"job_id": "j1", "fal_request_id": "r1", "created_at": ts}]), \
              patch("requests.get", side_effect=[status_405, result_resp]), \
              patch("image_generator.download_and_save_image", return_value="https://zeusaidesign.com/files/images/j1.jpg") as mock_dl, \
              patch("db.update_fal_image_job_url") as mock_update:

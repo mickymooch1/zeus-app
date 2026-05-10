@@ -5,6 +5,7 @@ import pathlib
 import subprocess
 import tempfile
 import uuid
+from datetime import datetime, timezone, timedelta
 
 import requests
 
@@ -167,8 +168,20 @@ def process_pending_image_jobs() -> None:
                     timeout=15,
                 )
                 if result_resp.status_code in (404, 405, 410):
+                    created_at_str = row.get("created_at", "")
+                    try:
+                        created_at = datetime.fromisoformat(created_at_str).replace(tzinfo=timezone.utc)
+                        age = datetime.now(timezone.utc) - created_at
+                    except Exception:
+                        age = timedelta(minutes=10)  # unknown age → treat as old
+                    if age < timedelta(minutes=5):
+                        log.info(
+                            "process_pending_image_jobs: job_id=%s too young (%ds), will retry",
+                            job_id, int(age.total_seconds()),
+                        )
+                        continue
                     log.warning(
-                        "process_pending_image_jobs: job_id=%s result also %d — marking expired",
+                        "process_pending_image_jobs: job_id=%s result also %d and >5 min old — marking expired",
                         job_id, result_resp.status_code,
                     )
                     _db.update_fal_image_job_url(db_path, job_id, "EXPIRED")
