@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
+import { DashboardHeader } from '../components/DashboardHeader';
 import { ChatWindow } from '../components/ChatWindow';
 import { SessionSidebar } from '../components/SessionSidebar';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,19 +8,8 @@ import { useZeusSocket } from '../hooks/useZeusSocket';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
-function PlanBadge({ status, plan }) {
-  if (status === 'active' && plan === 'agency') {
-    return <span className="badge-agency">Agency</span>;
-  }
-  if (status === 'active' && plan === 'pro') {
-    return <span className="badge-pro">Pro</span>;
-  }
-  return <span className="badge-free">Free</span>;
-}
-
 export default function DashboardPage() {
-  const { user, token, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user, token } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { messages, sessionId, streaming, sendMessage, newSession, loadSession } =
@@ -53,45 +43,9 @@ export default function DashboardPage() {
     [loadSession, token]
   );
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
   return (
     <div className="dashboard-page">
-      <header className="dashboard-header">
-        <button
-          className="hamburger-btn"
-          onClick={() => setSidebarOpen(true)}
-          aria-label="Open menu"
-        >
-          ☰
-        </button>
-        <Link to="/" className="dashboard-logo">
-          <span className="zeus-icon">⚡</span>
-          <span className="zeus-title">Zeus</span>
-        </Link>
-
-        <div className="dashboard-header-right">
-          <PlanBadge
-            status={user?.subscription_status}
-            plan={user?.subscription_plan}
-          />
-          <Link to="/websites" className="dashboard-header-link">
-            Websites
-          </Link>
-          <Link to="/billing" className="dashboard-header-link">
-            {user?.email}
-          </Link>
-          <Link to="/billing" className="btn btn-sm btn-ghost">
-            Billing
-          </Link>
-          <button className="btn btn-sm btn-outline" onClick={handleLogout}>
-            Sign out
-          </button>
-        </div>
-      </header>
+      <DashboardHeader onMenuOpen={() => setSidebarOpen(true)} />
 
       <div className="dashboard-body">
         {sidebarOpen && (

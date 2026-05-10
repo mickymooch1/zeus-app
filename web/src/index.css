@@ -543,8 +543,8 @@ body {
 
 /* ── Auth pages ──────────────────────────────────────────── */
 .auth-page {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  padding: 40px 16px; background: #0a0818; position: relative;
+  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  padding: 40px 16px; background: #0a0818; position: relative; overflow-y: auto;
 }
 .auth-card {
   background: rgba(255,255,255,0.04);
@@ -673,16 +673,44 @@ body {
 }
 .dashboard-logo {
   display: flex; align-items: center; gap: 8px;
-  text-decoration: none; color: var(--text);
+  text-decoration: none; color: var(--text); flex-shrink: 0;
 }
 .dashboard-header-right {
-  display: flex; align-items: center; gap: 12px; margin-left: auto;
+  display: flex; align-items: center; gap: 4px; margin-left: auto;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
 }
 .dashboard-header-link {
-  color: var(--text-dim); text-decoration: none; font-size: 12px;
-  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: rgba(255,255,255,0.72);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex; align-items: center;
+  min-height: 44px; padding: 0 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
+  max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+}
+.dashboard-header-link:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.06);
+}
+.dashboard-header-link--active {
+  color: #fff;
+  border-bottom: 2px solid #a78bfa;
+}
+.dashboard-header-link--active:hover {
+  background: rgba(167,139,250,0.08);
 }
 .dashboard-body { flex: 1; display: flex; overflow: hidden; }
+
+@media (max-width: 480px) {
+  .dashboard-header-link {
+    font-size: 12px;
+    padding: 0 7px;
+  }
+  .dashboard-header-right { gap: 2px; }
+}
 
 /* ── Content pages (Terms, Privacy) ─────────────────────── */
 .content-page-wrap { background: #0a0818; min-height: 100vh; position: relative; }

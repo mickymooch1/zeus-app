@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
 import { useAuth } from '../contexts/AuthContext';
+import { DashboardHeader } from '../components/DashboardHeader';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -867,19 +868,7 @@ export default function SongsPage() {
       <div style={{ background: '#0b0b14', minHeight: '100vh', color: '#f0eeff' }}>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <header className="dashboard-header">
-          <Link to="/dashboard" className="dashboard-logo">
-            <span className="zeus-icon">⚡</span>
-            <span className="zeus-title">Zeus</span>
-          </Link>
-          <nav className="dashboard-header-right">
-            <Link to="/dashboard" className="dashboard-header-link">Chat</Link>
-            <Link to="/songs" className="dashboard-header-link" style={{ fontWeight: 700, color: '#c4b5fd' }}>Songs</Link>
-            <Link to="/websites" className="dashboard-header-link">Websites</Link>
-            <Link to="/tasks" className="dashboard-header-link">Tasks</Link>
-            <Link to="/billing" className="dashboard-header-link">{user?.email}</Link>
-          </nav>
-        </header>
+        <DashboardHeader />
 
         {/* ── Credit strip ───────────────────────────────────────────────── */}
         <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '10px 32px' }}>

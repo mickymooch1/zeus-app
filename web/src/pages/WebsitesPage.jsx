@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { DashboardHeader } from '../components/DashboardHeader';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -188,30 +189,7 @@ export default function WebsitesPage() {
 
   return (
     <div className="tasks-page">
-      <header className="dashboard-header">
-        <Link to="/dashboard" className="dashboard-logo">
-          <span className="zeus-icon">⚡</span>
-          <span className="zeus-title">Zeus</span>
-        </Link>
-        <nav className="dashboard-header-right">
-          <Link to="/dashboard" className="dashboard-header-link">
-            Chat
-          </Link>
-          <Link
-            to="/websites"
-            className="dashboard-header-link"
-            style={{ fontWeight: 600 }}
-          >
-            Websites
-          </Link>
-          <Link to="/tasks" className="dashboard-header-link">
-            Tasks
-          </Link>
-          <Link to="/billing" className="dashboard-header-link">
-            {user?.email}
-          </Link>
-        </nav>
-      </header>
+      <DashboardHeader />
 
       <div className="tasks-container">
         <div className="tasks-header">
