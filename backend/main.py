@@ -296,6 +296,17 @@ async def lifespan(app: FastAPI):
         )
         log.info("Registered monthly free credit reset job (1st of month, 00:05 UTC)")
 
+        # Interval job: poll fal.ai every 30 s and download completed images automatically
+        import image_generator as _img_gen_mod
+        from apscheduler.triggers.interval import IntervalTrigger as _IntervalTrigger
+        _scheduler_mod._scheduler.add_job(
+            _img_gen_mod.process_pending_image_jobs,
+            trigger=_IntervalTrigger(seconds=30),
+            id="fal_image_poll",
+            replace_existing=True,
+        )
+        log.info("Registered fal.ai image polling job (every 30 s)")
+
         if _RAILWAY:
             log.info("Running on Railway — skipping cloudflared tunnel (not installed)")
             yield

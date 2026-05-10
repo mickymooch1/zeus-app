@@ -171,6 +171,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             CREATE TABLE IF NOT EXISTS fal_image_jobs (
                 job_id         TEXT PRIMARY KEY,
                 fal_request_id TEXT NOT NULL,
+                image_url      TEXT,
                 created_at     TEXT DEFAULT (datetime('now'))
             );
         """)
@@ -185,6 +186,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_variants ADD COLUMN youtube_url TEXT",
             "ALTER TABLE song_variants ADD COLUMN did_job_id TEXT",
             "ALTER TABLE song_variants ADD COLUMN video_url TEXT",
+            "ALTER TABLE fal_image_jobs ADD COLUMN image_url TEXT",
         ]:
             try:
                 conn.execute(_migration)
@@ -1045,5 +1047,30 @@ def get_fal_request_id(db_path: pathlib.Path, job_id: str) -> str | None:
             (job_id,),
         ).fetchone()
         return row["fal_request_id"] if row else None
+    finally:
+        conn.close()
+
+
+def get_pending_fal_image_jobs(db_path: pathlib.Path) -> list[dict]:
+    """Return all fal_image_jobs rows where image_url is NULL."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT job_id, fal_request_id FROM fal_image_jobs WHERE image_url IS NULL"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def update_fal_image_job_url(db_path: pathlib.Path, job_id: str, image_url: str) -> None:
+    """Set image_url on a fal_image_jobs row once the image has been downloaded."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE fal_image_jobs SET image_url = ? WHERE job_id = ?",
+            (image_url, job_id),
+        )
+        conn.commit()
     finally:
         conn.close()
