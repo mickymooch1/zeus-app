@@ -44,10 +44,11 @@ def submit_image_generation(
             "prompt": prompt,
             "image_size": image_size,
             "num_images": 1,
-            "enable_safety_checker": False,
         },
         timeout=120,
     )
+    if not response.ok:
+        log.error("fal.ai sync error %d: %s", response.status_code, response.text[:500])
     response.raise_for_status()
     data = response.json()
     images = data.get("images", [])
