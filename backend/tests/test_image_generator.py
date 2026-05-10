@@ -128,7 +128,7 @@ class TestGetImageJobStatus:
     def test_expired_job_returns_expired_status(self):
         import image_generator
         expired_resp = _make_resp({}, status_code=405)
-        expired_resp.raise_for_status = MagicMock()  # don't raise — we check status_code directly
+        expired_resp.raise_for_status = MagicMock()
         with patch("image_generator.FAL_API_KEY", "test-key"), \
              patch("image_generator.pathlib.Path") as mock_path_cls, \
              patch("db.get_fal_request_id", return_value="fal-req-expired"), \
@@ -138,6 +138,23 @@ class TestGetImageJobStatus:
             result = image_generator.get_image_job_status("local-id")
         assert result["status"] == "EXPIRED"
         assert result["image_url"] is None
+
+    def test_405_on_status_but_result_url_has_image(self):
+        import image_generator
+        status_405 = _make_resp({}, status_code=405)
+        status_405.raise_for_status = MagicMock()
+        result_resp = _make_resp({"images": [{"url": "https://fal.media/files/img.jpg"}]})
+        with patch("image_generator.FAL_API_KEY", "test-key"), \
+             patch("image_generator.pathlib.Path") as mock_path_cls, \
+             patch("db.get_fal_request_id", return_value="fal-req-xyz"), \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")), \
+             patch("requests.get", side_effect=[status_405, result_resp]), \
+             patch("image_generator.download_and_save_image", return_value="https://zeusaidesign.com/files/images/local-id.jpg") as mock_dl:
+            mock_path_cls.return_value.__truediv__.return_value.exists.return_value = False
+            result = image_generator.get_image_job_status("local-id")
+        assert result["status"] == "COMPLETED"
+        assert result["image_url"] == "https://zeusaidesign.com/files/images/local-id.jpg"
+        mock_dl.assert_called_once_with("local-id", "https://fal.media/files/img.jpg")
 
     def test_raises_if_no_api_key(self):
         import image_generator
@@ -202,7 +219,7 @@ class TestProcessPendingImageJobs:
             image_generator.process_pending_image_jobs()
         mock_get.assert_not_called()
 
-    def test_marks_expired_on_405(self):
+    def test_marks_expired_when_both_status_and_result_return_405(self):
         import image_generator
         expired_resp = _make_resp({}, status_code=405)
         expired_resp.raise_for_status = MagicMock()
@@ -213,6 +230,21 @@ class TestProcessPendingImageJobs:
              patch("db.update_fal_image_job_url") as mock_update:
             image_generator.process_pending_image_jobs()
         mock_update.assert_called_once_with(pathlib.Path("/tmp/test.db"), "j1", "EXPIRED")
+
+    def test_recovers_via_result_url_when_status_returns_405(self):
+        import image_generator
+        status_405 = _make_resp({}, status_code=405)
+        status_405.raise_for_status = MagicMock()
+        result_resp = _make_resp({"images": [{"url": "https://fal.media/files/img.jpg"}]})
+        with patch("image_generator.FAL_API_KEY", "test-key"), \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")), \
+             patch("db.get_pending_fal_image_jobs", return_value=[{"job_id": "j1", "fal_request_id": "r1"}]), \
+             patch("requests.get", side_effect=[status_405, result_resp]), \
+             patch("image_generator.download_and_save_image", return_value="https://zeusaidesign.com/files/images/j1.jpg") as mock_dl, \
+             patch("db.update_fal_image_job_url") as mock_update:
+            image_generator.process_pending_image_jobs()
+        mock_dl.assert_called_once_with("j1", "https://fal.media/files/img.jpg")
+        mock_update.assert_called_once_with(pathlib.Path("/tmp/test.db"), "j1", "https://zeusaidesign.com/files/images/j1.jpg")
 
     def test_skips_in_progress_jobs(self):
         import image_generator

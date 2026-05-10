@@ -78,13 +78,35 @@ def get_image_job_status(job_id: str) -> dict:
         headers=headers,
         timeout=15,
     )
-    # fal.ai returns 404 or 405 for expired/unknown jobs rather than a status body
+    # fal.ai returns 4xx on /status once a job completes and the queue slot is
+    # cleaned up. Fall through to the result URL before declaring it expired.
     if status_resp.status_code in (404, 405, 410):
-        log.warning(
-            "get_image_job_status: job_id=%s request_id=%s HTTP %d — job expired or unknown",
+        log.info(
+            "get_image_job_status: job_id=%s request_id=%s HTTP %d — trying result URL",
             job_id, request_id, status_resp.status_code,
         )
-        return {"status": "EXPIRED", "image_url": None}
+        result_resp = requests.get(
+            f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}",
+            headers=headers,
+            timeout=15,
+        )
+        if result_resp.status_code in (404, 405, 410):
+            log.warning(
+                "get_image_job_status: job_id=%s result also %d — expired",
+                job_id, result_resp.status_code,
+            )
+            return {"status": "EXPIRED", "image_url": None}
+        result_resp.raise_for_status()
+        images = result_resp.json().get("images", [])
+        if not images:
+            log.warning("get_image_job_status: result URL returned no images for job_id=%s", job_id)
+            return {"status": "EXPIRED", "image_url": None}
+        entry = images[0]
+        cdn_url = entry["url"] if isinstance(entry, dict) else entry
+        public_url = download_and_save_image(job_id, cdn_url)
+        log.info("get_image_job_status: recovered via result URL job_id=%s → %s", job_id, public_url)
+        return {"status": "COMPLETED", "image_url": public_url}
+
     status_resp.raise_for_status()
     status = status_resp.json().get("status", "").upper()
     log.info("get_image_job_status: job_id=%s request_id=%s status=%s", job_id, request_id, status)
@@ -134,11 +156,35 @@ def process_pending_image_jobs() -> None:
                 timeout=15,
             )
             if status_resp.status_code in (404, 405, 410):
-                log.warning(
-                    "process_pending_image_jobs: job_id=%s HTTP %d — marking expired",
+                # fal.ai returns 4xx on /status once a job finishes and the queue
+                # slot is cleaned up — but the result URL may still work.
+                log.info(
+                    "process_pending_image_jobs: job_id=%s /status HTTP %d — trying result URL",
                     job_id, status_resp.status_code,
                 )
-                _db.update_fal_image_job_url(db_path, job_id, "EXPIRED")
+                result_resp = requests.get(
+                    f"{FAL_BASE}/{FAL_MODEL}/requests/{request_id}",
+                    headers=headers,
+                    timeout=15,
+                )
+                if result_resp.status_code in (404, 405, 410):
+                    log.warning(
+                        "process_pending_image_jobs: job_id=%s result also %d — marking expired",
+                        job_id, result_resp.status_code,
+                    )
+                    _db.update_fal_image_job_url(db_path, job_id, "EXPIRED")
+                    continue
+                result_resp.raise_for_status()
+                images = result_resp.json().get("images", [])
+                if not images:
+                    log.warning("process_pending_image_jobs: job_id=%s result URL returned no images — marking expired", job_id)
+                    _db.update_fal_image_job_url(db_path, job_id, "EXPIRED")
+                    continue
+                entry = images[0]
+                cdn_url = entry["url"] if isinstance(entry, dict) else entry
+                public_url = download_and_save_image(job_id, cdn_url)
+                _db.update_fal_image_job_url(db_path, job_id, public_url)
+                log.info("process_pending_image_jobs: recovered via result URL job_id=%s → %s", job_id, public_url)
                 continue
 
             status_resp.raise_for_status()
