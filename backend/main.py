@@ -1666,7 +1666,14 @@ async def image_webhook(request: Request):
         return {"ok": True}
     entry = images[0]
     image_url = entry["url"] if isinstance(entry, dict) else entry
-    public_url = _img.download_and_save_image(job_id, image_url)
+    log.info("Image webhook: downloading job_id=%s url=%s", job_id, image_url)
+    try:
+        public_url = _img.download_and_save_image(job_id, image_url)
+    except Exception:
+        # Log full traceback so Railway shows the root cause; return 200 so
+        # fal.ai doesn't retry the webhook indefinitely on transient failures.
+        log.exception("Image webhook: download failed job_id=%s url=%s", job_id, image_url)
+        return {"ok": False, "error": "download failed — see server logs"}
     log.info("Image webhook: saved job %s → %s", job_id, public_url)
     return {"ok": True, "url": public_url}
 

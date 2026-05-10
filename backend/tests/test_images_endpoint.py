@@ -182,6 +182,21 @@ class TestImageWebhookEndpoint:
         assert resp.status_code == 200
         mock_dl.assert_not_called()
 
+    def test_download_failure_returns_200_not_500(self):
+        import main as _main
+        app = _main.app
+        with patch("image_generator.download_and_save_image", side_effect=Exception("404 Client Error")):
+            with TestClient(app) as client:
+                resp = client.post(
+                    "/webhooks/image?job_id=local-job-id",
+                    json={
+                        "request_id": "fal-req-abc",
+                        "images": [{"url": "https://fal.media/files/nonexistent.jpg"}],
+                    },
+                )
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is False
+
     def test_missing_job_id_returns_400(self):
         import main as _main
         app = _main.app
