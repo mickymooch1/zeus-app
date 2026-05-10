@@ -2200,6 +2200,10 @@ _image_storage = pathlib.Path("/data/images")
 _image_storage.mkdir(parents=True, exist_ok=True)
 app.mount("/files/images", _StaticFiles(directory=str(_image_storage)), name="images")
 
+# IMPORTANT: all /files/* StaticFiles mounts MUST be registered above the SPA
+# catch-all route below. Starlette matches routes in registration order — if the
+# catch-all comes first it intercepts /files/images/* and returns index.html.
+
 # Serve built React app from web/dist/
 # Mount /assets for Vite bundles, then a catch-all that returns index.html for
 # any unmatched path so client-side routes (e.g. /tasks, /billing) survive refresh.
