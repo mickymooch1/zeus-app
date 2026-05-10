@@ -1671,7 +1671,7 @@ async def image_webhook(request: Request):
     job_id = request.query_params.get("job_id") or body.get("request_id")
     if not job_id:
         raise HTTPException(status_code=400, detail="Missing job_id")
-    images = body.get("images", [])
+    images = body.get("payload", {}).get("images", body.get("images", []))
     if not images:
         log.warning("Image webhook: no images in payload for job %s", job_id)
         return {"ok": True}

@@ -133,7 +133,26 @@ class TestImageStatusEndpoint:
 
 
 class TestImageWebhookEndpoint:
-    def test_fal_payload_with_query_param_job_id(self):
+    def test_fal_nested_payload_structure(self):
+        import main as _main
+        app = _main.app
+        with patch(
+            "image_generator.download_and_save_image",
+            return_value="https://zeusaidesign.com/files/images/local-job-id.jpg",
+        ) as mock_dl:
+            with TestClient(app) as client:
+                resp = client.post(
+                    "/webhooks/image?job_id=local-job-id",
+                    json={
+                        "status": "OK",
+                        "payload": {"images": [{"url": "https://fal.media/files/img.jpg", "width": 1024, "height": 1024}]},
+                    },
+                )
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+        mock_dl.assert_called_once_with("local-job-id", "https://fal.media/files/img.jpg")
+
+    def test_fal_flat_payload_still_works(self):
         import main as _main
         app = _main.app
         with patch(
@@ -145,7 +164,7 @@ class TestImageWebhookEndpoint:
                     "/webhooks/image?job_id=local-job-id",
                     json={
                         "request_id": "fal-req-abc",
-                        "images": [{"url": "https://fal.media/files/img.jpg", "width": 1024, "height": 1024}],
+                        "images": [{"url": "https://fal.media/files/img.jpg"}],
                     },
                 )
         assert resp.status_code == 200
