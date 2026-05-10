@@ -258,28 +258,6 @@ async def lifespan(app: FastAPI):
         pathlib.Path(_d).mkdir(parents=True, exist_ok=True)
     log.info("Storage directories ready: /data/avatars, /data/videos, /data/images")
 
-    # Recover any fal.ai jobs that completed before polling was wired up.
-    # Each tuple is (local_job_id, fal_request_id). Safe to re-run — skipped if file exists.
-    _RECOVER_FAL_JOBS = [
-        ("d0e1060303e0406eaf2e625331e1ca4d", "019e1387-1d30-7bf3-8bc4-eb7aff2934ef"),
-    ]
-    try:
-        import image_generator as _img_rec
-        if _img_rec.FAL_API_KEY:
-            for _jid, _rid in _RECOVER_FAL_JOBS:
-                _dest = pathlib.Path("/data/images") / f"{_jid}.jpg"
-                if not _dest.exists():
-                    db.save_fal_image_job(db.get_db_path(), _jid, _rid)
-                    log.info("Recovery: fetching fal.ai result job_id=%s request_id=%s", _jid, _rid)
-                    _result = _img_rec.get_image_job_status(_jid)
-                    log.info("Recovery: job_id=%s → %s", _jid, _result)
-                else:
-                    log.info("Recovery: job_id=%s already on disk, skipping", _jid)
-        else:
-            log.warning("Recovery: FAL_API_KEY not set, skipping fal.ai job recovery")
-    except Exception:
-        log.exception("Recovery: fal.ai job recovery failed (non-fatal)")
-
     api_key_set = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
     log.info("ANTHROPIC_API_KEY present: %s", api_key_set)
     if not api_key_set:

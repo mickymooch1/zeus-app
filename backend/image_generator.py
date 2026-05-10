@@ -78,6 +78,13 @@ def get_image_job_status(job_id: str) -> dict:
         headers=headers,
         timeout=15,
     )
+    # fal.ai returns 404 or 405 for expired/unknown jobs rather than a status body
+    if status_resp.status_code in (404, 405, 410):
+        log.warning(
+            "get_image_job_status: job_id=%s request_id=%s HTTP %d — job expired or unknown",
+            job_id, request_id, status_resp.status_code,
+        )
+        return {"status": "EXPIRED", "image_url": None}
     status_resp.raise_for_status()
     status = status_resp.json().get("status", "").upper()
     log.info("get_image_job_status: job_id=%s request_id=%s status=%s", job_id, request_id, status)

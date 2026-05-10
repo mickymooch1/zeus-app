@@ -125,6 +125,20 @@ class TestGetImageJobStatus:
         assert result["status"] == "IN_PROGRESS"
         assert result["image_url"] is None
 
+    def test_expired_job_returns_expired_status(self):
+        import image_generator
+        expired_resp = _make_resp({}, status_code=405)
+        expired_resp.raise_for_status = MagicMock()  # don't raise — we check status_code directly
+        with patch("image_generator.FAL_API_KEY", "test-key"), \
+             patch("image_generator.pathlib.Path") as mock_path_cls, \
+             patch("db.get_fal_request_id", return_value="fal-req-expired"), \
+             patch("db.get_db_path", return_value=pathlib.Path("/tmp/test.db")), \
+             patch("requests.get", return_value=expired_resp):
+            mock_path_cls.return_value.__truediv__.return_value.exists.return_value = False
+            result = image_generator.get_image_job_status("local-id")
+        assert result["status"] == "EXPIRED"
+        assert result["image_url"] is None
+
     def test_raises_if_no_api_key(self):
         import image_generator
         with patch("image_generator.FAL_API_KEY", ""):
