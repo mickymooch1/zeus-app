@@ -1161,6 +1161,7 @@ export default function SongsPage() {
                       'Jamaican',
                       'D&B MC',
                       'UK Rave MC',
+                      'American Hip-Hop',
                     ].map((a) => (
                       <option key={a} value={a}>{a}</option>
                     ))}
