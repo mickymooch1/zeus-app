@@ -140,10 +140,9 @@ def process_pending_image_jobs() -> None:
     import db as _db
     db_path = _db.get_db_path()
     pending = _db.get_pending_fal_image_jobs(db_path)
+    log.info(f"image_poller: found {len(pending)} pending jobs")
     if not pending:
         return
-
-    log.info("process_pending_image_jobs: checking %d pending job(s)", len(pending))
     headers = {"Authorization": f"Key {FAL_API_KEY}"}
 
     for row in pending:
