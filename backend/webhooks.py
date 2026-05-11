@@ -38,6 +38,8 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "bassline":     "underground Sheffield club, minimal lighting, heavy bass atmosphere",
     "house":        "sunrise Ibiza terrace, warm golden light, euphoric open air club",
     "bluessoul":    "intimate jazz club, warm spotlight, emotional and deeply soulful",
+    "loversrock":   "romantic Caribbean sunset, warm pink and gold tones, tropical flowers, intimate and sensual atmosphere",
+    "ukdrill":      "dark London night, CCTV aesthetic, gritty urban concrete, cold blue tones, raw South London energy",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"
