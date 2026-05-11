@@ -332,8 +332,10 @@ TOOLS = [
         "description": (
             "Generate an AI image using Flux (photorealistic) or GPT-Image-2 (illustrated). "
             "Use for website hero images, social media posts, banners, blog headers, or any "
-            "visual content. Submits async generation and returns the future public URL immediately. "
-            "Tell the user the image will be ready in about 30 seconds."
+            "visual content. Returns the public image URL once generation is complete. "
+            "Never include text, words, letters, logos or numbers in the image prompt — "
+            "AI renders text illegibly. Generate clean visual scenes only. "
+            "The caption handles the messaging."
         ),
         "input_schema": {
             "type": "object",

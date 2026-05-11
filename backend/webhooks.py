@@ -6,6 +6,8 @@ Verifies HMAC-SHA256 signature using a signing secret derived from the API key
 import os
 import hmac
 import hashlib
+import pathlib
+import shutil
 import sqlite3
 import logging
 import requests
@@ -14,6 +16,50 @@ from fastapi import APIRouter, Request, HTTPException
 logger = logging.getLogger("zeus.webhooks")
 
 router = APIRouter()
+
+GENRE_COVER_PROMPTS: dict[str, str] = {
+    "blues":        "cinematic blues bar at night, warm amber light, vintage microphone, smoky atmosphere, moody and soulful",
+    "soul":         "Motown recording studio, warm golden light, vintage instruments, soulful and rich atmosphere",
+    "rnb":          "modern R&B aesthetic, purple and gold tones, luxurious urban setting, smooth and contemporary",
+    "country":      "golden sunset over Nashville, acoustic guitar silhouette, americana",
+    "reggae":       "tropical beach sunset, vibrant colours, laid back Caribbean atmosphere",
+    "pop":          "bright modern stage with colourful lights, clean contemporary aesthetic",
+    "rock":         "dramatic dark stage with lightning bolts, electric guitars, high energy",
+    "hiphop":       "urban rooftop at night, city lights, gritty authentic street aesthetic",
+    "lofi":         "cosy rainy window cafe scene, warm lo-fi aesthetic, peaceful and nostalgic",
+    "edm":          "massive festival stage with laser lights, crowd energy, neon colours",
+    "acoustic":     "intimate wooden stage, candlelight, warm natural tones, folk aesthetic",
+    "irishjig":     "traditional Irish pub interior, warm firelight, fiddles and drums",
+    "irishfolk":    "misty Irish countryside at dawn, stone walls, ancient and atmospheric",
+    "drumandbass":  "underground rave, strobe lights, dark industrial warehouse, high energy",
+    "grime":        "London rooftops at night, urban gritty neon, raw street energy",
+    "ukgarage":     "late night London underground, neon reflections, sleek urban cool",
+    "jungle":       "dark 90s rave warehouse, green laser lights, raw underground energy",
+    "bassline":     "underground Sheffield club, minimal lighting, heavy bass atmosphere",
+    "house":        "sunrise Ibiza terrace, warm golden light, euphoric open air club",
+    "bluessoul":    "intimate jazz club, warm spotlight, emotional and deeply soulful",
+}
+
+_DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"
+
+
+def _generate_flux_cover(variant_id: int, genre_tag: str | None) -> str | None:
+    """Generate a Flux cover image and save to song storage. Returns public URL or None."""
+    try:
+        import image_generator as _img
+        prompt = GENRE_COVER_PROMPTS.get(genre_tag or "", _DEFAULT_COVER_PROMPT)
+        flux_url = _img.submit_image_generation(prompt, "1:1")
+        job_id = flux_url.rsplit("/", 1)[-1].replace(".jpg", "")
+        src = pathlib.Path("/data/images") / f"{job_id}.jpg"
+        dst = pathlib.Path(STORAGE_PATH) / f"{variant_id}_cover.jpg"
+        shutil.copy2(src, dst)
+        cover_url = f"{PUBLIC_BASE_URL}/{variant_id}_cover.jpg"
+        logger.info("Flux cover generated: variant_id=%d genre=%s → %s", variant_id, genre_tag, cover_url)
+        return cover_url
+    except Exception as exc:
+        logger.warning("Flux cover failed for variant_id=%d: %s", variant_id, exc)
+        return None
+
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]
 SIGNING_SECRET = hashlib.sha256(APIFRAME_API_KEY.encode()).hexdigest()
@@ -138,6 +184,11 @@ async def apiframe_webhook(request: Request):
         except Exception as exc:
             logger.warning("Apiframe webhook: failed to download take 1 cover art: %s", exc)
 
+    genre_tag = orig[3] if orig else None
+    flux_cover1 = _generate_flux_cover(variant_id, genre_tag)
+    if flux_cover1:
+        permanent_image_url1 = flux_cover1
+
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.execute(
@@ -196,6 +247,10 @@ async def apiframe_webhook(request: Request):
                 permanent_image_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.jpg"
             except Exception as exc:
                 logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
+
+        flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag)
+        if flux_cover2:
+            permanent_image_url2 = flux_cover2
 
         conn = sqlite3.connect(DB_PATH)
         try:
