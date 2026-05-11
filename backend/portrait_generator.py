@@ -35,6 +35,7 @@ GENRE_PORTRAIT_PROMPTS = {
     "house":       "Professional portrait photo, house music DJ, clear frontal face, warm colourful club lighting, joyful expression, photorealistic",
     "loversrock":  "Professional portrait photo, lovers rock singer, clear frontal face, warm romantic studio lighting, soulful expression, photorealistic",
     "ukdrill":     "Professional portrait photo, UK drill artist, clear frontal face, dark moody studio lighting, intense expression, photorealistic",
+    "kpop":        "Professional portrait photo, K-pop idol, clear frontal face, bright studio lighting, flawless skin, youthful expression, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"

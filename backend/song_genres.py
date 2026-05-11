@@ -21,4 +21,5 @@ GENRE_PRESETS = {
     "house":       "house music, 4x4 kick drum, soulful vocals, deep bassline, 126 BPM, Chicago roots, uplifting club energy, classic house piano",
     "loversrock":  "lovers rock, romantic reggae, smooth bassline, sweet soulful vocals, 70s Caribbean warmth, slow sensual rhythm",
     "ukdrill":     "UK drill, dark 808 bassline, sliding minor melodies, aggressive flow, 140 BPM, South London sound, trap hi-hats",
+    "kpop":        "K-pop, polished production, catchy hook, bright synth melody, precise rhythm, 120 BPM, Korean pop aesthetic, energetic and clean",
 }
