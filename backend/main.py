@@ -886,6 +886,8 @@ async def songs_generate(
         style_suffix_parts.append("fast tempo")
     elif body.tempo == "custom" and body.tempo_bpm:
         style_suffix_parts.append(f"{max(40, min(300, body.tempo_bpm))} BPM")
+    if body.vocal_gender == "duet":
+        style_suffix_parts.append("male and female vocal duet, call and response, harmonising together, two voices intertwining")
     if body.accent:
         _ACCENT_DESCRIPTORS = {
             "American Soul": "American soul vocal delivery, Southern warmth, gospel inflection",

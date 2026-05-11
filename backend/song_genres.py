@@ -22,4 +22,5 @@ GENRE_PRESETS = {
     "loversrock":  "lovers rock, romantic reggae, smooth bassline, sweet soulful vocals, 70s Caribbean warmth, slow sensual rhythm",
     "ukdrill":     "UK drill, dark 808 bassline, sliding minor melodies, aggressive flow, 140 BPM, South London sound, trap hi-hats",
     "kpop":        "K-pop, polished production, catchy hook, bright synth melody, precise rhythm, 120 BPM, Korean pop aesthetic, energetic and clean",
+    "deepsoulblues": "deep soul blues, raw emotional vocals, slow burning guitar, gospel undertones, heavy heartfelt delivery, southern blues roots, 60-75 BPM",
 }

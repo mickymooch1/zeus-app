@@ -41,6 +41,7 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "loversrock":   "romantic Caribbean sunset, warm pink and gold tones, tropical flowers, intimate and sensual atmosphere",
     "ukdrill":      "dark London night, CCTV aesthetic, gritty urban concrete, cold blue tones, raw South London energy",
     "kpop":         "vibrant pastel Seoul cityscape, neon lights, clean modern aesthetic, bright pink and blue tones, high energy K-pop visual",
+    "deepsoulblues": "dimly lit Mississippi juke joint, single spotlight, weathered wooden stage, raw and emotional deep south atmosphere, warm sepia tones",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"
