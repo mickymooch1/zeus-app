@@ -400,6 +400,7 @@ export default function SongsPage() {
   const [modelVersion, setModelVersion]   = useState('V5');
   const [explicit, setExplicit]           = useState(false);
   const [vocals, setVocals]               = useState(true);
+  const [songTitle, setSongTitle]         = useState('');
 
   // YouTube upload state
   const [ytStatus, setYtStatus]   = useState({});
@@ -614,6 +615,7 @@ export default function SongsPage() {
           brief: brief.trim(),
           genres: Array.from(selGenres),
           inspired_by_descriptors: artistDescriptors || undefined,
+          song_title: songTitle.trim() || undefined,
           ...(showAdvanced ? {
             vocal_gender: vocalGender || undefined,
             accent: accent || undefined,
@@ -636,6 +638,7 @@ export default function SongsPage() {
       });
       setCredits((p) => ({ ...p, balance: Math.max(0, p.balance - cost) }));
       setBrief('');
+      setSongTitle('');
       setSelGenres(new Set());
       setInspiredBy('');
       setArtistDescriptors('');
@@ -983,6 +986,28 @@ export default function SongsPage() {
                 color: '#f0eeff',
                 fontSize: 15,
                 resize: 'vertical',
+                fontFamily: 'inherit',
+                outline: 'none',
+                marginBottom: 12,
+                transition: 'border-color 0.2s',
+              }}
+            />
+
+            <input
+              type="text"
+              value={songTitle}
+              onChange={(e) => setSongTitle(e.target.value)}
+              placeholder={vocals ? 'Song title (optional)' : 'e.g. Midnight Run, Deep Blue, Storm'}
+              maxLength={100}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 10,
+                padding: '10px 14px',
+                color: '#f0eeff',
+                fontSize: 14,
                 fontFamily: 'inherit',
                 outline: 'none',
                 marginBottom: 20,

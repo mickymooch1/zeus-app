@@ -41,20 +41,21 @@ _EXPLICIT_ADDENDUM = (
 )
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None) -> dict:
     if instrumental:
+        title = song_title or "Instrumental"
         conn = db._conn(db_path)
         try:
             cur = conn.cursor()
             cur.execute(
                 "INSERT INTO lyrics (user_id, brief, lyrics_text, title) VALUES (?, ?, ?, ?)",
-                (user_id, brief, "[Instrumental]", "Instrumental"),
+                (user_id, brief, "[Instrumental]", title),
             )
             lyric_id = cur.lastrowid
             conn.commit()
         finally:
             conn.close()
-        return {"lyric_id": lyric_id, "lyrics": "[Instrumental]", "title": "Instrumental"}
+        return {"lyric_id": lyric_id, "lyrics": "[Instrumental]", "title": title}
 
     client = Anthropic()
 
@@ -81,12 +82,14 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
 
     parsed = json.loads(raw)
 
+    final_title = song_title or parsed["title"]
+
     conn = db._conn(db_path)
     try:
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO lyrics (user_id, brief, lyrics_text, title) VALUES (?, ?, ?, ?)",
-            (user_id, brief, parsed["lyrics"], parsed["title"]),
+            (user_id, brief, parsed["lyrics"], final_title),
         )
         lyric_id = cur.lastrowid
         conn.commit()
@@ -96,5 +99,5 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
     return {
         "lyric_id": lyric_id,
         "lyrics": parsed["lyrics"],
-        "title": parsed["title"],
+        "title": final_title,
     }

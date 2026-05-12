@@ -841,6 +841,7 @@ class SongsGenerateRequest(BaseModel):
     explicit: bool = False               # agency/enterprise only — loosens Suno content filter
     instrumental: bool = False           # skip lyrics; append instrumental style suffix
     inspired_by_descriptors: str | None = None  # from /api/songs/artist-style
+    song_title: str | None = None        # optional user-supplied title; overrides AI-generated title
 
 
 @app.post("/api/songs/generate")
@@ -863,7 +864,7 @@ async def songs_generate(
                                monthly_allowance=billing.FREE_SONG_CREDITS)
 
     try:
-        lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental))
+        lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None)
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
