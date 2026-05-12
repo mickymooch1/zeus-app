@@ -302,7 +302,7 @@ export default function LandingPage() {
                 <li>✓ Everything in Pro</li>
                 <li>✓ Team features</li>
                 <li>✓ Priority support</li>
-                <li>✓ 70 AI songs/month</li>
+                <li>✓ 80 AI songs/month</li>
                 <li>✓ YouTube music upload</li>
                 <li>✓ Explicit content toggle</li>
                 <li>✓ Google indexing</li>

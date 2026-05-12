@@ -42,7 +42,7 @@ const DEFAULT_PLANS = {
       'Everything in Pro',
       'Team features',
       'Priority support',
-      '70 AI songs/month',
+      '80 AI songs/month',
       'YouTube music upload',
       'Explicit content toggle',
       'Google indexing',
@@ -71,7 +71,7 @@ const DEFAULT_MUSIC_PLANS = {
     name: 'Music Starter',
     price: '£9/mo',
     features: [
-      '10 AI songs/month',
+      '15 AI songs/month',
       'YouTube upload',
       'Song download & share',
       'All music genres & styles',
@@ -82,7 +82,7 @@ const DEFAULT_MUSIC_PLANS = {
     name: 'Music Pro',
     price: '£19/mo',
     features: [
-      '30 AI songs/month',
+      '40 AI songs/month',
       'YouTube upload',
       '3 avatar videos/month',
       'Song download & share',
@@ -94,7 +94,7 @@ const DEFAULT_MUSIC_PLANS = {
     name: 'Music Agency',
     price: '£39/mo',
     features: [
-      '70 AI songs/month',
+      '80 AI songs/month',
       'YouTube upload',
       '10 avatar videos/month',
       'Song download & share',
