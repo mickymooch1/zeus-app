@@ -1,4 +1,4 @@
-INSTRUMENTAL_SUFFIX = "instrumental, no vocals, no singing, purely instrumental track"
+INSTRUMENTAL_SUFFIX = "fully instrumental, extended arrangement, prominent deep bass, dynamic structure with build ups and breakdowns, musical complexity, clever chord progressions, layered instrumentation, extended intro and outro, detailed production, rich harmonic content, bass-forward mix, evolving arrangement that develops throughout, professional instrumental composition"
 
 GENRE_PRESETS = {
     "country":  "country ballad, acoustic guitar, slide guitar, warm storytelling vocals, moderate tempo",
