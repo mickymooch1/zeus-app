@@ -194,6 +194,19 @@ async def apiframe_webhook(request: Request):
 
     os.makedirs(STORAGE_PATH, exist_ok=True)
 
+    # Guard: skip if already complete (duplicate webhook delivery)
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        _existing = conn.execute(
+            "SELECT status, mp3_url FROM song_variants WHERE id = ?",
+            (variant_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if _existing and _existing[0] == "complete" and _existing[1]:
+        logger.info("Apiframe webhook: variant_id=%d already complete — duplicate delivery skipped", variant_id)
+        return {"ok": True, "status": "already_complete"}
+
     # ── Take 1: update existing variant row ──────────────────────────────────
     track1 = tracks[0]
     temp_url1 = track1["audioUrl"]
@@ -256,56 +269,69 @@ async def apiframe_webhook(request: Request):
         temp_url2 = track2["audioUrl"]
         duration2 = round(track2.get("duration", 0))
 
+        # Guard: skip if a take-2 row already exists for this Apiframe job
         conn = sqlite3.connect(DB_PATH)
         try:
-            cur = conn.cursor()
-            cur.execute(
-                """INSERT INTO song_variants
-                   (lyric_id, user_id, style_prompt, genre_tag, provider_job_id,
-                    take_number, status, duration_seconds, completed_at)
-                   VALUES (?, ?, ?, ?, ?, 2, 'complete', ?, CURRENT_TIMESTAMP)""",
-                (orig[0], orig[1], orig[2], orig[3], orig[4], duration2),
-            )
-            take2_variant_id = cur.lastrowid
-            conn.commit()
+            _t2 = conn.execute(
+                "SELECT id FROM song_variants WHERE provider_job_id = ? AND take_number = 2",
+                (orig[4],),
+            ).fetchone()
         finally:
             conn.close()
 
-        logger.info("Apiframe webhook: downloading take 2 from %s", temp_url2)
-        dl2 = requests.get(temp_url2, timeout=120)
-        dl2.raise_for_status()
-        local_path2 = os.path.join(STORAGE_PATH, f"{take2_variant_id}.mp3")
-        with open(local_path2, "wb") as fh:
-            fh.write(dl2.content)
-        permanent_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.mp3"
-
-        permanent_image_url2 = None
-        temp_image_url2 = track2.get("imageUrl")
-        if temp_image_url2:
-            logger.info("Apiframe webhook: downloading take 2 cover art from %s", temp_image_url2)
+        if _t2:
+            logger.info("Apiframe webhook: take 2 already exists for job=%s — duplicate delivery skipped", orig[4])
+        else:
+            conn = sqlite3.connect(DB_PATH)
             try:
-                img2 = requests.get(temp_image_url2, timeout=60)
-                img2.raise_for_status()
-                with open(os.path.join(STORAGE_PATH, f"{take2_variant_id}.jpg"), "wb") as fh:
-                    fh.write(img2.content)
-                permanent_image_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.jpg"
-            except Exception as exc:
-                logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
+                cur = conn.cursor()
+                cur.execute(
+                    """INSERT INTO song_variants
+                       (lyric_id, user_id, style_prompt, genre_tag, provider_job_id,
+                        take_number, status, duration_seconds, completed_at)
+                       VALUES (?, ?, ?, ?, ?, 2, 'complete', ?, CURRENT_TIMESTAMP)""",
+                    (orig[0], orig[1], orig[2], orig[3], orig[4], duration2),
+                )
+                take2_variant_id = cur.lastrowid
+                conn.commit()
+            finally:
+                conn.close()
 
-        flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title)
-        if flux_cover2:
-            permanent_image_url2 = flux_cover2
+            logger.info("Apiframe webhook: downloading take 2 from %s", temp_url2)
+            dl2 = requests.get(temp_url2, timeout=120)
+            dl2.raise_for_status()
+            local_path2 = os.path.join(STORAGE_PATH, f"{take2_variant_id}.mp3")
+            with open(local_path2, "wb") as fh:
+                fh.write(dl2.content)
+            permanent_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.mp3"
 
-        conn = sqlite3.connect(DB_PATH)
-        try:
-            conn.execute(
-                "UPDATE song_variants SET mp3_url = ?, image_url = ? WHERE id = ?",
-                (permanent_url2, permanent_image_url2, take2_variant_id),
-            )
-            conn.commit()
-        finally:
-            conn.close()
-        logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
+            permanent_image_url2 = None
+            temp_image_url2 = track2.get("imageUrl")
+            if temp_image_url2:
+                logger.info("Apiframe webhook: downloading take 2 cover art from %s", temp_image_url2)
+                try:
+                    img2 = requests.get(temp_image_url2, timeout=60)
+                    img2.raise_for_status()
+                    with open(os.path.join(STORAGE_PATH, f"{take2_variant_id}.jpg"), "wb") as fh:
+                        fh.write(img2.content)
+                    permanent_image_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.jpg"
+                except Exception as exc:
+                    logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
+
+            flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title)
+            if flux_cover2:
+                permanent_image_url2 = flux_cover2
+
+            conn = sqlite3.connect(DB_PATH)
+            try:
+                conn.execute(
+                    "UPDATE song_variants SET mp3_url = ?, image_url = ? WHERE id = ?",
+                    (permanent_url2, permanent_image_url2, take2_variant_id),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+            logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
 
     payload = {"ok": True, "status": "complete", "take1_url": permanent_url1}
     if take2_variant_id:

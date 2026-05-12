@@ -1,23 +1,37 @@
 import json
 import pathlib
+import random
 
 from anthropic import Anthropic
 
 import db
 
-LYRIC_SYSTEM_PROMPT = """You are a professional songwriter. Generate ORIGINAL song lyrics based on the user's brief.
+_SONG_STRUCTURES = [
+    "[Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Outro]",
+    "[Intro], [Verse 1], [Chorus], [Verse 2], [Chorus], [Outro]",
+    "[Verse 1], [Pre-Chorus], [Chorus], [Verse 2], [Pre-Chorus], [Chorus], [Bridge], [Outro]",
+    "[Verse 1], [Verse 2], [Bridge], [Chorus], [Outro]",
+    "[Intro], [Verse 1], [Chorus], [Verse 2], [Bridge], [Chorus], [Outro]",
+]
+
+_MOODS = ["uplifting", "melancholic", "aggressive", "romantic", "nostalgic", "euphoric", "defiant", "playful"]
+
+_LYRIC_SYSTEM_BASE = """You are a professional songwriter. Generate ORIGINAL song lyrics based on the user's brief.
 
 Output ONLY valid JSON with this exact shape:
-{
+{{
   "title": "Song Title Here",
   "lyrics": "[Verse 1]\\nLine one...\\n[Chorus]\\nLine one..."
-}
+}}
 
-Use these structural tags exactly: [Verse 1], [Chorus], [Verse 2], [Bridge], [Outro].
+Song structure to use: {structure}
+
+Emotional angle: {mood} — let this feeling drive every line.
 
 Hard rules:
 - Never reproduce or imitate copyrighted song lyrics. Do not write "in the style of [named artist]" — write original work.
-- 3-4 verses + chorus, 200-400 words total.
+- 200-400 words total.
+- Make this song unique and different from typical songs in this genre. Surprise the listener.
 - No markdown, no commentary. JSON only."""
 
 
@@ -44,11 +58,16 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
 
     client = Anthropic()
 
-    system = LYRIC_SYSTEM_PROMPT + (_EXPLICIT_ADDENDUM if explicit else "")
+    structure = random.choice(_SONG_STRUCTURES)
+    mood = random.choice(_MOODS)
+    system = _LYRIC_SYSTEM_BASE.format(structure=structure, mood=mood)
+    if explicit:
+        system += _EXPLICIT_ADDENDUM
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1500,
+        temperature=1.0,
         system=system,
         messages=[{"role": "user", "content": brief}],
     )
