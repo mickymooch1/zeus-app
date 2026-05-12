@@ -1,3 +1,5 @@
+INSTRUMENTAL_SUFFIX = "instrumental, no vocals, no singing, purely instrumental track"
+
 GENRE_PRESETS = {
     "country":  "country ballad, acoustic guitar, slide guitar, warm storytelling vocals, moderate tempo",
     "reggae":   "reggae, off-beat skank guitar, dub bass, laid-back vocals, 80 BPM",

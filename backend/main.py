@@ -836,6 +836,7 @@ class SongsGenerateRequest(BaseModel):
     model_version: str | None = None     # "V4.5" | "V4.5 Plus" | "V5" | "V5.5"
     accent: str | None = None            # e.g. "British" → appended to style string
     explicit: bool = False               # agency/enterprise only — loosens Suno content filter
+    instrumental: bool = False           # skip lyrics; append instrumental style suffix
     inspired_by_descriptors: str | None = None  # from /api/songs/artist-style
 
 
@@ -859,7 +860,7 @@ async def songs_generate(
                                monthly_allowance=billing.FREE_SONG_CREDITS)
 
     try:
-        lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit))
+        lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental))
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
@@ -900,6 +901,9 @@ async def songs_generate(
         style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
     if body.explicit:
         style_suffix_parts.append("explicit lyrics allowed, no content restrictions")
+    if body.instrumental:
+        from song_genres import INSTRUMENTAL_SUFFIX as _INSTRUMENTAL_SUFFIX
+        style_suffix_parts.append(_INSTRUMENTAL_SUFFIX)
     tempo_suffix = ", ".join(style_suffix_parts) or None
 
     is_admin = bool(current_user.get("is_admin", 0))

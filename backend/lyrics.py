@@ -27,7 +27,21 @@ _EXPLICIT_ADDENDUM = (
 )
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False) -> dict:
+    if instrumental:
+        conn = db._conn(db_path)
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO lyrics (user_id, brief, lyrics_text, title) VALUES (?, ?, ?, ?)",
+                (user_id, brief, "[Instrumental]", "Instrumental"),
+            )
+            lyric_id = cur.lastrowid
+            conn.commit()
+        finally:
+            conn.close()
+        return {"lyric_id": lyric_id, "lyrics": "[Instrumental]", "title": "Instrumental"}
+
     client = Anthropic()
 
     system = LYRIC_SYSTEM_PROMPT + (_EXPLICIT_ADDENDUM if explicit else "")

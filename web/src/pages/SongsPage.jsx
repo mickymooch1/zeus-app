@@ -399,6 +399,7 @@ export default function SongsPage() {
   const [tempoBpm, setTempoBpm]           = useState(120);
   const [modelVersion, setModelVersion]   = useState('V5');
   const [explicit, setExplicit]           = useState(false);
+  const [vocals, setVocals]               = useState(true);
 
   // YouTube upload state
   const [ytStatus, setYtStatus]   = useState({});
@@ -621,6 +622,7 @@ export default function SongsPage() {
             tempo_bpm: tempo === 'custom' ? tempoBpm : undefined,
             model_version: modelVersion,
             explicit: explicit || undefined,
+            instrumental: !vocals || undefined,
           } : {}),
         }),
       });
@@ -1255,6 +1257,39 @@ export default function SongsPage() {
                       />
                     )}
                   </div>
+                </div>
+
+                {/* Vocals toggle */}
+                <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                    <div
+                      onClick={() => setVocals((v) => !v)}
+                      style={{
+                        width: 36,
+                        height: 20,
+                        borderRadius: 10,
+                        background: vocals ? '#7c3aed' : 'rgba(255,255,255,0.08)',
+                        position: 'relative',
+                        flexShrink: 0,
+                        transition: 'background 0.2s',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{
+                        position: 'absolute',
+                        top: 3,
+                        left: vocals ? 19 : 3,
+                        width: 14,
+                        height: 14,
+                        borderRadius: '50%',
+                        background: '#fff',
+                        transition: 'left 0.2s',
+                      }} />
+                    </div>
+                    <span style={{ fontSize: 12, color: vocals ? '#c4b5fd' : '#555', fontWeight: 500 }}>
+                      {vocals ? 'Vocals' : 'Instrumental'}
+                    </span>
+                  </label>
                 </div>
 
                 {/* Explicit content */}
