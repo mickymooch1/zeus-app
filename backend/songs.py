@@ -6,6 +6,26 @@ import requests
 
 logger = logging.getLogger("zeus.songs")
 
+GENRE_MOTION_PROMPTS: dict[str, str] = {
+    "blues":        "blues guitarist playing soulfully, fingers moving on strings, body swaying, warm amber light",
+    "soul":         "soul singer performing passionately, hands moving expressively, warm golden light",
+    "reggae":       "reggae musician playing bass, relaxed rhythmic movement, tropical setting",
+    "hiphop":       "hip-hop artist performing confidently, hands moving, urban setting",
+    "drumandbass":  "DJ performing at rave, hands on decks, strobe lights, energetic movement",
+    "grime":        "grime MC performing intensely, microphone in hand, urban backdrop",
+    "house":        "DJ at club, hands raised, euphoric crowd, colourful lights",
+    "jungle":       "jungle MC on stage, energetic performance, rave lights",
+    "country":      "country guitarist strumming, gentle swaying, warm natural light",
+    "acoustic":     "acoustic guitarist playing intimately, fingers on strings, candlelight",
+    "rock":         "rock guitarist shredding, dramatic movement, stage lighting",
+    "lofi":         "indie musician playing piano, relaxed peaceful movement, cosy setting",
+    "edm":          "EDM performer on stage, arms raised, laser lights, massive crowd",
+    "kpop":         "K-pop performer dancing gracefully, precise choreography, bright stage",
+    "niche":        "DJ performing at club, hands on decks, purple neon lights, Sheffield night",
+    "ukdrill":      "drill artist performing, intense expression, dark urban setting",
+    "loversrock":   "lovers rock singer performing romantically, smooth movement, warm light",
+}
+
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]
 APIFRAME_BASE = "https://api.apiframe.ai"
 WEBHOOK_URL = os.environ["SONG_WEBHOOK_URL"]

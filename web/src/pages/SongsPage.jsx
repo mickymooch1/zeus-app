@@ -151,7 +151,7 @@ function SongCard({
   variant, title, activeWsRef,
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
-  onDelete, deleting,
+  onDelete, deleting, musicVideoUrl,
 }) {
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
@@ -300,7 +300,16 @@ function SongCard({
 
   return (
     <div className="song-card-anim" style={S.card}>
-      {variant.image_url ? (
+      {musicVideoUrl ? (
+        <video
+          src={musicVideoUrl}
+          autoPlay
+          muted
+          loop
+          playsInline
+          style={S.artBox}
+        />
+      ) : variant.image_url ? (
         <img src={variant.image_url} alt={title} style={S.artBox} />
       ) : (
         <div style={{ ...S.artBox, ...S.artPlaceholder }}>
@@ -421,6 +430,7 @@ export default function SongsPage() {
   const [avatarSubmitting, setAvatarSubmitting]   = useState(false);
   const [didStatus, setDidStatus]                 = useState({});
   const [videoUrls, setVideoUrls]                 = useState({});
+  const [musicVideoUrls, setMusicVideoUrls]       = useState({});
 
   // Portrait generation state
   const [portraitGenerating, setPortraitGenerating] = useState(false);
@@ -503,6 +513,13 @@ export default function SongsPage() {
       }
       setYtUrls((prev) => ({ ...prev, ...newYtUrls }));
       setYtStatus((prev) => ({ ...prev, ...newYtSt }));
+
+      // Sync Kling music video URLs from DB
+      const newMusicVideoUrls = {};
+      for (const v of flat) {
+        if (v.music_video_url) newMusicVideoUrls[v.variant_id] = v.music_video_url;
+      }
+      setMusicVideoUrls((prev) => ({ ...prev, ...newMusicVideoUrls }));
     } catch (_) {}
   }, [token]);
 
@@ -1477,6 +1494,7 @@ export default function SongsPage() {
                       isAdmin={isAdmin}
                       onDelete={() => handleDeleteVariant(v.variant_id)}
                       deleting={deletingVariants.has(v.variant_id)}
+                      musicVideoUrl={musicVideoUrls[v.variant_id]}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -1513,6 +1531,7 @@ export default function SongsPage() {
                     isAdmin={isAdmin}
                     onDelete={() => handleDeleteVariant(v.variant_id)}
                     deleting={deletingVariants.has(v.variant_id)}
+                    musicVideoUrl={musicVideoUrls[v.variant_id]}
                   />
                 ))}
               </div>

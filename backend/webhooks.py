@@ -11,6 +11,7 @@ import shutil
 import sqlite3
 import logging
 import textwrap
+import threading
 import requests
 from PIL import Image, ImageDraw, ImageFont
 from fastapi import APIRouter, Request, HTTPException
@@ -102,6 +103,120 @@ SIGNING_SECRET = hashlib.sha256(APIFRAME_API_KEY.encode()).hexdigest()
 STORAGE_PATH = os.environ["SONG_STORAGE_PATH"]
 PUBLIC_BASE_URL = os.environ["SONG_PUBLIC_BASE_URL"]
 DB_PATH = os.environ.get("DB_PATH", "/data/zeus.db")
+FAL_API_KEY = os.environ.get("FAL_API_KEY", "")
+
+
+def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_seconds: int, genre_tag: str | None) -> None:
+    """Background thread: submit cover art to Kling, loop clip with FFmpeg, save music video."""
+    import time
+    import subprocess
+    try:
+        if not FAL_API_KEY:
+            logger.warning("Kling pipeline: FAL_API_KEY not set — skipping variant_id=%d", variant_id)
+            return
+
+        from songs import GENRE_MOTION_PROMPTS
+        prompt = GENRE_MOTION_PROMPTS.get(
+            genre_tag or "",
+            "smooth cinematic camera motion, atmospheric lighting, dynamic visual movement",
+        )
+
+        fal_headers = {"Authorization": f"Key {FAL_API_KEY}", "Content-Type": "application/json"}
+
+        # Submit to Kling via fal.ai async queue
+        resp = requests.post(
+            "https://queue.fal.run/fal-ai/kling-video/v2/master/image-to-video",
+            headers=fal_headers,
+            json={"image_url": cover_url, "prompt": prompt, "duration": "5", "aspect_ratio": "1:1"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        request_id = body.get("request_id")
+        if not request_id:
+            raise RuntimeError(f"Kling: no request_id in response: {body!r}")
+
+        logger.info("Kling submitted: variant_id=%d request_id=%s", variant_id, request_id)
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET kling_request_id = ? WHERE id = ?", (request_id, variant_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+        # Poll for completion (max 15 min)
+        status_url = f"https://queue.fal.run/fal-ai/kling-video/v2/master/image-to-video/requests/{request_id}/status"
+        result_url = f"https://queue.fal.run/fal-ai/kling-video/v2/master/image-to-video/requests/{request_id}"
+        poll_headers = {"Authorization": f"Key {FAL_API_KEY}"}
+        completed = False
+        for _ in range(60):
+            time.sleep(15)
+            sr = requests.get(status_url, headers=poll_headers, timeout=15)
+            sr.raise_for_status()
+            status = sr.json().get("status")
+            if status == "COMPLETED":
+                completed = True
+                break
+            if status == "FAILED":
+                raise RuntimeError(f"Kling job {request_id} reported FAILED")
+
+        if not completed:
+            raise RuntimeError(f"Kling job {request_id} timed out after 15 min")
+
+        # Fetch result
+        rr = requests.get(result_url, headers=poll_headers, timeout=15)
+        rr.raise_for_status()
+        result_data = rr.json()
+        video_dl_url = (result_data.get("video") or {}).get("url")
+        if not video_dl_url:
+            raise RuntimeError(f"Kling result missing video URL: {result_data!r}")
+
+        # Download 5s clip to temp
+        clip_path = f"/tmp/kling_{variant_id}_clip.mp4"
+        clip_resp = requests.get(video_dl_url, timeout=120)
+        clip_resp.raise_for_status()
+        with open(clip_path, "wb") as fh:
+            fh.write(clip_resp.content)
+
+        # FFmpeg: loop clip to full song duration, mux with MP3
+        output_path = os.path.join(STORAGE_PATH, f"{variant_id}_music_video.mp4")
+        duration = max(int(duration_seconds or 60), 5)
+        proc = subprocess.run(
+            [
+                "ffmpeg", "-y",
+                "-stream_loop", "-1", "-i", clip_path,
+                "-i", mp3_path,
+                "-t", str(duration),
+                "-map", "0:v",
+                "-map", "1:a",
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "192k",
+                "-shortest",
+                output_path,
+            ],
+            capture_output=True,
+            timeout=300,
+        )
+        try:
+            os.remove(clip_path)
+        except Exception:
+            pass
+
+        if proc.returncode != 0:
+            raise RuntimeError(f"FFmpeg failed (rc={proc.returncode}): {proc.stderr.decode()[:400]}")
+
+        music_video_url = f"{PUBLIC_BASE_URL}/{variant_id}_music_video.mp4"
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET music_video_url = ? WHERE id = ?", (music_video_url, variant_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+        logger.info("Kling pipeline complete: variant_id=%d → %s", variant_id, music_video_url)
+
+    except Exception as exc:
+        logger.error("Kling pipeline failed for variant_id=%d: %s", variant_id, exc)
 
 
 def _verify_signature(raw_body: bytes, signature_header: str) -> bool:
@@ -260,6 +375,13 @@ async def apiframe_webhook(request: Request):
         conn.close()
     logger.info("Apiframe webhook take 1 complete: variant_id=%d url=%s", variant_id, permanent_url1)
 
+    if flux_cover1 and duration1 and FAL_API_KEY:
+        threading.Thread(
+            target=_kling_pipeline,
+            args=(variant_id, flux_cover1, local_path1, duration1, genre_tag),
+            daemon=True,
+        ).start()
+
     # ── Take 2: insert new row, download second track if present ─────────────
     take2_variant_id = None
     permanent_url2 = None
@@ -332,6 +454,13 @@ async def apiframe_webhook(request: Request):
             finally:
                 conn.close()
             logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
+
+            if flux_cover2 and duration2 and FAL_API_KEY:
+                threading.Thread(
+                    target=_kling_pipeline,
+                    args=(take2_variant_id, flux_cover2, local_path2, duration2, genre_tag),
+                    daemon=True,
+                ).start()
 
     payload = {"ok": True, "status": "complete", "take1_url": permanent_url1}
     if take2_variant_id:

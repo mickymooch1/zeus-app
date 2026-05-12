@@ -187,6 +187,8 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_variants ADD COLUMN did_job_id TEXT",
             "ALTER TABLE song_variants ADD COLUMN video_url TEXT",
             "ALTER TABLE fal_image_jobs ADD COLUMN image_url TEXT",
+            "ALTER TABLE song_variants ADD COLUMN kling_request_id TEXT",
+            "ALTER TABLE song_variants ADD COLUMN music_video_url TEXT",
         ]:
             try:
                 conn.execute(_migration)
