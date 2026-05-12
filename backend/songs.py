@@ -21,9 +21,17 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "lofi":         "indie musician playing piano, relaxed peaceful movement, cosy setting",
     "edm":          "EDM performer on stage, arms raised, laser lights, massive crowd",
     "kpop":         "K-pop performer dancing gracefully, precise choreography, bright stage",
-    "niche":        "DJ performing at club, hands on decks, purple neon lights, Sheffield night",
-    "ukdrill":      "drill artist performing, intense expression, dark urban setting",
-    "loversrock":   "lovers rock singer performing romantically, smooth movement, warm light",
+    "niche":         "DJ performing at club, hands on decks, purple neon lights, Sheffield night",
+    "ukdrill":       "drill artist performing, intense expression, dark urban setting",
+    "loversrock":    "lovers rock singer performing romantically, smooth movement, warm light",
+    "rnb":           "R&B singer performing smoothly, flowing movement, soft purple lighting, intimate atmosphere",
+    "bluessoul":     "blues soul vocalist on stage, soulful expression, hands raised, warm golden spotlight",
+    "deepsoulblues": "deep soul singer seated, emotional performance, eyes closed, dim amber light",
+    "bassline":      "DJ at underground Sheffield club, hands on decks, hypnotic movement, red and amber lighting",
+    "irishjig":      "Irish céilí dancers spinning, traditional costumes, lively energetic movement, warm firelight",
+    "irishfolk":     "Irish folk musician playing acoustic guitar, gentle swaying, misty Atlantic clifftop backdrop",
+    "pop":           "pop star performing on arena stage, energetic dancing, colourful lights, confetti falling",
+    "ukgarage":      "UK garage MC performing, smooth confident movement, sleek urban setting, neon-lit night",
 }
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]
