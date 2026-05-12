@@ -25,4 +25,5 @@ GENRE_PRESETS = {
     "ukdrill":     "UK drill, dark 808 bassline, sliding minor melodies, aggressive flow, 140 BPM, South London sound, trap hi-hats",
     "kpop":        "K-pop, polished production, catchy hook, bright synth melody, precise rhythm, 120 BPM, Korean pop aesthetic, energetic and clean",
     "deepsoulblues": "deep soul blues, raw emotional vocals, slow burning guitar, gospel undertones, heavy heartfelt delivery, southern blues roots, 60-75 BPM",
+    "niche":          "niche music, Sheffield bassline, fast bouncy 4x4 kick drum, pitched female vocals, speed garage influence, 138 BPM, Yorkshire club energy, wobbling sub bass, T2 Heartbroken style",
 }

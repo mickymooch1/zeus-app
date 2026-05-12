@@ -37,6 +37,7 @@ GENRE_PORTRAIT_PROMPTS = {
     "ukdrill":     "Professional portrait photo, Black UK drill artist, clear frontal face, dark moody studio lighting, intense expression, photorealistic",
     "kpop":        "Professional portrait photo, Korean K-pop idol, clear frontal face, bright studio lighting, flawless skin, youthful expression, photorealistic",
     "deepsoulblues": "Black musician, professional portrait photo, deep soul blues singer, clear frontal face, warm dim amber studio lighting, deeply emotional expression, photorealistic",
+    "niche":          "professional portrait photo, niche music DJ, clear frontal face, dark purple club lighting, energetic expression, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"
