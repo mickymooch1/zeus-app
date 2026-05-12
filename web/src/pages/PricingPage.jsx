@@ -66,6 +66,44 @@ const DEFAULT_PLANS = {
   },
 };
 
+const DEFAULT_MUSIC_PLANS = {
+  music_starter: {
+    name: 'Music Starter',
+    price: '£9/mo',
+    features: [
+      '10 AI songs/month',
+      'YouTube upload',
+      'Song download & share',
+      'All music genres & styles',
+      'No website builder',
+    ],
+  },
+  music_pro: {
+    name: 'Music Pro',
+    price: '£19/mo',
+    features: [
+      '30 AI songs/month',
+      'YouTube upload',
+      '3 avatar videos/month',
+      'Song download & share',
+      'All music genres & styles',
+      'No website builder',
+    ],
+  },
+  music_agency: {
+    name: 'Music Agency',
+    price: '£39/mo',
+    features: [
+      '70 AI songs/month',
+      'YouTube upload',
+      '10 avatar videos/month',
+      'Song download & share',
+      'All music genres & styles',
+      'No website builder',
+    ],
+  },
+};
+
 export default function PricingPage() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
@@ -257,6 +295,111 @@ export default function PricingPage() {
         <p className="pricing-footer-note">
           All plans include a 7-day free trial. Cancel anytime. Prices in GBP (+ VAT where applicable).
         </p>
+
+        {/* ── Music Plans ──────────────────────────────────────────────────── */}
+        <div style={{ marginTop: '5rem' }}>
+          <div className="section-label" style={{ textAlign: 'center' }}>Music Plans</div>
+          <h2 className="section-title" style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+            For music creators
+          </h2>
+          <p className="section-sub" style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            All the music tools — no website builder needed.
+          </p>
+
+          <div className="pricing-grid" style={{ maxWidth: 860, margin: '0 auto' }}>
+            {/* Music Starter */}
+            <div className="pricing-card">
+              <div className="pricing-card-header">
+                <span className="badge-pro">Music Starter</span>
+                <div className="pricing-price">{plans.music_starter?.price || DEFAULT_MUSIC_PLANS.music_starter.price}</div>
+                <p className="pricing-desc">Perfect for solo artists getting started</p>
+              </div>
+              <ul className="pricing-features">
+                {(plans.music_starter?.features || DEFAULT_MUSIC_PLANS.music_starter.features).map((f) => (
+                  <li key={f} className="plan-feature">
+                    <span className="plan-feature-check">✓</span>{f}
+                  </li>
+                ))}
+              </ul>
+              <div className="pricing-card-footer">
+                {isActive && currentPlan === 'music_starter' ? (
+                  <Link to="/billing" className="btn btn-primary btn-full">Current Plan</Link>
+                ) : (
+                  <button
+                    className="btn btn-primary btn-full"
+                    disabled={loadingPlan === 'music_starter'}
+                    onClick={() => handleCheckout('music_starter')}
+                  >
+                    {loadingPlan === 'music_starter' ? <span className="spinner spinner--inline" /> : 'Get Music Starter'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Music Pro */}
+            <div className="pricing-card pricing-card--popular">
+              <div className="pricing-popular-badge">BEST VALUE</div>
+              <div className="pricing-card-header">
+                <span className="badge-pro">Music Pro</span>
+                <div className="pricing-price">{plans.music_pro?.price || DEFAULT_MUSIC_PLANS.music_pro.price}</div>
+                <p className="pricing-desc">For active creators who want avatar videos</p>
+              </div>
+              <ul className="pricing-features">
+                {(plans.music_pro?.features || DEFAULT_MUSIC_PLANS.music_pro.features).map((f) => (
+                  <li key={f} className="plan-feature">
+                    <span className="plan-feature-check">✓</span>{f}
+                  </li>
+                ))}
+              </ul>
+              <div className="pricing-card-footer">
+                {isActive && currentPlan === 'music_pro' ? (
+                  <Link to="/billing" className="btn btn-primary btn-full">Current Plan</Link>
+                ) : (
+                  <button
+                    className="btn btn-primary btn-full"
+                    disabled={loadingPlan === 'music_pro'}
+                    onClick={() => handleCheckout('music_pro')}
+                  >
+                    {loadingPlan === 'music_pro' ? <span className="spinner spinner--inline" /> : 'Get Music Pro'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Music Agency */}
+            <div className="pricing-card">
+              <div className="pricing-card-header">
+                <span className="badge-agency">Music Agency</span>
+                <div className="pricing-price">{plans.music_agency?.price || DEFAULT_MUSIC_PLANS.music_agency.price}</div>
+                <p className="pricing-desc">For prolific creators and label teams</p>
+              </div>
+              <ul className="pricing-features">
+                {(plans.music_agency?.features || DEFAULT_MUSIC_PLANS.music_agency.features).map((f) => (
+                  <li key={f} className="plan-feature">
+                    <span className="plan-feature-check">✓</span>{f}
+                  </li>
+                ))}
+              </ul>
+              <div className="pricing-card-footer">
+                {isActive && currentPlan === 'music_agency' ? (
+                  <Link to="/billing" className="btn btn-outline btn-full">Current Plan</Link>
+                ) : (
+                  <button
+                    className="btn btn-outline btn-full"
+                    disabled={loadingPlan === 'music_agency'}
+                    onClick={() => handleCheckout('music_agency')}
+                  >
+                    {loadingPlan === 'music_agency' ? <span className="spinner spinner--inline" /> : 'Get Music Agency'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <p className="pricing-footer-note" style={{ marginTop: '2rem' }}>
+            Music plans do not include website building. Song top-ups available on all plans. Cancel anytime.
+          </p>
+        </div>
       </div>
     </div>
   );

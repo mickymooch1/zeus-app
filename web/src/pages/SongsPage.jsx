@@ -436,9 +436,10 @@ export default function SongsPage() {
   const portraitPollRef = useRef(null);
 
   const isAdmin          = credits.is_admin;
+  const isMusicPlan      = ['music_starter', 'music_pro', 'music_agency'].includes(credits.plan);
   const canShowExplicit  = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
-  const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
-  const didPlanOk        = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
+  const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan) || isMusicPlan;
+  const didPlanOk        = isAdmin || ['agency', 'enterprise', 'music_pro', 'music_agency'].includes(credits.plan);
   const canDid           = didPlanOk && (isAdmin || credits.video_credits > 0);
   const youtubeConnected = credits.youtube_connected;
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');

@@ -202,10 +202,13 @@ def _scheduled_task_limit(user: dict) -> int | None:
 
 
 _WEBSITE_LIMITS: dict[str, int | None] = {
-    "free":       0,
-    "pro":        1,
-    "agency":     5,
-    "enterprise": None,
+    "free":          0,
+    "pro":           1,
+    "agency":        5,
+    "enterprise":    None,
+    "music_starter": 0,
+    "music_pro":     0,
+    "music_agency":  0,
 }
 
 
@@ -469,7 +472,7 @@ async def me(current_user: dict = Depends(auth.get_current_user)):
 
 @app.get("/billing/plans")
 async def get_plans():
-    return billing.PLANS
+    return {**billing.PLANS, **billing.MUSIC_PLANS}
 
 
 @app.post("/billing/checkout")
@@ -1032,7 +1035,7 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
     video_allowance = billing._PLAN_VIDEO_CREDITS.get(plan, 0)
 
     # Auto-provision credits on first visit — free users get FREE_SONG_CREDITS
-    is_paid = status == "active" and plan in billing.PLANS
+    is_paid = status == "active" and (plan in billing.PLANS or plan in billing.MUSIC_PLAN_KEYS)
     default_credits = allowance if is_paid else billing.FREE_SONG_CREDITS
     row = db.ensure_free_song_credits(db_path, current_user["id"], balance=default_credits, monthly_allowance=default_credits)
 
@@ -1116,7 +1119,7 @@ async def artist_style(
 
 # ── YouTube OAuth + upload ───────────────────────────────────────────────────
 
-_YOUTUBE_PLANS = {"agency", "enterprise"}
+_YOUTUBE_PLANS = {"agency", "enterprise", "music_starter", "music_pro", "music_agency"}
 
 import jwt as _jwt
 

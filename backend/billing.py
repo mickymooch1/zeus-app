@@ -64,23 +64,81 @@ PRO_PRICE_ID = "price_1TJKE4K5Ou7aVaHMesQe02B5"
 AGENCY_PRICE_ID = "price_1TJKF9K5Ou7aVaHMqijE70Hw"
 ENTERPRISE_PRICE_ID = "price_1TK3elK5Ou7aVaHMiJ3jg3L4"
 
+MUSIC_STARTER_PRICE_ID = os.environ.get("STRIPE_MUSIC_STARTER_PRICE_ID", "")
+MUSIC_PRO_PRICE_ID     = os.environ.get("STRIPE_MUSIC_PRO_PRICE_ID", "")
+MUSIC_AGENCY_PRICE_ID  = os.environ.get("STRIPE_MUSIC_AGENCY_PRICE_ID", "")
+
+MUSIC_PLAN_KEYS = frozenset({"music_starter", "music_pro", "music_agency"})
+
 _PRICE_ID_TO_PLAN = {
     PRO_PRICE_ID: "pro",
     AGENCY_PRICE_ID: "agency",
     ENTERPRISE_PRICE_ID: "enterprise",
 }
+if MUSIC_STARTER_PRICE_ID:
+    _PRICE_ID_TO_PLAN[MUSIC_STARTER_PRICE_ID] = "music_starter"
+if MUSIC_PRO_PRICE_ID:
+    _PRICE_ID_TO_PLAN[MUSIC_PRO_PRICE_ID] = "music_pro"
+if MUSIC_AGENCY_PRICE_ID:
+    _PRICE_ID_TO_PLAN[MUSIC_AGENCY_PRICE_ID] = "music_agency"
 
 FREE_SONG_CREDITS = 5
 
 _PLAN_SONG_CREDITS = {
-    "pro": 20,
-    "agency": 70,
-    "enterprise": 100,
+    "pro":           20,
+    "agency":        70,
+    "enterprise":    100,
+    "music_starter": 10,
+    "music_pro":     30,
+    "music_agency":  70,
 }
 
 _PLAN_VIDEO_CREDITS = {
-    "agency": 5,
-    "enterprise": 15,
+    "agency":       5,
+    "enterprise":   15,
+    "music_pro":    3,
+    "music_agency": 10,
+}
+
+MUSIC_PLANS: dict = {
+    "music_starter": {
+        "name": "Music Starter",
+        "price": "£9/mo",
+        "price_id": MUSIC_STARTER_PRICE_ID,
+        "features": [
+            "10 AI songs/month",
+            "YouTube upload",
+            "Song download & share",
+            "All music genres",
+            "No website builder",
+        ],
+    },
+    "music_pro": {
+        "name": "Music Pro",
+        "price": "£19/mo",
+        "price_id": MUSIC_PRO_PRICE_ID,
+        "features": [
+            "30 AI songs/month",
+            "YouTube upload",
+            "3 avatar videos/month",
+            "Song download & share",
+            "All music genres",
+            "No website builder",
+        ],
+    },
+    "music_agency": {
+        "name": "Music Agency",
+        "price": "£39/mo",
+        "price_id": MUSIC_AGENCY_PRICE_ID,
+        "features": [
+            "70 AI songs/month",
+            "YouTube upload",
+            "10 avatar videos/month",
+            "Song download & share",
+            "All music genres",
+            "No website builder",
+        ],
+    },
 }
 
 SONG_PACKS = {
@@ -137,10 +195,11 @@ def create_checkout_session(user: dict, plan: str, success_url: str, cancel_url:
     """
     stripe = _get_stripe()
 
-    if plan not in PLANS:
+    _all_plans = {**PLANS, **MUSIC_PLANS}
+    if plan not in _all_plans:
         raise ValueError(f"Unknown plan: {plan}")
 
-    price_id = PLANS[plan]["price_id"]
+    price_id = _all_plans[plan]["price_id"]
     if not price_id:
         raise ValueError(f"No Stripe price ID configured for plan '{plan}'")
 
@@ -459,13 +518,14 @@ def get_subscription_status(user: dict) -> dict:
     plan = user.get("subscription_plan")
 
     is_admin = bool(user.get("is_admin", 0))
-    is_paid = status == "active" and plan in PLANS
+    is_paid = status == "active" and (plan in PLANS or plan in MUSIC_PLAN_KEYS)
     messages_limit = None if (is_paid or is_admin) else FREE_LIMIT
 
+    _all_plans = {**PLANS, **MUSIC_PLANS}
     return {
         "status": status,
         "plan": plan,
-        "plan_name": PLANS.get(plan, {}).get("name", "Free") if plan else "Free",
+        "plan_name": _all_plans.get(plan, {}).get("name", "Free") if plan else "Free",
         "messages_used": messages_used,
         "messages_limit": messages_limit,
         "is_active": is_paid,

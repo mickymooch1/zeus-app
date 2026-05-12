@@ -126,6 +126,9 @@ export default function BillingPage() {
             {effectivePlan === 'pro' && <span className="badge-pro">Pro</span>}
             {effectivePlan === 'agency' && <span className="badge-agency">Agency</span>}
             {effectivePlan === 'enterprise' && <span className="badge-enterprise">Enterprise</span>}
+            {effectivePlan === 'music_starter' && <span className="badge-pro">Music Starter</span>}
+            {effectivePlan === 'music_pro' && <span className="badge-pro">Music Pro</span>}
+            {effectivePlan === 'music_agency' && <span className="badge-agency">Music Agency</span>}
             {(!effectivePlan || !isActive) && <span className="badge-free">Free</span>}
           </div>
 
@@ -190,6 +193,51 @@ export default function BillingPage() {
                 </button>
               </div>
             </div>
+
+            <h2 className="billing-section-title" style={{ marginTop: '2rem' }}>Music-only plans</h2>
+            <p style={{ fontSize: '0.85rem', color: '#888', marginBottom: '1rem' }}>
+              All the music tools — no website builder needed.
+            </p>
+            <div className="billing-upgrade-grid">
+              <div className="billing-upgrade-card">
+                <span className="badge-pro">Music Starter</span>
+                <div className="billing-upgrade-price">£9/mo</div>
+                <p className="billing-upgrade-desc">10 songs/month, YouTube upload</p>
+                <button
+                  className="btn btn-primary btn-full"
+                  disabled={loadingCheckout === 'music_starter'}
+                  onClick={() => handleCheckout('music_starter')}
+                >
+                  {loadingCheckout === 'music_starter' ? <span className="spinner spinner--inline" /> : 'Get Music Starter'}
+                </button>
+              </div>
+
+              <div className="billing-upgrade-card">
+                <span className="badge-pro">Music Pro</span>
+                <div className="billing-upgrade-price">£19/mo</div>
+                <p className="billing-upgrade-desc">30 songs/month, YouTube upload, 3 avatar videos</p>
+                <button
+                  className="btn btn-primary btn-full"
+                  disabled={loadingCheckout === 'music_pro'}
+                  onClick={() => handleCheckout('music_pro')}
+                >
+                  {loadingCheckout === 'music_pro' ? <span className="spinner spinner--inline" /> : 'Get Music Pro'}
+                </button>
+              </div>
+
+              <div className="billing-upgrade-card">
+                <span className="badge-agency">Music Agency</span>
+                <div className="billing-upgrade-price">£39/mo</div>
+                <p className="billing-upgrade-desc">70 songs/month, YouTube upload, 10 avatar videos</p>
+                <button
+                  className="btn btn-outline btn-full"
+                  disabled={loadingCheckout === 'music_agency'}
+                  onClick={() => handleCheckout('music_agency')}
+                >
+                  {loadingCheckout === 'music_agency' ? <span className="spinner spinner--inline" /> : 'Get Music Agency'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -235,6 +283,38 @@ export default function BillingPage() {
               'Scheduled tasks',
               'Appointment booking',
               'Priority support',
+            ].map((f) => (
+              <li key={f} className="plan-feature">
+                <span className="plan-feature-check">✓</span>{f}
+              </li>
+            ))}
+            {effectivePlan === 'music_starter' && isActive && [
+              '10 AI songs/month',
+              'YouTube upload',
+              'Song download & share',
+              'All music genres & styles',
+            ].map((f) => (
+              <li key={f} className="plan-feature">
+                <span className="plan-feature-check">✓</span>{f}
+              </li>
+            ))}
+            {effectivePlan === 'music_pro' && isActive && [
+              '30 AI songs/month',
+              'YouTube upload',
+              '3 avatar videos/month',
+              'Song download & share',
+              'All music genres & styles',
+            ].map((f) => (
+              <li key={f} className="plan-feature">
+                <span className="plan-feature-check">✓</span>{f}
+              </li>
+            ))}
+            {effectivePlan === 'music_agency' && isActive && [
+              '70 AI songs/month',
+              'YouTube upload',
+              '10 avatar videos/month',
+              'Song download & share',
+              'All music genres & styles',
             ].map((f) => (
               <li key={f} className="plan-feature">
                 <span className="plan-feature-check">✓</span>{f}
