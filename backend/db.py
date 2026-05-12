@@ -174,6 +174,13 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 image_url      TEXT,
                 created_at     TEXT DEFAULT (datetime('now'))
             );
+
+            CREATE TABLE IF NOT EXISTS message_usage (
+                user_id TEXT NOT NULL,
+                date    TEXT NOT NULL,
+                count   INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (user_id, date)
+            );
         """)
         # Migrate existing tables — ignore error if column already exists
         for _migration in [
@@ -1072,6 +1079,38 @@ def update_fal_image_job_url(db_path: pathlib.Path, job_id: str, image_url: str)
         conn.execute(
             "UPDATE fal_image_jobs SET image_url = ? WHERE job_id = ?",
             (image_url, job_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ── Daily message usage ───────────────────────────────────────────────────────
+
+def get_daily_message_count(db_path: pathlib.Path, user_id: str, date: str) -> int:
+    """Return message count for user on a given date (YYYY-MM-DD)."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT count FROM message_usage WHERE user_id = ? AND date = ?",
+            (user_id, date),
+        ).fetchone()
+        return row["count"] if row else 0
+    finally:
+        conn.close()
+
+
+def increment_daily_message_count(db_path: pathlib.Path, user_id: str, date: str) -> None:
+    """Upsert message_usage, incrementing count by 1 for the given date."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """
+            INSERT INTO message_usage (user_id, date, count)
+            VALUES (?, ?, 1)
+            ON CONFLICT(user_id, date) DO UPDATE SET count = count + 1
+            """,
+            (user_id, date),
         )
         conn.commit()
     finally:

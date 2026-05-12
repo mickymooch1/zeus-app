@@ -58,6 +58,7 @@ PLANS: dict = {
 }
 
 FREE_LIMIT = 20
+DAILY_FREE_LIMIT = 30
 
 # Hardcoded Stripe price IDs — used to map a completed payment to a plan
 PRO_PRICE_ID = "price_1TJKE4K5Ou7aVaHMesQe02B5"

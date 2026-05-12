@@ -4,7 +4,7 @@ import { InputBar } from './InputBar';
 import { Toolbar } from './Toolbar';
 import { CreditsIndicator } from './CreditsIndicator';
 
-export function ChatWindow({ messages, streaming, onSend, isAdmin, token }) {
+export function ChatWindow({ messages, streaming, onSend, isAdmin, token, user }) {
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
   const [inputValue, setInputValue] = useState('');
@@ -52,7 +52,7 @@ export function ChatWindow({ messages, streaming, onSend, isAdmin, token }) {
         setGrammarMode={setGrammarMode}
         textareaRef={textareaRef}
       />
-      <CreditsIndicator token={token} isAdmin={isAdmin} />
+      <CreditsIndicator token={token} isAdmin={isAdmin} user={user} messageCount={messages.length} />
     </main>
   );
 }

@@ -68,6 +68,7 @@ export default function DashboardPage() {
           onSend={sendMessage}
           isAdmin={!!user?.is_admin}
           token={token}
+          user={user}
         />
       </div>
     </div>

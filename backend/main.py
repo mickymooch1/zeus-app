@@ -608,18 +608,20 @@ async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
     if current_user:
         db_path = db.get_db_path()
         status_info = billing.get_subscription_status(current_user)
-        limit = status_info.get("messages_limit")
-        if limit is not None and status_info["messages_used"] >= limit:
-            await websocket.send_json({
-                "type": "error",
-                "message": (
-                    f"You've reached the free limit of {billing.FREE_LIMIT} messages. "
-                    "Upgrade to Pro for unlimited messages at /pricing"
-                ),
-            })
-            await websocket.send_json({"type": "done"})
-            await websocket.close()
-            return
+        if not status_info["is_active"] and not status_info["is_admin"]:
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            daily_count = db.get_daily_message_count(db_path, current_user["id"], today)
+            if daily_count >= billing.DAILY_FREE_LIMIT:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": (
+                        f"You've used your {billing.DAILY_FREE_LIMIT} free messages for today. "
+                        "Upgrade to Pro for unlimited conversations with Zeus."
+                    ),
+                })
+                await websocket.send_json({"type": "done"})
+                await websocket.close()
+                return
 
     try:
         data = await websocket.receive_json()
@@ -644,8 +646,12 @@ async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
 
         # Increment usage after successful response
         if current_user:
-            month = datetime.now(timezone.utc).strftime("%Y-%m")
-            db.increment_usage(db.get_db_path(), current_user["id"], month)
+            now_utc = datetime.now(timezone.utc)
+            month = now_utc.strftime("%Y-%m")
+            today = now_utc.strftime("%Y-%m-%d")
+            db_path = db.get_db_path()
+            db.increment_usage(db_path, current_user["id"], month)
+            db.increment_daily_message_count(db_path, current_user["id"], today)
 
         await websocket.close()
 
@@ -1025,6 +1031,21 @@ async def songs_topup(
         log.exception("Song pack checkout error")
         raise HTTPException(status_code=500, detail="Failed to create checkout session")
     return {"url": url}
+
+
+@app.get("/api/users/me/chat-usage")
+async def get_my_chat_usage(current_user: dict = Depends(auth.get_current_user)):
+    db_path = db.get_db_path()
+    status_info = billing.get_subscription_status(current_user)
+    is_limited = not status_info["is_active"] and not status_info["is_admin"]
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    daily_count = db.get_daily_message_count(db_path, current_user["id"], today) if is_limited else 0
+    return {
+        "daily_count": daily_count,
+        "daily_limit": billing.DAILY_FREE_LIMIT,
+        "is_limited": is_limited,
+        "today": today,
+    }
 
 
 @app.get("/api/users/me/song_credits")
