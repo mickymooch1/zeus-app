@@ -536,6 +536,10 @@
   align-items: start;
 }
 
+.lp .pricing-grid--music {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .lp .price-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -694,6 +698,7 @@
   .lp .features-grid { grid-template-columns: 1fr 1fr; }
   .lp .feat-lead { grid-column: span 2; }
   .lp .pricing-grid { grid-template-columns: 1fr 1fr; }
+  .lp .pricing-grid--music { grid-template-columns: 1fr 1fr; }
   .lp .price-card.featured { transform: none; }
   .lp .price-card.featured:hover { transform: translateY(-4px); }
 }
@@ -702,6 +707,7 @@
   .lp .features-grid { grid-template-columns: 1fr; }
   .lp .feat-lead { grid-column: span 1; }
   .lp .pricing-grid { grid-template-columns: 1fr; }
+  .lp .pricing-grid--music { grid-template-columns: 1fr; }
   .lp .hero-title { font-size: 2.2rem; }
   .lp .cap-item { padding: 20px; flex-direction: column; gap: 8px; }
   .lp .footer-inner { flex-direction: column; text-align: center; }

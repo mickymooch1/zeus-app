@@ -42,6 +42,7 @@ export default function LandingPage() {
           <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
           <a href="#capabilities" onClick={() => setMenuOpen(false)}>What It Does</a>
           <a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
+          <Link to="/login" onClick={() => setMenuOpen(false)}>Sign In</Link>
           <Link to="/register" className="mobile-cta" onClick={() => setMenuOpen(false)}>Start Free →</Link>
         </div>
       </nav>
@@ -60,11 +61,11 @@ export default function LandingPage() {
             AI-Powered · Built for Business
           </div>
           <h1 className="hero-title">
-            Your AI assistant that<br />
-            <span className="gradient-text">builds, writes &amp; deploys</span>
+            Build websites, create AI music<br />
+            <span className="gradient-text">&amp; publish everywhere</span>
           </h1>
           <p className="hero-sub">
-            Zeus is more than a website builder. It's a full AI business assistant — chat to create stunning websites, write copy, generate images, manage clients, and deploy live to Netlify in seconds.
+            Zeus is your all-in-one AI business assistant — chat to create stunning websites, generate original songs, produce avatar videos, write copy, and deploy live in seconds.
           </p>
           <div className="hero-actions">
             <Link to="/register" className="btn-primary btn-lg">
@@ -181,6 +182,50 @@ export default function LandingPage() {
               <span className="feat-icon">📤</span>
               <h3>Export &amp; Download</h3>
               <p>Package any project into a ZIP file and download it instantly. Essays, CVs, proposals, and full websites — all exportable in one click.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* MUSIC FEATURES */}
+      <section className="features" id="music" style={{ background: 'var(--bg)' }}>
+        <div className="container">
+          <div className="section-label">AI Music Studio</div>
+          <h2 className="section-title">Create &amp; publish music.<br /><span className="gradient-text">No studio needed.</span></h2>
+          <p className="section-sub">Describe your track, pick a genre — Zeus writes the lyrics, Suno generates the audio, and Zeus publishes it everywhere.</p>
+
+          <div className="features-grid">
+            <div className="feat-card feat-lead">
+              <span className="feat-icon">🎵</span>
+              <h3>AI Song Generator</h3>
+              <p>Turn a text brief into a full original song — lyrics written by Claude AI, audio produced by Suno. Choose from 20+ genres and get a unique track every time, with optional instrumental mode and AI-generated cover art.</p>
+              <div className="feat-tags">
+                <span>20+ Genres</span><span>Custom Lyrics</span><span>AI Vocals</span><span>Instrumental Mode</span>
+              </div>
+            </div>
+
+            <div className="feat-card">
+              <span className="feat-icon">🎬</span>
+              <h3>Avatar Lip-Sync Videos</h3>
+              <p>Turn your song into a video with a realistic AI avatar that lip-syncs to your track. Perfect for YouTube, Instagram Reels, and music promotion.</p>
+            </div>
+
+            <div className="feat-card">
+              <span className="feat-icon">▶️</span>
+              <h3>YouTube Upload</h3>
+              <p>Publish your finished track directly to your YouTube channel from inside Zeus — no extra tools, no manual uploading.</p>
+            </div>
+
+            <div className="feat-card">
+              <span className="feat-icon">📘</span>
+              <h3>Facebook Posting</h3>
+              <p>Share your songs to Facebook pages and groups automatically. Grow your audience while Zeus handles the distribution.</p>
+            </div>
+
+            <div className="feat-card">
+              <span className="feat-icon">🖼️</span>
+              <h3>AI Cover Art</h3>
+              <p>Every song gets a unique AI-generated cover image matched to the genre and mood of your track — created automatically at generation time.</p>
             </div>
           </div>
         </div>
@@ -327,6 +372,63 @@ export default function LandingPage() {
                 <li>✓ All Agency music features</li>
               </ul>
               <Link to="/register" className="btn-plan-primary">Start Enterprise</Link>
+            </div>
+          </div>
+
+          {/* Music Plans */}
+          <div style={{ marginTop: '5rem' }}>
+            <h3 className="section-title" style={{ fontSize: '1.6rem', marginBottom: '0.5rem' }}>
+              Just want the music?{' '}
+              <span className="gradient-text">No website builder needed.</span>
+            </h3>
+            <p className="section-sub" style={{ marginBottom: '2rem' }}>
+              Standalone music plans — all the AI music tools, none of the website stuff.
+            </p>
+            <div className="pricing-grid pricing-grid--music">
+              <div className="price-card">
+                <div className="plan-name">Music Starter</div>
+                <div className="plan-price">£9<span>/mo</span></div>
+                <p className="plan-desc">For artists getting started with AI music creation.</p>
+                <ul className="plan-features">
+                  <li>✓ 15 AI songs/month</li>
+                  <li>✓ YouTube upload</li>
+                  <li>✓ Song download &amp; share</li>
+                  <li>✓ All 20+ genres &amp; styles</li>
+                  <li>✓ AI cover art</li>
+                </ul>
+                <Link to="/register" className="btn-plan-ghost">Get Music Starter</Link>
+              </div>
+
+              <div className="price-card">
+                <div className="plan-name">Music Pro</div>
+                <div className="plan-price">£19<span>/mo</span></div>
+                <p className="plan-desc">For active creators who want avatar videos.</p>
+                <ul className="plan-features">
+                  <li>✓ 40 AI songs/month</li>
+                  <li>✓ YouTube upload</li>
+                  <li>✓ 3 avatar lip-sync videos/month</li>
+                  <li>✓ Song download &amp; share</li>
+                  <li>✓ All 20+ genres &amp; styles</li>
+                  <li>✓ AI cover art</li>
+                </ul>
+                <Link to="/register" className="btn-plan-ghost">Get Music Pro</Link>
+              </div>
+
+              <div className="price-card">
+                <div className="plan-name">Music Agency</div>
+                <div className="plan-price">£39<span>/mo</span></div>
+                <p className="plan-desc">For prolific creators and label teams.</p>
+                <ul className="plan-features">
+                  <li>✓ 80 AI songs/month</li>
+                  <li>✓ YouTube upload</li>
+                  <li>✓ 10 avatar lip-sync videos/month</li>
+                  <li>✓ Song download &amp; share</li>
+                  <li>✓ All 20+ genres &amp; styles</li>
+                  <li>✓ AI cover art</li>
+                  <li>✓ Facebook posting</li>
+                </ul>
+                <Link to="/register" className="btn-plan-ghost">Get Music Agency</Link>
+              </div>
             </div>
           </div>
         </div>

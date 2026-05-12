@@ -543,7 +543,7 @@ body {
 
 /* ── Auth pages ──────────────────────────────────────────── */
 .auth-page {
-  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 40px 16px; background: #0a0818; position: relative; overflow-y: auto;
 }
 .auth-card {
