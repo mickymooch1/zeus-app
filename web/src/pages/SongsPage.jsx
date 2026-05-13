@@ -1208,6 +1208,10 @@ export default function SongsPage() {
                       'UK Rave MC',
                       'American Hip-Hop',
                       'K-Pop',
+                      'West African',
+                      'South African',
+                      'American Phonk',
+                      'New Jersey / Newark',
                     ].map((a) => (
                       <option key={a} value={a}>{a}</option>
                     ))}

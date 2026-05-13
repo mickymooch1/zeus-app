@@ -961,6 +961,10 @@ async def songs_generate(
             "UK Rave MC": "UK rave MC vocal style, deep ragga-influenced delivery, hyped crowd control, London/Birmingham underground patois",
             "American Hip-Hop": "American hip-hop vocal delivery, West Coast or East Coast flow, authentic US street cadence, rap pronunciation",
             "K-Pop": "Korean pop vocal delivery, precise diction, bright high vocal tone, melodic rap sections, Korean-influenced pronunciation",
+            "West African": "West African vocal delivery, Yoruba or Pidgin English inflection, warm melodic African tone",
+            "South African": "South African vocal delivery, warm Zulu or Xhosa influenced tone, smooth urban SA accent",
+            "American Phonk": "Deep Memphis rap vocal delivery, dark Southern drawl, aggressive low tone",
+            "New Jersey / Newark": "Newark New Jersey accent, East Coast urban delivery, Jersey Club MC energy",
         }
         style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
     if body.explicit:
