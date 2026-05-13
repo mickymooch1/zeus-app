@@ -438,6 +438,10 @@ export default function SongsPage() {
   const [portraitImageUrl, setPortraitImageUrl]     = useState(null);
   const [portraitTimedOut, setPortraitTimedOut]     = useState(false);
 
+  // Custom lyrics mode
+  const [useCustomLyrics, setUseCustomLyrics] = useState(false);
+  const [customLyrics, setCustomLyrics]       = useState('');
+
   // Delete state
   const [deletingVariants, setDeletingVariants]     = useState(new Set());
 
@@ -456,7 +460,8 @@ export default function SongsPage() {
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
   const cost           = selGenres.size;
   const canAfford      = isAdmin || (credits.balance >= cost && cost > 0);
-  const canGenerate    = brief.trim().length > 0 && cost > 0 && canAfford && !generating;
+  const briefReady     = useCustomLyrics ? customLyrics.trim().length > 0 : brief.trim().length > 0;
+  const canGenerate    = briefReady && cost > 0 && canAfford && !generating;
   const creditExceeded = !isAdmin && cost > 0 && cost > credits.balance;
 
   const fetchCredits = useCallback(async () => {
@@ -625,10 +630,27 @@ export default function SongsPage() {
     setError('');
     setGenerating(true);
     try {
-      const r = await fetch(`${BACKEND_URL}/api/songs/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
+      let body;
+      if (useCustomLyrics) {
+        // Custom lyrics path: save lyrics first, then generate variants
+        body = JSON.stringify({
+          custom_lyrics: customLyrics.trim(),
+          genres: Array.from(selGenres),
+          song_title: songTitle.trim() || undefined,
+          ...(showAdvanced ? {
+            vocal_gender: vocalGender || undefined,
+            accent: accent || undefined,
+            creativity: creativity / 100,
+            style_weight: styleWeight / 100,
+            tempo: tempo || undefined,
+            tempo_bpm: tempo === 'custom' ? tempoBpm : undefined,
+            model_version: modelVersion,
+            explicit: explicit || undefined,
+            instrumental: !vocals || undefined,
+          } : {}),
+        });
+      } else {
+        body = JSON.stringify({
           brief: brief.trim(),
           genres: Array.from(selGenres),
           inspired_by_descriptors: artistDescriptors || undefined,
@@ -644,7 +666,13 @@ export default function SongsPage() {
             explicit: explicit || undefined,
             instrumental: !vocals || undefined,
           } : {}),
-        }),
+        });
+      }
+
+      const r = await fetch(`${BACKEND_URL}/api/songs/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body,
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || 'Generation failed');
@@ -655,6 +683,7 @@ export default function SongsPage() {
       });
       setCredits((p) => ({ ...p, balance: Math.max(0, p.balance - cost) }));
       setBrief('');
+      setCustomLyrics('');
       setSongTitle('');
       setSelGenres(new Set());
       setInspiredBy('');
@@ -980,35 +1009,88 @@ export default function SongsPage() {
             padding: '28px 28px 24px',
             marginBottom: 12,
           }}>
-            <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f0eeff', marginBottom: 4 }}>
-              Create a Song
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f0eeff', margin: 0 }}>
+                Create a Song
+              </h1>
+              {/* Custom lyrics toggle */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flexShrink: 0 }}>
+                <span style={{ fontSize: 12, color: useCustomLyrics ? '#a78bfa' : '#555', fontWeight: 500, transition: 'color 0.2s' }}>
+                  Custom lyrics
+                </span>
+                <div
+                  onClick={() => setUseCustomLyrics((v) => !v)}
+                  style={{
+                    width: 36, height: 20, borderRadius: 10,
+                    background: useCustomLyrics ? '#7c3aed' : 'rgba(255,255,255,0.08)',
+                    position: 'relative', flexShrink: 0,
+                    transition: 'background 0.2s', cursor: 'pointer',
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', top: 3,
+                    left: useCustomLyrics ? 19 : 3,
+                    width: 14, height: 14, borderRadius: '50%',
+                    background: '#fff', transition: 'left 0.2s',
+                  }} />
+                </div>
+              </label>
+            </div>
             <p style={{ color: '#555', fontSize: 14, marginBottom: 22 }}>
-              Describe your song — Zeus writes the lyrics, Suno turns them into music.
+              {useCustomLyrics
+                ? 'Paste your own lyrics — Suno will turn them into music.'
+                : 'Describe your song — Zeus writes the lyrics, Suno turns them into music.'}
             </p>
 
-            <textarea
-              className="songs-textarea"
-              value={brief}
-              onChange={(e) => setBrief(e.target.value)}
-              placeholder="e.g. An upbeat jingle for a Manchester coffee shop with Friday-morning energy…"
-              rows={3}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 10,
-                padding: '12px 14px',
-                color: '#f0eeff',
-                fontSize: 15,
-                resize: 'vertical',
-                fontFamily: 'inherit',
-                outline: 'none',
-                marginBottom: 12,
-                transition: 'border-color 0.2s',
-              }}
-            />
+            {/* Brief OR custom lyrics textarea */}
+            {useCustomLyrics ? (
+              <textarea
+                className="songs-textarea"
+                value={customLyrics}
+                onChange={(e) => setCustomLyrics(e.target.value)}
+                placeholder={`Paste your lyrics here…\n\n[Verse 1]\nLine one\nLine two\n\n[Chorus]\nHook line here…`}
+                rows={10}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  background: 'rgba(167,139,250,0.04)',
+                  border: '1px solid rgba(167,139,250,0.2)',
+                  borderRadius: 10,
+                  padding: '12px 14px',
+                  color: '#f0eeff',
+                  fontSize: 14,
+                  resize: 'vertical',
+                  fontFamily: 'ui-monospace, monospace',
+                  outline: 'none',
+                  marginBottom: 12,
+                  transition: 'border-color 0.2s',
+                  lineHeight: 1.6,
+                }}
+              />
+            ) : (
+              <textarea
+                className="songs-textarea"
+                value={brief}
+                onChange={(e) => setBrief(e.target.value)}
+                placeholder="e.g. An upbeat jingle for a Manchester coffee shop with Friday-morning energy…"
+                rows={3}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 10,
+                  padding: '12px 14px',
+                  color: '#f0eeff',
+                  fontSize: 15,
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                  outline: 'none',
+                  marginBottom: 12,
+                  transition: 'border-color 0.2s',
+                }}
+              />
+            )}
 
             <input
               type="text"
@@ -1420,7 +1502,7 @@ export default function SongsPage() {
               }}
             >
               {generating
-                ? 'Generating lyrics…'
+                ? (useCustomLyrics ? 'Sending to Suno…' : 'Generating lyrics…')
                 : cost > 0
                   ? `Generate — ${cost} credit${cost !== 1 ? 's' : ''}`
                   : 'Select a style to generate'}
