@@ -1,1 +1,54 @@
-export default function BeatsNavbar() { return <nav style={{height:60,background:'#0b0b14'}} />; }
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { BRAND } from '../brand';
+
+export function BeatsNavbar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  return (
+    <nav className={`navbar${scrolled ? ' navbar--scrolled' : ''}`}>
+      <div className="navbar-inner">
+        <Link to="/" className="navbar-logo">
+          <span className="navbar-logo-icon">⚡</span>
+          <span className="navbar-logo-text">{BRAND.name}</span>
+        </Link>
+
+        <div className="navbar-links">
+          <Link to="/#features" className="navbar-link">Features</Link>
+          <Link to="/pricing" className="navbar-link">Pricing</Link>
+          <Link to="/terms" className="navbar-link">Terms</Link>
+        </div>
+
+        <div className="navbar-auth">
+          {user ? (
+            <>
+              <Link to="/songs" className="btn btn-sm btn-ghost">My Songs</Link>
+              <button className="btn btn-sm btn-outline" onClick={handleLogout}>
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="btn btn-sm btn-ghost">Login</Link>
+              <Link to="/register" className="btn btn-sm btn-primary">Get Started</Link>
+            </>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+}
