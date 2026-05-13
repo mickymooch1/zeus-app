@@ -886,8 +886,9 @@ async def admin_test_song_pipeline(current_user: dict = Depends(auth.get_current
 # ── Song API endpoints ───────────────────────────────────────────────────────
 
 class SongsGenerateRequest(BaseModel):
-    brief: str = Field(min_length=1, max_length=2000)
+    brief: str = Field(default="", max_length=2000)
     genres: list[str] = Field(min_length=1, max_length=7)
+    custom_lyrics: str | None = None     # user-supplied lyrics; skips Claude generation entirely
     # Advanced generation controls (all optional)
     vocal_gender: str | None = None      # "m" or "f" → sunoParams.vocal_gender
     creativity: float | None = None      # 0.0–1.0 → sunoParams.weirdness_constraint
@@ -923,8 +924,20 @@ async def songs_generate(
                                balance=billing.FREE_SONG_CREDITS,
                                monthly_allowance=billing.FREE_SONG_CREDITS)
 
+    if not body.custom_lyrics and not body.brief:
+        raise HTTPException(status_code=400, detail="Provide a song description or custom lyrics")
+
     try:
-        lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None)
+        if body.custom_lyrics:
+            lyric_result = _lyrics_mod.store_custom_lyrics(
+                user_id=user_id,
+                brief=body.brief or (body.song_title or "Custom song"),
+                lyrics_text=body.custom_lyrics,
+                db_path=db_path,
+                song_title=body.song_title or None,
+            )
+        else:
+            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None)
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")

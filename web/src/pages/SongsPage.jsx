@@ -441,6 +441,10 @@ export default function SongsPage() {
   // Delete state
   const [deletingVariants, setDeletingVariants]     = useState(new Set());
 
+  // Custom lyrics
+  const [useCustomLyrics, setUseCustomLyrics]   = useState(false);
+  const [customLyricsText, setCustomLyricsText] = useState('');
+
   const activeWsRef     = useRef(null);
   const pollTimerRef    = useRef(null);
   const photoInputRef   = useRef(null);
@@ -456,7 +460,7 @@ export default function SongsPage() {
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
   const cost           = selGenres.size;
   const canAfford      = isAdmin || (credits.balance >= cost && cost > 0);
-  const canGenerate    = brief.trim().length > 0 && cost > 0 && canAfford && !generating;
+  const canGenerate    = (useCustomLyrics ? customLyricsText.trim().length > 0 : brief.trim().length > 0) && cost > 0 && canAfford && !generating;
   const creditExceeded = !isAdmin && cost > 0 && cost > credits.balance;
 
   const fetchCredits = useCallback(async () => {
@@ -629,8 +633,9 @@ export default function SongsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          brief: brief.trim(),
+          brief: useCustomLyrics ? (songTitle.trim() || 'Custom song') : brief.trim(),
           genres: Array.from(selGenres),
+          custom_lyrics: useCustomLyrics ? customLyricsText.trim() : undefined,
           inspired_by_descriptors: artistDescriptors || undefined,
           song_title: songTitle.trim() || undefined,
           ...(showAdvanced ? {
@@ -659,6 +664,8 @@ export default function SongsPage() {
       setSelGenres(new Set());
       setInspiredBy('');
       setArtistDescriptors('');
+      setCustomLyricsText('');
+      setUseCustomLyrics(false);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -983,32 +990,71 @@ export default function SongsPage() {
             <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f0eeff', marginBottom: 4 }}>
               Create a Song
             </h1>
-            <p style={{ color: '#555', fontSize: 14, marginBottom: 22 }}>
-              Describe your song — Zeus writes the lyrics, Suno turns them into music.
+            <p style={{ color: '#555', fontSize: 14, marginBottom: 14 }}>
+              {useCustomLyrics ? 'Write your lyrics below, then choose a style.' : 'Describe your song — Zeus writes the lyrics, Suno turns them into music.'}
             </p>
 
-            <textarea
-              className="songs-textarea"
-              value={brief}
-              onChange={(e) => setBrief(e.target.value)}
-              placeholder="e.g. An upbeat jingle for a Manchester coffee shop with Friday-morning energy…"
-              rows={3}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 10,
-                padding: '12px 14px',
-                color: '#f0eeff',
-                fontSize: 15,
-                resize: 'vertical',
-                fontFamily: 'inherit',
-                outline: 'none',
-                marginBottom: 12,
-                transition: 'border-color 0.2s',
-              }}
-            />
+            {/* Custom lyrics toggle */}
+            <div style={{ marginBottom: 14, display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setUseCustomLyrics(false)}
+                style={{ padding: '6px 14px', borderRadius: 20, border: 'none', background: !useCustomLyrics ? '#7c3aed' : 'rgba(255,255,255,0.08)', color: !useCustomLyrics ? '#fff' : 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              >Zeus writes lyrics</button>
+              <button
+                onClick={() => setUseCustomLyrics(true)}
+                style={{ padding: '6px 14px', borderRadius: 20, border: 'none', background: useCustomLyrics ? '#7c3aed' : 'rgba(255,255,255,0.08)', color: useCustomLyrics ? '#fff' : 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              >Write my own lyrics</button>
+            </div>
+
+            {!useCustomLyrics && (
+              <textarea
+                className="songs-textarea"
+                value={brief}
+                onChange={(e) => setBrief(e.target.value)}
+                placeholder="e.g. An upbeat jingle for a Manchester coffee shop with Friday-morning energy…"
+                rows={3}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 10,
+                  padding: '12px 14px',
+                  color: '#f0eeff',
+                  fontSize: 15,
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                  outline: 'none',
+                  marginBottom: 12,
+                  transition: 'border-color 0.2s',
+                }}
+              />
+            )}
+
+            {useCustomLyrics && (
+              <textarea
+                className="songs-textarea"
+                value={customLyricsText}
+                onChange={(e) => setCustomLyricsText(e.target.value)}
+                placeholder="Paste or write your full lyrics here…&#10;&#10;[Verse 1]&#10;..."
+                rows={10}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 10,
+                  padding: '12px 14px',
+                  color: '#f0eeff',
+                  fontSize: 14,
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                  outline: 'none',
+                  marginBottom: 12,
+                  transition: 'border-color 0.2s',
+                }}
+              />
+            )}
 
             <input
               type="text"

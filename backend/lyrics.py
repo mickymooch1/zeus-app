@@ -73,7 +73,7 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         system += _EXPLICIT_ADDENDUM
 
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model="claude-haiku-4-5-20251001",
         max_tokens=1500,
         temperature=1.0,
         system=system,
@@ -108,3 +108,20 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         "lyrics": parsed["lyrics"],
         "title": final_title,
     }
+
+
+def store_custom_lyrics(user_id: str, brief: str, lyrics_text: str, db_path: pathlib.Path, song_title: str | None = None) -> dict:
+    """Store user-supplied lyrics directly without calling Claude."""
+    title = song_title or "Custom Song"
+    conn = db._conn(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO lyrics (user_id, brief, lyrics_text, title) VALUES (?, ?, ?, ?)",
+            (user_id, brief or "Custom lyrics", lyrics_text, title),
+        )
+        lyric_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    return {"lyric_id": lyric_id, "lyrics": lyrics_text, "title": title}
