@@ -5,3 +5,4 @@ web/dist/
 desktop/dist/
 mobile/android/app/build/
 .worktrees/
+web-beats-dist/
