@@ -43,6 +43,7 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "driftphonk":    "phonk performer, intense aggressive movement, dark red lighting, high energy drift culture vibes",
     "jerseyclub":    "Jersey Club DJ mixing, rapid energetic movement, bright club lights, high energy dance floor vibes",
     "afroswing":     "afroswing singer performing smoothly, relaxed romantic movement, warm golden lighting, stylish urban setting",
+    "rastadub":      "rasta dub musician performing spiritually, slow rhythmic movement, warm golden lighting, dreadlocks moving gently, peaceful powerful energy",
 }
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]

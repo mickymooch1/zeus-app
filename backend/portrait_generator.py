@@ -49,6 +49,7 @@ GENRE_PORTRAIT_PROMPTS = {
     "driftphonk":     "professional portrait photo, phonk artist, clear frontal face, dark red and black studio lighting, intense aggressive expression, photorealistic",
     "jerseyclub":     "professional portrait photo, Jersey Club DJ, clear frontal face, bright club lighting, energetic expression, photorealistic",
     "afroswing":      "Black British musician, professional portrait photo, afroswing artist, clear frontal face, warm golden studio lighting, smooth confident expression, photorealistic",
+    "rastadub":       "Black Jamaican musician, professional portrait photo, rasta dub artist with dreadlocks, clear frontal face, warm golden studio lighting, spiritual peaceful expression, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"
