@@ -2279,8 +2279,28 @@ async def ad_poster():
     return HTMLResponse(content=html)
 
 
-# Authenticated file serving — replaces public StaticFiles mounts.
-# Songs/videos require ownership; images/avatars require any valid JWT.
+# Temporary public mounts restored so songs/videos/images play in the UI.
+# The /api/files/* authenticated endpoint below will replace these once the
+# frontend is updated to send auth tokens with media requests.
+from fastapi.staticfiles import StaticFiles as _StaticFiles
+
+_song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
+_song_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/songs", _StaticFiles(directory=str(_song_storage)), name="songs")
+
+_avatar_storage = pathlib.Path("/data/avatars")
+_avatar_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/avatars", _StaticFiles(directory=str(_avatar_storage)), name="avatars")
+
+_video_storage = pathlib.Path("/data/videos")
+_video_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/videos", _StaticFiles(directory=str(_video_storage)), name="videos")
+
+_image_storage = pathlib.Path("/data/images")
+_image_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/images", _StaticFiles(directory=str(_image_storage)), name="images")
+
+# Authenticated file serving — keeps /api/files/* available for future use.
 _FILE_STORAGE: dict[str, pathlib.Path] = {
     "songs":   pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs")),
     "videos":  pathlib.Path("/data/videos"),
