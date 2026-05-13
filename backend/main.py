@@ -2242,26 +2242,40 @@ app.mount("/files/images", _StaticFiles(directory=str(_image_storage)), name="im
 # catch-all route below. Starlette matches routes in registration order — if the
 # catch-all comes first it intercepts /files/images/* and returns index.html.
 
-# Serve built React app from web/dist/
-# Mount /assets for Vite bundles, then a catch-all that returns index.html for
-# any unmatched path so client-side routes (e.g. /tasks, /billing) survive refresh.
-_dist = pathlib.Path(__file__).parent.parent / "web" / "dist"
-if _dist.exists():
-    from fastapi.staticfiles import StaticFiles
-    from fastapi.responses import FileResponse
+# Serve both SPAs.
+# Zeus AI:    /web/dist         — zeusaidesign.com  (assets at /assets)
+# Zeus Beats: /web-beats-dist   — zeusbeats.com     (assets at /assets-beats)
+# The catch-all route inspects the Host header to pick the right index.html.
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
+_dist       = pathlib.Path(__file__).parent.parent / "web" / "dist"
+_beats_dist = pathlib.Path(__file__).parent.parent / "web-beats-dist"
+
+if _dist.exists():
     _assets_dir = _dist / "assets"
     if _assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
 
-    @app.get("/{full_path:path}", include_in_schema=False)
-    async def serve_spa(full_path: str):
-        # Serve real files that live in dist root (favicon.ico, robots.txt, etc.)
-        candidate = _dist / full_path
-        if candidate.exists() and candidate.is_file():
-            return FileResponse(str(candidate))
-        # Fall back to index.html for all client-side routes
-        return FileResponse(str(_dist / "index.html"))
+if _beats_dist.exists():
+    _beats_assets_dir = _beats_dist / "assets-beats"
+    if _beats_assets_dir.exists():
+        app.mount("/assets-beats", StaticFiles(directory=str(_beats_assets_dir)), name="assets-beats")
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_spa(full_path: str, request: Request):
+    host = request.headers.get("host", "")
+    is_beats = "zeusbeats" in host
+
+    dist = _beats_dist if (is_beats and _beats_dist.exists()) else _dist
+    if not dist.exists():
+        return HTMLResponse("<h1>Not found</h1>", status_code=404)
+
+    candidate = dist / full_path
+    if candidate.exists() and candidate.is_file():
+        return FileResponse(str(candidate))
+    return FileResponse(str(dist / "index.html"))
 
 
 if __name__ == "__main__":
