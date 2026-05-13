@@ -162,8 +162,8 @@ def _resolve_source_url(source_url: str) -> str:
     if source_url.startswith(_ZEUS_PUBLIC_PREFIX):
         filename = source_url[len(_ZEUS_PUBLIC_PREFIX):]
         local_path = pathlib.Path(_AVATARS_LOCAL_DIR) / filename
-    elif source_url.startswith("/files/avatars/"):
-        filename = source_url[len("/files/avatars/"):]
+    elif source_url.startswith("/api/files/avatars/"):
+        filename = source_url[len("/api/files/avatars/"):]
         local_path = pathlib.Path(_AVATARS_LOCAL_DIR) / filename
 
     if local_path is not None:

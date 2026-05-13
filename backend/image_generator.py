@@ -66,7 +66,7 @@ def get_image_job_status(job_id: str) -> dict:
     """Return status for a generated image. Images are now generated synchronously."""
     dest = pathlib.Path("/data/images") / f"{job_id}.jpg"
     if dest.exists():
-        return {"status": "COMPLETED", "image_url": f"{ZEUS_PUBLIC_URL}/files/images/{job_id}.jpg"}
+        return {"status": "COMPLETED", "image_url": f"/api/files/images/{job_id}.jpg"}
     return {"status": "NOT_FOUND", "image_url": None}
 
 
@@ -97,4 +97,4 @@ def download_and_save_image(job_id: str, image_url: str) -> str:
         dest.write_bytes(resp.content)
 
     log.info("download_and_save_image: saved %s", dest)
-    return f"{ZEUS_PUBLIC_URL}/files/images/{job_id}.jpg"
+    return f"/api/files/images/{job_id}.jpg"

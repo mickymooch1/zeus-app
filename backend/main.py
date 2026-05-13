@@ -15,10 +15,16 @@ from datetime import datetime, timezone
 # crashes even if the import chain below fails.
 print("zeus main.py: starting imports", file=sys.stderr, flush=True)
 
+import time
+from collections import defaultdict, deque
+
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 print("zeus main.py: fastapi ok", file=sys.stderr, flush=True)
 
@@ -316,8 +322,37 @@ async def lifespan(app: FastAPI):
         log.info("Scheduler shut down")
 
 
+def _user_key(request: Request) -> str:
+    """Rate-limit key by user ID from JWT, falling back to IP address."""
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        payload = auth.verify_token(auth_header[7:])
+        if payload:
+            return f"user:{payload.get('sub', 'anon')}"
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(_webhooks_mod.router)
+
+# In-memory WebSocket rate limiter: tracks message timestamps per user
+_ws_rate: dict[str, deque] = defaultdict(deque)
+
+
+def _ws_check_rate(user_id: str, limit: int = 60, window: int = 60) -> bool:
+    """Return True if the user is within the rate limit, False if exceeded."""
+    now = time.monotonic()
+    q = _ws_rate[user_id]
+    while q and now - q[0] > window:
+        q.popleft()
+    if len(q) >= limit:
+        return False
+    q.append(now)
+    return True
 
 
 @app.exception_handler(Exception)
@@ -331,7 +366,14 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://zeusaidesign.com",
+        "https://www.zeusaidesign.com",
+        "https://zeusbeats.com",
+        "https://www.zeusbeats.com",
+        "http://localhost:5173",
+        "http://localhost:5174",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -384,7 +426,8 @@ class UpdateWebsiteRequest(BaseModel):
 # ── Auth routes ───────────────────────────────────────────────────────────────
 
 @app.post("/auth/register")
-async def register(body: RegisterRequest):
+@limiter.limit("10/minute")
+async def register(request: Request, body: RegisterRequest):
     if not body.tc_accepted:
         raise HTTPException(status_code=400, detail="You must accept the Terms & Conditions")
 
@@ -438,7 +481,8 @@ async def register(body: RegisterRequest):
 
 
 @app.post("/auth/login")
-async def login(body: LoginRequest):
+@limiter.limit("10/minute")
+async def login(request: Request, body: LoginRequest):
     try:
         db_path = db.get_db_path()
     except Exception as exc:
@@ -631,6 +675,14 @@ async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
 
         if not prompt and not image:
             await websocket.send_json({"type": "error", "message": "prompt is required"})
+            await websocket.send_json({"type": "done"})
+            await websocket.close()
+            return
+
+        # WebSocket rate limit: 60 messages per minute per user
+        ws_key = current_user["id"] if current_user else "anon"
+        if not _ws_check_rate(ws_key):
+            await websocket.send_json({"type": "error", "message": "Rate limit exceeded — please wait before sending another message."})
             await websocket.send_json({"type": "done"})
             await websocket.close()
             return
@@ -851,7 +903,9 @@ class SongsGenerateRequest(BaseModel):
 
 
 @app.post("/api/songs/generate")
+@limiter.limit("10/minute", key_func=_user_key)
 async def songs_generate(
+    request: Request,
     body: SongsGenerateRequest,
     current_user: dict = Depends(auth.get_current_user),
 ):
@@ -1553,7 +1607,7 @@ async def upload_avatar_photo(
     dest = pathlib.Path("/data/avatars") / filename
     dest.write_bytes(data)
     log.info("upload_avatar_photo: saved %s (%d bytes) for user %s", filename, len(data), current_user["id"])
-    return {"url": f"/files/avatars/{filename}", "filename": filename}
+    return {"url": f"/api/files/avatars/{filename}", "filename": filename}
 
 
 @app.post("/webhooks/did")
@@ -1600,7 +1654,7 @@ async def did_webhook(request: Request):
         log.exception("did_webhook: failed to download MP4 for variant %s", variant_id)
         return {"ok": True}
 
-    video_url = f"/files/videos/{variant_id}.mp4"
+    video_url = f"/api/files/videos/{variant_id}.mp4"
     db.update_song_variant(db_path, variant_id, video_url=video_url)
     log.info("did_webhook: variant=%s video stored at %s", variant_id, mp4_path)
     return {"ok": True}
@@ -1641,7 +1695,7 @@ async def did_status(
             except Exception:
                 log.exception("did_status: download failed for variant %s", variant_id)
         if mp4_path.exists():
-            video_url = f"/files/videos/{variant_id}.mp4"
+            video_url = f"/api/files/videos/{variant_id}.mp4"
             db.update_song_variant(db_path, variant_id, video_url=video_url)
             return {"status": "done", "video_url": video_url}
 
@@ -1665,7 +1719,9 @@ class ImageGenerateRequest(BaseModel):
 
 
 @app.post("/api/images/generate")
+@limiter.limit("10/minute", key_func=_user_key)
 async def generate_image(
+    request: Request,
     body: ImageGenerateRequest,
     user: dict = Depends(auth.get_current_user),
 ):
@@ -2219,28 +2275,65 @@ async def ad_poster():
     return HTMLResponse(content=html)
 
 
-# Serve downloaded song MP3s from the Railway volume.
-# MUST be mounted before the SPA catch-all below — order matters in FastAPI routing.
-from fastapi.staticfiles import StaticFiles as _StaticFiles
-_song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
-_song_storage.mkdir(parents=True, exist_ok=True)
-app.mount("/files/songs", _StaticFiles(directory=str(_song_storage)), name="songs")
+# Authenticated file serving — replaces public StaticFiles mounts.
+# Songs/videos require ownership; images/avatars require any valid JWT.
+_FILE_STORAGE: dict[str, pathlib.Path] = {
+    "songs":   pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs")),
+    "videos":  pathlib.Path("/data/videos"),
+    "images":  pathlib.Path("/data/images"),
+    "avatars": pathlib.Path("/data/avatars"),
+}
+for _p in _FILE_STORAGE.values():
+    _p.mkdir(parents=True, exist_ok=True)
 
-_avatar_storage = pathlib.Path("/data/avatars")
-_avatar_storage.mkdir(parents=True, exist_ok=True)
-app.mount("/files/avatars", _StaticFiles(directory=str(_avatar_storage)), name="avatars")
+_FILE_CONTENT_TYPES: dict[str, str] = {
+    ".mp3":  "audio/mpeg",
+    ".mp4":  "video/mp4",
+    ".jpg":  "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png":  "image/png",
+    ".webp": "image/webp",
+}
 
-_video_storage = pathlib.Path("/data/videos")
-_video_storage.mkdir(parents=True, exist_ok=True)
-app.mount("/files/videos", _StaticFiles(directory=str(_video_storage)), name="videos")
 
-_image_storage = pathlib.Path("/data/images")
-_image_storage.mkdir(parents=True, exist_ok=True)
-app.mount("/files/images", _StaticFiles(directory=str(_image_storage)), name="images")
+@app.get("/api/files/{file_type}/{filename}", include_in_schema=False)
+async def serve_file(
+    file_type: str,
+    filename: str,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if file_type not in _FILE_STORAGE:
+        raise HTTPException(status_code=404, detail="Unknown file type")
 
-# IMPORTANT: all /files/* StaticFiles mounts MUST be registered above the SPA
-# catch-all route below. Starlette matches routes in registration order — if the
-# catch-all comes first it intercepts /files/images/* and returns index.html.
+    # Guard against path traversal
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    # Songs and videos are scoped to the owning user
+    if file_type in ("songs", "videos"):
+        stem = pathlib.Path(filename).stem
+        try:
+            variant_id = int(stem)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="File not found")
+        _db_path = db.get_db_path()
+        variant = db.get_song_variant_by_id(_db_path, variant_id)
+        if not variant:
+            raise HTTPException(status_code=404, detail="File not found")
+        is_admin = bool(current_user.get("is_admin"))
+        if str(variant["user_id"]) != str(current_user["id"]) and not is_admin:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    file_path = _FILE_STORAGE[file_type] / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    suffix = file_path.suffix.lower()
+    content_type = _FILE_CONTENT_TYPES.get(suffix, "application/octet-stream")
+    return FileResponse(str(file_path), media_type=content_type)
+
+
+# NOTE: The SPA catch-all below must remain last — Starlette matches in registration order.
 
 # Serve both SPAs.
 # Zeus AI:    /web/dist         — zeusaidesign.com  (assets at /assets)

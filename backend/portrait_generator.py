@@ -71,7 +71,7 @@ def _convert_webp_to_jpeg(webp_url: str, job_id: str) -> str:
             capture_output=True,
         )
         log.info("_convert_webp_to_jpeg: saved %s", jpeg_path)
-        return f"{ZEUS_PUBLIC_URL}/files/avatars/{job_id}.jpg"
+        return f"/api/files/avatars/{job_id}.jpg"
     finally:
         if webp_tmp and os.path.exists(webp_tmp):
             os.unlink(webp_tmp)
