@@ -32,6 +32,11 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "irishfolk":     "Irish folk musician playing acoustic guitar, gentle swaying, misty Atlantic clifftop backdrop",
     "pop":           "pop star performing on arena stage, energetic dancing, colourful lights, confetti falling",
     "ukgarage":      "UK garage MC performing, smooth confident movement, sleek urban setting, neon-lit night",
+    "ukstreetsoul":  "soul singer performing smoothly, expressive hand gestures, warm golden lighting, urban backdrop",
+    "classical":     "classical musician performing, precise graceful movement, concert hall, elegant conducting gestures",
+    "indie":         "indie guitarist playing, relaxed natural movement, warm stage lighting, authentic performance",
+    "techno":        "DJ performing at techno club, hands on decks, dark industrial setting, intense focused energy",
+    "technhouse":    "tech house DJ mixing, smooth confident movement, underground club, cool atmospheric lighting",
 }
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]

@@ -38,6 +38,11 @@ GENRE_PORTRAIT_PROMPTS = {
     "kpop":        "Professional portrait photo, Korean K-pop idol, clear frontal face, bright studio lighting, flawless skin, youthful expression, photorealistic",
     "deepsoulblues": "Black musician, professional portrait photo, deep soul blues singer, clear frontal face, warm dim amber studio lighting, deeply emotional expression, photorealistic",
     "niche":          "professional portrait photo, niche music DJ, clear frontal face, dark purple club lighting, energetic expression, photorealistic",
+    "ukstreetsoul":   "Black British musician, professional portrait photo, UK street soul singer, clear frontal face, warm urban studio lighting, smooth expression, photorealistic",
+    "classical":      "professional portrait photo, classical musician, clear frontal face, elegant concert hall lighting, refined expression, photorealistic",
+    "indie":          "professional portrait photo, indie musician, clear frontal face, soft natural lighting, authentic relaxed expression, photorealistic",
+    "techno":         "professional portrait photo, techno DJ, clear frontal face, dark industrial lighting, intense focused expression, photorealistic",
+    "technhouse":     "professional portrait photo, tech house DJ, clear frontal face, dark club lighting, cool confident expression, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"

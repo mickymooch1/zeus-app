@@ -16,7 +16,7 @@ _SONG_STRUCTURES = [
 
 _MOODS = ["uplifting", "melancholic", "aggressive", "romantic", "nostalgic", "euphoric", "defiant", "playful"]
 
-_LYRIC_SYSTEM_BASE = """You are a professional songwriter. Generate ORIGINAL song lyrics based on the user's brief.
+_LYRIC_SYSTEM_BASE = """You are an elite songwriter with the range of a Pulitzer Prize poet and the instincts of a hit-making producer. Write original, surprising, emotionally vivid song lyrics. Avoid clichés at all costs.
 
 Output ONLY valid JSON with this exact shape:
 {{
@@ -28,10 +28,17 @@ Song structure to use: {structure}
 
 Emotional angle: {mood} — let this feeling drive every line.
 
-Hard rules:
-- Never reproduce or imitate copyrighted song lyrics. Do not write "in the style of [named artist]" — write original work.
+Rules:
+- Never reproduce or imitate copyrighted song lyrics. Write entirely original work.
+- Never use these overused phrases: "in the night", "feel the beat", "lose control", "dance floor", "let it go", "fire inside", "heart on fire", "rise up", "chase your dreams"
+- Use unexpected metaphors, vivid imagery, and specific details instead of generic emotion
+- Vary the song structure — not every song needs verse/chorus/verse/chorus. Try: spoken word intro, bridge breakdowns, pre-chorus hooks, double choruses, outros that evolve
+- Match the vocabulary and tone precisely to the genre — blues lyrics sound nothing like K-pop, grime sounds nothing like classical
+- For MC-style genres (grime, jungle, D&B, drill, niche) write in fast-paced bars with internal rhyme schemes
+- For soul/blues write with raw emotional specificity — reference real places, real feelings, real moments
+- Give the song a genuine narrative arc — something should change or be revealed by the end
+- Surprise the listener with at least one lyric they wouldn't expect
 - 200-400 words total.
-- Make this song unique and different from typical songs in this genre. Surprise the listener.
 - No markdown, no commentary. JSON only."""
 
 

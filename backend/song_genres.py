@@ -26,4 +26,9 @@ GENRE_PRESETS = {
     "kpop":        "K-pop, polished production, catchy hook, bright synth melody, precise rhythm, 120 BPM, Korean pop aesthetic, energetic and clean",
     "deepsoulblues": "deep soul blues, raw emotional vocals, slow burning guitar, gospel undertones, heavy heartfelt delivery, southern blues roots, 60-75 BPM",
     "niche":          "niche music, Sheffield bassline, fast bouncy 4x4 kick drum, pitched female vocals, speed garage influence, 138 BPM, Yorkshire club energy, wobbling sub bass, T2 Heartbroken style",
+    "ukstreetsoul":   "UK street soul, smooth soulful vocals, warm RnB production, urban British feel, laid back groove, 90 BPM",
+    "classical":      "classical orchestral, strings, piano, full orchestra, dynamic composition, cinematic arrangement",
+    "indie":          "indie rock, jangly guitars, introspective lyrics, lo-fi warmth, alternative sound, 110 BPM",
+    "techno":         "techno, driving 4x4 kick, dark hypnotic synths, 138 BPM, industrial atmosphere, Berlin underground sound",
+    "technhouse":     "tech house, groovy bassline, minimal percussion, 125 BPM, underground club energy, hypnotic loop",
 }
