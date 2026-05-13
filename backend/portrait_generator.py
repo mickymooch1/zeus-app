@@ -43,6 +43,11 @@ GENRE_PORTRAIT_PROMPTS = {
     "indie":          "professional portrait photo, indie musician, clear frontal face, soft natural lighting, authentic relaxed expression, photorealistic",
     "techno":         "professional portrait photo, techno DJ, clear frontal face, dark industrial lighting, intense focused expression, photorealistic",
     "technhouse":     "professional portrait photo, tech house DJ, clear frontal face, dark club lighting, cool confident expression, photorealistic",
+    "hyperpop":       "professional portrait photo, hyperpop artist, clear frontal face, bright neon studio lighting, eccentric youthful expression, photorealistic",
+    "afrobeats":      "Black African musician, professional portrait photo, afrobeats artist, clear frontal face, vibrant warm studio lighting, joyful expression, photorealistic",
+    "amapiano":       "Black South African musician, professional portrait photo, amapiano DJ, clear frontal face, warm golden studio lighting, cool confident expression, photorealistic",
+    "driftphonk":     "professional portrait photo, phonk artist, clear frontal face, dark red and black studio lighting, intense aggressive expression, photorealistic",
+    "jerseyclub":     "professional portrait photo, Jersey Club DJ, clear frontal face, bright club lighting, energetic expression, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"

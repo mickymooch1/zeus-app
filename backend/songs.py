@@ -37,6 +37,11 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "indie":         "indie guitarist playing, relaxed natural movement, warm stage lighting, authentic performance",
     "techno":        "DJ performing at techno club, hands on decks, dark industrial setting, intense focused energy",
     "technhouse":    "tech house DJ mixing, smooth confident movement, underground club, cool atmospheric lighting",
+    "hyperpop":      "hyperpop performer, energetic chaotic movement, neon lights, glitchy effects, youthful intense energy",
+    "afrobeats":     "afrobeats performer dancing joyfully, rhythmic fluid movement, warm vibrant lighting, celebratory energy",
+    "amapiano":      "amapiano DJ performing smoothly, confident fluid movement, warm golden lighting, sophisticated energy",
+    "driftphonk":    "phonk performer, intense aggressive movement, dark red lighting, high energy drift culture vibes",
+    "jerseyclub":    "Jersey Club DJ mixing, rapid energetic movement, bright club lights, high energy dance floor vibes",
 }
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]

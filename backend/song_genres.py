@@ -31,4 +31,9 @@ GENRE_PRESETS = {
     "indie":          "indie rock, jangly guitars, introspective lyrics, lo-fi warmth, alternative sound, 110 BPM",
     "techno":         "techno, driving 4x4 kick, dark hypnotic synths, 138 BPM, industrial atmosphere, Berlin underground sound",
     "technhouse":     "tech house, groovy bassline, minimal percussion, 125 BPM, underground club energy, hypnotic loop",
+    "hyperpop":       "hyperpop, heavily distorted 808s, pitched up vocals, chaotic production, glitchy effects, 150 BPM, internet age sound",
+    "afrobeats":      "afrobeats, infectious percussion, talking drum, warm bass, joyful vocal melody, West African rhythm, 100 BPM",
+    "amapiano":       "amapiano, log drum bassline, jazzy piano chords, South African house rhythm, 112 BPM, smooth and deep",
+    "driftphonk":     "drift phonk, aggressive 808 bass, cowbell percussion, dark Memphis rap influence, high energy drift culture, 140 BPM",
+    "jerseyclub":     "Jersey Club, chopped vocal samples, rapid hi-hat patterns, 140 BPM, Newark NJ club sound, energetic dance floor energy",
 }
