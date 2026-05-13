@@ -36,4 +36,5 @@ GENRE_PRESETS = {
     "amapiano":       "amapiano, log drum bassline, jazzy piano chords, South African house rhythm, 112 BPM, smooth and deep",
     "driftphonk":     "drift phonk, aggressive 808 bass, cowbell percussion, dark Memphis rap influence, high energy drift culture, 140 BPM",
     "jerseyclub":     "Jersey Club, chopped vocal samples, rapid hi-hat patterns, 140 BPM, Newark NJ club sound, energetic dance floor energy",
+    "afroswing":      "afroswing, smooth melodic vocals, afrobeats rhythm meets UK R&B, warm tropical bass, laid back groove, 95 BPM, romantic feel, British African sound",
 }
