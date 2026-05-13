@@ -437,7 +437,10 @@ def _handle_invoice_paid(db_path, invoice) -> None:
         log.warning("invoice.payment_succeeded: no user for customer %s", customer_id)
         return
     plan = user.get("subscription_plan")
-    allowance = _PLAN_SONG_CREDITS.get(plan, FREE_SONG_CREDITS)
+    if not plan or plan not in _PLAN_SONG_CREDITS:
+        log.info("invoice.payment_succeeded: skipping free/unknown plan user %s (plan=%s)", user["id"], plan)
+        return
+    allowance = _PLAN_SONG_CREDITS[plan]
     db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
     log.info("Monthly song credits reset for user %s: %d credits (%s plan)", user["id"], allowance, plan)
 

@@ -287,23 +287,8 @@ async def lifespan(app: FastAPI):
         _scheduler_mod.init_scheduler(history)
         log.info("Scheduler initialised")
 
-        # Monthly job: reset free-tier song credits on the 1st of each month at 00:05 UTC
-        def _reset_free_credits_job():
-            try:
-                _path = db.get_db_path()
-                n = db.reset_free_tier_song_credits(_path, billing.FREE_SONG_CREDITS)
-                log.info("Monthly free credit reset: %d user(s) reset to %d credits", n, billing.FREE_SONG_CREDITS)
-            except Exception:
-                log.exception("Monthly free credit reset failed")
-
-        from apscheduler.triggers.cron import CronTrigger as _CronTrigger
-        _scheduler_mod._scheduler.add_job(
-            _reset_free_credits_job,
-            trigger=_CronTrigger(day=1, hour=0, minute=5, timezone="UTC"),
-            id="free_credit_monthly_reset",
-            replace_existing=True,
-        )
-        log.info("Registered monthly free credit reset job (1st of month, 00:05 UTC)")
+        # Free-tier users receive a one-time signup bonus of FREE_SONG_CREDITS.
+        # Monthly credit refreshes apply to paid plans only (handled via Stripe invoice webhooks).
 
 
         if _RAILWAY:
@@ -1132,7 +1117,8 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
     # Auto-provision credits on first visit — free users get FREE_SONG_CREDITS
     is_paid = status == "active" and (plan in billing.PLANS or plan in billing.MUSIC_PLAN_KEYS)
     default_credits = allowance if is_paid else billing.FREE_SONG_CREDITS
-    row = db.ensure_free_song_credits(db_path, current_user["id"], balance=default_credits, monthly_allowance=default_credits)
+    # Free users get a one-time signup bonus; monthly_allowance=0 signals no periodic refill
+    row = db.ensure_free_song_credits(db_path, current_user["id"], balance=default_credits, monthly_allowance=default_credits if is_paid else 0)
 
     video_row = db.get_video_credits(db_path, current_user["id"])
     return {
