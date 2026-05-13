@@ -50,6 +50,7 @@ GENRE_PORTRAIT_PROMPTS = {
     "jerseyclub":     "professional portrait photo, Jersey Club DJ, clear frontal face, bright club lighting, energetic expression, photorealistic",
     "afroswing":      "Black British musician, professional portrait photo, afroswing artist, clear frontal face, warm golden studio lighting, smooth confident expression, photorealistic",
     "rastadub":       "Black Jamaican musician, professional portrait photo, rasta dub artist with dreadlocks, clear frontal face, warm golden studio lighting, spiritual peaceful expression, photorealistic",
+    "deeprotbassline": "professional portrait photo, UK bassline DJ, clear frontal face, dark purple club lighting, intense focused expression, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"

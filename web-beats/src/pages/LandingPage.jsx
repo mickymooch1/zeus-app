@@ -63,7 +63,7 @@ export default function LandingPage() {
           </div>
           <h1 className="hero-title">
             Create original AI music.<br />
-            <span className="gradient-text">No limits.</span>
+            <span className="gradient-text">Your music. Your way.</span>
           </h1>
           <p className="hero-sub">
             {BRAND.name} turns your ideas into full original songs — lyrics written by AI, audio produced by Suno. Publish to YouTube and beyond in minutes.
@@ -178,7 +178,7 @@ export default function LandingPage() {
                 <div className="cap-num">04</div>
                 <div className="cap-body">
                   <h4>Publish everywhere</h4>
-                  <p>Say "upload to YouTube" and it's live in seconds. Share to Facebook with one command. No extra tools needed.</p>
+                  <p>One click uploads your song directly to your YouTube channel. Share to Facebook instantly. No extra tools, no switching apps.</p>
                 </div>
               </div>
             </div>
@@ -194,7 +194,7 @@ export default function LandingPage() {
                 <div className="t-line"><span className="t-sys">▶</span> <span>Sending to Suno...</span> <span className="t-ok">done</span></div>
                 <div className="t-line"><span className="t-sys">▶</span> <span>Generating cover art...</span> <span className="t-ok">done</span></div>
                 <div className="t-line"><span className="t-zeus">zeus</span> <span>"Midnight Drive" is ready — 3:42, hip-hop</span></div>
-                <div className="t-line t-gap"><span className="t-user">you</span> <span>Upload it to YouTube</span></div>
+                <div className="t-line t-gap"><span className="t-user">you</span> <span>[clicked Upload to YouTube]</span></div>
                 <div className="t-line"><span className="t-zeus">zeus</span> <span>Uploading to your channel...</span></div>
                 <div className="t-line"><span className="t-sys">▶</span> <span>Publishing...</span> <span className="t-ok">live ✓</span></div>
                 <div className="t-line"><span className="t-zeus">zeus</span> <span>Live → youtu.be/xyz123 🎵</span></div>

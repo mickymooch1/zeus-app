@@ -58,6 +58,7 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "jerseyclub":     "cinematic album cover, Jersey Club DJ elevated on booth in foreground, massive speakers either side, packed Newark warehouse party behind them, dancers locked in sharp footwork, strobes, raw East Coast energy, ultra detailed professional music artwork",
     "afroswing":      "cinematic album cover, stylish Black British man with dreadlocks standing confidently in foreground, London urban street background at golden hour, large speakers either side, warm tropical colours, professional music artwork, ultra detailed",
     "rastadub":       "cinematic album cover, Black Rastafarian musician with long dreadlocks in foreground, massive speakers either side, vibrant tropical Jamaican landscape behind, Rastafarian colours red gold green, cannabis leaves, palm trees, dramatic golden sunset, ultra detailed professional music artwork",
+    "deeprotbassline": "cinematic album cover, UK bassline DJ at decks in foreground, dark Northern rave warehouse behind, purple and blue neon lights, heavy bass atmosphere, ultra detailed professional music artwork",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"

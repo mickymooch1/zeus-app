@@ -38,4 +38,5 @@ GENRE_PRESETS = {
     "jerseyclub":     "Jersey Club, chopped vocal samples, rapid hi-hat patterns, 140 BPM, Newark NJ club sound, energetic dance floor energy",
     "afroswing":      "afroswing, smooth UK R&B vocals, gentle afrobeats percussion underneath, melodic guitar, 90 BPM, romantic intimate feel, British urban sound, J Hus style, laid back swing rhythm, NOT heavy afrobeats drums",
     "rastadub":       "rasta dub, heavy echo and reverb, deep rolling bassline, roots reggae rhythm, spiritual Rastafarian lyrics, slow burning groove, 70 BPM, Jamaican sound system culture, conscious message",
+    "deeprotbassline": "UK bassline, heavy 4x4 kick drum, deep rolling sub bass, 138 BPM, Nottingham bassline sound, UK garage influence, chopped female vocals, euphoric rave energy, modern bass music",
 }
