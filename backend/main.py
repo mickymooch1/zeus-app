@@ -1730,9 +1730,17 @@ async def generate_image(
     body: ImageGenerateRequest,
     user: dict = Depends(auth.get_current_user),
 ):
+    import asyncio
     import image_generator as _img
     aspect_ratio = _IMAGE_USE_CASE_RATIO.get(body.use_case, "1:1")
-    public_url = _img.submit_image_generation(body.prompt, aspect_ratio, body.model)
+    try:
+        # Run blocking requests.post in a thread so we don't stall the event loop
+        public_url = await asyncio.to_thread(
+            _img.submit_image_generation, body.prompt, aspect_ratio, body.model
+        )
+    except Exception as exc:
+        log.error("generate_image endpoint error: %s", exc)
+        raise HTTPException(status_code=502, detail=str(exc))
     job_id = public_url.rsplit("/", 1)[-1].replace(".jpg", "")
     return {"job_id": job_id, "url": public_url}
 

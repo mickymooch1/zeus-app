@@ -15,6 +15,12 @@ FAL_SYNC_BASE = "https://fal.run"
 FAL_MODEL = "fal-ai/flux/dev"
 ZEUS_PUBLIC_URL = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
 
+# Log API key presence at import time so Railway logs confirm configuration
+if FAL_API_KEY:
+    log.info("image_generator: FAL_API_KEY is set (len=%d)", len(FAL_API_KEY))
+else:
+    log.warning("image_generator: FAL_API_KEY is NOT set — image generation will fail")
+
 _RATIO_TO_FAL_SIZE: dict[str, str] = {
     "1:1":  "square_hd",
     "16:9": "landscape_16_9",
@@ -31,32 +37,63 @@ def submit_image_generation(
 ) -> str:
     """Generate an image synchronously via fal.ai. Downloads and returns public URL."""
     if not FAL_API_KEY:
-        raise ValueError("FAL_API_KEY is not configured")
+        raise ValueError(
+            "FAL_API_KEY is not set in Railway environment variables. "
+            "Add it at: Railway → zeus-app service → Variables → FAL_API_KEY"
+        )
 
     job_id = uuid.uuid4().hex
-    image_size = _RATIO_TO_FAL_SIZE.get(aspect_ratio, "square_1_1")
+    image_size = _RATIO_TO_FAL_SIZE.get(aspect_ratio, "square_hd")
 
-    log.info("submit_image_generation: job_id=%s size=%s", job_id, image_size)
-    response = requests.post(
-        f"{FAL_SYNC_BASE}/{FAL_MODEL}",
-        headers={"Authorization": f"Key {FAL_API_KEY}"},
-        json={
-            "prompt": prompt,
-            "image_size": image_size,
-            "num_images": 1,
-        },
-        timeout=120,
+    url = f"{FAL_SYNC_BASE}/{FAL_MODEL}"
+    log.info(
+        "submit_image_generation: job_id=%s url=%s size=%s model=%s prompt_preview=%.80r",
+        job_id, url, image_size, model, prompt,
     )
+
+    try:
+        response = requests.post(
+            url,
+            headers={"Authorization": f"Key {FAL_API_KEY}"},
+            json={
+                "prompt": prompt,
+                "image_size": image_size,
+                "num_images": 1,
+            },
+            timeout=120,
+        )
+    except requests.exceptions.Timeout:
+        log.error("fal.ai request timed out after 120s (job_id=%s)", job_id)
+        raise RuntimeError("fal.ai timed out after 120 seconds — the service may be overloaded")
+    except requests.exceptions.ConnectionError as exc:
+        log.error("fal.ai connection error (job_id=%s): %s", job_id, exc)
+        raise RuntimeError(f"Could not connect to fal.ai ({FAL_SYNC_BASE}): {exc}")
+
     if not response.ok:
-        log.error("fal.ai sync error %d: %s", response.status_code, response.text[:500])
-    response.raise_for_status()
-    data = response.json()
+        body = response.text[:2000]
+        log.error(
+            "fal.ai error: HTTP %d from %s — body: %s",
+            response.status_code, url, body,
+        )
+        raise RuntimeError(
+            f"fal.ai returned HTTP {response.status_code}: {body}"
+        )
+
+    try:
+        data = response.json()
+    except Exception as exc:
+        log.error("fal.ai: could not parse JSON response (job_id=%s): %s | raw: %.500s",
+                  job_id, exc, response.text)
+        raise RuntimeError(f"fal.ai response was not valid JSON: {exc}")
+
     images = data.get("images", [])
     if not images:
-        raise RuntimeError(f"fal.ai response missing images: {data!r}")
+        log.error("fal.ai response missing 'images' key (job_id=%s): %r", job_id, data)
+        raise RuntimeError(f"fal.ai response missing images field. Full response: {data!r}")
 
     entry = images[0]
     cdn_url = entry["url"] if isinstance(entry, dict) else entry
+    log.info("submit_image_generation: downloading from cdn_url=%.120s", cdn_url)
     public_url = download_and_save_image(job_id, cdn_url)
     log.info("submit_image_generation: completed job_id=%s → %s", job_id, public_url)
     return public_url
@@ -76,8 +113,12 @@ def download_and_save_image(job_id: str, image_url: str) -> str:
     images_dir.mkdir(parents=True, exist_ok=True)
     dest = images_dir / f"{job_id}.jpg"
 
-    resp = requests.get(image_url, timeout=30)
-    resp.raise_for_status()
+    try:
+        resp = requests.get(image_url, timeout=30)
+        resp.raise_for_status()
+    except Exception as exc:
+        log.error("download_and_save_image: failed to download %s — %s", image_url, exc)
+        raise
 
     if image_url.lower().endswith(".webp"):
         tmp_path = None
@@ -96,5 +137,5 @@ def download_and_save_image(job_id: str, image_url: str) -> str:
     else:
         dest.write_bytes(resp.content)
 
-    log.info("download_and_save_image: saved %s", dest)
+    log.info("download_and_save_image: saved %s (%d bytes)", dest, len(resp.content))
     return f"/api/files/images/{job_id}.jpg"

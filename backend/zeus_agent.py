@@ -1367,6 +1367,7 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
     except subprocess.TimeoutExpired:
         return "Error: command timed out"
     except Exception as exc:
+        log.exception("_run_tool: unhandled error in tool %r", name)
         return f"Error: {exc}"
 
 
