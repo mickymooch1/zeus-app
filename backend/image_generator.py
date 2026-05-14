@@ -75,6 +75,17 @@ def submit_image_generation(
             "fal.ai error: HTTP %d from %s — body: %s",
             response.status_code, url, body,
         )
+        # Give a clear actionable message for known fal.ai error states
+        if response.status_code == 403 and "Exhausted balance" in body:
+            raise RuntimeError(
+                "Image generation unavailable: fal.ai account balance is exhausted. "
+                "Top up at fal.ai/dashboard/billing to restore image generation."
+            )
+        if response.status_code == 401:
+            raise RuntimeError(
+                "Image generation unavailable: fal.ai API key is invalid or missing. "
+                "Check FAL_API_KEY in Railway environment variables."
+            )
         raise RuntimeError(
             f"fal.ai returned HTTP {response.status_code}: {body}"
         )
