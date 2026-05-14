@@ -59,6 +59,7 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "afroswing":      "cinematic album cover, stylish Black British man with dreadlocks standing confidently in foreground, London urban street background at golden hour, large speakers either side, warm tropical colours, professional music artwork, ultra detailed",
     "rastadub":       "cinematic album cover, Black Rastafarian musician with long dreadlocks in foreground, massive speakers either side, vibrant tropical Jamaican landscape behind, Rastafarian colours red gold green, cannabis leaves, palm trees, dramatic golden sunset, ultra detailed professional music artwork",
     "deeprotbassline": "cinematic album cover, UK bassline DJ at decks in foreground, dark Northern rave warehouse behind, purple and blue neon lights, heavy bass atmosphere, ultra detailed professional music artwork",
+    "jazz":            "cinematic album cover, Black jazz musician playing saxophone in foreground, smoky intimate jazz club behind, warm amber and gold lighting, vintage microphone, brick walls, ultra detailed professional music artwork",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"

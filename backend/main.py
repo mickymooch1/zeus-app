@@ -965,6 +965,7 @@ async def songs_generate(
             "New Jersey / Newark": "Newark New Jersey accent, East Coast urban delivery, Jersey Club MC energy",
             "British African": "British African vocal delivery, smooth London accent with warm West African melodic tone, UK afroswing pronunciation",
             "British MC Grime": "British MC vocal delivery, fast aggressive bars, East London grime accent, clipped consonants, rapid fire flow, road man energy, authentic UK grime pronunciation",
+            "Jazz Vocal": "smooth jazz vocal delivery, sophisticated phrasing, warm American jazz club tone, scat influences, Ella Fitzgerald or Chet Baker style",
             "Jamaican Rasta": "Jamaican Rastafarian vocal delivery, deep patois inflection, conscious spiritual tone, roots reggae pronunciation, Jah references",
         }
         style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
@@ -1197,6 +1198,130 @@ async def artist_style(
     descriptors = haiku.content[0].text.strip()
     log.info("artist_style: artist=%r descriptors=%r", artist, descriptors[:80])
     return {"style_descriptors": descriptors}
+
+
+# ── Music search ─────────────────────────────────────────────────────────────
+
+class MusicSearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=200)
+    search_type: str = Field(default="style")  # "style" | "youtube" | "lyrics"
+
+
+@app.post("/api/search/music")
+async def music_search(
+    body: MusicSearchRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """
+    Unified music search endpoint for Zeus Beats.
+
+    search_type="style"   — style info about an artist/track via Serper + Haiku extraction
+    search_type="youtube" — top 5 YouTube results via Serper
+    search_type="lyrics"  — theme/style summary of a song via Serper + Haiku (no raw lyrics)
+    """
+    serper_key = os.environ.get("SERPER_API_KEY", "").strip()
+    if not serper_key:
+        raise HTTPException(status_code=503, detail="Search not configured (SERPER_API_KEY missing)")
+
+    q = body.query.strip()
+    stype = body.search_type
+
+    # ── Build the Serper query ──────────────────────────────────────────────
+    if stype == "youtube":
+        serper_query = f"site:youtube.com {q} official music video"
+        serper_params: dict = {"q": serper_query, "num": 10}
+    elif stype == "lyrics":
+        serper_query = f"{q} lyrics meaning themes"
+        serper_params = {"q": serper_query, "num": 5}
+    else:
+        serper_query = f"{q} music style genre instruments tempo mood"
+        serper_params = {"q": serper_query, "num": 5}
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            sr = await client.post(
+                "https://google.serper.dev/search",
+                headers={"X-API-KEY": serper_key, "Content-Type": "application/json"},
+                json=serper_params,
+            )
+        sr.raise_for_status()
+        serper_data = sr.json()
+    except Exception as exc:
+        log.warning("music_search: Serper failed for %r type=%s: %s", q, stype, exc)
+        raise HTTPException(status_code=502, detail="Search failed — try again")
+
+    # ── YouTube: return structured video results ────────────────────────────
+    if stype == "youtube":
+        results = []
+        for item in serper_data.get("organic", [])[:5]:
+            link = item.get("link", "")
+            if "youtube.com/watch" not in link and "youtu.be/" not in link:
+                continue
+            # Extract video ID for thumbnail
+            vid_id = ""
+            if "v=" in link:
+                vid_id = link.split("v=")[1].split("&")[0]
+            elif "youtu.be/" in link:
+                vid_id = link.split("youtu.be/")[1].split("?")[0]
+            results.append({
+                "title":     item.get("title", "").replace(" - YouTube", ""),
+                "channel":   item.get("sitelinks", [{}])[0].get("title", "") if item.get("sitelinks") else "",
+                "link":      link,
+                "thumbnail": f"https://img.youtube.com/vi/{vid_id}/mqdefault.jpg" if vid_id else "",
+                "snippet":   item.get("snippet", ""),
+            })
+        return {"results": results, "search_type": "youtube"}
+
+    # ── Style & lyrics: run snippets through Haiku ──────────────────────────
+    snippets = [
+        item.get("snippet", "").strip()
+        for item in serper_data.get("organic", [])[:4]
+        if item.get("snippet", "").strip()
+    ]
+    if serper_data.get("answerBox", {}).get("snippet"):
+        snippets.insert(0, serper_data["answerBox"]["snippet"])
+
+    if not snippets:
+        raise HTTPException(status_code=404, detail=f"No results found for '{q}'")
+
+    search_text = "\n".join(snippets[:4])
+
+    if stype == "lyrics":
+        system_prompt = (
+            f"Based on these search results about the song '{q}', write a brief analysis "
+            "(3-5 sentences) covering: the song's themes, emotional tone, storytelling style, "
+            "and musical mood. Do NOT reproduce any lyrics. Focus on what makes this song "
+            "unique and what a songwriter could learn from its approach. "
+            "Then on a new line starting with 'STYLE:', list 6-10 comma-separated style "
+            "descriptors suitable for music generation (genre, tempo, mood, instruments, vocal style). "
+            "Nothing else."
+        )
+    else:
+        system_prompt = (
+            f"Based on these search results about '{q}', extract a music style breakdown. "
+            "Output in this exact format:\n"
+            "GENRE: <primary genre>\n"
+            "TEMPO: <BPM or descriptor>\n"
+            "MOOD: <emotional qualities>\n"
+            "INSTRUMENTS: <key instruments>\n"
+            "STYLE: <8-12 comma-separated generation-ready descriptors>\n"
+            "Nothing else."
+        )
+
+    try:
+        haiku = get_anthropic_client().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            system=system_prompt,
+            messages=[{"role": "user", "content": search_text}],
+        )
+    except Exception:
+        log.exception("music_search: Haiku failed for %r", q)
+        raise HTTPException(status_code=500, detail="Analysis failed — try again")
+
+    analysis = haiku.content[0].text.strip()
+    log.info("music_search: query=%r type=%s analysis_preview=%.80s", q, stype, analysis)
+    return {"analysis": analysis, "search_type": stype, "query": q}
 
 
 # ── YouTube OAuth + upload ───────────────────────────────────────────────────

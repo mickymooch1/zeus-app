@@ -11,6 +11,7 @@ import SongSharePage from './pages/SongSharePage';
 import BillingPage from './pages/BillingPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
+import SearchPage from './pages/SearchPage';
 import './index.css';
 
 export default function App() {
@@ -39,6 +40,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <BillingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/search"
+            element={
+              <ProtectedRoute>
+                <SearchPage />
               </ProtectedRoute>
             }
           />

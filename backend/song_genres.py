@@ -39,4 +39,5 @@ GENRE_PRESETS = {
     "afroswing":      "afroswing, smooth UK R&B vocals, gentle afrobeats percussion underneath, melodic guitar, 90 BPM, romantic intimate feel, British urban sound, J Hus style, laid back swing rhythm, NOT heavy afrobeats drums",
     "rastadub":       "rasta dub, heavy echo and reverb, deep rolling bassline, roots reggae rhythm, spiritual Rastafarian lyrics, slow burning groove, 70 BPM, Jamaican sound system culture, conscious message",
     "deeprotbassline": "UK bassline, heavy 4x4 kick drum, deep rolling sub bass, 138 BPM, Nottingham bassline sound, UK garage influence, chopped female vocals, euphoric rave energy, modern bass music",
+    "jazz":            "jazz, smooth improvised saxophone, upright bass walking lines, brushed drums, jazz piano chords, bebop influence, warm intimate club sound, 120 BPM swing",
 }

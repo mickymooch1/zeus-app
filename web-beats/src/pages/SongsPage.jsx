@@ -5,8 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 import { BACKEND_URL } from '../brand';
 
-const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline'];
-const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline' };
+const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz'];
+const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz' };
 const gLabel = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
 
 const SONG_PACKS = [
@@ -380,7 +380,7 @@ export default function SongsPage() {
   const [error, setError]               = useState('');
   const [topupLoading, setTopupLoading] = useState(null);
 
-  const [showAdvanced, setShowAdvanced]   = useState(false);
+  const [showAdvanced, setShowAdvanced]   = useState(!!location.state?.prefillStyle);
   const [vocalGender, setVocalGender]     = useState('');
   const [accent, setAccent]               = useState('');
   const [creativity, setCreativity]       = useState(50);
@@ -398,7 +398,7 @@ export default function SongsPage() {
   const [ytPrivacy, setYtPrivacy] = useState('unlisted');
 
   const [inspiredBy, setInspiredBy]               = useState('');
-  const [artistDescriptors, setArtistDescriptors] = useState('');
+  const [artistDescriptors, setArtistDescriptors] = useState(location.state?.prefillStyle || '');
   const [artistLoading, setArtistLoading]         = useState(false);
 
   const [avatarModal, setAvatarModal]             = useState(null);
@@ -1159,7 +1159,7 @@ export default function SongsPage() {
                     style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: accent ? '#c4b5fd' : '#555', fontSize: 13, outline: 'none' }}
                   >
                     <option value="">Default</option>
-                    {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish','American Soul','Jamaican','D&B MC','UK Rave MC','British MC Grime','American Hip-Hop','K-Pop','West African','South African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta'].map((a) => (
+                    {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish','American Soul','Jamaican','D&B MC','UK Rave MC','British MC Grime','Jazz Vocal','American Hip-Hop','K-Pop','West African','South African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta'].map((a) => (
                       <option key={a} value={a}>{a}</option>
                     ))}
                   </select>
