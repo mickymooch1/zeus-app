@@ -81,7 +81,10 @@ def get_anthropic_client() -> anthropic.AsyncAnthropic:
 ZEUS_SYSTEM_PROMPT = """You are Zeus — senior AI assistant for Zeus AI Design. Direct, sharp, experienced. Fix bugs don't explain them. No filler openers ("Certainly!", "Great question!"). Write naturally, answer concisely. When done, say what was done in 1–2 sentences.
 
 ## Tools — use proactively
-SaveMemory/SearchMemory (search before substantial tasks), UpsertClient/GetClient/ListClients, UpsertProject/ListProjects, PostToFacebook (GenerateImage first), PushToGitHub (admin only), SendEmail (draft → confirm → send), MultiAgentBuild, CreateBackgroundTask (Enterprise only), SaveWebsite/ListWebsites/GetWebsiteFiles (call SaveWebsite after every build; ListWebsites before editing existing sites).
+GenerateImage (fal.ai Flux — call whenever user asks for any image, hero, banner, social post, or visual), SaveMemory/SearchMemory (search before substantial tasks), UpsertClient/GetClient/ListClients, UpsertProject/ListProjects, PostToFacebook (call GenerateImage first, then pass the URL), PushToGitHub (admin only), SendEmail (draft → confirm → send), MultiAgentBuild, CreateBackgroundTask (Enterprise only), SaveWebsite/ListWebsites/GetWebsiteFiles (call SaveWebsite after every build; ListWebsites before editing existing sites).
+
+## Image & video generation
+Zeus has full fal.ai integration. GenerateImage uses fal.ai Flux to generate photorealistic images — use it whenever asked for any visual content. Music videos are generated automatically via Kling (fal.ai) as part of the song pipeline — this runs in the background, no tool call needed.
 
 ## Pricing
 Free £0: 20 msg/mo, 0 builds | Pro £29/mo: unlimited, 5 builds | Agency £79/mo: 10 builds | Enterprise £150/mo: 20 builds, background tasks, multi-agent builder → zeusaidesign.com/pricing
@@ -232,29 +235,23 @@ TOOLS = [
     {
         "name": "GenerateImage",
         "description": (
-            "Generate an AI image using Flux (photorealistic) or GPT-Image-2 (illustrated). "
-            "Use for website hero images, social media posts, banners, blog headers, or any "
-            "visual content. Returns the public image URL once generation is complete. "
+            "Generate a photorealistic AI image using fal.ai Flux. "
+            "Use for website hero images, social media posts, banners, blog headers, portraits, "
+            "or any visual content a user requests. Returns the public image URL. "
             "Never include text, words, letters, logos or numbers in the image prompt — "
-            "AI renders text illegibly. Generate clean visual scenes only. "
-            "The caption handles the messaging."
+            "AI renders text illegibly. Describe clean visual scenes only."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "prompt": {
                     "type": "string",
-                    "description": "Detailed description of the image. Be specific about style, colours, mood, and content.",
+                    "description": "Detailed visual description. Be specific about style, colours, mood, lighting, and content.",
                 },
                 "use_case": {
                     "type": "string",
                     "enum": ["hero", "social", "portrait", "banner"],
                     "description": "hero=website hero 16:9, social=square 1:1, portrait=Instagram story 9:16, banner=wide 3:1",
-                },
-                "model": {
-                    "type": "string",
-                    "enum": ["flux", "gpt-image-2"],
-                    "description": "flux for photorealistic, gpt-image-2 for illustrated/artistic style",
                 },
             },
             "required": ["prompt", "use_case"],
@@ -911,9 +908,8 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
             _use_case_ratio = {"hero": "16:9", "social": "1:1", "portrait": "9:16", "banner": "3:1"}
             prompt = inp["prompt"]
             use_case = inp.get("use_case", "social")
-            model = inp.get("model", "flux")
             aspect_ratio = _use_case_ratio.get(use_case, "1:1")
-            public_url = _img_mod.submit_image_generation(prompt, aspect_ratio, model)
+            public_url = _img_mod.submit_image_generation(prompt, aspect_ratio)
             return (
                 f"Your image is ready: {public_url}\n\n"
                 f"You can share that URL directly or embed it in a website."
