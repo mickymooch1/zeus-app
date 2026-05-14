@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
+import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 
 const TABS = [
@@ -42,6 +43,7 @@ function parseLyricsAnalysis(text) {
 
 export default function SearchPage() {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [tab, setTab] = useState('style');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -56,12 +58,11 @@ export default function SearchPage() {
     setResult(null);
 
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(`${BACKEND_URL}/api/search/music`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ query: query.trim(), search_type: tab }),
       });
