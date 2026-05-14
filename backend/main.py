@@ -964,6 +964,7 @@ async def songs_generate(
             "American Phonk": "Deep Memphis rap vocal delivery, dark Southern drawl, aggressive low tone",
             "New Jersey / Newark": "Newark New Jersey accent, East Coast urban delivery, Jersey Club MC energy",
             "British African": "British African vocal delivery, smooth London accent with warm West African melodic tone, UK afroswing pronunciation",
+            "British MC Grime": "British MC vocal delivery, fast aggressive bars, East London grime accent, clipped consonants, rapid fire flow, road man energy, authentic UK grime pronunciation",
             "Jamaican Rasta": "Jamaican Rastafarian vocal delivery, deep patois inflection, conscious spiritual tone, roots reggae pronunciation, Jah references",
         }
         style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
