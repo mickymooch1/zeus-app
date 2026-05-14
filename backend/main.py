@@ -1314,7 +1314,7 @@ async def music_search(
             )
 
         try:
-            haiku = get_anthropic_client().messages.create(
+            haiku = await get_anthropic_client().messages.create(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=300,
                 system=system_prompt,
