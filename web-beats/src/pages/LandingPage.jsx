@@ -55,6 +55,10 @@ export default function LandingPage() {
           <div className="glow glow-1" />
           <div className="glow glow-2" />
           <div className="glow glow-3" />
+          <div className="hero-corner hero-corner--tl" />
+          <div className="hero-corner hero-corner--tr" />
+          <div className="hero-corner hero-corner--bl" />
+          <div className="hero-corner hero-corner--br" />
         </div>
         <div className="container hero-content">
           <div className="hero-badge">
@@ -62,7 +66,9 @@ export default function LandingPage() {
             AI-Powered · Music Creation
           </div>
           <h1 className="hero-title">
-            Create original AI music.<br />
+            <span className="hero-word-cyan">CREATE</span>{' '}
+            <span className="hero-word-pink">original</span>{' '}
+            <span className="hero-word-green">AI music.</span><br />
             <span className="gradient-text">Your music. Your way.</span>
           </h1>
           <p className="hero-sub">
@@ -100,6 +106,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      <div className="section-divider" />
 
       {/* FEATURES */}
       <section className="features" id="features">
@@ -144,6 +152,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      <div className="section-divider" />
 
       {/* HOW IT WORKS */}
       <section className="capabilities" id="how">
@@ -205,6 +215,8 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <div className="section-divider" />
+
       {/* PRICING */}
       <section className="pricing" id="pricing">
         <div className="container">
@@ -260,6 +272,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      <div className="section-divider" />
 
       {/* FINAL CTA */}
       <section className="final-cta">
