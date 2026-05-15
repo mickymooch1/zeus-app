@@ -25,6 +25,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body, #root { height: 100%; }
+html, body { overflow-x: hidden; }
 .app { overflow: hidden; }
 
 /* Pages that scroll need body/root to allow scroll */
@@ -421,6 +422,13 @@ body {
 .dashboard-header-link--active:hover {
   background: rgba(0,240,255,0.08);
 }
+.dashboard-email-link {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-email-icon { display: none !important; }
 .dashboard-body { flex: 1; display: flex; overflow: hidden; }
 
 @media (max-width: 480px) {
@@ -581,6 +589,13 @@ body {
   /* Dashboard header — tighter on small phones */
   .dashboard-header { padding: 0 12px; gap: 8px; }
   .dashboard-header-link { font-size: 11px; padding: 0 5px; }
+  .dashboard-email-link { display: none !important; }
+  .dashboard-email-icon { display: inline-flex !important; }
+
+  /* Songs page mobile */
+  .songs-content-wrap { padding: 20px 12px 60px !important; }
+  .adv-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+  .adv-grid > * { grid-column: auto !important; }
 
   /* Content pages */
   .content-page { padding: 90px 16px 60px; }

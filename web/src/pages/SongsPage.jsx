@@ -70,6 +70,13 @@ const PAGE_CSS = `
 .avatar-thumb:hover { border-color: #a78bfa !important; opacity: 1 !important; }
 .genre-pill:hover { border-color: rgba(255,255,255,0.65) !important; background: rgba(255,255,255,0.13) !important; color: #fff !important; }
 .genre-pill--sel:hover { background: #6d28d9 !important; }
+.adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 28px; }
+@media (max-width: 599px) {
+  .adv-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+  .adv-grid > * { grid-column: auto !important; }
+  .songs-content-wrap { padding: 20px 12px 60px !important; }
+  .songs-bar-wrap { padding: 10px 12px !important; }
+}
 `;
 
 // ── shared style objects ─────────────────────────────────────────────────────
@@ -959,14 +966,14 @@ export default function SongsPage() {
         style={{ display: 'none' }}
         onChange={handlePhotoUpload}
       />
-      <div style={{ background: '#0b0b14', minHeight: '100vh', color: '#f0eeff' }}>
+      <div style={{ background: '#0b0b14', minHeight: '100vh', color: '#f0eeff', overflowX: 'hidden' }}>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <DashboardHeader />
 
         {/* ── Credit strip ───────────────────────────────────────────────── */}
-        <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '10px 32px' }}>
-          <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div className="songs-bar-wrap" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '10px 24px' }}>
+          <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
               <div style={{
                 height: '100%',
@@ -993,7 +1000,7 @@ export default function SongsPage() {
         </div>
 
         {/* ── Main content ───────────────────────────────────────────────── */}
-        <div style={{ maxWidth: 880, margin: '0 auto', padding: '32px 24px 80px' }}>
+        <div className="songs-content-wrap" style={{ maxWidth: 880, margin: '0 auto', padding: '32px 24px 80px' }}>
 
           {/* Top-up success */}
           {topupSuccess && (
@@ -1256,15 +1263,12 @@ export default function SongsPage() {
 
             {/* ── Advanced panel ─────────────────────────────────────── */}
             {showAdvanced && (
-              <div style={{
+              <div className="adv-grid" style={{
                 background: 'rgba(0,240,255,0.04)',
                 border: '1px solid #00f0ff',
                 borderRadius: 10,
                 padding: '18px 20px',
                 marginBottom: 18,
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '20px 28px',
                 animation: 'advGlow 2.5s ease-in-out infinite',
               }}>
                 {/* Vocal gender */}
