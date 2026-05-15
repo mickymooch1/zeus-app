@@ -9,46 +9,6 @@ const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic'
 const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz' };
 const gLabel = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
 
-const ACCENT_VOICES = {
-  'British':             { lang: 'en-GB',         text: 'Hello, welcome to Zeus Beats, let me make you a song' },
-  'American (Southern)': { lang: 'en-US',         text: 'Hey, welcome to Zeus Beats, let me make you a song' },
-  'Irish':               { lang: 'en-IE',         text: 'Ah sure, welcome to Zeus Beats, let me make you a song' },
-  'Scottish':            { lang: 'en-GB-scotland', text: 'Och aye, welcome to Zeus Beats, let me make you a song' },
-  'Australian':          { lang: 'en-AU',         text: "G'day, welcome to Zeus Beats, let me make you a song" },
-  'French':              { lang: 'fr-FR',         text: 'Bonjour, bienvenue sur Zeus Beats' },
-  'Spanish':             { lang: 'es-ES',         text: 'Hola, bienvenido a Zeus Beats' },
-  'Caribbean':           { lang: 'en-JM',         text: 'Yo, welcome to Zeus Beats' },
-  'Jamaican':            { lang: 'en-JM',         text: 'Yo, welcome to Zeus Beats' },
-  'Jamaican Rasta':      { lang: 'en-JM',         text: 'Jah bless, welcome to Zeus Beats' },
-  'K-Pop':               { lang: 'ko-KR',         text: '안녕하세요, Zeus Beats에 오신 것을 환영합니다' },
-  'West African':        { lang: 'en-NG',         text: 'Welcome to Zeus Beats, make you a song now' },
-  'South African':       { lang: 'en-ZA',         text: 'Howzit, welcome to Zeus Beats' },
-  'American Soul':       { lang: 'en-US',         text: 'Oh yeah, welcome to Zeus Beats, let me make you a song' },
-  'American Hip-Hop':    { lang: 'en-US',         text: 'Yo yo, welcome to Zeus Beats, let me make you a song' },
-  'American Phonk':      { lang: 'en-US',         text: 'Welcome to Zeus Beats, let me make you a song' },
-  'New Jersey / Newark': { lang: 'en-US',         text: "Ayo, welcome to Zeus Beats, let me make you a song" },
-  'D&B MC':              { lang: 'en-GB',         text: 'Come on, welcome to Zeus Beats, let me make you a song' },
-  'UK Rave MC':          { lang: 'en-GB',         text: 'Let us go, welcome to Zeus Beats, let me make you a song' },
-  'British MC Grime':    { lang: 'en-GB',         text: 'Bruv, welcome to Zeus Beats, let me make you a song' },
-  'British African':     { lang: 'en-GB',         text: 'Hello, welcome to Zeus Beats, let me make you a song' },
-  'Jazz Vocal':          { lang: 'en-US',         text: 'Welcome to Zeus Beats, let me make you a song' },
-};
-
-if (typeof window !== 'undefined') {
-  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-}
-
-function previewAccent(accentLabel) {
-  window.speechSynthesis.cancel();
-  const voices = window.speechSynthesis.getVoices();
-  const config = ACCENT_VOICES[accentLabel] || { lang: 'en-GB', text: 'Welcome to Zeus Beats' };
-  const utterance = new SpeechSynthesisUtterance(config.text);
-  utterance.lang = config.lang;
-  const match = voices.find(v => v.lang.startsWith(config.lang.substring(0, 5)));
-  if (match) utterance.voice = match;
-  window.speechSynthesis.speak(utterance);
-}
-
 function _matchGenreSlug(text) {
   if (!text) return null;
   const t = text.toLowerCase();
@@ -1231,26 +1191,16 @@ export default function SongsPage() {
 
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Accent</p>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <select
-                      value={accent}
-                      onChange={(e) => setAccent(e.target.value)}
-                      style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: accent ? '#c4b5fd' : '#555', fontSize: 13, outline: 'none' }}
-                    >
-                      <option value="">Default</option>
-                      {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish','American Soul','Jamaican','D&B MC','UK Rave MC','British MC Grime','Jazz Vocal','American Hip-Hop','K-Pop','West African','South African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta'].map((a) => (
-                        <option key={a} value={a}>{a}</option>
-                      ))}
-                    </select>
-                    {accent && (
-                      <button
-                        type="button"
-                        title={`Preview ${accent} accent`}
-                        onClick={() => previewAccent(accent)}
-                        style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 6, background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.2)', color: '#a78bfa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}
-                      >▶</button>
-                    )}
-                  </div>
+                  <select
+                    value={accent}
+                    onChange={(e) => setAccent(e.target.value)}
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: accent ? '#c4b5fd' : '#555', fontSize: 13, outline: 'none' }}
+                  >
+                    <option value="">Default</option>
+                    {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish','American Soul','Jamaican','D&B MC','UK Rave MC','British MC Grime','Jazz Vocal','American Hip-Hop','K-Pop','West African','South African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta'].map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
