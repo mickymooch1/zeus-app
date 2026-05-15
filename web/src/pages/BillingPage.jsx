@@ -44,6 +44,9 @@ export default function BillingPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelResult, setCancelResult] = useState(null);
 
   const successParam = new URLSearchParams(location.search).get('success');
 
@@ -97,6 +100,25 @@ export default function BillingPage() {
     } catch (err) {
       setError(err.message);
       setLoadingCheckout(null);
+    }
+  };
+
+  const handleCancel = async () => {
+    setCancelLoading(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/subscription/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Cancellation failed');
+      setCancelResult(data);
+      setShowCancelConfirm(false);
+      setStatus((prev) => prev ? { ...prev, cancel_at: data.cancel_at } : prev);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -177,6 +199,33 @@ export default function BillingPage() {
               </Link>
             )}
           </div>
+
+          {/* Cancel subscription */}
+          {(() => {
+            const cancelAt = cancelResult?.cancel_at || status?.cancel_at;
+            const cancelDateDisplay = cancelAt
+              ? new Date(cancelAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+              : null;
+            if (cancelDateDisplay) {
+              return (
+                <p style={{ marginTop: 12, fontSize: '0.85rem', color: '#64748b' }}>
+                  Subscription cancels on {cancelDateDisplay}
+                </p>
+              );
+            }
+            if (isActive && !isAdmin) {
+              return (
+                <button
+                  className="btn"
+                  style={{ marginTop: 12, background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}
+                  onClick={() => setShowCancelConfirm(true)}
+                >
+                  Cancel Subscription
+                </button>
+              );
+            }
+            return null;
+          })()}
         </div>
 
         {/* Upgrade options for free users */}
@@ -372,6 +421,35 @@ export default function BillingPage() {
             </button>
           )}
         </div>
+
+        {/* Cancel subscription modal */}
+        {showCancelConfirm && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+            <div style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '28px 32px', maxWidth: 420, width: '100%' }}>
+              <h3 style={{ margin: '0 0 12px', fontSize: '1.1rem' }}>Cancel subscription?</h3>
+              <p style={{ margin: '0 0 24px', color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                {status?.cancel_at
+                  ? `You'll keep access until ${new Date(status.cancel_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}, then your account moves to the free plan.`
+                  : "You'll keep access until the end of your current billing period, then your account moves to the free plan."}
+              </p>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setShowCancelConfirm(false)}
+                  style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#94a3b8', padding: '8px 18px', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem' }}
+                >
+                  Keep subscription
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={cancelLoading}
+                  style={{ background: '#374151', border: 'none', color: '#fff', padding: '8px 18px', borderRadius: 6, cursor: cancelLoading ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, opacity: cancelLoading ? 0.7 : 1 }}
+                >
+                  {cancelLoading ? 'Cancelling…' : 'Yes, cancel'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Confirmation modal */}
         {showDeleteConfirm && (

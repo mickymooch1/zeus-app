@@ -558,6 +558,72 @@ async def account_delete_request(current_user: dict = Depends(auth.get_current_u
     }
 
 
+@app.post("/api/subscription/cancel")
+async def cancel_subscription(current_user: dict = Depends(auth.get_current_user)):
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from datetime import datetime, timezone
+
+    if not billing.stripe_enabled():
+        raise HTTPException(status_code=503, detail="Billing not configured")
+
+    subscription_id = current_user.get("subscription_id")
+    if not subscription_id:
+        raise HTTPException(status_code=400, detail="No active subscription found")
+
+    if current_user.get("subscription_status") != "active":
+        raise HTTPException(status_code=400, detail="No active subscription to cancel")
+
+    stripe = billing._get_stripe()
+    sub = stripe.Subscription.modify(subscription_id, cancel_at_period_end=True)
+
+    period_end_ts = sub.get("current_period_end")
+    if not period_end_ts:
+        raise HTTPException(status_code=500, detail="Could not determine cancellation date")
+
+    period_end = datetime.fromtimestamp(period_end_ts, tz=timezone.utc)
+    cancel_date_display = period_end.strftime("%-d %B %Y")
+    cancel_at_iso = period_end.isoformat()
+
+    db_path = db.get_db_path()
+    db.update_user(db_path, current_user["id"], cancel_at=cancel_at_iso)
+
+    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
+    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+    if smtp_email and smtp_password:
+        try:
+            msg_text = "\n".join([
+                f"Hi {current_user.get('name', 'there')},",
+                "",
+                "Your subscription has been cancelled.",
+                f"You'll keep full access until {cancel_date_display}.",
+                "After that, your account will move to the free plan.",
+                "",
+                "If this was a mistake, you can reactivate from your billing page at any time.",
+                "",
+                "— The Zeus Team",
+            ])
+            msg = MIMEMultipart()
+            msg["From"] = smtp_email
+            msg["To"] = current_user["email"]
+            msg["Subject"] = "Your subscription has been cancelled"
+            msg.attach(MIMEText(msg_text, "plain"))
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+                server.login(smtp_email, smtp_password)
+                server.sendmail(smtp_email, [current_user["email"]], msg.as_string())
+            log.info("cancellation email sent to %s", current_user["email"])
+        except Exception as exc:
+            log.warning("cancellation email failed: %s", exc)
+
+    return {
+        "ok": True,
+        "cancel_date": cancel_date_display,
+        "cancel_at": cancel_at_iso,
+        "message": f"Your subscription has been cancelled. You'll keep access until {cancel_date_display}.",
+    }
+
+
 @app.post("/api/contact")
 @limiter.limit("5/minute")
 async def contact(request: Request, body: ContactMessage):

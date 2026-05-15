@@ -491,7 +491,8 @@ def _handle_subscription_deleted(db_path, subscription) -> None:
     db.update_user(db_path, user["id"],
                    subscription_status="free",
                    subscription_plan=None,
-                   subscription_id=None)
+                   subscription_id=None,
+                   cancel_at=None)
     db.reset_monthly_usage(db_path, user["id"])
     log.info("Subscription cancelled for user %s — reverted to free, usage reset", user["id"])
 
@@ -534,4 +535,5 @@ def get_subscription_status(user: dict) -> dict:
         "messages_limit": messages_limit,
         "is_active": is_paid,
         "is_admin": is_admin,
+        "cancel_at": user.get("cancel_at"),
     }
