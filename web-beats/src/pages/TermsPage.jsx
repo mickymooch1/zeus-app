@@ -327,6 +327,62 @@ export default function TermsPage() {
             <a href="https://zeusbeats.com" className="auth-link">zeusbeats.com</a>
           </address>
         </section>
+
+        <section className="content-section">
+          <h2>15. Contact &amp; Support</h2>
+          <p>
+            For general enquiries, support requests, or feedback, you can reach us via our{' '}
+            <a href="/contact" className="auth-link">Contact page</a> or by emailing us directly
+            at{' '}
+            <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">dominic.rowle@yahoo.com</a>.
+            We aim to respond to all enquiries within 24 hours during business hours (Monday to
+            Friday, 9am–5pm GMT).
+          </p>
+          <p>
+            For account-specific issues, billing queries, or data subject requests, please include
+            your registered email address and a brief description of the issue so we can assist
+            you as quickly as possible.
+          </p>
+        </section>
+
+        <section className="content-section">
+          <h2>16. Governing Law</h2>
+          <p>
+            These Terms are governed by and construed in accordance with the laws of England and
+            Wales. Any dispute or claim arising out of or in connection with these Terms or their
+            subject matter or formation (including non-contractual disputes or claims) shall be
+            subject to the exclusive jurisdiction of the courts of England and Wales.
+          </p>
+          <p>
+            If you are a consumer resident in another jurisdiction, you may also benefit from any
+            mandatory provisions of the law of your country of residence.
+          </p>
+          <p>
+            If any provision of these Terms is found to be invalid or unenforceable by a court of
+            competent jurisdiction, that provision shall be limited or eliminated to the minimum
+            extent necessary, and the remaining provisions will continue in full force and effect.
+          </p>
+        </section>
+
+        <section className="content-section">
+          <h2>17. Changes to Terms</h2>
+          <p>
+            We reserve the right to update or modify these Terms at any time to reflect changes
+            in the Service, applicable law, or our business practices. When we make material
+            changes, we will notify you by email to your registered address or via a prominent
+            notice within the Service, at least 14 days before the changes take effect.
+          </p>
+          <p>
+            Your continued use of the Service after the effective date of any revised Terms
+            constitutes your acceptance of those changes. If you do not agree to the updated
+            Terms, you must stop using the Service before the changes take effect and may cancel
+            your subscription in accordance with Section 7 (Cancellation Policy).
+          </p>
+          <p>
+            We encourage you to review these Terms periodically. The "Last updated" date at the
+            top of this page indicates when the Terms were most recently revised.
+          </p>
+        </section>
       </main>
     </div>
   );

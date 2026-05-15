@@ -15,6 +15,7 @@ import SongSharePage from './pages/SongSharePage';
 import AdminPage from './pages/AdminPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
+import ContactPage from './pages/ContactPage';
 import './index.css';
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route
             path="/dashboard"
             element={

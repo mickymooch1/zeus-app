@@ -412,6 +412,13 @@ class UpdateWebsiteRequest(BaseModel):
     sync_files: bool = False
 
 
+class ContactMessage(BaseModel):
+    name: str
+    email: str
+    subject: str
+    message: str
+
+
 # ── Auth routes ───────────────────────────────────────────────────────────────
 
 @app.post("/auth/register")
@@ -499,6 +506,39 @@ async def login(request: Request, body: LoginRequest):
 async def me(current_user: dict = Depends(auth.get_current_user)):
     safe_user = {k: v for k, v in current_user.items() if k != "password_hash"}
     return safe_user
+
+
+@app.post("/api/contact")
+@limiter.limit("5/minute")
+async def contact(request: Request, body: ContactMessage):
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
+    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+    if smtp_email and smtp_password:
+        try:
+            msg_text = "\n".join([
+                f"Name: {body.name}",
+                f"Email: {body.email}",
+                f"Subject: {body.subject}",
+                "",
+                "Message:",
+                body.message,
+            ])
+            msg = MIMEMultipart()
+            msg["From"] = smtp_email
+            msg["To"] = "rowlemichael1@gmail.com"
+            msg["Subject"] = f"Zeus Contact: {body.subject}"
+            msg.attach(MIMEText(msg_text, "plain"))
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+                server.login(smtp_email, smtp_password)
+                server.sendmail(smtp_email, ["rowlemichael1@gmail.com"], msg.as_string())
+            log.info("contact email sent from %s", body.email)
+        except Exception as exc:
+            log.warning("contact email failed: %s", exc)
+    return {"ok": True, "message": "Thanks! We'll be in touch within 24 hours."}
 
 
 # ── Billing routes ────────────────────────────────────────────────────────────

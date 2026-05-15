@@ -6,6 +6,7 @@ const NAV_LINKS = [
   { to: '/songs',   label: 'Songs' },
   { to: '/search',  label: 'Search' },
   { to: '/billing', label: 'Billing' },
+  { to: '/contact', label: 'Contact' },
 ];
 
 function isActive(pathname, to) {
