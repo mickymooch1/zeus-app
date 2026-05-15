@@ -181,6 +181,15 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 count   INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (user_id, date)
             );
+
+            CREATE TABLE IF NOT EXISTS deletion_requests (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id      TEXT NOT NULL,
+                email        TEXT NOT NULL,
+                requested_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_deletion_requests_user ON deletion_requests (user_id);
         """)
         # Migrate existing tables — ignore error if column already exists
         for _migration in [

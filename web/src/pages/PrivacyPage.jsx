@@ -206,7 +206,24 @@ export default function PrivacyPage() {
         </section>
 
         <section className="content-section">
-          <h2>10. Contact &amp; Data Controller</h2>
+          <h2>10. Right to Erasure &amp; Data Deletion</h2>
+          <p>
+            You have the right to request deletion of your personal data at any time. To request
+            deletion, visit your{' '}
+            <a href="/billing" className="auth-link">account settings</a> and use the
+            "Request Account Deletion" option, or contact us at{' '}
+            <a href="mailto:rowlemichael1@gmail.com" className="auth-link">rowlemichael1@gmail.com</a>.
+            Requests will be processed within 30 days.
+          </p>
+          <p>
+            Upon deletion, we will remove your account, all songs, generated content, and personal
+            data from our systems. Some data may be retained for a limited period where required by
+            law (for example, billing records for tax compliance purposes).
+          </p>
+        </section>
+
+        <section className="content-section">
+          <h2>11. Contact &amp; Data Controller</h2>
           <p>
             Aero Space Parking Ltd (trading as Zeus AI Design) is the data controller for
             personal data processed through the Service. Aero Space Parking Ltd (trading as

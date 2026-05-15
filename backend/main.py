@@ -508,6 +508,56 @@ async def me(current_user: dict = Depends(auth.get_current_user)):
     return safe_user
 
 
+@app.post("/api/account/delete-request")
+async def account_delete_request(current_user: dict = Depends(auth.get_current_user)):
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc).isoformat()
+    db_path = db.get_db_path()
+    conn = db._conn(db_path)
+    try:
+        conn.execute(
+            "INSERT INTO deletion_requests (user_id, email, requested_at) VALUES (?, ?, ?)",
+            (current_user["id"], current_user["email"], now),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
+    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+    if smtp_email and smtp_password:
+        try:
+            msg_text = "\n".join([
+                "Account Deletion Request",
+                "",
+                f"User email: {current_user['email']}",
+                f"User ID:    {current_user['id']}",
+                f"Requested:  {now}",
+                "",
+                "Please delete this account and all associated data within 30 days.",
+            ])
+            msg = MIMEMultipart()
+            msg["From"] = smtp_email
+            msg["To"] = "rowlemichael1@gmail.com"
+            msg["Subject"] = "Account Deletion Request"
+            msg.attach(MIMEText(msg_text, "plain"))
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+                server.login(smtp_email, smtp_password)
+                server.sendmail(smtp_email, ["rowlemichael1@gmail.com"], msg.as_string())
+            log.info("deletion request email sent for user %s", current_user["id"])
+        except Exception as exc:
+            log.warning("deletion request email failed: %s", exc)
+
+    return {
+        "ok": True,
+        "message": "Your deletion request has been received. We will delete your account and all associated data within 30 days.",
+    }
+
+
 @app.post("/api/contact")
 @limiter.limit("5/minute")
 async def contact(request: Request, body: ContactMessage):

@@ -41,6 +41,9 @@ export default function BillingPage() {
   const [loadingCheckout, setLoadingCheckout] = useState(null);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
 
   const successParam = new URLSearchParams(location.search).get('success');
 
@@ -94,6 +97,24 @@ export default function BillingPage() {
     } catch (err) {
       setError(err.message);
       setLoadingCheckout(null);
+    }
+  };
+
+  const handleDeleteRequest = async () => {
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/account/delete-request`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Request failed');
+      setDeleteSuccess(true);
+      setShowDeleteConfirm(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -329,6 +350,55 @@ export default function BillingPage() {
             dominic.rowle@yahoo.com
           </a>
         </p>
+
+        {/* Danger zone */}
+        <div className="billing-card" style={{ borderColor: 'rgba(239,68,68,0.3)', marginTop: '2rem' }}>
+          <h2 className="billing-card-title" style={{ color: '#ef4444' }}>Delete Account</h2>
+          <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '1rem' }}>
+            Requesting deletion will permanently remove your account, songs, videos and all
+            associated data within 30 days.
+          </p>
+          {deleteSuccess ? (
+            <p style={{ color: '#22c55e', fontSize: '0.9rem' }}>
+              Your deletion request has been received. We will delete your account and all associated data within 30 days.
+            </p>
+          ) : (
+            <button
+              className="btn"
+              style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '8px 18px', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              Request Account Deletion
+            </button>
+          )}
+        </div>
+
+        {/* Confirmation modal */}
+        {showDeleteConfirm && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+            <div style={{ background: '#1a1a2e', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 12, padding: '28px 32px', maxWidth: 420, width: '100%' }}>
+              <h3 style={{ margin: '0 0 12px', color: '#ef4444', fontSize: '1.1rem' }}>Are you sure?</h3>
+              <p style={{ margin: '0 0 24px', color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                This cannot be undone. Your account, songs, videos and all associated data will be permanently deleted within 30 days.
+              </p>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#94a3b8', padding: '8px 18px', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteRequest}
+                  disabled={deleteLoading}
+                  style={{ background: '#ef4444', border: 'none', color: '#fff', padding: '8px 18px', borderRadius: 6, cursor: deleteLoading ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, opacity: deleteLoading ? 0.7 : 1 }}
+                >
+                  {deleteLoading ? 'Submitting…' : 'Yes, request deletion'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
