@@ -37,6 +37,11 @@ const PAGE_CSS = `
   .songs-content-wrap { padding: 20px 12px 60px !important; }
   .songs-bar-wrap { padding: 10px 12px !important; }
 }
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+  50%       { box-shadow: 0 0 0 7px rgba(239,68,68,0); }
+}
+.mic-btn-listening { animation: micPulse 1s ease-in-out infinite !important; }
 `;
 
 // ── shared style objects ─────────────────────────────────────────────────────
@@ -461,10 +466,13 @@ export default function SongsPage() {
   // Delete state
   const [deletingVariants, setDeletingVariants]     = useState(new Set());
 
+  const [listening, setListening] = useState(false);
+
   const activeWsRef     = useRef(null);
   const pollTimerRef    = useRef(null);
   const photoInputRef   = useRef(null);
   const portraitPollRef = useRef(null);
+  const recognitionRef  = useRef(null);
 
   const isAdmin          = credits.is_admin;
   const isMusicPlan      = ['music_starter', 'music_pro', 'music_agency'].includes(credits.plan);
@@ -947,6 +955,22 @@ export default function SongsPage() {
     }
   };
 
+  const startListening = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    if (listening) { recognitionRef.current?.stop(); return; }
+    const recognition = new SR();
+    recognition.lang = 'en-GB';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onstart = () => setListening(true);
+    recognition.onresult = (e) => setBrief(e.results[0][0].transcript);
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
   const toggleGenre = (g) =>
     setSelGenres((prev) => {
       const next = new Set(prev);
@@ -1120,28 +1144,59 @@ export default function SongsPage() {
                 }}
               />
             ) : (
-              <textarea
-                className="songs-textarea"
-                value={brief}
-                onChange={(e) => setBrief(e.target.value)}
-                placeholder="e.g. An upbeat jingle for a Manchester coffee shop with Friday-morning energy…"
-                rows={3}
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 10,
-                  padding: '12px 14px',
-                  color: '#f0eeff',
-                  fontSize: 15,
-                  resize: 'vertical',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  marginBottom: 12,
-                  transition: 'border-color 0.2s',
-                }}
-              />
+              <div style={{ position: 'relative', marginBottom: 12 }}>
+                <textarea
+                  className="songs-textarea"
+                  value={brief}
+                  onChange={(e) => setBrief(e.target.value)}
+                  placeholder="e.g. An upbeat jingle for a Manchester coffee shop with Friday-morning energy…"
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 10,
+                    padding: '12px 42px 12px 14px',
+                    color: '#f0eeff',
+                    fontSize: 15,
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                  }}
+                />
+                {!!(window.SpeechRecognition || window.webkitSpeechRecognition) && (
+                  <button
+                    onClick={startListening}
+                    className={listening ? 'mic-btn-listening' : ''}
+                    title={listening ? 'Listening… (click to stop)' : 'Speak your description'}
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: listening ? '#ef4444' : 'rgba(0,240,255,0.12)',
+                      color: listening ? '#fff' : '#00f0ff',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 13,
+                      transition: 'background 0.2s, color 0.2s',
+                      flexShrink: 0,
+                    }}
+                  >
+                    🎤
+                  </button>
+                )}
+                {listening && (
+                  <p style={{ fontSize: 12, color: '#ef4444', marginTop: 5, marginBottom: 0 }}>🎤 Listening…</p>
+                )}
+              </div>
             )}
 
             <input
