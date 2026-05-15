@@ -12,6 +12,7 @@ import BillingPage from './pages/BillingPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import SearchPage from './pages/SearchPage';
+import AdminBeats from './pages/AdminBeats';
 import './index.css';
 
 export default function App() {
@@ -48,6 +49,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <SearchPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminBeats />
               </ProtectedRoute>
             }
           />

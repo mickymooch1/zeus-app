@@ -554,3 +554,40 @@ body {
   position: fixed; inset: 0;
   background: rgba(0, 0, 0, 0.55); z-index: 199;
 }
+
+/* ── Mobile improvements (< 600px) ───────────────────────── */
+@media (max-width: 600px) {
+  /* Auth cards full-width */
+  .auth-card, .auth-card--wide {
+    width: 100%; border-radius: 12px; padding: 24px 20px;
+  }
+  .auth-page { padding: 16px; align-items: flex-start; padding-top: 60px; }
+
+  /* Billing */
+  .billing-title { font-size: 22px; }
+  .billing-card { padding: 18px; }
+  .billing-upgrade-grid { grid-template-columns: 1fr; }
+  .billing-actions { flex-direction: column; }
+
+  /* Page container */
+  .page { padding: 80px 16px 60px; }
+
+  /* Dashboard header — tighter on small phones */
+  .dashboard-header { padding: 0 12px; gap: 8px; }
+  .dashboard-header-link { font-size: 11px; padding: 0 5px; }
+
+  /* Content pages */
+  .content-page { padding: 90px 16px 60px; }
+  .content-title { font-size: 24px; }
+
+  /* Buttons full-width in forms */
+  .auth-form .btn-full { width: 100%; }
+
+  /* Usage bar */
+  .usage-bar-wrap { flex-direction: column; align-items: flex-start; gap: 4px; }
+}
+
+@media (max-width: 400px) {
+  .dashboard-header-right { gap: 0; }
+  .dashboard-header-link { font-size: 10px; padding: 0 3px; }
+}

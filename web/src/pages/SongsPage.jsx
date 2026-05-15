@@ -10,6 +10,18 @@ const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic'
 const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz' };
 const gLabel = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
 
+const ACCENT_SAMPLES = {
+  'British': 'british', 'American (Southern)': 'american_southern', 'Irish': 'irish',
+  'Scottish': 'scottish', 'Australian': 'australian', 'Caribbean': 'caribbean',
+  'French': 'french', 'Spanish': 'spanish', 'American Soul': 'american_soul',
+  'Jamaican': 'jamaican', 'D&B MC': 'dnb_mc', 'UK Rave MC': 'uk_rave_mc',
+  'British MC Grime': 'british_mc_grime', 'Jazz Vocal': 'jazz_vocal',
+  'American Hip-Hop': 'american_hiphop', 'K-Pop': 'kpop', 'West African': 'west_african',
+  'South African': 'south_african', 'American Phonk': 'american_phonk',
+  'New Jersey / Newark': 'new_jersey', 'British African': 'british_african',
+  'Jamaican Rasta': 'jamaican_rasta',
+};
+
 const SONG_PACKS = [
   { pack: 'song_pack_10',  label: 'Buy 10 songs',  price: '£8'  },
   { pack: 'song_pack_50',  label: 'Buy 50 songs',  price: '£30' },
@@ -1260,48 +1272,32 @@ export default function SongsPage() {
                 {/* Accent */}
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Accent</p>
-                  <select
-                    value={accent}
-                    onChange={(e) => setAccent(e.target.value)}
-                    style={{
-                      width: '100%',
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: 6,
-                      padding: '6px 10px',
-                      color: accent ? '#c4b5fd' : '#555',
-                      fontSize: 13,
-                      outline: 'none',
-                    }}
-                  >
-                    <option value="">Default</option>
-                    {[
-                      'British',
-                      'American (Southern)',
-                      'Irish',
-                      'Scottish',
-                      'Australian',
-                      'Caribbean',
-                      'French',
-                      'Spanish',
-                      'American Soul',
-                      'Jamaican',
-                      'D&B MC',
-                      'UK Rave MC',
-                      'British MC Grime',
-                      'Jazz Vocal',
-                      'American Hip-Hop',
-                      'K-Pop',
-                      'West African',
-                      'South African',
-                      'American Phonk',
-                      'New Jersey / Newark',
-                      'British African',
-                      'Jamaican Rasta',
-                    ].map((a) => (
-                      <option key={a} value={a}>{a}</option>
-                    ))}
-                  </select>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <select
+                      value={accent}
+                      onChange={(e) => setAccent(e.target.value)}
+                      style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: accent ? '#c4b5fd' : '#555', fontSize: 13, outline: 'none' }}
+                    >
+                      <option value="">Default</option>
+                      {[
+                        'British', 'American (Southern)', 'Irish', 'Scottish', 'Australian',
+                        'Caribbean', 'French', 'Spanish', 'American Soul', 'Jamaican',
+                        'D&B MC', 'UK Rave MC', 'British MC Grime', 'Jazz Vocal',
+                        'American Hip-Hop', 'K-Pop', 'West African', 'South African',
+                        'American Phonk', 'New Jersey / Newark', 'British African', 'Jamaican Rasta',
+                      ].map((a) => (
+                        <option key={a} value={a}>{a}</option>
+                      ))}
+                    </select>
+                    {accent && ACCENT_SAMPLES[accent] && (
+                      <button
+                        type="button"
+                        title={`Preview ${accent} accent`}
+                        onClick={() => { const a = new Audio(`/samples/${ACCENT_SAMPLES[accent]}.mp3`); a.play().catch(() => {}); }}
+                        style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 6, background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.2)', color: '#a78bfa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}
+                      >▶</button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Model version */}

@@ -79,8 +79,8 @@ export default function SearchPage() {
     }
   };
 
-  const goToSongs = (styleString) => {
-    navigate('/songs', { state: { prefillStyle: styleString } });
+  const goToSongs = ({ style = '', genre = '', tempo = '', mood = '' } = {}) => {
+    navigate('/songs', { state: { prefillStyle: style, prefillGenre: genre, prefillTempo: tempo, prefillMood: mood } });
   };
 
   return (
@@ -209,7 +209,7 @@ function StyleResult({ data, query, onUse }) {
           <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>{query}</h3>
         </div>
         <button
-          onClick={() => onUse(styleString)}
+          onClick={() => onUse({ style: styleString, genre: parsed.GENRE || '', tempo: parsed.TEMPO || '', mood: parsed.MOOD || '' })}
           style={{
             padding: '10px 20px',
             background: '#00f0ff',
@@ -315,7 +315,7 @@ function YoutubeResults({ data, onUse }) {
               </p>
             )}
             <button
-              onClick={() => onUse(`${r.title} inspired style`)}
+              onClick={() => onUse({ style: `${r.title} inspired style` })}
               style={{
                 padding: '6px 14px',
                 background: 'transparent',
@@ -355,7 +355,7 @@ function LyricsResult({ data, query, onUse }) {
           <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>{query}</h3>
         </div>
         <button
-          onClick={() => onUse(style || query + ' inspired style')}
+          onClick={() => onUse({ style: style || query + ' inspired style' })}
           style={{
             padding: '10px 20px',
             background: '#ff0099',
