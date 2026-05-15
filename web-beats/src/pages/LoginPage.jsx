@@ -101,6 +101,9 @@ export default function LoginPage() {
         </form>
 
         <p className="auth-footer-text">
+          <Link to="/forgot-password" className="auth-link">Forgot password?</Link>
+        </p>
+        <p className="auth-footer-text">
           Don't have an account?{' '}
           <Link to="/register" className="auth-link">Create one free</Link>
         </p>

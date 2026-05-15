@@ -382,6 +382,16 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+    app: str = "ai"
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
 class CheckoutRequest(BaseModel):
     plan: str
 
@@ -506,6 +516,87 @@ async def login(request: Request, body: LoginRequest):
 async def me(current_user: dict = Depends(auth.get_current_user)):
     safe_user = {k: v for k, v in current_user.items() if k != "password_hash"}
     return safe_user
+
+
+@app.post("/api/auth/forgot-password")
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, body: ForgotPasswordRequest):
+    import secrets
+    import smtplib
+    from datetime import datetime, timedelta, timezone
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    db_path = db.get_db_path()
+    user = db.get_user_by_email(db_path, body.email.strip().lower())
+
+    # Always return success to avoid user enumeration
+    if not user:
+        return {"ok": True, "message": "If that email is registered, a reset link has been sent."}
+
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    db.create_reset_token(db_path, user["id"], token, expires_at)
+
+    base_url = "https://zeusbeats.com" if body.app == "beats" else "https://zeusaidesign.com"
+    reset_url = f"{base_url}/reset-password?token={token}"
+
+    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
+    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+    if smtp_email and smtp_password:
+        try:
+            msg_text = "\n".join([
+                f"Hi {user.get('name', 'there')},",
+                "",
+                "You requested a password reset. Click the link below to set a new password.",
+                "This link expires in 1 hour.",
+                "",
+                reset_url,
+                "",
+                "If you didn't request this, you can safely ignore this email.",
+                "",
+                "— The Zeus Team",
+            ])
+            msg = MIMEMultipart()
+            msg["From"] = smtp_email
+            msg["To"] = user["email"]
+            msg["Subject"] = "Reset your Zeus password"
+            msg.attach(MIMEText(msg_text, "plain"))
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+                server.login(smtp_email, smtp_password)
+                server.sendmail(smtp_email, [user["email"]], msg.as_string())
+            log.info("password reset email sent to %s", user["email"])
+        except Exception as exc:
+            log.warning("password reset email failed: %s", exc)
+
+    return {"ok": True, "message": "If that email is registered, a reset link has been sent."}
+
+
+@app.post("/api/auth/reset-password")
+@limiter.limit("10/minute")
+async def reset_password(request: Request, body: ResetPasswordRequest):
+    from datetime import datetime, timezone
+
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    db_path = db.get_db_path()
+    record = db.get_reset_token(db_path, body.token)
+
+    if not record:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+    if record["used"]:
+        raise HTTPException(status_code=400, detail="This reset link has already been used")
+
+    expires_at = datetime.fromisoformat(record["expires_at"])
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="This reset link has expired")
+
+    new_hash = auth.hash_password(body.new_password)
+    db.update_user(db_path, record["user_id"], password_hash=new_hash)
+    db.mark_reset_token_used(db_path, body.token)
+
+    return {"ok": True, "message": "Password updated successfully. You can now log in."}
 
 
 @app.post("/api/account/delete-request")
