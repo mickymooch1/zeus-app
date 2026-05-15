@@ -411,7 +411,7 @@ export default function SongsPage() {
   const [topupLoading, setTopupLoading] = useState(null);
 
   // Advanced options
-  const [showAdvanced, setShowAdvanced]   = useState(false);
+  const [showAdvanced, setShowAdvanced]   = useState(() => window.innerWidth >= 600);
   const [vocalGender, setVocalGender]     = useState('');
   const [accent, setAccent]               = useState('');
   const [creativity, setCreativity]       = useState(50);
@@ -1214,37 +1214,30 @@ export default function SongsPage() {
             </div>
 
             {/* ── Advanced options toggle ─────────────────────────────── */}
-            <div style={{ marginBottom: showAdvanced ? 12 : 18 }}>
-              <button
-                onClick={() => setShowAdvanced((v) => !v)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#555',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: 0,
-                  letterSpacing: '0.2px',
-                }}
-              >
-                Advanced options {showAdvanced ? '▴' : '▾'}
-              </button>
-            </div>
+            <button
+              onClick={() => setShowAdvanced((v) => !v)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                background: 'rgba(0,240,255,0.06)', border: '1px solid rgba(0,240,255,0.30)',
+                borderRadius: 8, padding: '9px 14px', cursor: 'pointer', marginBottom: 14,
+              }}
+            >
+              <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 10, fontWeight: 700, color: '#00f0ff', letterSpacing: '0.14em' }}>⚡ ADVANCED OPTIONS</span>
+              <span style={{ marginLeft: 'auto', color: '#00f0ff', fontSize: 12, fontWeight: 600 }}>{showAdvanced ? '▲ Hide' : '▼ Show'}</span>
+            </button>
 
             {/* ── Advanced panel ─────────────────────────────────────── */}
             {showAdvanced && (
               <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: 'rgba(0,240,255,0.04)',
+                border: '1px solid #00f0ff',
                 borderRadius: 10,
                 padding: '18px 20px',
                 marginBottom: 18,
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
                 gap: '20px 28px',
+                animation: 'advGlow 2.5s ease-in-out infinite',
               }}>
                 {/* Vocal gender */}
                 <div>
