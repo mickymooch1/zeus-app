@@ -10,17 +10,10 @@ const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic'
 const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz' };
 const gLabel = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
 
-const ACCENT_SAMPLES = {
-  'British': 'british', 'American (Southern)': 'american_southern', 'Irish': 'irish',
-  'Scottish': 'scottish', 'Australian': 'australian', 'Caribbean': 'caribbean',
-  'French': 'french', 'Spanish': 'spanish', 'American Soul': 'american_soul',
-  'Jamaican': 'jamaican', 'D&B MC': 'dnb_mc', 'UK Rave MC': 'uk_rave_mc',
-  'British MC Grime': 'british_mc_grime', 'Jazz Vocal': 'jazz_vocal',
-  'American Hip-Hop': 'american_hiphop', 'K-Pop': 'kpop', 'West African': 'west_african',
-  'South African': 'south_african', 'American Phonk': 'american_phonk',
-  'New Jersey / Newark': 'new_jersey', 'British African': 'british_african',
-  'Jamaican Rasta': 'jamaican_rasta',
-};
+function previewAccent(accentLabel) {
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(new SpeechSynthesisUtterance(`Hello, this is the ${accentLabel} voice style`));
+}
 
 const SONG_PACKS = [
   { pack: 'song_pack_10',  label: 'Buy 10 songs',  price: '£8'  },
@@ -1282,11 +1275,11 @@ export default function SongsPage() {
                         <option key={a} value={a}>{a}</option>
                       ))}
                     </select>
-                    {accent && ACCENT_SAMPLES[accent] && (
+                    {accent && (
                       <button
                         type="button"
                         title={`Preview ${accent} accent`}
-                        onClick={() => { const a = new Audio(`/samples/${ACCENT_SAMPLES[accent]}.mp3`); a.play().catch(() => {}); }}
+                        onClick={() => previewAccent(accent)}
                         style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 6, background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.2)', color: '#a78bfa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}
                       >▶</button>
                     )}
