@@ -364,6 +364,8 @@ export default function BillingPage() {
           <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">
             dominic.rowle@yahoo.com
           </a>
+          {'. '}
+          View our <Link to="/refund-policy" className="auth-link">Refund Policy</Link>.
         </p>
 
         {/* Danger zone */}

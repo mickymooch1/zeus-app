@@ -304,6 +304,7 @@ export default function LandingPage() {
             <a href="#features">Features</a>
             <Link to="/terms">Terms</Link>
             <Link to="/privacy">Privacy</Link>
+            <Link to="/refund-policy">Refund Policy</Link>
             <Link to="/contact">Contact</Link>
           </div>
         </div>

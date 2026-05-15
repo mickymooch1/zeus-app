@@ -15,6 +15,7 @@ import ContactPage from './pages/ContactPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
+import RefundPolicyPage from './pages/RefundPolicyPage';
 import SearchPage from './pages/SearchPage';
 import AdminBeats from './pages/AdminBeats';
 import './index.css';
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/refund-policy" element={<RefundPolicyPage />} />
           <Route
             path="/songs"
             element={
