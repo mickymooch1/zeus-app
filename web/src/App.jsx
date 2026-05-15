@@ -20,6 +20,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import RefundPolicyPage from './pages/RefundPolicyPage';
+import DataDeletionPage from './pages/DataDeletionPage';
 import './index.css';
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/refund-policy" element={<RefundPolicyPage />} />
+          <Route path="/data-deletion" element={<DataDeletionPage />} />
           <Route
             path="/dashboard"
             element={
