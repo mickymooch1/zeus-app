@@ -45,6 +45,12 @@ export default function BillingPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelLoading, setCancelLoading]         = useState(false);
   const [cancelResult, setCancelResult]           = useState(null);
+  const [cpCurrent, setCpCurrent] = useState('');
+  const [cpNew, setCpNew] = useState('');
+  const [cpConfirm, setCpConfirm] = useState('');
+  const [cpLoading, setCpLoading] = useState(false);
+  const [cpError, setCpError] = useState('');
+  const [cpSuccess, setCpSuccess] = useState('');
 
   const successParam = new URLSearchParams(location.search).get('success');
   const ytParam      = new URLSearchParams(location.search).get('youtube');
@@ -126,6 +132,30 @@ export default function BillingPage() {
       setError(err.message);
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setCpError('');
+    setCpSuccess('');
+    if (cpNew.length < 8) { setCpError('New password must be at least 8 characters'); return; }
+    if (cpNew !== cpConfirm) { setCpError('New passwords do not match'); return; }
+    setCpLoading(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/auth/change-password`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password: cpCurrent, new_password: cpNew }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to change password');
+      setCpSuccess('Password changed successfully.');
+      setCpCurrent(''); setCpNew(''); setCpConfirm('');
+    } catch (err) {
+      setCpError(err.message);
+    } finally {
+      setCpLoading(false);
     }
   };
 
@@ -367,6 +397,42 @@ export default function BillingPage() {
           {'. '}
           View our <Link to="/refund-policy" className="auth-link">Refund Policy</Link>.
         </p>
+
+        {/* Change Password */}
+        <div className="billing-card" style={{ marginTop: '2rem' }}>
+          <h2 className="billing-card-title">Change Password</h2>
+          <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 400 }}>
+            <input
+              type="password"
+              placeholder="Current password"
+              value={cpCurrent}
+              onChange={e => setCpCurrent(e.target.value)}
+              required
+              className="form-input"
+            />
+            <input
+              type="password"
+              placeholder="New password (min 8 chars)"
+              value={cpNew}
+              onChange={e => setCpNew(e.target.value)}
+              required
+              className="form-input"
+            />
+            <input
+              type="password"
+              placeholder="Confirm new password"
+              value={cpConfirm}
+              onChange={e => setCpConfirm(e.target.value)}
+              required
+              className="form-input"
+            />
+            {cpError && <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: 0 }}>{cpError}</p>}
+            {cpSuccess && <p style={{ color: '#22c55e', fontSize: '0.875rem', margin: 0 }}>{cpSuccess}</p>}
+            <button type="submit" disabled={cpLoading} className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
+              {cpLoading ? 'Saving…' : 'Update Password'}
+            </button>
+          </form>
+        </div>
 
         {/* Danger zone */}
         <div className="billing-card" style={{ borderColor: 'rgba(239,68,68,0.3)', marginTop: '2rem' }}>

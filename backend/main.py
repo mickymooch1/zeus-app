@@ -401,6 +401,11 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class CheckoutRequest(BaseModel):
     plan: str
 
@@ -692,6 +697,26 @@ async def resend_verification(
 
     _send_verification_email(current_user, body.app)
     return {"ok": True, "message": "Verification email sent. Please check your inbox."}
+
+
+@app.post("/api/auth/change-password")
+@limiter.limit("10/minute")
+async def change_password(
+    request: Request,
+    body: ChangePasswordRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+
+    if not auth.verify_password(body.current_password, current_user.get("password_hash", "")):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    new_hash = auth.hash_password(body.new_password)
+    db_path = db.get_db_path()
+    db.update_user(db_path, current_user["id"], password_hash=new_hash)
+
+    return {"ok": True, "message": "Password changed successfully."}
 
 
 @app.post("/api/account/delete-request")
