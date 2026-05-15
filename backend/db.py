@@ -200,6 +200,16 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
             CREATE INDEX IF NOT EXISTS idx_prt_token ON password_reset_tokens (token);
+
+            CREATE TABLE IF NOT EXISTS email_verification_tokens (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    TEXT NOT NULL,
+                token      TEXT NOT NULL UNIQUE,
+                expires_at TEXT NOT NULL,
+                used       INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_evt_token ON email_verification_tokens (token);
         """)
         # Migrate existing tables — ignore error if column already exists
         for _migration in [
@@ -216,6 +226,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_variants ADD COLUMN kling_request_id TEXT",
             "ALTER TABLE song_variants ADD COLUMN music_video_url TEXT",
             "ALTER TABLE users ADD COLUMN cancel_at TEXT",
+            "ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0",
         ]:
             try:
                 conn.execute(_migration)
@@ -1167,6 +1178,41 @@ def mark_reset_token_used(db_path: pathlib.Path, token: str) -> None:
     conn = _conn(db_path)
     try:
         conn.execute("UPDATE password_reset_tokens SET used = 1 WHERE token = ?", (token,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def create_verification_token(db_path: pathlib.Path, user_id: str, token: str, expires_at: str) -> None:
+    """Insert a new email verification token."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES (?, ?, ?)",
+            (user_id, token, expires_at),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_verification_token(db_path: pathlib.Path, token: str) -> dict | None:
+    """Fetch a verification token row by token string."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM email_verification_tokens WHERE token = ?", (token,)
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def mark_verification_token_used(db_path: pathlib.Path, token: str) -> None:
+    """Mark a verification token as used."""
+    conn = _conn(db_path)
+    try:
+        conn.execute("UPDATE email_verification_tokens SET used = 1 WHERE token = ?", (token,))
         conn.commit()
     finally:
         conn.close()

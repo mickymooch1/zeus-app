@@ -375,6 +375,7 @@ class RegisterRequest(BaseModel):
     password: str
     name: str
     tc_accepted: bool
+    app: str = "ai"
 
 
 class LoginRequest(BaseModel):
@@ -384,6 +385,14 @@ class LoginRequest(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: str
+    app: str = "ai"
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class ResendVerificationRequest(BaseModel):
     app: str = "ai"
 
 
@@ -483,7 +492,56 @@ async def register(request: Request, body: RegisterRequest):
     token = auth.create_token(user["id"], user["email"], is_admin=bool(user.get("is_admin", 0)))
     safe_user = {k: v for k, v in user.items() if k != "password_hash"}
 
+    # Send verification email
+    _send_verification_email(user, body.app)
+
     return {"token": token, "user": safe_user}
+
+
+def _send_verification_email(user: dict, app: str = "ai") -> None:
+    import secrets
+    import smtplib
+    from datetime import datetime, timedelta, timezone
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    db_path = db.get_db_path()
+    v_token = secrets.token_urlsafe(32)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+    db.create_verification_token(db_path, user["id"], v_token, expires_at)
+
+    base_url = "https://zeusbeats.com" if app == "beats" else "https://zeusaidesign.com"
+    verify_url = f"{base_url}/verify-email?token={v_token}"
+
+    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
+    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+    if not smtp_email or not smtp_password:
+        return
+
+    try:
+        msg_text = "\n".join([
+            f"Hi {user.get('name', 'there')},",
+            "",
+            "Please verify your email address by clicking the link below.",
+            "This link expires in 24 hours.",
+            "",
+            verify_url,
+            "",
+            "If you didn't create this account, you can safely ignore this email.",
+            "",
+            "— The Zeus Team",
+        ])
+        msg = MIMEMultipart()
+        msg["From"] = smtp_email
+        msg["To"] = user["email"]
+        msg["Subject"] = "Verify your Zeus email address"
+        msg.attach(MIMEText(msg_text, "plain"))
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+            server.login(smtp_email, smtp_password)
+            server.sendmail(smtp_email, [user["email"]], msg.as_string())
+        log.info("verification email sent to %s", user["email"])
+    except Exception as exc:
+        log.warning("verification email failed: %s", exc)
 
 
 @app.post("/auth/login")
@@ -597,6 +655,43 @@ async def reset_password(request: Request, body: ResetPasswordRequest):
     db.mark_reset_token_used(db_path, body.token)
 
     return {"ok": True, "message": "Password updated successfully. You can now log in."}
+
+
+@app.post("/api/auth/verify-email")
+@limiter.limit("10/minute")
+async def verify_email(request: Request, body: VerifyEmailRequest):
+    from datetime import datetime, timezone
+
+    db_path = db.get_db_path()
+    record = db.get_verification_token(db_path, body.token)
+
+    if not record:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link")
+    if record["used"]:
+        raise HTTPException(status_code=400, detail="This verification link has already been used")
+
+    expires_at = datetime.fromisoformat(record["expires_at"])
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="This verification link has expired")
+
+    db.update_user(db_path, record["user_id"], email_verified=1)
+    db.mark_verification_token_used(db_path, body.token)
+
+    return {"ok": True, "message": "Email verified successfully. You can now generate songs."}
+
+
+@app.post("/api/auth/resend-verification")
+@limiter.limit("3/minute")
+async def resend_verification(
+    request: Request,
+    body: ResendVerificationRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if current_user.get("email_verified"):
+        return {"ok": True, "message": "Email is already verified."}
+
+    _send_verification_email(current_user, body.app)
+    return {"ok": True, "message": "Verification email sent. Please check your inbox."}
 
 
 @app.post("/api/account/delete-request")
@@ -1149,6 +1244,12 @@ async def songs_generate(
     import lyrics as _lyrics_mod
     import songs as _songs_mod
     from songs import InsufficientCreditsError
+
+    if not current_user.get("email_verified"):
+        raise HTTPException(
+            status_code=403,
+            detail="Please verify your email address before generating songs.",
+        )
 
     db_path = db.get_db_path()
     user_id = current_user["id"]

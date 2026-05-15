@@ -5,6 +5,7 @@ import { ChatWindow } from '../components/ChatWindow';
 import { SessionSidebar } from '../components/SessionSidebar';
 import { useAuth } from '../contexts/AuthContext';
 import { useZeusSocket } from '../hooks/useZeusSocket';
+import { EmailVerificationBanner } from '../components/EmailVerificationBanner';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -46,6 +47,7 @@ export default function DashboardPage() {
   return (
     <div className="dashboard-page">
       <DashboardHeader onMenuOpen={() => setSidebarOpen(true)} />
+      <EmailVerificationBanner user={user} token={token} app="ai" />
 
       <div className="dashboard-body">
         {sidebarOpen && (
