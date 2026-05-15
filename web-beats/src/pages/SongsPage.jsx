@@ -9,9 +9,44 @@ const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic'
 const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz' };
 const gLabel = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
 
+const ACCENT_VOICES = {
+  'British':             { lang: 'en-GB',         text: 'Hello, welcome to Zeus Beats, let me make you a song' },
+  'American (Southern)': { lang: 'en-US',         text: 'Hey, welcome to Zeus Beats, let me make you a song' },
+  'Irish':               { lang: 'en-IE',         text: 'Ah sure, welcome to Zeus Beats, let me make you a song' },
+  'Scottish':            { lang: 'en-GB-scotland', text: 'Och aye, welcome to Zeus Beats, let me make you a song' },
+  'Australian':          { lang: 'en-AU',         text: "G'day, welcome to Zeus Beats, let me make you a song" },
+  'French':              { lang: 'fr-FR',         text: 'Bonjour, bienvenue sur Zeus Beats' },
+  'Spanish':             { lang: 'es-ES',         text: 'Hola, bienvenido a Zeus Beats' },
+  'Caribbean':           { lang: 'en-JM',         text: 'Yo, welcome to Zeus Beats' },
+  'Jamaican':            { lang: 'en-JM',         text: 'Yo, welcome to Zeus Beats' },
+  'Jamaican Rasta':      { lang: 'en-JM',         text: 'Jah bless, welcome to Zeus Beats' },
+  'K-Pop':               { lang: 'ko-KR',         text: '안녕하세요, Zeus Beats에 오신 것을 환영합니다' },
+  'West African':        { lang: 'en-NG',         text: 'Welcome to Zeus Beats, make you a song now' },
+  'South African':       { lang: 'en-ZA',         text: 'Howzit, welcome to Zeus Beats' },
+  'American Soul':       { lang: 'en-US',         text: 'Oh yeah, welcome to Zeus Beats, let me make you a song' },
+  'American Hip-Hop':    { lang: 'en-US',         text: 'Yo yo, welcome to Zeus Beats, let me make you a song' },
+  'American Phonk':      { lang: 'en-US',         text: 'Welcome to Zeus Beats, let me make you a song' },
+  'New Jersey / Newark': { lang: 'en-US',         text: "Ayo, welcome to Zeus Beats, let me make you a song" },
+  'D&B MC':              { lang: 'en-GB',         text: 'Come on, welcome to Zeus Beats, let me make you a song' },
+  'UK Rave MC':          { lang: 'en-GB',         text: 'Let us go, welcome to Zeus Beats, let me make you a song' },
+  'British MC Grime':    { lang: 'en-GB',         text: 'Bruv, welcome to Zeus Beats, let me make you a song' },
+  'British African':     { lang: 'en-GB',         text: 'Hello, welcome to Zeus Beats, let me make you a song' },
+  'Jazz Vocal':          { lang: 'en-US',         text: 'Welcome to Zeus Beats, let me make you a song' },
+};
+
+if (typeof window !== 'undefined') {
+  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
+
 function previewAccent(accentLabel) {
   window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(new SpeechSynthesisUtterance(`Hello, this is the ${accentLabel} voice style`));
+  const voices = window.speechSynthesis.getVoices();
+  const config = ACCENT_VOICES[accentLabel] || { lang: 'en-GB', text: 'Welcome to Zeus Beats' };
+  const utterance = new SpeechSynthesisUtterance(config.text);
+  utterance.lang = config.lang;
+  const match = voices.find(v => v.lang.startsWith(config.lang.substring(0, 5)));
+  if (match) utterance.voice = match;
+  window.speechSynthesis.speak(utterance);
 }
 
 function _matchGenreSlug(text) {

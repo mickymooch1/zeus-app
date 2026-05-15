@@ -10,9 +10,44 @@ const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic'
 const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz' };
 const gLabel = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
 
+const ACCENT_VOICES = {
+  'British':               { lang: 'en-GB', text: 'Hello, welcome to Zeus AI Design, let me create something for you' },
+  'American (Southern)':   { lang: 'en-US', text: 'Hey, welcome to Zeus AI Design, let me create something for you' },
+  'American (NYC)':        { lang: 'en-US', text: 'Hey, welcome to Zeus AI Design, let me create something for you' },
+  'Australian':            { lang: 'en-AU', text: 'G\'day, welcome to Zeus AI Design, let me create something for you' },
+  'Irish':                 { lang: 'en-IE', text: 'Ah sure, welcome to Zeus AI Design, let me create something for you' },
+  'Scottish':              { lang: 'en-GB', text: 'Och, welcome to Zeus AI Design, let me create something for you' },
+  'South African':         { lang: 'en-ZA', text: 'Hello, welcome to Zeus AI Design, let me create something for you' },
+  'Indian':                { lang: 'hi-IN', text: 'नमस्ते, Zeus AI Design में आपका स्वागत है' },
+  'Nigerian':              { lang: 'en-NG', text: 'Hello, welcome to Zeus AI Design, let me create something for you' },
+  'Jamaican':              { lang: 'en-JM', text: 'Greetings, welcome to Zeus AI Design, let me create something for you' },
+  'French':                { lang: 'fr-FR', text: 'Bonjour, bienvenue sur Zeus AI Design, laissez-moi créer quelque chose pour vous' },
+  'Spanish':               { lang: 'es-ES', text: 'Hola, bienvenido a Zeus AI Design, déjame crear algo para ti' },
+  'Italian':               { lang: 'it-IT', text: 'Ciao, benvenuto su Zeus AI Design, lasciami creare qualcosa per te' },
+  'German':                { lang: 'de-DE', text: 'Hallo, willkommen bei Zeus AI Design, lass mich etwas für dich erstellen' },
+  'Portuguese':            { lang: 'pt-PT', text: 'Olá, bem-vindo ao Zeus AI Design, deixa-me criar algo para ti' },
+  'Brazilian':             { lang: 'pt-BR', text: 'Olá, bem-vindo ao Zeus AI Design, deixa eu criar algo para você' },
+  'Japanese':              { lang: 'ja-JP', text: 'こんにちは、Zeus AI Designへようこそ、何か作りましょう' },
+  'Korean':                { lang: 'ko-KR', text: '안녕하세요, Zeus AI Design에 오신 것을 환영합니다' },
+  'Mandarin':              { lang: 'zh-CN', text: '你好，欢迎来到Zeus AI Design，让我为你创作些东西' },
+  'Arabic':                { lang: 'ar-SA', text: 'مرحباً، أهلاً بك في Zeus AI Design' },
+  'Russian':               { lang: 'ru-RU', text: 'Привет, добро пожаловать в Zeus AI Design, давайте создадим что-нибудь для вас' },
+  'Welsh':                 { lang: 'cy-GB', text: 'Helo, croeso i Zeus AI Design, gadewch i mi greu rhywbeth i chi' },
+};
+
+if (typeof window !== 'undefined') {
+  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
+
 function previewAccent(accentLabel) {
   window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(new SpeechSynthesisUtterance(`Hello, this is the ${accentLabel} voice style`));
+  const voices = window.speechSynthesis.getVoices();
+  const config = ACCENT_VOICES[accentLabel] || { lang: 'en-GB', text: 'Welcome to Zeus AI Design' };
+  const utterance = new SpeechSynthesisUtterance(config.text);
+  utterance.lang = config.lang;
+  const match = voices.find(v => v.lang.startsWith(config.lang.substring(0, 5)));
+  if (match) utterance.voice = match;
+  window.speechSynthesis.speak(utterance);
 }
 
 const SONG_PACKS = [
