@@ -1722,6 +1722,57 @@ async def delete_song_variant(
     return {"deleted": True}
 
 
+class RemakeRequest(BaseModel):
+    genre: str
+    style_override: str | None = None
+
+
+@app.post("/api/songs/variants/{variant_id}/remake")
+async def remake_song_variant(
+    variant_id: int,
+    body: RemakeRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Re-generate the same lyrics in a different genre. Costs 1 song credit."""
+    import songs as _songs_mod
+    from songs import InsufficientCreditsError
+    from song_genres import GENRE_PRESETS
+
+    db_path = db.get_db_path()
+    user_id = current_user["id"]
+    is_admin = bool(current_user.get("is_admin", 0))
+
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != user_id:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    if body.genre not in GENRE_PRESETS:
+        raise HTTPException(status_code=400, detail=f"Unknown genre: {body.genre}")
+
+    style = GENRE_PRESETS[body.genre]
+    if body.style_override and body.style_override.strip():
+        style = f"{style}, {body.style_override.strip()}"
+
+    try:
+        result = _songs_mod.generate_song_variant(
+            user_id=user_id,
+            lyric_id=variant["lyric_id"],
+            style_prompt=style,
+            genre_tag=body.genre,
+            db_path=db_path,
+            is_admin=is_admin,
+        )
+    except InsufficientCreditsError as exc:
+        raise HTTPException(status_code=402, detail=str(exc))
+    except Exception as exc:
+        log.exception("remake_song_variant: failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    log.info("remake_song_variant: variant %s → new variant %s (%s) for user %s",
+             variant_id, result["variant_id"], body.genre, user_id)
+    return {**result, "lyric_id": variant["lyric_id"]}
+
+
 @app.post("/api/avatars/upload")
 async def upload_avatar_photo(
     file: UploadFile = File(...),

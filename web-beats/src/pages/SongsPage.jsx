@@ -184,7 +184,7 @@ function SongCard({
   variant, title, activeWsRef,
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
-  onDelete, deleting, musicVideoUrl,
+  onDelete, deleting, musicVideoUrl, onRemake,
 }) {
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
@@ -382,7 +382,10 @@ function SongCard({
               {ytBtn}
               {avatarBtn}
             </div>
-            <div style={{ display: 'flex', marginTop: 6 }}>
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <button onClick={onRemake} style={{ ...actionBtnStyle, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.15)' }}>
+                🔄 Remake
+              </button>
               <button
                 onClick={onDelete}
                 disabled={deleting}
@@ -446,6 +449,12 @@ export default function SongsPage() {
   const [didStatus, setDidStatus]                 = useState({});
   const [videoUrls, setVideoUrls]                 = useState({});
   const [musicVideoUrls, setMusicVideoUrls]       = useState({});
+
+  const [remakeModal, setRemakeModal]     = useState(null);
+  const [remakeGenre, setRemakeGenre]     = useState('');
+  const [remakeStyle, setRemakeStyle]     = useState('');
+  const [remakeLoading, setRemakeLoading] = useState(false);
+  const [remakeError, setRemakeError]     = useState('');
 
   const [portraitGenerating, setPortraitGenerating] = useState(false);
   const [portraitJobId, setPortraitJobId]           = useState(null);
@@ -558,11 +567,16 @@ export default function SongsPage() {
         });
         if (r.ok) {
           const d = await r.json();
-          setActiveJob((prev) =>
-            prev
-              ? { ...prev, variants: d.variants.map((v) => ({ ...v, title: prev.title })) }
-              : null
-          );
+          setActiveJob((prev) => {
+            if (!prev) return null;
+            const tracked = new Set(prev.variants.map((v) => v.variant_id));
+            return {
+              ...prev,
+              variants: d.variants
+                .filter((v) => tracked.has(v.variant_id))
+                .map((v) => ({ ...v, title: prev.title })),
+            };
+          });
         }
       } catch (_) {}
     }, 5000);
@@ -853,6 +867,37 @@ export default function SongsPage() {
       setError(err.message);
     } finally {
       setDeletingVariants((prev) => { const s = new Set(prev); s.delete(variantId); return s; });
+    }
+  };
+
+  const handleRemake = async () => {
+    if (!remakeGenre || remakeLoading) return;
+    setRemakeLoading(true);
+    setRemakeError('');
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/songs/variants/${remakeModal.variantId}/remake`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ genre: remakeGenre, style_override: remakeStyle || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Remake failed' }));
+        throw new Error(err.detail || 'Remake failed');
+      }
+      const data = await res.json();
+      setRemakeModal(null);
+      setRemakeGenre('');
+      setRemakeStyle('');
+      setCredits((p) => ({ ...p, balance: Math.max(0, p.balance - 1) }));
+      setActiveJob({
+        lyric_id: data.lyric_id,
+        title: remakeModal.title,
+        variants: [{ variant_id: data.variant_id, genre_tag: remakeGenre, status: 'generating', title: remakeModal.title }],
+      });
+    } catch (err) {
+      setRemakeError(err.message);
+    } finally {
+      setRemakeLoading(false);
     }
   };
 
@@ -1377,6 +1422,7 @@ export default function SongsPage() {
                       onDelete={() => handleDeleteVariant(v.variant_id)}
                       deleting={deletingVariants.has(v.variant_id)}
                       musicVideoUrl={musicVideoUrls[v.variant_id]}
+                      onRemake={() => setRemakeModal({ variantId: v.variant_id, title: activeJob.title })}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -1411,6 +1457,7 @@ export default function SongsPage() {
                     onDelete={() => handleDeleteVariant(v.variant_id)}
                     deleting={deletingVariants.has(v.variant_id)}
                     musicVideoUrl={musicVideoUrls[v.variant_id]}
+                    onRemake={() => setRemakeModal({ variantId: v.variant_id, title: v.title })}
                   />
                 ))}
               </div>
@@ -1444,6 +1491,43 @@ export default function SongsPage() {
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setYtModal(null)} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
               <button onClick={handleYouTubeUpload} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Upload</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {remakeModal && (
+        <div onClick={() => { setRemakeModal(null); setRemakeGenre(''); setRemakeStyle(''); setRemakeError(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#0d0d14', border: '1px solid rgba(0,240,255,0.2)', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#f0eeff', marginBottom: 4 }}>🔄 Remake in a New Genre</h3>
+            <p style={{ fontSize: 13, color: '#555', marginBottom: 22 }}>{remakeModal.title || `Song #${remakeModal.variantId}`}</p>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>Pick a genre</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
+              {GENRES.map((g) => {
+                const sel = remakeGenre === g;
+                return (
+                  <button key={g} onClick={() => setRemakeGenre(g)} style={{
+                    padding: '6px 12px', borderRadius: 20,
+                    border: sel ? 'none' : '1px solid rgba(255,255,255,0.2)',
+                    background: sel ? '#7c3aed' : 'rgba(255,255,255,0.05)',
+                    color: sel ? '#fff' : 'rgba(255,255,255,0.7)',
+                    fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+                  }}>{gLabel(g)}</button>
+                );
+              })}
+            </div>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Style note (optional)</p>
+            <input type="text" value={remakeStyle} onChange={(e) => setRemakeStyle(e.target.value)}
+              placeholder="e.g. more aggressive, slower tempo, female vocals…"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 12px', color: '#f0eeff', fontSize: 13, fontFamily: 'inherit', outline: 'none', marginBottom: 20 }}
+            />
+            {!isAdmin && <p style={{ fontSize: 12, color: '#555', marginBottom: 16 }}>This will use 1 of your {credits.balance} remaining credits.</p>}
+            {remakeError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '8px 12px', color: '#fca5a5', fontSize: 12, marginBottom: 14 }}>{remakeError}</div>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { setRemakeModal(null); setRemakeGenre(''); setRemakeStyle(''); setRemakeError(''); }} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleRemake} disabled={!remakeGenre || remakeLoading} style={{ flex: 2, padding: '11px 0', borderRadius: 8, border: 'none', background: remakeLoading || !remakeGenre ? 'rgba(0,240,255,0.3)' : '#00f0ff', color: '#000', fontSize: 14, fontWeight: 700, cursor: remakeLoading || !remakeGenre ? 'not-allowed' : 'pointer' }}>
+                {remakeLoading ? 'Generating…' : 'Generate Remake'}
+              </button>
             </div>
           </div>
         </div>
