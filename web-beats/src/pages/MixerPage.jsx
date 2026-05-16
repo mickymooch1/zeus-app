@@ -42,6 +42,7 @@ export default function MixerPage() {
   const [recording, setRecording]     = useState(false);
   const [recDuration, setRecDuration] = useState(0);
   const [lastBlob, setLastBlob]       = useState(null);
+  const [recordingUrl, setRecordingUrl] = useState(null); // blob URL for audio player
   const [saving, setSaving]           = useState(false);
   const [saveStatus, setSaveStatus]   = useState(null); // 'ok' | 'err' | null
 
@@ -80,6 +81,7 @@ export default function MixerPage() {
         recorderRef.current.stop();
       }
       clearInterval(recTimerRef.current);
+      if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
       ['A', 'B'].forEach(id => {
         const n = id === 'A' ? nodesA.current : nodesB.current;
         if (n.source) { try { n.source.disconnect(); n.source.stop(); } catch {} }
@@ -271,6 +273,9 @@ export default function MixerPage() {
       recChunksRef.current = [];
       setSaveStatus(null);
       setLastBlob(null);
+      // Revoke previous player URL before starting a new recording
+      if (lastBlobUrlRef.current) { URL.revokeObjectURL(lastBlobUrlRef.current); lastBlobUrlRef.current = null; }
+      setRecordingUrl(null);
 
       recorder.ondataavailable = e => { if (e.data.size > 0) recChunksRef.current.push(e.data); };
       recorder.onstop = () => {
@@ -280,16 +285,20 @@ export default function MixerPage() {
         const blob = new Blob(recChunksRef.current, { type: 'audio/webm' });
         setLastBlob(blob);
 
-        // Auto-download
-        if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
-        const url = URL.createObjectURL(blob);
-        lastBlobUrlRef.current = url;
+        // Stable URL kept alive for the audio player
+        const playerUrl = URL.createObjectURL(blob);
+        lastBlobUrlRef.current = playerUrl;
+        setRecordingUrl(playerUrl);
+
+        // Auto-download via a separate short-lived URL so the player URL stays valid
+        const dlUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
+        a.href = dlUrl;
         a.download = `zeus-mix-${Date.now()}.webm`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(dlUrl), 1000);
       };
 
       recorder.start();
@@ -306,15 +315,15 @@ export default function MixerPage() {
 
   function handleDownload() {
     if (!lastBlob) return;
-    if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
+    // Use a fresh short-lived URL — don't revoke the player URL
     const url = URL.createObjectURL(lastBlob);
-    lastBlobUrlRef.current = url;
     const a = document.createElement('a');
     a.href = url;
     a.download = `zeus-mix-${Date.now()}.webm`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   async function handleSave() {
@@ -445,11 +454,31 @@ export default function MixerPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#000', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
-      {/* Pulse keyframe for record button */}
+      {/* Pulse keyframe for record button + audio player skin */}
       <style>{`
         @keyframes recPulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(255,34,68,0.7); }
           50%       { box-shadow: 0 0 0 10px rgba(255,34,68,0); }
+        }
+        .mixer-player {
+          width: 100%;
+          border-radius: 8px;
+          background: #0a0a0a;
+          outline: none;
+        }
+        .mixer-player::-webkit-media-controls-panel {
+          background-color: #0d0d0d;
+        }
+        .mixer-player::-webkit-media-controls-play-button,
+        .mixer-player::-webkit-media-controls-mute-button {
+          filter: invert(1) sepia(1) saturate(5) hue-rotate(150deg);
+        }
+        .mixer-player::-webkit-media-controls-current-time-display,
+        .mixer-player::-webkit-media-controls-time-remaining-display {
+          color: #00f0ff;
+        }
+        .mixer-player::-webkit-media-controls-timeline {
+          filter: invert(1) sepia(1) saturate(5) hue-rotate(150deg);
         }
       `}</style>
 
@@ -553,6 +582,57 @@ export default function MixerPage() {
 
           <Deck id="B" deck={deckB} accent={PINK} />
         </div>
+
+        {/* Playback section — appears after recording stops */}
+        {recordingUrl && !recording && (
+          <div style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: `1px solid ${RED}33`,
+            borderRadius: 12,
+            padding: '16px 20px',
+            marginBottom: 20,
+          }}>
+            <div style={{
+              fontSize: '0.7rem', color: RED, letterSpacing: '0.12em',
+              textTransform: 'uppercase', marginBottom: 10,
+            }}>
+              ⏺ Mix recording
+            </div>
+            <audio
+              controls
+              src={recordingUrl}
+              className="mixer-player"
+            />
+            <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+              <button
+                onClick={handleDownload}
+                style={{
+                  flex: 1, padding: '7px 0', borderRadius: 6,
+                  border: '1px solid #333', background: 'transparent',
+                  color: '#888', fontSize: '0.78rem', cursor: 'pointer',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                ⬇ Download
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || saveStatus === 'ok'}
+                style={{
+                  flex: 1, padding: '7px 0', borderRadius: 6,
+                  border: `1px solid ${saveStatus === 'ok' ? '#00c853' : saveStatus === 'err' ? RED : CYAN + '55'}`,
+                  background: 'transparent',
+                  color: saveStatus === 'ok' ? '#00c853' : saveStatus === 'err' ? RED : CYAN,
+                  fontSize: '0.78rem',
+                  cursor: saving || saveStatus === 'ok' ? 'default' : 'pointer',
+                  letterSpacing: '0.04em', opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {saving ? '…' : saveStatus === 'ok' ? '✓ Saved to library' : saveStatus === 'err' ? '✕ Save failed' : '💾 Save to My Songs'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Crossfader */}
         <div style={{
