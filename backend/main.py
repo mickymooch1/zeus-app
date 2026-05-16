@@ -1298,6 +1298,10 @@ async def songs_generate(
     from songs import InsufficientCreditsError
 
     if not current_user.get("email_verified"):
+        log.warning(
+            "songs_generate: blocked — email not verified user_id=%s email=%s",
+            current_user.get("id"), current_user.get("email"),
+        )
         raise HTTPException(
             status_code=403,
             detail="Please verify your email address before generating songs.",
@@ -1312,6 +1316,17 @@ async def songs_generate(
         db.upsert_song_credits(db_path, user_id,
                                balance=billing.FREE_SONG_CREDITS,
                                monthly_allowance=billing.FREE_SONG_CREDITS)
+        credits_row = db.get_song_credits(db_path, user_id)
+
+    log.info(
+        "songs_generate: user_id=%s plan=%s sub_status=%s credits_balance=%s credits_allowance=%s email=%s",
+        user_id,
+        current_user.get("subscription_plan", "free"),
+        current_user.get("subscription_status", "none"),
+        credits_row.get("balance") if credits_row else billing.FREE_SONG_CREDITS,
+        credits_row.get("monthly_allowance") if credits_row else billing.FREE_SONG_CREDITS,
+        current_user.get("email"),
+    )
 
     if not body.custom_lyrics and not body.brief:
         raise HTTPException(status_code=400, detail="Provide a song description or custom lyrics")
@@ -1383,6 +1398,13 @@ async def songs_generate(
 
     is_admin = bool(current_user.get("is_admin", 0))
 
+    log.info(
+        "songs_generate: submitting to Apiframe user_id=%s lyric_id=%s genres=%r "
+        "extra_suno_params=%r tempo_suffix=%r inspired_by=%r is_admin=%s",
+        user_id, lyric_id, body.genres, extra_suno_params, tempo_suffix,
+        body.inspired_by_descriptors, is_admin,
+    )
+
     try:
         variant_result = _songs_mod.generate_multiple_variants(
             user_id=user_id,
@@ -1394,12 +1416,18 @@ async def songs_generate(
             is_admin=is_admin,
             inspired_by_descriptors=body.inspired_by_descriptors or None,
         )
+        log.info(
+            "songs_generate: Apiframe submission ok user_id=%s lyric_id=%s variants=%r",
+            user_id, lyric_id, [v.get("id") for v in variant_result.get("variants", [])],
+        )
     except InsufficientCreditsError as exc:
+        log.warning("songs_generate: insufficient credits user_id=%s detail=%s", user_id, exc)
         raise HTTPException(status_code=402, detail=str(exc))
     except ValueError as exc:
+        log.warning("songs_generate: bad request user_id=%s detail=%s", user_id, exc)
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        log.exception("songs_generate: variant submission failed")
+        log.exception("songs_generate: variant submission failed user_id=%s lyric_id=%s", user_id, lyric_id)
         raise HTTPException(status_code=500, detail=f"Song submission failed: {exc}")
 
     return {
