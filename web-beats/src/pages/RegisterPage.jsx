@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
 
 export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -20,10 +22,10 @@ export default function RegisterPage() {
 
   const validate = () => {
     const errors = {};
-    if (!name.trim()) errors.name = 'Name is required';
-    if (!email || !email.includes('@')) errors.email = 'Valid email is required';
-    if (password.length < 8) errors.password = 'Password must be at least 8 characters';
-    if (password !== confirmPassword) errors.confirmPassword = 'Passwords do not match';
+    if (!name.trim()) errors.name = t('auth.register.errors.name');
+    if (!email || !email.includes('@')) errors.email = t('auth.register.errors.email');
+    if (password.length < 8) errors.password = t('auth.register.errors.password');
+    if (password !== confirmPassword) errors.confirmPassword = t('auth.register.errors.passwordMatch');
     return errors;
   };
 
@@ -63,19 +65,19 @@ export default function RegisterPage() {
           <span className="auth-logo-text">{BRAND.name}</span>
         </div>
 
-        <h1 className="auth-title">Create your account</h1>
-        <p className="auth-sub">Get started free — no credit card required</p>
+        <h1 className="auth-title">{t('auth.register.title')}</h1>
+        <p className="auth-sub">{t('auth.register.subtitle')}</p>
 
         {error && <div className="form-error form-error--banner">{error}</div>}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label className="form-label" htmlFor="name">Full name</label>
+            <label className="form-label" htmlFor="name">{t('auth.register.nameLabel')}</label>
             <input
               id="name"
               type="text"
               className={`form-input${fieldErrors.name ? ' form-input--error' : ''}`}
-              placeholder="Alex Johnson"
+              placeholder={t('auth.register.namePlaceholder')}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -85,12 +87,12 @@ export default function RegisterPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="email">Email address</label>
+            <label className="form-label" htmlFor="email">{t('auth.register.emailLabel')}</label>
             <input
               id="email"
               type="email"
               className={`form-input${fieldErrors.email ? ' form-input--error' : ''}`}
-              placeholder="you@example.com"
+              placeholder={t('auth.register.emailPlaceholder')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -100,13 +102,13 @@ export default function RegisterPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="password">Password</label>
+            <label className="form-label" htmlFor="password">{t('auth.register.passwordLabel')}</label>
             <div style={{ position: 'relative' }}>
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 className={`form-input${fieldErrors.password ? ' form-input--error' : ''}`}
-                placeholder="At least 8 characters"
+                placeholder={t('auth.register.passwordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -116,7 +118,7 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? t('auth.register.hidePassword') : t('auth.register.showPassword')}
                 style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 4, display: 'flex', alignItems: 'center' }}
               >
                 {showPassword ? (
@@ -130,13 +132,13 @@ export default function RegisterPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="confirm-password">Confirm password</label>
+            <label className="form-label" htmlFor="confirm-password">{t('auth.register.confirmPasswordLabel')}</label>
             <div style={{ position: 'relative' }}>
               <input
                 id="confirm-password"
                 type={showConfirmPassword ? 'text' : 'password'}
                 className={`form-input${fieldErrors.confirmPassword ? ' form-input--error' : ''}`}
-                placeholder="Repeat your password"
+                placeholder={t('auth.register.confirmPasswordPlaceholder')}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -146,7 +148,7 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(v => !v)}
-                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                aria-label={showConfirmPassword ? t('auth.register.hidePassword') : t('auth.register.showPassword')}
                 style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 4, display: 'flex', alignItems: 'center' }}
               >
                 {showConfirmPassword ? (
@@ -169,13 +171,13 @@ export default function RegisterPage() {
               className="checkbox-input"
             />
             <span className="checkbox-label">
-              I agree to the{' '}
+              {t('auth.register.termsAgree')}{' '}
               <a href="/terms" target="_blank" rel="noopener noreferrer" className="auth-link">
-                Terms &amp; Conditions
+                {t('auth.register.termsLink')}
               </a>{' '}
-              and{' '}
+              {t('auth.register.and')}{' '}
               <a href="/privacy" target="_blank" rel="noopener noreferrer" className="auth-link">
-                Privacy Policy
+                {t('auth.register.privacyLink')}
               </a>
             </span>
           </label>
@@ -185,13 +187,13 @@ export default function RegisterPage() {
             className="btn btn-primary btn-full"
             disabled={!canSubmit || loading}
           >
-            {loading ? <span className="spinner spinner--inline" /> : 'Create account'}
+            {loading ? <span className="spinner spinner--inline" /> : t('auth.register.submit')}
           </button>
         </form>
 
         <p className="auth-footer-text">
-          Already have an account?{' '}
-          <Link to="/login" className="auth-link">Sign in</Link>
+          {t('auth.register.haveAccount')}{' '}
+          <Link to="/login" className="auth-link">{t('auth.register.signIn')}</Link>
         </p>
       </div>
     </div>

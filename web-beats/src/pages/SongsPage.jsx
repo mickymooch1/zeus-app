@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 import { EmailVerificationBanner } from '../components/EmailVerificationBanner';
@@ -192,6 +193,7 @@ function SongCard({
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
   onDelete, deleting, musicVideoUrl, onRemake,
 }) {
+  const { t } = useTranslation();
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -267,34 +269,34 @@ function SongCard({
     avatarBtn = (
       <button disabled title="Available on Music Pro plan and above"
         style={{ ...actionBtnStyle, opacity: 0.25, cursor: 'not-allowed' }}>
-        ◉ Avatar
+        {t('songs.buttons.avatar')}
       </button>
     );
   } else if (!isAdmin && videoCredits === 0) {
     avatarBtn = (
       <button disabled title="No avatar video credits remaining"
         style={{ ...actionBtnStyle, opacity: 0.35, cursor: 'not-allowed', color: '#f87171' }}>
-        ◉ No credits
+        {t('songs.buttons.avatarNoCredits')}
       </button>
     );
   } else if (didSt === 'processing') {
     avatarBtn = (
       <button disabled style={{ ...actionBtnStyle, opacity: 0.55, cursor: 'default' }}>
-        Making…
+        {t('songs.buttons.avatarMaking')}
       </button>
     );
   } else if (didSt === 'done' && videoUrl) {
     avatarBtn = (
       <button onClick={onAvatarClick}
         style={{ ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
-        ◉ Redo
+        {t('songs.buttons.avatarRedo')}
       </button>
     );
   } else {
     avatarBtn = (
       <button onClick={onAvatarClick}
         style={{ ...actionBtnStyle, color: didSt === 'error' ? '#f87171' : '#555' }}>
-        {didSt === 'error' ? 'Retry' : '◉ Avatar'}
+        {didSt === 'error' ? t('songs.buttons.avatarRetry') : t('songs.buttons.avatar')}
       </button>
     );
   }
@@ -304,33 +306,33 @@ function SongCard({
     ytBtn = (
       <button disabled title="Available on Music Starter plan and above"
         style={{ ...actionBtnStyle, opacity: 0.25, cursor: 'not-allowed' }}>
-        ▲ YouTube
+        {t('songs.buttons.youtube')}
       </button>
     );
   } else if (ytSt === 'done' && ytUrl) {
     ytBtn = (
       <a href={ytUrl} target="_blank" rel="noopener noreferrer"
         style={{ ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
-        ▶ View on YT
+        {t('songs.buttons.viewYT')}
       </a>
     );
   } else if (ytSt === 'uploading') {
     ytBtn = (
       <button disabled style={{ ...actionBtnStyle, opacity: 0.55, cursor: 'default' }}>
-        Uploading…
+        {t('songs.buttons.uploading')}
       </button>
     );
   } else if (!ytConnected) {
     ytBtn = (
       <button onClick={onYouTubeClick} style={{ ...actionBtnStyle, color: '#a78bfa' }}>
-        + Connect YT
+        {t('songs.buttons.connectYT')}
       </button>
     );
   } else {
     ytBtn = (
       <button onClick={onYouTubeClick}
         style={{ ...actionBtnStyle, color: ytSt === 'error' ? '#f87171' : '#555' }}>
-        {ytSt === 'error' ? 'Retry YT' : '▲ YouTube'}
+        {ytSt === 'error' ? t('songs.buttons.retryYT') : t('songs.buttons.youtube')}
       </button>
     );
   }
@@ -378,10 +380,10 @@ function SongCard({
           <>
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
               <a href={variant.mp3_url} download={safeFilename} style={actionBtnStyle}>
-                ↓ Download
+                {t('songs.buttons.download')}
               </a>
               <button onClick={handleShare} style={actionBtnStyle}>
-                {copied ? '✓ Copied!' : '↗ Share'}
+                {copied ? t('songs.buttons.copied') : t('songs.buttons.share')}
               </button>
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
@@ -390,7 +392,7 @@ function SongCard({
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
               <button onClick={onRemake} style={{ ...actionBtnStyle, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.15)' }}>
-                🔄 Remake
+                {t('songs.buttons.remake')}
               </button>
               <button
                 onClick={onDelete}
@@ -402,7 +404,7 @@ function SongCard({
                   opacity: deleting ? 0.5 : 1,
                 }}
               >
-                {deleting ? 'Deleting…' : '✕ Delete'}
+                {deleting ? t('songs.buttons.deleting') : t('songs.buttons.delete')}
               </button>
             </div>
           </>
@@ -414,6 +416,7 @@ function SongCard({
 
 export default function SongsPage() {
   const { token, user } = useAuth();
+  const { t } = useTranslation();
   const location = useLocation();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
@@ -989,16 +992,16 @@ export default function SongsPage() {
               }} />
             </div>
             <span style={{ fontSize: 13, color: '#666', whiteSpace: 'nowrap' }}>
-              {isAdmin ? 'Unlimited' : `${balance} / ${allowance} songs`}
+              {isAdmin ? t('songs.unlimited') : t('songs.songsBalance', { balance, allowance })}
             </span>
             {didPlanOk && !isAdmin && (
               <span style={{ fontSize: 13, color: credits.video_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
-                · {credits.video_credits} avatar video{credits.video_credits !== 1 ? 's' : ''} remaining
+                {t('songs.videoCredits', { count: credits.video_credits })}
               </span>
             )}
             {!isAdmin && balance <= 2 && (
               <Link to="/billing" style={{ fontSize: 13, color: barColor, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                Top up →
+                {t('songs.topUp')}
               </Link>
             )}
           </div>
@@ -1017,7 +1020,7 @@ export default function SongsPage() {
               fontWeight: 600,
               fontSize: 14,
             }}>
-              Payment successful — your song credits have been added.
+              {t('songs.topupSuccess')}
             </div>
           )}
 
@@ -1032,7 +1035,7 @@ export default function SongsPage() {
               fontWeight: 600,
               fontSize: 14,
             }}>
-              YouTube connected — you can now upload songs directly to your channel.
+              {t('songs.ytConnectedSuccess')}
             </div>
           )}
           {ytConnectedParam === 'error' && (
@@ -1046,7 +1049,7 @@ export default function SongsPage() {
               fontWeight: 600,
               fontSize: 14,
             }}>
-              YouTube connection failed — please try again.
+              {t('songs.ytConnectedFail')}
             </div>
           )}
 
@@ -1058,10 +1061,10 @@ export default function SongsPage() {
             marginBottom: 12,
           }}>
             <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f0eeff', marginBottom: 4 }}>
-              Create a Song
+              {t('songs.pageTitle')}
             </h1>
             <p style={{ color: '#555', fontSize: 14, marginBottom: 14 }}>
-              {useCustomLyrics ? 'Write your lyrics below, then choose a style.' : 'Describe your song — Zeus Beats writes the lyrics, Suno turns them into music.'}
+              {useCustomLyrics ? t('songs.subtitleOwn') : t('songs.subtitleAI')}
             </p>
 
             {/* Custom lyrics toggle */}
@@ -1069,11 +1072,11 @@ export default function SongsPage() {
               <button
                 onClick={() => setUseCustomLyrics(false)}
                 style={{ padding: '6px 14px', borderRadius: 20, border: 'none', background: !useCustomLyrics ? '#7c3aed' : 'rgba(255,255,255,0.08)', color: !useCustomLyrics ? '#fff' : 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-              >Zeus writes lyrics</button>
+              >{t('songs.modeAI')}</button>
               <button
                 onClick={() => setUseCustomLyrics(true)}
                 style={{ padding: '6px 14px', borderRadius: 20, border: 'none', background: useCustomLyrics ? '#7c3aed' : 'rgba(255,255,255,0.08)', color: useCustomLyrics ? '#fff' : 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-              >Write my own lyrics</button>
+              >{t('songs.modeOwn')}</button>
             </div>
 
             {!useCustomLyrics && (
@@ -1082,7 +1085,7 @@ export default function SongsPage() {
                   className="songs-textarea"
                   value={brief}
                   onChange={(e) => setBrief(e.target.value)}
-                  placeholder="e.g. A dark hip-hop track about late night hustle and chasing dreams…"
+                  placeholder={t('songs.briefPlaceholder')}
                   rows={3}
                   style={{
                     width: '100%',
@@ -1103,7 +1106,7 @@ export default function SongsPage() {
                   <button
                     onClick={startListening}
                     className={listening ? 'mic-btn-listening' : ''}
-                    title={listening ? 'Listening… (click to stop)' : 'Speak your description'}
+                    title={listening ? t('songs.listenStop') : t('songs.listenStart')}
                     style={{
                       position: 'absolute',
                       top: 8,
@@ -1127,7 +1130,7 @@ export default function SongsPage() {
                   </button>
                 )}
                 {listening && (
-                  <p style={{ fontSize: 12, color: '#ef4444', marginTop: 5, marginBottom: 0 }}>🎤 Listening…</p>
+                  <p style={{ fontSize: 12, color: '#ef4444', marginTop: 5, marginBottom: 0 }}>{t('songs.listeningLabel')}</p>
                 )}
               </div>
             )}
@@ -1137,7 +1140,7 @@ export default function SongsPage() {
                 className="songs-textarea"
                 value={customLyricsText}
                 onChange={(e) => setCustomLyricsText(e.target.value)}
-                placeholder="Paste or write your full lyrics here…&#10;&#10;[Verse 1]&#10;..."
+                placeholder={t('songs.lyricsPlaceholder')}
                 rows={10}
                 style={{
                   width: '100%',
@@ -1161,7 +1164,7 @@ export default function SongsPage() {
               type="text"
               value={songTitle}
               onChange={(e) => setSongTitle(e.target.value)}
-              placeholder={vocals ? 'Song title (optional)' : 'e.g. Midnight Run, Deep Blue, Storm'}
+              placeholder={vocals ? t('songs.titlePlaceholderVocals') : t('songs.titlePlaceholderInstrumental')}
               maxLength={100}
               style={{
                 width: '100%',
@@ -1180,7 +1183,7 @@ export default function SongsPage() {
             />
 
             <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>
-              Style
+              {t('songs.styleLabel')}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
               {GENRES.map((g) => {
@@ -1218,7 +1221,7 @@ export default function SongsPage() {
                     if (artistDescriptors) setArtistDescriptors('');
                   }}
                   onBlur={handleArtistLookup}
-                  placeholder="Inspired by artist (e.g. Bob Marley) — optional"
+                  placeholder={t('songs.artistPlaceholder')}
                   style={{
                     width: '100%',
                     boxSizing: 'border-box',
@@ -1241,7 +1244,7 @@ export default function SongsPage() {
               </div>
               {artistDescriptors && !artistLoading && (
                 <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
-                  <span style={{ fontSize: 11, color: '#444', fontWeight: 600, letterSpacing: '0.4px', textTransform: 'uppercase', flexShrink: 0 }}>Style:</span>
+                  <span style={{ fontSize: 11, color: '#444', fontWeight: 600, letterSpacing: '0.4px', textTransform: 'uppercase', flexShrink: 0 }}>{t('songs.styleTag')}</span>
                   {artistDescriptors.split(',').map((d, i) => (
                     <span key={i} style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', color: '#9b8ec4', borderRadius: 12, padding: '2px 8px', fontSize: 11 }}>
                       {d.trim()}
@@ -1259,8 +1262,8 @@ export default function SongsPage() {
                 borderRadius: 8, padding: '9px 14px', cursor: 'pointer', marginBottom: 14,
               }}
             >
-              <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 10, fontWeight: 700, color: '#00f0ff', letterSpacing: '0.14em' }}>⚡ ADVANCED OPTIONS</span>
-              <span style={{ marginLeft: 'auto', color: '#00f0ff', fontSize: 12, fontWeight: 600 }}>{showAdvanced ? '▲ Hide' : '▼ Show'}</span>
+              <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 10, fontWeight: 700, color: '#00f0ff', letterSpacing: '0.14em' }}>⚡ {t('songs.advancedOptions')}</span>
+              <span style={{ marginLeft: 'auto', color: '#00f0ff', fontSize: 12, fontWeight: 600 }}>{showAdvanced ? t('songs.hideOptions') : t('songs.showOptions')}</span>
             </button>
 
             {showAdvanced && (
@@ -1273,9 +1276,9 @@ export default function SongsPage() {
                 animation: 'advGlow 2.5s ease-in-out infinite',
               }}>
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Vocal Gender</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.vocalGenderLabel')}</p>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    {[['', 'Either'], ['m', 'Male'], ['f', 'Female'], ['duet', 'Duet']].map(([val, label]) => (
+                    {[['', t('songs.vocalEither')], ['m', t('songs.vocalMale')], ['f', t('songs.vocalFemale')], ['duet', t('songs.vocalDuet')]].map(([val, label]) => (
                       <button
                         key={val}
                         onClick={() => setVocalGender(val)}
@@ -1292,13 +1295,13 @@ export default function SongsPage() {
                 </div>
 
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Accent</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.accentLabel')}</p>
                   <select
                     value={accent}
                     onChange={(e) => setAccent(e.target.value)}
                     style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: accent ? '#c4b5fd' : '#555', fontSize: 13, outline: 'none' }}
                   >
-                    <option value="">Default</option>
+                    <option value="">{t('songs.accentDefault')}</option>
                     {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish','American Soul','Jamaican','D&B MC','UK Rave MC','British MC Grime','Jazz Vocal','American Hip-Hop','K-Pop','West African','South African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta'].map((a) => (
                       <option key={a} value={a}>{a}</option>
                     ))}
@@ -1306,7 +1309,7 @@ export default function SongsPage() {
                 </div>
 
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Model</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.modelLabel')}</p>
                   <select
                     value={modelVersion}
                     onChange={(e) => setModelVersion(e.target.value)}
@@ -1320,7 +1323,7 @@ export default function SongsPage() {
 
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', margin: 0 }}>Creativity</p>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', margin: 0 }}>{t('songs.creativityLabel')}</p>
                     <span style={{ fontSize: 11, color: '#a78bfa' }}>{creativity}%</span>
                   </div>
                   <input type="range" min={0} max={100} value={creativity} onChange={(e) => setCreativity(Number(e.target.value))} style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }} />
@@ -1328,16 +1331,16 @@ export default function SongsPage() {
 
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', margin: 0 }}>Style Strength</p>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', margin: 0 }}>{t('songs.styleStrengthLabel')}</p>
                     <span style={{ fontSize: 11, color: '#a78bfa' }}>{styleWeight}%</span>
                   </div>
                   <input type="range" min={0} max={100} value={styleWeight} onChange={(e) => setStyleWeight(Number(e.target.value))} style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }} />
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Tempo</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.tempoLabel')}</p>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                    {[['', 'Default'], ['slow', 'Slow'], ['medium', 'Medium'], ['fast', 'Fast'], ['custom', 'Custom BPM']].map(([val, label]) => (
+                    {[['', t('songs.tempoDefault')], ['slow', t('songs.tempoSlow')], ['medium', t('songs.tempoMedium')], ['fast', t('songs.tempoFast')], ['custom', t('songs.tempoCustom')]].map(([val, label]) => (
                       <button
                         key={val}
                         onClick={() => setTempo(val)}
@@ -1369,7 +1372,7 @@ export default function SongsPage() {
                       <div style={{ position: 'absolute', top: 3, left: vocals ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
                     </div>
                     <span style={{ fontSize: 12, color: vocals ? '#c4b5fd' : '#555', fontWeight: 500 }}>
-                      {vocals ? 'Vocals' : 'Instrumental'}
+                      {vocals ? t('songs.vocalsOn') : t('songs.vocalsOff')}
                     </span>
                   </label>
                 </div>
@@ -1383,11 +1386,11 @@ export default function SongsPage() {
                       >
                         <div style={{ position: 'absolute', top: 3, left: explicit ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
                       </div>
-                      <span style={{ fontSize: 12, color: explicit ? '#c4b5fd' : '#555', fontWeight: 500 }}>Explicit content</span>
+                      <span style={{ fontSize: 12, color: explicit ? '#c4b5fd' : '#555', fontWeight: 500 }}>{t('songs.explicitLabel')}</span>
                     </label>
                     {explicit && (
                       <p style={{ fontSize: 11, color: '#f87171', marginTop: 8, lineHeight: 1.5 }}>
-                        May include strong language. You are responsible for content generated.
+                        {t('songs.explicitWarning')}
                       </p>
                     )}
                   </div>
@@ -1397,9 +1400,9 @@ export default function SongsPage() {
 
             {cost > 0 ? (
               <p style={{ fontSize: 13, color: creditExceeded ? '#f87171' : '#666', marginBottom: 16, fontWeight: creditExceeded ? 600 : 400 }}>
-                {isAdmin ? `Generating ${cost} variant${cost !== 1 ? 's' : ''} (unlimited).` : `Will use ${cost} of your ${balance} remaining credit${balance !== 1 ? 's' : ''}.`}
+                {isAdmin ? t('songs.creditUnlimited', { cost }) : t('songs.creditInfo', { cost, balance })}
                 {creditExceeded && (
-                  <> <Link to="/billing" style={{ color: '#f87171' }}>Top up to continue →</Link></>
+                  <> <Link to="/billing" style={{ color: '#f87171' }}>{t('songs.creditExceeded')}</Link></>
                 )}
               </p>
             ) : (
@@ -1426,10 +1429,10 @@ export default function SongsPage() {
               }}
             >
               {generating
-                ? 'Generating lyrics…'
+                ? t('songs.generatingBtn')
                 : cost > 0
-                  ? `Generate — ${cost} credit${cost !== 1 ? 's' : ''}`
-                  : 'Select a style to generate'}
+                  ? t('songs.generateBtn', { cost })
+                  : t('songs.selectStyleBtn')}
             </button>
 
             {error && <p style={{ color: '#f87171', fontSize: 13, marginTop: 12 }}>{error}</p>}
@@ -1443,7 +1446,7 @@ export default function SongsPage() {
                 disabled={topupLoading !== null}
                 style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 12, cursor: topupLoading ? 'default' : 'pointer' }}
               >
-                {topupLoading === pack ? 'Redirecting…' : `${label} — ${price}`}
+                {topupLoading === pack ? t('songs.redirecting') : `${label} — ${price}`}
               </button>
             ))}
           </div>
@@ -1453,7 +1456,7 @@ export default function SongsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
                 <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', margin: 0 }}>{activeJob.title}</h2>
                 <span style={{ background: 'rgba(167,139,250,0.1)', color: '#a78bfa', borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 500 }}>
-                  Generating — usually ready in 60 seconds
+                  {t('songs.generatingStatus')}
                 </span>
               </div>
               <div style={S.grid}>
@@ -1491,7 +1494,7 @@ export default function SongsPage() {
 
           {filteredLibrary.length > 0 && (
             <section>
-              <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', marginBottom: 20 }}>Your Songs</h2>
+              <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', marginBottom: 20 }}>{t('songs.yourSongs')}</h2>
               <div style={S.grid}>
                 {filteredLibrary.map((v) => (
                   <SongCard
@@ -1524,7 +1527,7 @@ export default function SongsPage() {
           {!activeJob && filteredLibrary.length === 0 && (
             <div style={{ textAlign: 'center', padding: '80px 0' }}>
               <div style={{ fontSize: 56, marginBottom: 16, opacity: 0.15 }}>♫</div>
-              <p style={{ fontSize: 15, color: '#555' }}>No songs yet — create your first one above.</p>
+              <p style={{ fontSize: 15, color: '#555' }}>{t('songs.emptySongs')}</p>
             </div>
           )}
         </div>
@@ -1533,21 +1536,21 @@ export default function SongsPage() {
       {ytModal && (
         <div onClick={() => setYtModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#12121e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '28px 28px 24px', width: '100%', maxWidth: 380 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2d9f3', marginBottom: 6 }}>Upload to YouTube</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2d9f3', marginBottom: 6 }}>{t('songs.ytModal.title')}</h3>
             <p style={{ fontSize: 13, color: '#555', marginBottom: 20 }}>{ytModal.title || `Song #${ytModal.variant_id}`}</p>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Privacy</label>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>{t('songs.ytModal.privacyLabel')}</label>
             <select
               value={ytPrivacy}
               onChange={(e) => setYtPrivacy(e.target.value)}
               style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 12px', color: '#c4b5fd', fontSize: 14, outline: 'none', marginBottom: 24 }}
             >
-              <option value="unlisted">Unlisted (only people with the link)</option>
-              <option value="public">Public</option>
-              <option value="private">Private (only you)</option>
+              <option value="unlisted">{t('songs.ytModal.unlisted')}</option>
+              <option value="public">{t('songs.ytModal.public')}</option>
+              <option value="private">{t('songs.ytModal.private')}</option>
             </select>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setYtModal(null)} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleYouTubeUpload} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Upload</button>
+              <button onClick={() => setYtModal(null)} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>{t('songs.ytModal.cancel')}</button>
+              <button onClick={handleYouTubeUpload} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t('songs.ytModal.upload')}</button>
             </div>
           </div>
         </div>
@@ -1556,9 +1559,9 @@ export default function SongsPage() {
       {remakeModal && (
         <div onClick={() => { setRemakeModal(null); setRemakeGenre(''); setRemakeStyle(''); setRemakeError(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#0d0d14', border: '1px solid rgba(0,240,255,0.2)', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#f0eeff', marginBottom: 4 }}>🔄 Remake in a New Genre</h3>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#f0eeff', marginBottom: 4 }}>{t('songs.remakeModal.title')}</h3>
             <p style={{ fontSize: 13, color: '#555', marginBottom: 22 }}>{remakeModal.title || `Song #${remakeModal.variantId}`}</p>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>Pick a genre</p>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>{t('songs.remakeModal.genreLabel')}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
               {GENRES.map((g) => {
                 const sel = remakeGenre === g;
@@ -1573,17 +1576,17 @@ export default function SongsPage() {
                 );
               })}
             </div>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Style note (optional)</p>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.remakeModal.styleNoteLabel')}</p>
             <input type="text" value={remakeStyle} onChange={(e) => setRemakeStyle(e.target.value)}
-              placeholder="e.g. more aggressive, slower tempo, female vocals…"
+              placeholder={t('songs.remakeModal.stylePlaceholder')}
               style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 12px', color: '#f0eeff', fontSize: 13, fontFamily: 'inherit', outline: 'none', marginBottom: 20 }}
             />
-            {!isAdmin && <p style={{ fontSize: 12, color: '#555', marginBottom: 16 }}>This will use 1 of your {credits.balance} remaining credits.</p>}
+            {!isAdmin && <p style={{ fontSize: 12, color: '#555', marginBottom: 16 }}>{t('songs.remakeModal.creditInfo', { balance: credits.balance })}</p>}
             {remakeError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '8px 12px', color: '#fca5a5', fontSize: 12, marginBottom: 14 }}>{remakeError}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setRemakeModal(null); setRemakeGenre(''); setRemakeStyle(''); setRemakeError(''); }} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => { setRemakeModal(null); setRemakeGenre(''); setRemakeStyle(''); setRemakeError(''); }} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>{t('songs.remakeModal.cancel')}</button>
               <button onClick={handleRemake} disabled={!remakeGenre || remakeLoading} style={{ flex: 2, padding: '11px 0', borderRadius: 8, border: 'none', background: remakeLoading || !remakeGenre ? 'rgba(0,240,255,0.3)' : '#00f0ff', color: '#000', fontSize: 14, fontWeight: 700, cursor: remakeLoading || !remakeGenre ? 'not-allowed' : 'pointer' }}>
-                {remakeLoading ? 'Generating…' : 'Generate Remake'}
+                {remakeLoading ? t('songs.remakeModal.generating') : t('songs.remakeModal.generate')}
               </button>
             </div>
           </div>
@@ -1593,10 +1596,10 @@ export default function SongsPage() {
       {avatarModal && (
         <div onClick={closeAvatarModal} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#12121e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '28px 28px 24px', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2d9f3', marginBottom: 4 }}>Create Avatar Video</h3>
-            <p style={{ fontSize: 13, color: '#555', marginBottom: 16 }}>Pick a presenter — they'll lip-sync to your song.</p>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2d9f3', marginBottom: 4 }}>{t('songs.avatarModal.title')}</h3>
+            <p style={{ fontSize: 13, color: '#555', marginBottom: 16 }}>{t('songs.avatarModal.desc')}</p>
             <p style={{ fontSize: 12, color: '#4a4a6a', background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.12)', borderRadius: 8, padding: '8px 12px', marginBottom: 20, lineHeight: 1.5 }}>
-              For best lip-sync quality, use a clear frontal face photo. Upload your own for a custom performer.
+              {t('songs.avatarModal.tip')}
             </p>
 
             {avatars.length > 0 ? (
@@ -1624,35 +1627,35 @@ export default function SongsPage() {
               </div>
             ) : (
               <div style={{ height: 40, display: 'flex', alignItems: 'center', marginBottom: 20 }}>
-                <span style={{ color: '#444', fontSize: 13 }}>Loading avatars…</span>
+                <span style={{ color: '#444', fontSize: 13 }}>{t('songs.avatarModal.loadingAvatars')}</span>
               </div>
             )}
 
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, marginBottom: 24 }}>
-              <p style={{ fontSize: 12, color: '#555', marginBottom: 10 }}>Or upload your own photo (JPEG / PNG / WebP, under 10 MB):</p>
+              <p style={{ fontSize: 12, color: '#555', marginBottom: 10 }}>{t('songs.avatarModal.uploadDesc')}</p>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                 <button
                   onClick={() => photoInputRef.current?.click()}
                   disabled={uploadingPhoto}
                   style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: '#888', fontSize: 12, cursor: uploadingPhoto ? 'default' : 'pointer', flexShrink: 0 }}
                 >
-                  {uploadingPhoto ? 'Uploading…' : 'Choose Photo'}
+                  {uploadingPhoto ? t('songs.avatarModal.uploadingPhoto') : t('songs.avatarModal.choosePhoto')}
                 </button>
                 {selectedAvatarUrl && selectedAvatarUrl.startsWith('/files/avatars/') && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <img src={`${BACKEND_URL}${selectedAvatarUrl}`} alt="Custom" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', border: '2px solid #a78bfa' }} />
-                    <span style={{ fontSize: 11, color: '#a78bfa' }}>Custom photo selected</span>
+                    <span style={{ fontSize: 11, color: '#a78bfa' }}>{t('songs.avatarModal.customPhotoSelected')}</span>
                   </div>
                 )}
               </div>
             </div>
 
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, marginBottom: 24 }}>
-              <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>Generate AI Performer</p>
+              <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>{t('songs.avatarModal.generateAI')}</p>
               {portraitTimedOut ? (
                 <div>
-                  <p style={{ fontSize: 13, color: '#f87171', marginBottom: 10 }}>Portrait generation timed out. Please try again.</p>
-                  <button onClick={handlePortraitRetry} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid rgba(248,113,113,0.35)', background: 'rgba(248,113,113,0.08)', color: '#f87171', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>↺ Retry</button>
+                  <p style={{ fontSize: 13, color: '#f87171', marginBottom: 10 }}>{t('songs.avatarModal.timeout')}</p>
+                  <button onClick={handlePortraitRetry} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid rgba(248,113,113,0.35)', background: 'rgba(248,113,113,0.08)', color: '#f87171', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>{t('songs.avatarModal.retry')}</button>
                 </div>
               ) : portraitImageUrl ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -1664,31 +1667,31 @@ export default function SongsPage() {
                   </button>
                   <div>
                     <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.25)', borderRadius: 4, padding: '2px 7px', letterSpacing: '0.3px', textTransform: 'uppercase', marginBottom: 6 }}>AI Generated</span>
-                    <p style={{ fontSize: 12, color: '#555', margin: '0 0 4px' }}>{selectedAvatarUrl === portraitImageUrl ? 'Selected — click Create Video' : 'Click to select'}</p>
-                    <button onClick={() => { if (selectedAvatarUrl === portraitImageUrl) setSelectedAvatarUrl(null); setPortraitImageUrl(null); setPortraitJobId(null); }} style={{ fontSize: 11, color: '#444', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>Regenerate</button>
+                    <p style={{ fontSize: 12, color: '#555', margin: '0 0 4px' }}>{selectedAvatarUrl === portraitImageUrl ? t('songs.avatarModal.selected') : t('songs.avatarModal.clickSelect')}</p>
+                    <button onClick={() => { if (selectedAvatarUrl === portraitImageUrl) setSelectedAvatarUrl(null); setPortraitImageUrl(null); setPortraitJobId(null); }} style={{ fontSize: 11, color: '#444', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>{t('songs.avatarModal.regenerate')}</button>
                   </div>
                 </div>
               ) : portraitGenerating ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13, color: '#666' }}>Generating portrait (~30s)…</span>
+                  <span style={{ fontSize: 13, color: '#666' }}>{t('songs.avatarModal.generating')}</span>
                   <span style={{ fontSize: 14, color: '#444', letterSpacing: 2 }}>···</span>
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => handleGeneratePortrait('m')} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid rgba(147,197,253,0.3)', background: 'rgba(147,197,253,0.06)', color: '#93c5fd', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>♂ Male</button>
-                  <button onClick={() => handleGeneratePortrait('f')} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid rgba(249,168,212,0.3)', background: 'rgba(249,168,212,0.06)', color: '#f9a8d4', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>♀ Female</button>
+                  <button onClick={() => handleGeneratePortrait('m')} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid rgba(147,197,253,0.3)', background: 'rgba(147,197,253,0.06)', color: '#93c5fd', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>{t('songs.avatarModal.genderMale')}</button>
+                  <button onClick={() => handleGeneratePortrait('f')} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid rgba(249,168,212,0.3)', background: 'rgba(249,168,212,0.06)', color: '#f9a8d4', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>{t('songs.avatarModal.genderFemale')}</button>
                 </div>
               )}
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={closeAvatarModal} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={closeAvatarModal} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>{t('songs.avatarModal.cancel')}</button>
               <button
                 onClick={handleAvatarSubmit}
                 disabled={!selectedAvatarUrl || avatarSubmitting}
                 style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: selectedAvatarUrl ? 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)' : 'rgba(255,255,255,0.05)', color: selectedAvatarUrl ? '#fff' : '#444', fontSize: 14, fontWeight: 700, cursor: selectedAvatarUrl ? 'pointer' : 'default' }}
               >
-                {avatarSubmitting ? 'Submitting…' : 'Create Video'}
+                {avatarSubmitting ? t('songs.avatarModal.submitting') : t('songs.avatarModal.create')}
               </button>
             </div>
           </div>

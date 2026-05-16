@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
 
@@ -7,6 +8,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const from = location.state?.from?.pathname || '/songs';
 
   const [email, setEmail] = useState('');
@@ -42,19 +44,19 @@ export default function LoginPage() {
           <span className="auth-logo-text">{BRAND.name}</span>
         </div>
 
-        <h1 className="auth-title">Welcome back</h1>
-        <p className="auth-sub">Sign in to your {BRAND.name} account</p>
+        <h1 className="auth-title">{t('auth.login.title')}</h1>
+        <p className="auth-sub">{t('auth.login.subtitle', { brand: BRAND.name })}</p>
 
         {error && <div className="form-error form-error--banner">{error}</div>}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label className="form-label" htmlFor="email">Email address</label>
+            <label className="form-label" htmlFor="email">{t('auth.login.emailLabel')}</label>
             <input
               id="email"
               type="email"
               className="form-input"
-              placeholder="you@example.com"
+              placeholder={t('auth.login.emailPlaceholder')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -63,13 +65,13 @@ export default function LoginPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="password">Password</label>
+            <label className="form-label" htmlFor="password">{t('auth.login.passwordLabel')}</label>
             <div style={{ position: 'relative' }}>
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 className="form-input"
-                placeholder="Your password"
+                placeholder={t('auth.login.passwordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -79,7 +81,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? t('auth.login.hidePassword') : t('auth.login.showPassword')}
                 style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 4, display: 'flex', alignItems: 'center' }}
               >
                 {showPassword ? (
@@ -96,16 +98,16 @@ export default function LoginPage() {
             className="btn btn-primary btn-full"
             disabled={loading || !email || !password}
           >
-            {loading ? <span className="spinner spinner--inline" /> : 'Sign in'}
+            {loading ? <span className="spinner spinner--inline" /> : t('auth.login.submit')}
           </button>
         </form>
 
         <p className="auth-footer-text">
-          <Link to="/forgot-password" className="auth-link">Forgot password?</Link>
+          <Link to="/forgot-password" className="auth-link">{t('auth.login.forgotPassword')}</Link>
         </p>
         <p className="auth-footer-text">
-          Don't have an account?{' '}
-          <Link to="/register" className="auth-link">Create one free</Link>
+          {t('auth.login.noAccount')}{' '}
+          <Link to="/register" className="auth-link">{t('auth.login.createOne')}</Link>
         </p>
       </div>
     </div>

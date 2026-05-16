@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { BRAND } from '../brand';
+import { LanguageSelector } from '../components/LanguageSelector';
 import './LandingPageBeats.css';
 
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -23,28 +26,29 @@ export default function LandingPage() {
             <span className="logo-text">{BRAND.name}</span>
           </a>
           <ul className="nav-links">
-            <li><a href="#features">Features</a></li>
-            <li><a href="#how">How It Works</a></li>
-            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#features">{t('nav.features')}</a></li>
+            <li><a href="#how">{t('nav.howItWorks')}</a></li>
+            <li><a href="#pricing">{t('nav.pricing')}</a></li>
           </ul>
           <div className="nav-cta">
-            <Link to="/login" className="btn-nav-ghost">Sign In</Link>
-            <Link to="/register" className="btn-nav-primary">Start Free</Link>
+            <Link to="/login" className="btn-nav-ghost">{t('nav.signIn')}</Link>
+            <Link to="/register" className="btn-nav-primary">{t('nav.startFree')}</Link>
+            <LanguageSelector />
           </div>
           <button
             className="hamburger"
-            aria-label="Menu"
+            aria-label={t('nav.openMenu')}
             onClick={() => setMenuOpen(o => !o)}
           >
             <span /><span /><span />
           </button>
         </div>
         <div className={`mobile-menu${menuOpen ? ' open' : ''}`}>
-          <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
-          <a href="#how" onClick={() => setMenuOpen(false)}>How It Works</a>
-          <a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
-          <Link to="/login" onClick={() => setMenuOpen(false)}>Sign In</Link>
-          <Link to="/register" className="mobile-cta" onClick={() => setMenuOpen(false)}>Start Free →</Link>
+          <a href="#features" onClick={() => setMenuOpen(false)}>{t('nav.features')}</a>
+          <a href="#how" onClick={() => setMenuOpen(false)}>{t('nav.howItWorks')}</a>
+          <a href="#pricing" onClick={() => setMenuOpen(false)}>{t('nav.pricing')}</a>
+          <Link to="/login" onClick={() => setMenuOpen(false)}>{t('nav.signIn')}</Link>
+          <Link to="/register" className="mobile-cta" onClick={() => setMenuOpen(false)}>{t('nav.startFree')} →</Link>
         </div>
       </nav>
 
@@ -63,23 +67,23 @@ export default function LandingPage() {
         <div className="container hero-content">
           <div className="hero-badge">
             <span className="badge-dot" />
-            AI-Powered · Music Creation
+            {t('landing.badge')}
           </div>
           <h1 className="hero-title">
-            <span className="hero-word-cyan">CREATE</span>{' '}
-            <span className="hero-word-pink">original</span>{' '}
-            <span className="hero-word-green">AI music.</span><br />
-            <span className="gradient-text">Your music. Your way.</span>
+            <span className="hero-word-cyan">{t('landing.heroTitle1')}</span>{' '}
+            <span className="hero-word-pink">{t('landing.heroTitle2')}</span>{' '}
+            <span className="hero-word-green">{t('landing.heroTitle3')}</span><br />
+            <span className="gradient-text">{t('landing.heroTagline')}</span>
           </h1>
           <p className="hero-sub">
-            {BRAND.name} turns your ideas into full original songs — lyrics written by AI, audio produced by Suno. Publish to YouTube and beyond in minutes.
+            {t('landing.heroSub', { brand: BRAND.name })}
           </p>
           <div className="hero-actions">
             <Link to="/register" className="btn-primary btn-lg">
-              Start Creating
+              {t('landing.startCreating')}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
             </Link>
-            <a href="#features" className="btn-ghost btn-lg">See how it works</a>
+            <a href="#features" className="btn-ghost btn-lg">{t('landing.seeHow')}</a>
           </div>
 
           <div className="hero-mockup">
@@ -112,42 +116,45 @@ export default function LandingPage() {
       {/* FEATURES */}
       <section className="features" id="features">
         <div className="container">
-          <div className="section-label">Core Features</div>
-          <h2 className="section-title">Everything for AI music.<br /><span className="gradient-text">Nothing you don't need.</span></h2>
-          <p className="section-sub">From brief to published track in minutes — {BRAND.name} handles the lyrics, audio, cover art, and distribution.</p>
+          <div className="section-label">{t('landing.featuresLabel')}</div>
+          <h2 className="section-title">{t('landing.featuresTitle')}<br /><span className="gradient-text">{t('landing.featuresTitle2')}</span></h2>
+          <p className="section-sub">{t('landing.featuresSub', { brand: BRAND.name })}</p>
 
           <div className="features-grid">
             <div className="feat-card feat-lead">
               <span className="feat-icon">🎵</span>
-              <h3>AI Song Generator</h3>
-              <p>Turn a text brief into a full original song — lyrics written by Claude AI, audio produced by Suno. Choose from 20+ genres and get a unique track every time, with optional instrumental mode and custom style prompts.</p>
+              <h3>{t('landing.feature1Title')}</h3>
+              <p>{t('landing.feature1Desc')}</p>
               <div className="feat-tags">
-                <span>20+ Genres</span><span>Custom Lyrics</span><span>AI Vocals</span><span>Instrumental Mode</span>
+                <span>{t('landing.feature1Tag1')}</span>
+                <span>{t('landing.feature1Tag2')}</span>
+                <span>{t('landing.feature1Tag3')}</span>
+                <span>{t('landing.feature1Tag4')}</span>
               </div>
             </div>
 
             <div className="feat-card">
               <span className="feat-icon">🎬</span>
-              <h3>Avatar Lip-Sync Videos</h3>
-              <p>Turn your song into a video with a realistic AI avatar that lip-syncs to your track. Perfect for YouTube, Instagram Reels, and music promotion.</p>
+              <h3>{t('landing.feature2Title')}</h3>
+              <p>{t('landing.feature2Desc')}</p>
             </div>
 
             <div className="feat-card">
               <span className="feat-icon">▶️</span>
-              <h3>YouTube Upload</h3>
-              <p>Publish your finished track directly to your YouTube channel from inside {BRAND.name} — no extra tools, no manual uploading.</p>
+              <h3>{t('landing.feature3Title')}</h3>
+              <p>{t('landing.feature3Desc', { brand: BRAND.name })}</p>
             </div>
 
             <div className="feat-card">
               <span className="feat-icon">📘</span>
-              <h3>Facebook Posting</h3>
-              <p>Share your songs to Facebook pages and groups automatically. Grow your audience while {BRAND.name} handles the distribution.</p>
+              <h3>{t('landing.feature4Title')}</h3>
+              <p>{t('landing.feature4Desc', { brand: BRAND.name })}</p>
             </div>
 
             <div className="feat-card">
               <span className="feat-icon">🖼️</span>
-              <h3>AI Cover Art</h3>
-              <p>Every song gets a unique AI-generated cover image matched to the genre and mood of your track — created automatically at generation time.</p>
+              <h3>{t('landing.feature5Title')}</h3>
+              <p>{t('landing.feature5Desc')}</p>
             </div>
           </div>
         </div>
@@ -158,37 +165,37 @@ export default function LandingPage() {
       {/* HOW IT WORKS */}
       <section className="capabilities" id="how">
         <div className="container">
-          <div className="section-label">How {BRAND.name} Works</div>
-          <h2 className="section-title">Brief to published.<br /><span className="gradient-text">In minutes.</span></h2>
+          <div className="section-label">{t('landing.howLabel', { brand: BRAND.name })}</div>
+          <h2 className="section-title">{t('landing.howTitle1')}<br /><span className="gradient-text">{t('landing.howTitle2')}</span></h2>
 
           <div className="caps-layout">
             <div className="caps-list">
               <div className="cap-item">
                 <div className="cap-num">01</div>
                 <div className="cap-body">
-                  <h4>Describe your track</h4>
-                  <p>Type a brief — genre, mood, theme, anything. "Dark hip-hop, late night, motivational" is all {BRAND.name} needs to get started.</p>
+                  <h4>{t('landing.step1Title')}</h4>
+                  <p>{t('landing.step1Desc', { brand: BRAND.name })}</p>
                 </div>
               </div>
               <div className="cap-item">
                 <div className="cap-num">02</div>
                 <div className="cap-body">
-                  <h4>Zeus writes, Suno generates</h4>
-                  <p>Claude AI writes the lyrics and structure. Suno generates the audio. Cover art is created automatically to match the mood.</p>
+                  <h4>{t('landing.step2Title')}</h4>
+                  <p>{t('landing.step2Desc')}</p>
                 </div>
               </div>
               <div className="cap-item">
                 <div className="cap-num">03</div>
                 <div className="cap-body">
-                  <h4>Listen and download</h4>
-                  <p>Preview your track in the browser with the waveform player. Download the audio or share a public link with anyone.</p>
+                  <h4>{t('landing.step3Title')}</h4>
+                  <p>{t('landing.step3Desc')}</p>
                 </div>
               </div>
               <div className="cap-item">
                 <div className="cap-num">04</div>
                 <div className="cap-body">
-                  <h4>Publish everywhere</h4>
-                  <p>One click uploads your song directly to your YouTube channel. Share to Facebook instantly. No extra tools, no switching apps.</p>
+                  <h4>{t('landing.step4Title')}</h4>
+                  <p>{t('landing.step4Desc')}</p>
                 </div>
               </div>
             </div>
@@ -220,54 +227,54 @@ export default function LandingPage() {
       {/* PRICING */}
       <section className="pricing" id="pricing">
         <div className="container">
-          <div className="section-label">Pricing</div>
-          <h2 className="section-title">Simple, honest pricing.</h2>
-          <p className="section-sub">Start free. Upgrade when you're ready.</p>
+          <div className="section-label">{t('landing.pricingLabel')}</div>
+          <h2 className="section-title">{t('landing.pricingTitle')}</h2>
+          <p className="section-sub">{t('landing.pricingSub')}</p>
 
           <div className="pricing-grid pricing-grid--music">
             <div className="price-card">
-              <div className="plan-name">Music Starter</div>
+              <div className="plan-name">{t('landing.starterName')}</div>
               <div className="plan-price">£9<span>/mo</span></div>
-              <p className="plan-desc">For artists getting started with AI music creation.</p>
+              <p className="plan-desc">{t('landing.starterDesc')}</p>
               <ul className="plan-features">
-                <li>15 AI songs/month</li>
-                <li>YouTube upload</li>
-                <li>Song download &amp; share</li>
-                <li>All 20+ genres &amp; styles</li>
-                <li>AI cover art</li>
+                <li>{t('billing.plans.features.songs15')}</li>
+                <li>{t('billing.plans.features.youtube')}</li>
+                <li>{t('billing.plans.features.download')}</li>
+                <li>{t('billing.plans.features.genres')}</li>
+                <li>{t('billing.plans.features.coverArt')}</li>
               </ul>
-              <Link to="/register" className="btn-plan-ghost">Get Music Starter</Link>
+              <Link to="/register" className="btn-plan-ghost">{t('landing.getStarter')}</Link>
             </div>
 
             <div className="price-card price-featured">
-              <div className="plan-name">Music Pro</div>
+              <div className="plan-name">{t('landing.proName')}</div>
               <div className="plan-price">£19<span>/mo</span></div>
-              <p className="plan-desc">For active creators who want avatar videos.</p>
+              <p className="plan-desc">{t('landing.proDesc')}</p>
               <ul className="plan-features">
-                <li>40 AI songs/month</li>
-                <li>YouTube upload</li>
-                <li>3 avatar lip-sync videos/month</li>
-                <li>Song download &amp; share</li>
-                <li>All 20+ genres &amp; styles</li>
-                <li>AI cover art</li>
+                <li>{t('billing.plans.features.songs40')}</li>
+                <li>{t('billing.plans.features.youtube')}</li>
+                <li>{t('billing.plans.features.avatar3')}</li>
+                <li>{t('billing.plans.features.download')}</li>
+                <li>{t('billing.plans.features.genres')}</li>
+                <li>{t('billing.plans.features.coverArt')}</li>
               </ul>
-              <Link to="/register" className="btn-plan-primary">Get Music Pro</Link>
+              <Link to="/register" className="btn-plan-primary">{t('landing.getPro')}</Link>
             </div>
 
             <div className="price-card">
-              <div className="plan-name">Music Agency</div>
+              <div className="plan-name">{t('landing.agencyName')}</div>
               <div className="plan-price">£39<span>/mo</span></div>
-              <p className="plan-desc">For prolific creators and label teams.</p>
+              <p className="plan-desc">{t('landing.agencyDesc')}</p>
               <ul className="plan-features">
-                <li>80 AI songs/month</li>
-                <li>YouTube upload</li>
-                <li>10 avatar lip-sync videos/month</li>
-                <li>Song download &amp; share</li>
-                <li>All 20+ genres &amp; styles</li>
-                <li>AI cover art</li>
-                <li>Facebook posting</li>
+                <li>{t('billing.plans.features.songs80')}</li>
+                <li>{t('billing.plans.features.youtube')}</li>
+                <li>{t('billing.plans.features.avatar10')}</li>
+                <li>{t('billing.plans.features.download')}</li>
+                <li>{t('billing.plans.features.genres')}</li>
+                <li>{t('billing.plans.features.coverArt')}</li>
+                <li>{t('billing.plans.features.facebook')}</li>
               </ul>
-              <Link to="/register" className="btn-plan-ghost">Get Music Agency</Link>
+              <Link to="/register" className="btn-plan-ghost">{t('landing.getAgency')}</Link>
             </div>
           </div>
         </div>
@@ -280,10 +287,10 @@ export default function LandingPage() {
         <div className="container">
           <div className="cta-box">
             <div className="cta-glow" />
-            <h2>Ready to create your first song?</h2>
-            <p>No credit card needed. Start creating in under a minute.</p>
+            <h2>{t('landing.ctaTitle')}</h2>
+            <p>{t('landing.ctaSub')}</p>
             <Link to="/register" className="btn-primary btn-lg">
-              Start for Free
+              {t('landing.ctaButton')}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
             </Link>
           </div>
@@ -299,14 +306,14 @@ export default function LandingPage() {
           </a>
           <p className="footer-copy">© {new Date().getFullYear()} {BRAND.name}. {BRAND.tagline}</p>
           <div className="footer-links">
-            <Link to="/login">Sign In</Link>
-            <a href="#pricing">Pricing</a>
-            <a href="#features">Features</a>
-            <Link to="/terms">Terms</Link>
-            <Link to="/privacy">Privacy</Link>
-            <Link to="/refund-policy">Refund Policy</Link>
-            <Link to="/data-deletion">Data Deletion</Link>
-            <Link to="/contact">Contact</Link>
+            <Link to="/login">{t('landing.footerSignIn')}</Link>
+            <a href="#pricing">{t('landing.footerPricing')}</a>
+            <a href="#features">{t('landing.footerFeatures')}</a>
+            <Link to="/terms">{t('landing.footerTerms')}</Link>
+            <Link to="/privacy">{t('landing.footerPrivacy')}</Link>
+            <Link to="/refund-policy">{t('landing.footerRefund')}</Link>
+            <Link to="/data-deletion">{t('landing.footerDataDeletion')}</Link>
+            <Link to="/contact">{t('landing.footerContact')}</Link>
           </div>
         </div>
       </footer>

@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { BeatsNavbar } from '../components/BeatsNavbar';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 
 function UsageBar({ used, limit }) {
+  const { t } = useTranslation();
   if (limit === null || limit === undefined) {
     return (
       <div className="usage-bar-wrap">
         <div className="usage-bar">
           <div className="usage-bar-fill usage-bar-fill--unlimited" style={{ width: '100%' }} />
         </div>
-        <span className="usage-label">Unlimited</span>
+        <span className="usage-label">{t('billing.unlimited')}</span>
       </div>
     );
   }
@@ -25,13 +27,14 @@ function UsageBar({ used, limit }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="usage-label">{used} / {limit} songs this month</span>
+      <span className="usage-label">{t('billing.songsMonth', { used, limit })}</span>
     </div>
   );
 }
 
 export default function BillingPage() {
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const location = useLocation();
   const [status, setStatus]           = useState(null);
   const [credits, setCredits]         = useState(null);
@@ -57,7 +60,7 @@ export default function BillingPage() {
 
   useEffect(() => {
     if (successParam === 'true') {
-      setSuccessMsg('Payment successful! Your plan is being activated.');
+      setSuccessMsg('__payment_success__');
     }
   }, [successParam]);
 
@@ -188,10 +191,10 @@ export default function BillingPage() {
   const canFacebook   = isAdmin || effectivePlan === 'music_agency';
 
   const PLAN_FEATURES = {
-    music_starter: ['15 AI songs/month', 'YouTube upload', 'Song download & share', 'All 20+ genres & styles', 'AI cover art'],
-    music_pro:     ['40 AI songs/month', 'YouTube upload', '3 avatar lip-sync videos/month', 'Song download & share', 'All 20+ genres & styles', 'AI cover art'],
-    music_agency:  ['80 AI songs/month', 'YouTube upload', '10 avatar lip-sync videos/month', 'Song download & share', 'All 20+ genres & styles', 'AI cover art', 'Facebook posting'],
-    free:          ['5 songs/month (free tier)', 'Song download & share', 'All genres'],
+    music_starter: [t('billing.plans.features.songs15'), t('billing.plans.features.youtube'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt')],
+    music_pro:     [t('billing.plans.features.songs40'), t('billing.plans.features.youtube'), t('billing.plans.features.avatar3'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt')],
+    music_agency:  [t('billing.plans.features.songs80'), t('billing.plans.features.youtube'), t('billing.plans.features.avatar10'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt'), t('billing.plans.features.facebook')],
+    free:          [t('billing.plans.features.songs5'), t('billing.plans.features.download'), t('billing.plans.features.allGenres')],
   };
   const planFeatures = (isMusicPlan && isActive)
     ? PLAN_FEATURES[effectivePlan]
@@ -205,25 +208,25 @@ export default function BillingPage() {
           <div className="orb orb-2" />
         </div>
 
-        <h1 className="billing-title">Billing &amp; Subscription</h1>
+        <h1 className="billing-title">{t('billing.title')}</h1>
 
-        {successMsg && <div className="success-banner">{successMsg}</div>}
+        {successMsg && <div className="success-banner">{t('billing.paymentSuccess')}</div>}
         {ytParam === 'connected' && (
-          <div className="success-banner">YouTube connected — you can now upload songs directly to your channel.</div>
+          <div className="success-banner">{t('billing.ytSuccess')}</div>
         )}
         {ytParam === 'error' && (
-          <div className="form-error form-error--banner">YouTube connection failed — please try again.</div>
+          <div className="form-error form-error--banner">{t('billing.ytError')}</div>
         )}
         {error && <div className="form-error form-error--banner">{error}</div>}
 
         {/* Current plan card */}
         <div className="billing-card">
           <div className="billing-card-header">
-            <h2 className="billing-card-title">Current Plan</h2>
-            {effectivePlan === 'music_starter' && <span className="badge-pro">Music Starter</span>}
-            {effectivePlan === 'music_pro'     && <span className="badge-pro">Music Pro</span>}
-            {effectivePlan === 'music_agency'  && <span className="badge-agency">Music Agency</span>}
-            {(!isMusicPlan && !isAdmin) && <span className="badge-free">Free</span>}
+            <h2 className="billing-card-title">{t('billing.currentPlan')}</h2>
+            {effectivePlan === 'music_starter' && <span className="badge-pro">{t('billing.plans.starter')}</span>}
+            {effectivePlan === 'music_pro'     && <span className="badge-pro">{t('billing.plans.pro')}</span>}
+            {effectivePlan === 'music_agency'  && <span className="badge-agency">{t('billing.plans.agency')}</span>}
+            {(!isMusicPlan && !isAdmin) && <span className="badge-free">{t('billing.plans.free')}</span>}
             {isAdmin && <span className="badge-enterprise">Admin</span>}
           </div>
 
@@ -238,11 +241,11 @@ export default function BillingPage() {
           <div className="billing-actions">
             {isActive && user?.stripe_customer_id ? (
               <button className="btn btn-outline" onClick={handlePortal} disabled={loadingPortal}>
-                {loadingPortal ? <span className="spinner spinner--inline" /> : 'Manage Subscription'}
+                {loadingPortal ? <span className="spinner spinner--inline" /> : t('billing.manageSubscription')}
               </button>
             ) : null}
             {!isActive && (
-              <Link to="/pricing" className="btn btn-primary">Upgrade Plan</Link>
+              <Link to="/pricing" className="btn btn-primary">{t('billing.upgradePlan')}</Link>
             )}
           </div>
 
@@ -255,7 +258,7 @@ export default function BillingPage() {
             if (cancelDateDisplay) {
               return (
                 <p style={{ marginTop: 12, fontSize: '0.85rem', color: '#475569' }}>
-                  Subscription cancels on {cancelDateDisplay}
+                  {t('billing.cancelledOn', { date: cancelDateDisplay })}
                 </p>
               );
             }
@@ -265,7 +268,7 @@ export default function BillingPage() {
                   style={{ marginTop: 12, background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#64748b', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}
                   onClick={() => setShowCancelConfirm(true)}
                 >
-                  Cancel Subscription
+                  {t('billing.cancelSubscription')}
                 </button>
               );
             }
@@ -276,44 +279,44 @@ export default function BillingPage() {
         {/* Upgrade grid — music plans only */}
         {!isActive && (
           <div className="billing-upgrade-section">
-            <h2 className="billing-section-title">Choose your music plan</h2>
+            <h2 className="billing-section-title">{t('billing.choosePlan')}</h2>
             <div className="billing-upgrade-grid">
               <div className="billing-upgrade-card">
-                <span className="badge-pro">Music Starter</span>
-                <div className="billing-upgrade-price">£9/mo</div>
-                <p className="billing-upgrade-desc">15 songs/month, YouTube upload, AI cover art</p>
+                <span className="badge-pro">{t('billing.plans.starter')}</span>
+                <div className="billing-upgrade-price">{t('billing.plans.starterPrice')}</div>
+                <p className="billing-upgrade-desc">{t('billing.plans.starterDesc')}</p>
                 <button
                   className="btn btn-primary btn-full"
                   disabled={loadingCheckout === 'music_starter'}
                   onClick={() => handleCheckout('music_starter')}
                 >
-                  {loadingCheckout === 'music_starter' ? <span className="spinner spinner--inline" /> : 'Get Music Starter'}
+                  {loadingCheckout === 'music_starter' ? <span className="spinner spinner--inline" /> : t('billing.plans.getStarter')}
                 </button>
               </div>
 
               <div className="billing-upgrade-card">
-                <span className="badge-pro">Music Pro</span>
-                <div className="billing-upgrade-price">£19/mo</div>
-                <p className="billing-upgrade-desc">40 songs/month, YouTube upload, 3 avatar videos</p>
+                <span className="badge-pro">{t('billing.plans.pro')}</span>
+                <div className="billing-upgrade-price">{t('billing.plans.proPrice')}</div>
+                <p className="billing-upgrade-desc">{t('billing.plans.proDesc')}</p>
                 <button
                   className="btn btn-primary btn-full"
                   disabled={loadingCheckout === 'music_pro'}
                   onClick={() => handleCheckout('music_pro')}
                 >
-                  {loadingCheckout === 'music_pro' ? <span className="spinner spinner--inline" /> : 'Get Music Pro'}
+                  {loadingCheckout === 'music_pro' ? <span className="spinner spinner--inline" /> : t('billing.plans.getPro')}
                 </button>
               </div>
 
               <div className="billing-upgrade-card">
-                <span className="badge-agency">Music Agency</span>
-                <div className="billing-upgrade-price">£39/mo</div>
-                <p className="billing-upgrade-desc">80 songs/month, YouTube upload, 10 avatar videos, Facebook posting</p>
+                <span className="badge-agency">{t('billing.plans.agency')}</span>
+                <div className="billing-upgrade-price">{t('billing.plans.agencyPrice')}</div>
+                <p className="billing-upgrade-desc">{t('billing.plans.agencyDesc')}</p>
                 <button
                   className="btn btn-outline btn-full"
                   disabled={loadingCheckout === 'music_agency'}
                   onClick={() => handleCheckout('music_agency')}
                 >
-                  {loadingCheckout === 'music_agency' ? <span className="spinner spinner--inline" /> : 'Get Music Agency'}
+                  {loadingCheckout === 'music_agency' ? <span className="spinner spinner--inline" /> : t('billing.plans.getAgency')}
                 </button>
               </div>
             </div>
@@ -322,7 +325,7 @@ export default function BillingPage() {
 
         {/* Plan features */}
         <div className="billing-card">
-          <h2 className="billing-card-title">Your plan includes</h2>
+          <h2 className="billing-card-title">{t('billing.planIncludes')}</h2>
           <ul className="pricing-features" style={{ marginTop: '1rem' }}>
             {planFeatures.map((f) => (
               <li key={f} className="plan-feature">
@@ -334,23 +337,21 @@ export default function BillingPage() {
 
         {/* Connected Accounts */}
         <div className="billing-card">
-          <h2 className="billing-card-title">Connected Accounts</h2>
+          <h2 className="billing-card-title">{t('billing.connectedAccounts')}</h2>
 
           {/* YouTube */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div>
               <div style={{ fontWeight: 600, color: '#e2d9f3', marginBottom: 4 }}>
-                ▶ YouTube
+                {t('billing.youtubeLabel')}
               </div>
               <div style={{ fontSize: 13, color: '#666' }}>
-                {ytConnected
-                  ? 'Connected — upload songs directly to your channel'
-                  : 'Connect to upload songs directly to your YouTube channel'}
+                {ytConnected ? t('billing.ytConnectedDesc') : t('billing.ytNotConnectedDesc')}
               </div>
             </div>
             {ytConnected ? (
               <span style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 600 }}>
-                Connected
+                {t('billing.ytConnected')}
               </span>
             ) : (
               <button
@@ -358,9 +359,9 @@ export default function BillingPage() {
                 disabled={!isActive && !isAdmin}
                 className="btn btn-outline"
                 style={{ fontSize: 13, padding: '6px 16px' }}
-                title={(!isActive && !isAdmin) ? 'Requires an active music plan' : undefined}
+                title={(!isActive && !isAdmin) ? t('billing.requiresActivePlan') : undefined}
               >
-                Connect YouTube
+                {t('billing.connectYoutube')}
               </button>
             )}
           </div>
@@ -369,42 +370,40 @@ export default function BillingPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0' }}>
             <div>
               <div style={{ fontWeight: 600, color: '#e2d9f3', marginBottom: 4 }}>
-                📘 Facebook
+                {t('billing.facebookLabel')}
               </div>
               <div style={{ fontSize: 13, color: '#666' }}>
-                {canFacebook
-                  ? 'Facebook posting is enabled on your plan — posts are published automatically via Make.com'
-                  : 'Automatic Facebook posting — available on Music Agency plan'}
+                {canFacebook ? t('billing.fbActiveDesc') : t('billing.fbUpgradeDesc')}
               </div>
             </div>
             {canFacebook ? (
               <span style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 600 }}>
-                Active
+                {t('billing.fbActive')}
               </span>
             ) : (
               <Link to="/pricing" style={{ fontSize: 13, color: '#a855f7', textDecoration: 'none', fontWeight: 500 }}>
-                Upgrade →
+                {t('billing.fbUpgrade')}
               </Link>
             )}
           </div>
         </div>
 
         <p className="billing-note">
-          Questions? Email us at{' '}
+          {t('billing.questions')}{' '}
           <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">
             dominic.rowle@yahoo.com
           </a>
           {'. '}
-          View our <Link to="/refund-policy" className="auth-link">Refund Policy</Link>.
+          View our <Link to="/refund-policy" className="auth-link">{t('billing.refundPolicy')}</Link>.
         </p>
 
         {/* Change Password */}
         <div className="billing-card" style={{ marginTop: '2rem' }}>
-          <h2 className="billing-card-title">Change Password</h2>
+          <h2 className="billing-card-title">{t('billing.changePassword')}</h2>
           <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 400 }}>
             <input
               type="password"
-              placeholder="Current password"
+              placeholder={t('billing.currentPasswordPlaceholder')}
               value={cpCurrent}
               onChange={e => setCpCurrent(e.target.value)}
               required
@@ -412,7 +411,7 @@ export default function BillingPage() {
             />
             <input
               type="password"
-              placeholder="New password (min 8 chars)"
+              placeholder={t('billing.newPasswordPlaceholder')}
               value={cpNew}
               onChange={e => setCpNew(e.target.value)}
               required
@@ -420,37 +419,36 @@ export default function BillingPage() {
             />
             <input
               type="password"
-              placeholder="Confirm new password"
+              placeholder={t('billing.confirmPasswordPlaceholder')}
               value={cpConfirm}
               onChange={e => setCpConfirm(e.target.value)}
               required
               className="form-input"
             />
             {cpError && <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: 0 }}>{cpError}</p>}
-            {cpSuccess && <p style={{ color: '#22c55e', fontSize: '0.875rem', margin: 0 }}>{cpSuccess}</p>}
+            {cpSuccess && <p style={{ color: '#22c55e', fontSize: '0.875rem', margin: 0 }}>{t('billing.passwordChanged')}</p>}
             <button type="submit" disabled={cpLoading} className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
-              {cpLoading ? 'Saving…' : 'Update Password'}
+              {cpLoading ? t('billing.saving') : t('billing.updatePassword')}
             </button>
           </form>
         </div>
 
         {/* Danger zone */}
         <div className="billing-card" style={{ borderColor: 'rgba(239,68,68,0.3)', marginTop: '2rem' }}>
-          <h2 className="billing-card-title" style={{ color: '#ef4444' }}>Delete Account</h2>
+          <h2 className="billing-card-title" style={{ color: '#ef4444' }}>{t('billing.deleteAccount')}</h2>
           <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '1rem' }}>
-            Requesting deletion will permanently remove your account, songs, videos and all
-            associated data within 30 days.
+            {t('billing.deleteDesc')}
           </p>
           {deleteSuccess ? (
             <p style={{ color: '#22c55e', fontSize: '0.9rem' }}>
-              Your deletion request has been received. We will delete your account and all associated data within 30 days.
+              {t('billing.deleteSuccess')}
             </p>
           ) : (
             <button
               style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '8px 18px', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}
               onClick={() => setShowDeleteConfirm(true)}
             >
-              Request Account Deletion
+              {t('billing.requestDeletion')}
             </button>
           )}
         </div>
@@ -459,25 +457,25 @@ export default function BillingPage() {
         {showCancelConfirm && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
             <div style={{ background: '#12121e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '28px 32px', maxWidth: 420, width: '100%' }}>
-              <h3 style={{ margin: '0 0 12px', fontSize: '1.1rem', color: '#e2e8f0' }}>Cancel subscription?</h3>
+              <h3 style={{ margin: '0 0 12px', fontSize: '1.1rem', color: '#e2e8f0' }}>{t('billing.cancelModal.title')}</h3>
               <p style={{ margin: '0 0 24px', color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
                 {status?.cancel_at
-                  ? `You'll keep access until ${new Date(status.cancel_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}, then your account moves to the free plan.`
-                  : "You'll keep access until the end of your current billing period, then your account moves to the free plan."}
+                  ? t('billing.cancelModal.descWithDate', { date: new Date(status.cancel_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) })
+                  : t('billing.cancelModal.descNoDate')}
               </p>
               <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                 <button
                   onClick={() => setShowCancelConfirm(false)}
                   style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', color: '#94a3b8', padding: '8px 18px', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem' }}
                 >
-                  Keep subscription
+                  {t('billing.cancelModal.keep')}
                 </button>
                 <button
                   onClick={handleCancel}
                   disabled={cancelLoading}
                   style={{ background: '#374151', border: 'none', color: '#fff', padding: '8px 18px', borderRadius: 6, cursor: cancelLoading ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, opacity: cancelLoading ? 0.7 : 1 }}
                 >
-                  {cancelLoading ? 'Cancelling…' : 'Yes, cancel'}
+                  {cancelLoading ? t('billing.cancelModal.cancelling') : t('billing.cancelModal.confirm')}
                 </button>
               </div>
             </div>
@@ -488,23 +486,23 @@ export default function BillingPage() {
         {showDeleteConfirm && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
             <div style={{ background: '#12121e', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 12, padding: '28px 32px', maxWidth: 420, width: '100%' }}>
-              <h3 style={{ margin: '0 0 12px', color: '#ef4444', fontSize: '1.1rem' }}>Are you sure?</h3>
+              <h3 style={{ margin: '0 0 12px', color: '#ef4444', fontSize: '1.1rem' }}>{t('billing.deleteModal.title')}</h3>
               <p style={{ margin: '0 0 24px', color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                This cannot be undone. Your account, songs, videos and all associated data will be permanently deleted within 30 days.
+                {t('billing.deleteModal.desc')}
               </p>
               <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
                   style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', color: '#94a3b8', padding: '8px 18px', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem' }}
                 >
-                  Cancel
+                  {t('billing.deleteModal.cancel')}
                 </button>
                 <button
                   onClick={handleDeleteRequest}
                   disabled={deleteLoading}
                   style={{ background: '#ef4444', border: 'none', color: '#fff', padding: '8px 18px', borderRadius: 6, cursor: deleteLoading ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, opacity: deleteLoading ? 0.7 : 1 }}
                 >
-                  {deleteLoading ? 'Submitting…' : 'Yes, request deletion'}
+                  {deleteLoading ? t('billing.deleteModal.submitting') : t('billing.deleteModal.confirm')}
                 </button>
               </div>
             </div>
