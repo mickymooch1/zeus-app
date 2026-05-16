@@ -243,7 +243,7 @@
       "getPro": "Elegir Music Pro",
       "getAgency": "Elegir Music Agency",
       "features": {
-        "songs15": "15 canciones IA/mes",
+        "songs15": "25 canciones IA/mes",
         "songs40": "40 canciones IA/mes",
         "songs80": "80 canciones IA/mes",
         "songs5": "5 canciones/mes (tier gratuito)",

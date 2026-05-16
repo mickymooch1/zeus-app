@@ -42,9 +42,9 @@ function _matchTempo(text) {
 }
 
 const SONG_PACKS = [
-  { pack: 'song_pack_099', label: '2 songs', price: '£0.99' },
-  { pack: 'song_pack_200', label: '5 songs', price: '£2.00' },
-  { pack: 'song_pack_400', label: '10 songs', price: '£4.00' },
+  { pack: 'song_pack_10',      label: '10 songs',  price: '£8'  },
+  { pack: 'song_pack_50',      label: '50 songs',  price: '£30' },
+  { pack: 'song_pack_200_sub', label: '200 songs', price: '£99' },
 ];
 
 const PAGE_CSS = `

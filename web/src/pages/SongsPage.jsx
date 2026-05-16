@@ -11,9 +11,9 @@ const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish
 const gLabel = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
 
 const SONG_PACKS = [
-  { pack: 'song_pack_10',  label: 'Buy 10 songs',  price: '£8'  },
-  { pack: 'song_pack_50',  label: 'Buy 50 songs',  price: '£30' },
-  { pack: 'song_pack_200', label: 'Buy 200 songs', price: '£99' },
+  { pack: 'song_pack_10',      label: 'Buy 10 songs',  price: '£8'  },
+  { pack: 'song_pack_50',      label: 'Buy 50 songs',  price: '£30' },
+  { pack: 'song_pack_200_sub', label: 'Buy 200 songs', price: '£99' },
 ];
 
 const PAGE_CSS = `

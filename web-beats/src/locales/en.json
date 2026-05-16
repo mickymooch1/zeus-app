@@ -243,7 +243,7 @@
       "getPro": "Get Music Pro",
       "getAgency": "Get Music Agency",
       "features": {
-        "songs15": "15 AI songs/month",
+        "songs15": "25 AI songs/month",
         "songs40": "40 AI songs/month",
         "songs80": "80 AI songs/month",
         "songs5": "5 songs/month (free tier)",

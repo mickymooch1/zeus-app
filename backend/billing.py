@@ -89,7 +89,7 @@ _PLAN_SONG_CREDITS = {
     "pro":           20,
     "agency":        70,
     "enterprise":    100,
-    "music_starter": 15,
+    "music_starter": 25,
     "music_pro":     40,
     "music_agency":  80,
 }
@@ -107,7 +107,7 @@ MUSIC_PLANS: dict = {
         "price": "£9/mo",
         "price_id": MUSIC_STARTER_PRICE_ID,
         "features": [
-            "15 AI songs/month",
+            "25 AI songs/month",
             "YouTube upload",
             "Song download & share",
             "All music genres",
@@ -143,6 +143,7 @@ MUSIC_PLANS: dict = {
 }
 
 SONG_PACKS = {
+    # Pay-as-you-go packs (small, no subscription required)
     "song_pack_099": {
         "credits": 2,
         "label": "2 songs",
@@ -160,6 +161,25 @@ SONG_PACKS = {
         "label": "10 songs",
         "price": "£4.00",
         "price_id": os.environ.get("STRIPE_SONG_PACK_400_PRICE_ID", ""),
+    },
+    # Subscriber top-up packs (bulk credits for existing subscribers)
+    "song_pack_10": {
+        "credits": 10,
+        "label": "10 songs",
+        "price": "£8",
+        "price_id": os.environ.get("STRIPE_SONG_PACK_10_PRICE_ID", ""),
+    },
+    "song_pack_50": {
+        "credits": 50,
+        "label": "50 songs",
+        "price": "£30",
+        "price_id": os.environ.get("STRIPE_SONG_PACK_50_PRICE_ID", ""),
+    },
+    "song_pack_200_sub": {
+        "credits": 200,
+        "label": "200 songs",
+        "price": "£99",
+        "price_id": os.environ.get("STRIPE_SONG_PACK_200_SUB_PRICE_ID", ""),
     },
 }
 

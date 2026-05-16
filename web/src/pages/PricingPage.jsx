@@ -71,7 +71,7 @@ const DEFAULT_MUSIC_PLANS = {
     name: 'Music Starter',
     price: '£9/mo',
     features: [
-      '15 AI songs/month',
+      '25 AI songs/month',
       'YouTube upload',
       'Song download & share',
       'All music genres & styles',
@@ -432,7 +432,7 @@ export default function PricingPage() {
             ))}
           </div>
           <p className="pricing-footer-note" style={{ marginTop: '2rem' }}>
-            Purchased after sign-in. Requires a free account.
+            Credits never expire. Use them anytime. Purchased after sign-in.
           </p>
         </div>
       </div>
