@@ -801,6 +801,51 @@ def get_song_credits(db_path: pathlib.Path, user_id: str) -> dict | None:
         conn.close()
 
 
+def get_song_stats_for_admin(db_path: pathlib.Path, month_start: str) -> dict:
+    """Return per-user song stats for the admin dashboard.
+
+    Returns a dict keyed by user_id:
+        total_songs, songs_this_month, last_song_at, credits_remaining
+    month_start should be 'YYYY-MM-01' (ISO date string).
+    """
+    conn = _conn(db_path)
+    try:
+        variant_rows = conn.execute(
+            """
+            SELECT
+                user_id,
+                COUNT(*)                                                  AS total_songs,
+                SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END)         AS songs_this_month,
+                MAX(created_at)                                           AS last_song_at
+            FROM song_variants
+            GROUP BY user_id
+            """,
+            (month_start,),
+        ).fetchall()
+        stats: dict = {r["user_id"]: {
+            "total_songs":      r["total_songs"],
+            "songs_this_month": r["songs_this_month"] or 0,
+            "last_song_at":     r["last_song_at"],
+            "credits_remaining": 0,
+        } for r in variant_rows}
+
+        credit_rows = conn.execute(
+            "SELECT user_id, balance FROM song_credits"
+        ).fetchall()
+        for cr in credit_rows:
+            uid = cr["user_id"]
+            if uid in stats:
+                stats[uid]["credits_remaining"] = cr["balance"]
+            else:
+                stats[uid] = {
+                    "total_songs": 0, "songs_this_month": 0,
+                    "last_song_at": None, "credits_remaining": cr["balance"],
+                }
+        return stats
+    finally:
+        conn.close()
+
+
 def upsert_song_credits(
     db_path: pathlib.Path,
     user_id: str,

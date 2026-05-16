@@ -1133,13 +1133,36 @@ async def admin_list_users(current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()
     log.info("admin_list_users: querying db at %s", db_path)
     users = db.get_all_users(db_path)
-    log.info("admin_list_users: get_all_users returned %d row(s): %s",
-             len(users), [u.get("email") for u in users])
-    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    log.info("admin_list_users: get_all_users returned %d row(s)", len(users))
+
+    now = datetime.now(timezone.utc)
+    month = now.strftime("%Y-%m")
+    month_start = now.strftime("%Y-%m-01")
+
+    song_stats = db.get_song_stats_for_admin(db_path, month_start)
+
     for u in users:
         u.pop("password_hash", None)
         u["messages_this_month"] = db.get_monthly_usage(db_path, u["id"], month)
-    return users
+        s = song_stats.get(u["id"], {})
+        u["total_songs_generated"] = s.get("total_songs", 0)
+        u["songs_this_month"]      = s.get("songs_this_month", 0)
+        u["credits_remaining"]     = s.get("credits_remaining", 0)
+        u["last_song_at"]          = s.get("last_song_at")
+
+    total_songs       = sum(u["total_songs_generated"] for u in users)
+    total_this_month  = sum(u["songs_this_month"] for u in users)
+    most_active       = max(users, key=lambda u: u["songs_this_month"], default=None)
+    most_active_email = most_active["email"] if most_active and most_active["songs_this_month"] > 0 else None
+
+    return {
+        "users": users,
+        "overview": {
+            "total_songs":        total_songs,
+            "songs_this_month":   total_this_month,
+            "most_active_user":   most_active_email,
+        },
+    }
 
 
 _ALLOWED_ADMIN_FIELDS = {

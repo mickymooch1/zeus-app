@@ -16,10 +16,13 @@ function fmt(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+const NUMERIC_SORT_KEYS = new Set(['messages_this_month', 'total_songs_generated', 'songs_this_month', 'credits_remaining']);
+
 export default function AdminBeats() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
+  const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sortKey, setSortKey] = useState('created_at');
@@ -34,35 +37,57 @@ export default function AdminBeats() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail || 'Failed')))
-      .then(data => setUsers(data))
+      .then(data => {
+        setUsers(data.users ?? data);
+        setOverview(data.overview ?? null);
+      })
       .catch(e => setError(typeof e === 'string' ? e : 'Failed to load users'))
       .finally(() => setLoading(false));
   }, [user, token, navigate]);
 
   const sorted = [...users].sort((a, b) => {
-    if (sortKey === 'messages_this_month') return (b[sortKey] ?? 0) - (a[sortKey] ?? 0);
-    if (sortKey === 'created_at') return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    if (NUMERIC_SORT_KEYS.has(sortKey)) return (b[sortKey] ?? 0) - (a[sortKey] ?? 0);
+    if (sortKey === 'created_at' || sortKey === 'last_song_at')
+      return new Date(b[sortKey] || 0) - new Date(a[sortKey] || 0);
     return (a[sortKey] || '').localeCompare(b[sortKey] || '');
   });
 
   const COL = [
-    { key: 'email',               label: 'Email' },
-    { key: 'name',                label: 'Name' },
-    { key: 'subscription_plan',   label: 'Plan' },
-    { key: 'messages_this_month', label: 'Songs (mo)' },
-    { key: 'subscription_status', label: 'Status' },
-    { key: 'created_at',          label: 'Joined' },
+    { key: 'email',                 label: 'Email' },
+    { key: 'name',                  label: 'Name' },
+    { key: 'subscription_plan',     label: 'Plan' },
+    { key: 'subscription_status',   label: 'Status' },
+    { key: 'total_songs_generated', label: 'Songs (all)' },
+    { key: 'songs_this_month',      label: 'Songs (mo)' },
+    { key: 'credits_remaining',     label: 'Credits' },
+    { key: 'last_song_at',          label: 'Last Song' },
+    { key: 'created_at',            label: 'Joined' },
   ];
 
   return (
     <div style={{ minHeight: '100vh', background: '#000' }}>
       <BeatsDashboardHeader />
 
-      <div style={{ maxWidth: 1160, margin: '0 auto', padding: '32px 24px 80px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px 80px' }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 4 }}>Admin — Users</h1>
-        <p style={{ color: '#555', fontSize: 13, marginBottom: 28 }}>
+        <p style={{ color: '#555', fontSize: 13, marginBottom: 20 }}>
           {users.length} registered user{users.length !== 1 ? 's' : ''}
         </p>
+
+        {overview && (
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>
+            {[
+              { label: 'Total songs generated', value: overview.total_songs ?? 0, color: '#00f0ff' },
+              { label: 'Songs this month',       value: overview.songs_this_month ?? 0, color: '#00f0ff' },
+              { label: 'Most active (month)',    value: overview.most_active_user ?? '—', color: '#a78bfa' },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ flex: '1 1 180px', background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 10, padding: '14px 18px' }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color, wordBreak: 'break-all' }}>{value}</div>
+                <div style={{ fontSize: 11, color: '#444', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {error && (
           <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', color: '#fca5a5', fontSize: 13, marginBottom: 20 }}>
@@ -112,12 +137,15 @@ export default function AdminBeats() {
                         </span>
                         {u.is_admin ? <span style={{ marginLeft: 6, fontSize: 10, color: '#fbbf24' }}>admin</span> : null}
                       </td>
-                      <td style={{ padding: '10px 14px', color: '#ccc', textAlign: 'right' }}>{u.messages_this_month ?? 0}</td>
                       <td style={{ padding: '10px 14px' }}>
                         <span style={{ fontSize: 11, color: u.subscription_status === 'active' ? '#4ade80' : '#444' }}>
                           {u.subscription_status || 'free'}
                         </span>
                       </td>
+                      <td style={{ padding: '10px 14px', color: '#ccc', textAlign: 'right' }}>{u.total_songs_generated ?? 0}</td>
+                      <td style={{ padding: '10px 14px', color: '#ccc', textAlign: 'right' }}>{u.songs_this_month ?? 0}</td>
+                      <td style={{ padding: '10px 14px', color: '#ccc', textAlign: 'right' }}>{u.credits_remaining ?? 0}</td>
+                      <td style={{ padding: '10px 14px', color: '#555', whiteSpace: 'nowrap' }}>{fmt(u.last_song_at)}</td>
                       <td style={{ padding: '10px 14px', color: '#555', whiteSpace: 'nowrap' }}>{fmt(u.created_at)}</td>
                     </tr>
                   );

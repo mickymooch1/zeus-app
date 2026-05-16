@@ -150,10 +150,30 @@ function AdminTasksTab({ token }) {
   );
 }
 
+function SongStatsBar({ overview }) {
+  if (!overview) return null;
+  const stats = [
+    { label: 'Total songs generated', value: overview.total_songs ?? 0 },
+    { label: 'Songs this month',      value: overview.songs_this_month ?? 0 },
+    { label: 'Most active (month)',   value: overview.most_active_user ?? '—' },
+  ];
+  return (
+    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+      {stats.map(({ label, value }) => (
+        <div key={label} style={{ flex: '1 1 180px', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 10, padding: '14px 18px' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#a78bfa' }}>{value}</div>
+          <div style={{ fontSize: 11, color: '#555', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { user, token } = useAuth();
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState([]);
+  const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -165,7 +185,9 @@ export default function AdminPage() {
       .then(async (res) => {
         if (res.status === 403) { setError('forbidden'); return; }
         if (!res.ok) throw new Error('Failed to load users');
-        setUsers(await res.json());
+        const data = await res.json();
+        setUsers(data.users ?? data);
+        setOverview(data.overview ?? null);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -229,6 +251,7 @@ export default function AdminPage() {
             {error && error !== 'forbidden' && (
               <div className="form-error form-error--banner">{error}</div>
             )}
+            {!loading && <SongStatsBar overview={overview} />}
             {loading ? (
               <div style={{ textAlign: 'center', padding: '3rem' }}>
                 <span className="spinner" />
@@ -242,7 +265,11 @@ export default function AdminPage() {
                       <th>Name</th>
                       <th>Plan</th>
                       <th>Status</th>
-                      <th>Msgs (month)</th>
+                      <th>Msgs (mo)</th>
+                      <th>Songs (all)</th>
+                      <th>Songs (mo)</th>
+                      <th>Credits</th>
+                      <th>Last Song</th>
                       <th>Created</th>
                       <th>Admin</th>
                     </tr>
@@ -267,6 +294,10 @@ export default function AdminPage() {
                           onSaved={handleSaved}
                         />
                         <td style={{ textAlign: 'center' }}>{u.messages_this_month ?? 0}</td>
+                        <td style={{ textAlign: 'center' }}>{u.total_songs_generated ?? 0}</td>
+                        <td style={{ textAlign: 'center' }}>{u.songs_this_month ?? 0}</td>
+                        <td style={{ textAlign: 'center' }}>{u.credits_remaining ?? 0}</td>
+                        <td className="admin-date">{u.last_song_at ? new Date(u.last_song_at).toLocaleDateString() : '—'}</td>
                         <td className="admin-date">{new Date(u.created_at).toLocaleDateString()}</td>
                         <td style={{ textAlign: 'center' }}>{u.is_admin ? '✓' : ''}</td>
                       </tr>
