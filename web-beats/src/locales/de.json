@@ -11,7 +11,9 @@
     "signIn": "Anmelden",
     "startFree": "Kostenlos starten",
     "openMenu": "Menü öffnen",
-    "account": "Konto"
+    "account": "Konto",
+    "terms": "AGB",
+    "signOut": "Abmelden"
   },
   "auth": {
     "login": {

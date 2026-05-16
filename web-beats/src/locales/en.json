@@ -11,7 +11,9 @@
     "signIn": "Sign In",
     "startFree": "Start Free",
     "openMenu": "Open menu",
-    "account": "Account"
+    "account": "Account",
+    "terms": "Terms",
+    "signOut": "Sign out"
   },
   "auth": {
     "login": {
