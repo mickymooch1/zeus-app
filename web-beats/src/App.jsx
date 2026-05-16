@@ -19,6 +19,7 @@ import RefundPolicyPage from './pages/RefundPolicyPage';
 import DataDeletionPage from './pages/DataDeletionPage';
 import SearchPage from './pages/SearchPage';
 import AdminBeats from './pages/AdminBeats';
+import MixerPage from './pages/MixerPage';
 import './index.css';
 
 export default function App() {
@@ -61,6 +62,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <SearchPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mixer"
+            element={
+              <ProtectedRoute>
+                <MixerPage />
               </ProtectedRoute>
             }
           />

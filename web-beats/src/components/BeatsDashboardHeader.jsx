@@ -16,6 +16,7 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
   const NAV_LINKS = [
     { to: '/songs',   label: t('nav.songs') },
     { to: '/search',  label: t('nav.search') },
+    { to: '/mixer',   label: t('nav.mixer') },
     { to: '/billing', label: t('nav.billing') },
     { to: '/contact', label: t('nav.contact') },
   ];

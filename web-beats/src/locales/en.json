@@ -13,7 +13,8 @@
     "openMenu": "Open menu",
     "account": "Account",
     "terms": "Terms",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "mixer": "Mixer"
   },
   "auth": {
     "login": {

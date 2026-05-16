@@ -13,7 +13,8 @@
     "openMenu": "Menü öffnen",
     "account": "Konto",
     "terms": "AGB",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "mixer": "Mixer"
   },
   "auth": {
     "login": {

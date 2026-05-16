@@ -13,7 +13,8 @@
     "openMenu": "Abrir menu",
     "account": "Conta",
     "terms": "Termos",
-    "signOut": "Sair"
+    "signOut": "Sair",
+    "mixer": "Mixer"
   },
   "auth": {
     "login": {
