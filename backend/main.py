@@ -780,12 +780,12 @@ async def account_delete_request(current_user: dict = Depends(auth.get_current_u
             ])
             msg = MIMEMultipart()
             msg["From"] = smtp_email
-            msg["To"] = "rowlemichael1@gmail.com"
+            msg["To"] = "hello@zeusbeats.com"
             msg["Subject"] = "Account Deletion Request"
             msg.attach(MIMEText(msg_text, "plain"))
             with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
                 server.login(smtp_email, smtp_password)
-                server.sendmail(smtp_email, ["rowlemichael1@gmail.com"], msg.as_string())
+                server.sendmail(smtp_email, ["hello@zeusbeats.com"], msg.as_string())
             log.info("deletion request email sent for user %s", current_user["id"])
         except Exception as exc:
             log.warning("deletion request email failed: %s", exc)
@@ -883,12 +883,12 @@ async def contact(request: Request, body: ContactMessage):
             ])
             msg = MIMEMultipart()
             msg["From"] = smtp_email
-            msg["To"] = "rowlemichael1@gmail.com"
+            msg["To"] = "hello@zeusbeats.com"
             msg["Subject"] = f"Zeus Contact: {body.subject}"
             msg.attach(MIMEText(msg_text, "plain"))
             with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
                 server.login(smtp_email, smtp_password)
-                server.sendmail(smtp_email, ["rowlemichael1@gmail.com"], msg.as_string())
+                server.sendmail(smtp_email, ["hello@zeusbeats.com"], msg.as_string())
             log.info("contact email sent from %s", body.email)
         except Exception as exc:
             log.warning("contact email failed: %s", exc)

@@ -50,8 +50,8 @@ export default function RefundPolicyPage() {
           <h2>4. How to Request a Refund</h2>
           <p>
             To request a refund, contact us at{' '}
-            <a href="mailto:rowlemichael1@gmail.com" className="auth-link">
-              rowlemichael1@gmail.com
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">
+              hello@zeusbeats.com
             </a>{' '}
             within 14 days of your initial payment. Please include:
           </p>

@@ -32,8 +32,8 @@ export default function DataDeletionPage() {
           </h3>
           <p>
             Send an email to{' '}
-            <a href="mailto:rowlemichael1@gmail.com" className="auth-link">
-              rowlemichael1@gmail.com
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">
+              hello@zeusbeats.com
             </a>{' '}
             with the subject line <strong>"Data Deletion Request"</strong> and include your
             registered email address.
@@ -67,8 +67,8 @@ export default function DataDeletionPage() {
           <h2>Contact</h2>
           <p>
             If you have any questions about data deletion, contact us at{' '}
-            <a href="mailto:rowlemichael1@gmail.com" className="auth-link">
-              rowlemichael1@gmail.com
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">
+              hello@zeusbeats.com
             </a>.
           </p>
         </section>

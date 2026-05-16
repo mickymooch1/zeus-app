@@ -156,7 +156,7 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p>
-            To exercise any of these rights, contact us at rowlemichael1@gmail.com. We will
+            To exercise any of these rights, contact us at hello@zeusbeats.com. We will
             respond within one month. You also have the right to lodge a complaint with the
             Information Commissioner's Office (ICO) at ico.org.uk.
           </p>
@@ -212,7 +212,7 @@ export default function PrivacyPage() {
             deletion, visit your{' '}
             <a href="/billing" className="auth-link">account settings</a> and use the
             "Request Account Deletion" option, or contact us at{' '}
-            <a href="mailto:rowlemichael1@gmail.com" className="auth-link">rowlemichael1@gmail.com</a>.
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a>.
             Requests will be processed within 30 days.
           </p>
           <p>
@@ -236,7 +236,7 @@ export default function PrivacyPage() {
             Company number: 17141941<br />
             Registered in England and Wales<br />
             Data Protection Enquiries:<br />
-            Email: <a href="mailto:rowlemichael1@gmail.com" className="auth-link">rowlemichael1@gmail.com</a><br />
+            Email: <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a><br />
             Website: <a href="https://zeusaidesign.com" className="auth-link">zeusaidesign.com</a>
           </address>
         </section>
