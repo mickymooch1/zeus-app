@@ -226,7 +226,7 @@ export default function SettingsPage() {
         )}
 
         <p className="billing-note">
-          Questions? Email <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">dominic.rowle@yahoo.com</a>
+          Questions? Email <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a>
         </p>
       </div>
 

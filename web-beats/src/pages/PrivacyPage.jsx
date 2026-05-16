@@ -173,7 +173,7 @@ export default function PrivacyPage() {
           </ul>
           <p>
             To exercise any of these rights, contact us at{' '}
-            <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">dominic.rowle@yahoo.com</a>.
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a>.
             We will respond within one month. You also have the right to lodge a complaint with
             the Information Commissioner's Office (ICO) at{' '}
             <a href="https://ico.org.uk" target="_blank" rel="noopener noreferrer" className="auth-link">
@@ -232,7 +232,7 @@ export default function PrivacyPage() {
             deletion, visit your{' '}
             <a href="/billing" className="auth-link">account settings</a> and use the
             "Request Account Deletion" option, or contact us at{' '}
-            <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">dominic.rowle@yahoo.com</a>.
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a>.
             Requests will be processed within 30 days.
           </p>
           <p>
@@ -255,7 +255,7 @@ export default function PrivacyPage() {
             Company number: 17141941<br />
             Registered in England and Wales<br />
             Data Protection Enquiries:<br />
-            Email: <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">dominic.rowle@yahoo.com</a><br />
+            Email: <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a><br />
             Website: <a href="https://zeusbeats.com" className="auth-link">zeusbeats.com</a>
           </address>
         </section>

@@ -450,8 +450,8 @@ export default function BillingPage() {
 
         <p className="billing-note">
           {t('billing.questions')}{' '}
-          <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">
-            dominic.rowle@yahoo.com
+          <a href="mailto:hello@zeusbeats.com" className="auth-link">
+            hello@zeusbeats.com
           </a>
           {'. '}
           View our <Link to="/refund-policy" className="auth-link">{t('billing.refundPolicy')}</Link>.

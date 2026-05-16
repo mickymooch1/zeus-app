@@ -190,7 +190,7 @@
     "manageSubscription": "Abonnement verwalten",
     "upgradePlan": "Plan upgraden",
     "cancelSubscription": "Abonnement kündigen",
-    "cancelledOn": "Abonnement wird am {{date}} gekündigt",
+    "cancelledOn": "Ihr Abonnement endet am {{date}}. Sie können Zeus Beats bis dahin weiterhin nutzen.",
     "cancelModal": {
       "title": "Abonnement kündigen?",
       "descWithDate": "Du behältst den Zugang bis zum {{date}}, dann wechselt dein Konto zum kostenlosen Plan.",

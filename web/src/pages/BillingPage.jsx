@@ -258,7 +258,7 @@ export default function BillingPage() {
             if (cancelDateDisplay) {
               return (
                 <p style={{ marginTop: 12, fontSize: '0.85rem', color: '#64748b' }}>
-                  Subscription cancels on {cancelDateDisplay}
+                  Your subscription will end on {cancelDateDisplay}. You can still use Zeus until then.
                 </p>
               );
             }
@@ -484,8 +484,8 @@ export default function BillingPage() {
 
         <p className="billing-note">
           Questions? Email us at{' '}
-          <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">
-            dominic.rowle@yahoo.com
+          <a href="mailto:hello@zeusbeats.com" className="auth-link">
+            hello@zeusbeats.com
           </a>
           {'. '}
           View our <Link to="/refund-policy" className="auth-link">Refund Policy</Link>.

@@ -190,11 +190,11 @@
     "manageSubscription": "Manage Subscription",
     "upgradePlan": "Upgrade Plan",
     "cancelSubscription": "Cancel Subscription",
-    "cancelledOn": "Subscription cancels on {{date}}",
+    "cancelledOn": "Your subscription will end on {{date}}. You can still use Zeus Beats until then.",
     "cancelModal": {
       "title": "Cancel subscription?",
-      "descWithDate": "You'll keep access until {{date}}, then your account moves to the free plan.",
-      "descNoDate": "You'll keep access until the end of your current billing period, then your account moves to the free plan.",
+      "descWithDate": "Are you sure? You'll keep access until {{date}}, then move to the free plan.",
+      "descNoDate": "Are you sure? You'll keep access until the end of your current billing period, then move to the free plan.",
       "keep": "Keep subscription",
       "confirm": "Yes, cancel",
       "cancelling": "Cancelling…"

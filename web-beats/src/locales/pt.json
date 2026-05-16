@@ -190,7 +190,7 @@
     "manageSubscription": "Gerenciar assinatura",
     "upgradePlan": "Fazer upgrade",
     "cancelSubscription": "Cancelar assinatura",
-    "cancelledOn": "Assinatura cancela em {{date}}",
+    "cancelledOn": "Sua assinatura terminará em {{date}}. Você pode continuar usando Zeus Beats até lá.",
     "cancelModal": {
       "title": "Cancelar assinatura?",
       "descWithDate": "Você manterá o acesso até {{date}}, depois sua conta muda para o plano gratuito.",

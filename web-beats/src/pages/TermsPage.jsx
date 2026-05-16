@@ -123,7 +123,7 @@ export default function TermsPage() {
             We offer a <strong>7-day refund window</strong> from the date of your initial
             subscription payment. If you are not satisfied with the Service, you may request a
             full refund within 7 days of your first payment by contacting us at{' '}
-            <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">dominic.rowle@yahoo.com</a>.
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a>.
           </p>
           <p>
             <strong>After 7 days, no refunds will be issued</strong> for any subscription fees
@@ -149,7 +149,7 @@ export default function TermsPage() {
           <p>
             You may cancel your subscription at any time through the Billing section of your
             account or by contacting us at{' '}
-            <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">dominic.rowle@yahoo.com</a>.
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a>.
           </p>
           <p>
             Upon cancellation:
@@ -242,7 +242,7 @@ export default function TermsPage() {
             <strong>Your rights:</strong> Under UK GDPR, you have the right to access, rectify,
             erase, and port your personal data, as well as the right to restrict or object to
             processing. To exercise your rights, contact us at{' '}
-            <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">dominic.rowle@yahoo.com</a>.
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a>.
             You also have the right to lodge a complaint with the Information Commissioner's
             Office (ICO) at{' '}
             <a
@@ -292,7 +292,7 @@ export default function TermsPage() {
           </p>
           <p>
             You may terminate your account at any time by contacting us at{' '}
-            <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">dominic.rowle@yahoo.com</a>.
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a>.
             Termination does not entitle you to a refund of any prepaid subscription fees outside
             the 7-day refund window.
           </p>
@@ -322,7 +322,7 @@ export default function TermsPage() {
             Company number: 17141941<br />
             Registered in England and Wales<br />
             Email:{' '}
-            <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">dominic.rowle@yahoo.com</a><br />
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a><br />
             Website:{' '}
             <a href="https://zeusbeats.com" className="auth-link">zeusbeats.com</a>
           </address>
@@ -334,7 +334,7 @@ export default function TermsPage() {
             For general enquiries, support requests, or feedback, you can reach us via our{' '}
             <a href="/contact" className="auth-link">Contact page</a> or by emailing us directly
             at{' '}
-            <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">dominic.rowle@yahoo.com</a>.
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a>.
             We aim to respond to all enquiries within 24 hours during business hours (Monday to
             Friday, 9am–5pm GMT).
           </p>

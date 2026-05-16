@@ -159,7 +159,7 @@ export default function PricingPage() {
         {/* FAQ / note */}
         <div style={{ textAlign: 'center', marginTop: 60, color: 'var(--text-dim)', fontSize: 13 }}>
           <p>All plans include cover art generation and animated music video. No website builder. No chat assistant.</p>
-          <p style={{ marginTop: 8 }}>Questions? <a href="mailto:dominic.rowle@yahoo.com" className="auth-link">Contact us</a></p>
+          <p style={{ marginTop: 8 }}>Questions? <a href="mailto:hello@zeusbeats.com" className="auth-link">Contact us</a></p>
         </div>
 
         {/* Footer */}
