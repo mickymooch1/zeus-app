@@ -154,14 +154,17 @@ def _send_task_email(
     msg.attach(MIMEText(body, "plain"))
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, [user_email], msg.as_string())
         log.info("_send_task_email: sent to %s", user_email)
     except smtplib.SMTPAuthenticationError:
-        log.warning("_send_task_email: Gmail auth failed — check SMTP_PASSWORD is an App Password")
-    except smtplib.SMTPException as exc:
-        log.warning("_send_task_email: SMTP error: %s", exc)
+        log.exception("_send_task_email: Gmail auth failed — SMTP_PASSWORD must be an App Password, not your regular Gmail password")
+    except Exception:
+        log.exception("_send_task_email: failed to send email")
 
 
 _RAILWAY = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
@@ -541,12 +544,17 @@ def _send_verification_email(user: dict, app: str = "ai") -> None:
         msg["To"] = user["email"]
         msg["Subject"] = "Verify your Zeus email address"
         msg.attach(MIMEText(msg_text, "plain"))
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, [user["email"]], msg.as_string())
         log.info("verification email sent to %s", user["email"])
-    except Exception as exc:
-        log.warning("verification email failed: %s", exc)
+    except smtplib.SMTPAuthenticationError:
+        log.exception("verification email: Gmail auth failed — SMTP_PASSWORD must be an App Password, not your regular Gmail password")
+    except Exception:
+        log.exception("verification email: failed to send")
 
 
 @app.post("/auth/login")
@@ -625,12 +633,17 @@ async def forgot_password(request: Request, body: ForgotPasswordRequest):
             msg["To"] = user["email"]
             msg["Subject"] = "Reset your Zeus password"
             msg.attach(MIMEText(msg_text, "plain"))
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
                 server.login(smtp_email, smtp_password)
                 server.sendmail(smtp_email, [user["email"]], msg.as_string())
             log.info("password reset email sent to %s", user["email"])
-        except Exception as exc:
-            log.warning("password reset email failed: %s", exc)
+        except smtplib.SMTPAuthenticationError:
+            log.exception("password reset email: Gmail auth failed — SMTP_PASSWORD must be an App Password, not your regular Gmail password")
+        except Exception:
+            log.exception("password reset email: failed to send")
 
     return {"ok": True, "message": "If that email is registered, a reset link has been sent."}
 
