@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
+import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 
 const CYAN = '#00f0ff';
@@ -19,6 +20,7 @@ const initialDeck = () => ({
 
 export default function MixerPage() {
   const { t } = useTranslation();
+  const { token } = useAuth();
   const [songs, setSongs] = useState([]);
   const [loadingLib, setLoadingLib] = useState(true);
   const [deckA, setDeckA] = useState(initialDeck);
@@ -51,37 +53,36 @@ export default function MixerPage() {
   // ── Library loading ───────────────────────────────────────────────────────
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
 
     fetch(`${BACKEND_URL}/api/lyrics`, { headers })
-      .then(r => r.json())
-      .then(async data => {
-        const lyrics = Array.isArray(data) ? data : (data.lyrics ?? []);
-        const result = [];
-        for (const lyric of lyrics) {
-          try {
-            const vr = await fetch(`${BACKEND_URL}/api/lyrics/${lyric.id}/variants`, { headers });
-            const vd = await vr.json();
-            const variants = Array.isArray(vd) ? vd : (vd.variants ?? []);
-            variants.forEach((v, i) => {
-              if (v.status === 'complete' && v.mp3_url) {
-                result.push({
-                  id: `${lyric.id}-${v.variant_id ?? i}`,
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(async ({ lyrics = [] }) => {
+        const groups = await Promise.all(
+          lyrics.map(async (lyric) => {
+            try {
+              const vr = await fetch(`${BACKEND_URL}/api/lyrics/${lyric.id}/variants`, { headers });
+              if (!vr.ok) return [];
+              const { variants = [] } = await vr.json();
+              return variants
+                .filter(v => v.status === 'complete' && v.mp3_url)
+                .map(v => ({
+                  id: `${lyric.id}-${v.variant_id}`,
                   title: variants.length > 1
-                    ? `${lyric.title} (v${v.variant_id ?? i + 1})`
+                    ? `${lyric.title} (v${v.variant_id})`
                     : lyric.title,
+                  genre: v.genre_tag || '',
                   url: v.mp3_url,
-                });
-              }
-            });
-          } catch {}
-        }
-        setSongs(result);
+                }));
+            } catch { return []; }
+          })
+        );
+        setSongs(groups.flat().sort((a, b) => b.id.localeCompare(a.id)));
       })
       .catch(() => {})
       .finally(() => setLoadingLib(false));
-  }, []);
+  }, [token]);
 
   // ── Audio helpers ─────────────────────────────────────────────────────────
 
@@ -250,7 +251,9 @@ export default function MixerPage() {
         >
           <option value="">— Select a song —</option>
           {songs.map(s => (
-            <option key={s.id} value={s.id}>{s.title}</option>
+            <option key={s.id} value={s.id}>
+              {s.genre ? `${s.title} · ${s.genre}` : s.title}
+            </option>
           ))}
         </select>
 
