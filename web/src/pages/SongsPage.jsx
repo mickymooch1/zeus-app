@@ -1373,6 +1373,13 @@ export default function SongsPage() {
                     ].map((a) => (
                       <option key={a} value={a}>{a}</option>
                     ))}
+                    {[
+                      ['UK D&B MC', 'energetic UK drum and bass MC delivery, rapid fire hype, crowd control shouts, classic jungle MC style, rewind calls'],
+                      ['UK Jungle MC', 'old school jungle MC flow, ragga influenced delivery, rewind calls, authentic 90s rave MC energy'],
+                      ['Bashment MC', 'Jamaican bashment MC delivery, dancehall ragga style, riddim riding vocals, Caribbean MC energy'],
+                    ].map(([label, value]) => (
+                      <option key={label} value={value}>{label}</option>
+                    ))}
                   </select>
                 </div>
 

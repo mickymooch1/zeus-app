@@ -1362,6 +1362,13 @@ export default function SongsPage() {
                     {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish','American Soul','Jamaican','D&B MC','UK Rave MC','British MC Grime','Jazz Vocal','American Hip-Hop','K-Pop','West African','South African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta','West Coast G-Funk','British Street Soul'].map((a) => (
                       <option key={a} value={a}>{a}</option>
                     ))}
+                    {[
+                      ['UK D&B MC', 'energetic UK drum and bass MC delivery, rapid fire hype, crowd control shouts, classic jungle MC style, rewind calls'],
+                      ['UK Jungle MC', 'old school jungle MC flow, ragga influenced delivery, rewind calls, authentic 90s rave MC energy'],
+                      ['Bashment MC', 'Jamaican bashment MC delivery, dancehall ragga style, riddim riding vocals, Caribbean MC energy'],
+                    ].map(([label, value]) => (
+                      <option key={label} value={value}>{label}</option>
+                    ))}
                   </select>
                 </div>
 
