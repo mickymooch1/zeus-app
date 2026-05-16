@@ -1410,6 +1410,7 @@ async def songs_generate(
             "Jazz Vocal": "smooth jazz vocal delivery, sophisticated phrasing, warm American jazz club tone, scat influences, Ella Fitzgerald or Chet Baker style",
             "Jamaican Rasta": "Jamaican Rastafarian vocal delivery, deep patois inflection, conscious spiritual tone, roots reggae pronunciation, Jah references",
             "West Coast G-Funk": "smooth West Coast rap vocal delivery, laid back California flow, deep relaxed tone, g-funk style, slow deliberate delivery, iconic West Coast gangsta rap pronunciation",
+            "British Street Soul": "British street soul vocal delivery, smooth soulful London tone, urban British warmth, laid back R&B inflection, authentic UK soul pronunciation, inner city British authenticity",
         }
         style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
     if body.explicit:
