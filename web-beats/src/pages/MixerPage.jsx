@@ -5,6 +5,7 @@ import { BACKEND_URL } from '../brand';
 
 const CYAN = '#00f0ff';
 const PINK = '#ff0099';
+const RED  = '#ff2244';
 
 const GENRE_BPM = {
   dnb: 174, jungle: 160, grime: 140, niche: 138, techno: 138,
@@ -20,6 +21,10 @@ function estimateBpm(genreTag) {
   return GENRE_BPM[key] ?? GENRE_BPM.default;
 }
 
+function formatDuration(secs) {
+  return `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
+}
+
 const initialDeck = () => ({
   songId: '', volume: 0.8, bass: 0, mid: 0, treble: 0,
   bpm: null, tapTimes: [], playing: false,
@@ -33,16 +38,37 @@ export default function MixerPage() {
   const [deckB, setDeckB] = useState(initialDeck);
   const [crossfader, setCrossfader] = useState(0.5);
 
-  // Per-deck audio node refs — never trigger re-renders
-  const nodesA = useRef({});
-  const nodesB = useRef({});
-  const audioCtx = useRef(null);
+  // Recording state
+  const [recording, setRecording]     = useState(false);
+  const [recDuration, setRecDuration] = useState(0);
+  const [lastBlob, setLastBlob]       = useState(null);
+  const [saving, setSaving]           = useState(false);
+  const [saveStatus, setSaveStatus]   = useState(null); // 'ok' | 'err' | null
+
+  // Audio node refs
+  const nodesA      = useRef({});
+  const nodesB      = useRef({});
+  const audioCtx    = useRef(null);
+  const masterGain  = useRef(null); // all deck outputs feed here → ctx.destination + recordDest
+
+  // Recording refs
+  const recorderRef    = useRef(null);
+  const recChunksRef   = useRef([]);
+  const recTimerRef    = useRef(null);
+  const recStartRef    = useRef(null);
+  const recordDestRef  = useRef(null);
+  const lastBlobUrlRef = useRef(null);
 
   // ── Audio context ─────────────────────────────────────────────────────────
 
   function getCtx() {
     if (!audioCtx.current) {
-      audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const mg  = ctx.createGain();
+      mg.gain.value = 1;
+      mg.connect(ctx.destination);
+      audioCtx.current   = ctx;
+      masterGain.current = mg;
     }
     if (audioCtx.current.state === 'suspended') audioCtx.current.resume();
     return audioCtx.current;
@@ -50,6 +76,10 @@ export default function MixerPage() {
 
   useEffect(() => {
     return () => {
+      if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+        recorderRef.current.stop();
+      }
+      clearInterval(recTimerRef.current);
       ['A', 'B'].forEach(id => {
         const n = id === 'A' ? nodesA.current : nodesB.current;
         if (n.source) { try { n.source.disconnect(); n.source.stop(); } catch {} }
@@ -92,31 +122,22 @@ export default function MixerPage() {
 
   // ── Audio helpers ─────────────────────────────────────────────────────────
 
-  // Build filter chain for a deck. Called once when a new song is loaded.
-  // Chain: bassFilter → midFilter → trebleFilter → volGain → crossGain → destination
-  // Source nodes are NOT created here — they attach to bassFilter on play/resume.
+  // Build filter chain for a deck. Deck crossGain feeds masterGain (not ctx.destination directly).
+  // Chain: [source] → bassFilter → midFilter → trebleFilter → volGain → crossGain → masterGain
   function buildChain(id, deck, cf) {
     const ctx = getCtx();
-    const n = id === 'A' ? nodesA.current : nodesB.current;
+    const n   = id === 'A' ? nodesA.current : nodesB.current;
 
-    // Tear down any previous chain
     if (n.crossGain) { try { n.crossGain.disconnect(); } catch {} }
 
     const bass = ctx.createBiquadFilter();
-    bass.type = 'lowshelf';
-    bass.frequency.value = 100;
-    bass.gain.value = deck.bass;
+    bass.type = 'lowshelf'; bass.frequency.value = 100; bass.gain.value = deck.bass;
 
     const mid = ctx.createBiquadFilter();
-    mid.type = 'peaking';
-    mid.frequency.value = 1000;
-    mid.Q.value = 1;
-    mid.gain.value = deck.mid;
+    mid.type = 'peaking'; mid.frequency.value = 1000; mid.Q.value = 1; mid.gain.value = deck.mid;
 
     const treble = ctx.createBiquadFilter();
-    treble.type = 'highshelf';
-    treble.frequency.value = 8000;
-    treble.gain.value = deck.treble;
+    treble.type = 'highshelf'; treble.frequency.value = 8000; treble.gain.value = deck.treble;
 
     const vol = ctx.createGain();
     vol.gain.value = deck.volume;
@@ -126,39 +147,33 @@ export default function MixerPage() {
       ? Math.cos(cf * Math.PI / 2)
       : Math.cos((1 - cf) * Math.PI / 2);
 
-    // Wire in series: bass → mid → treble → vol → cross → speakers
     bass.connect(mid);
     mid.connect(treble);
     treble.connect(vol);
     vol.connect(cross);
-    cross.connect(ctx.destination);
+    cross.connect(masterGain.current); // tap point for recorder
 
-    n.bassFilter  = bass;
-    n.midFilter   = mid;
-    n.trebleFilter = treble;
-    n.volGain     = vol;
-    n.crossGain   = cross;
+    n.bassFilter = bass; n.midFilter = mid; n.trebleFilter = treble;
+    n.volGain = vol; n.crossGain = cross;
   }
 
-  // Create a new AudioBufferSourceNode and start from `offset` seconds.
-  // Attaches to the existing filter chain (buildChain must have been called first).
   function startSource(id, offset = 0) {
     const ctx = getCtx();
-    const n = id === 'A' ? nodesA.current : nodesB.current;
+    const n   = id === 'A' ? nodesA.current : nodesB.current;
 
     if (n.source) { try { n.source.disconnect(); n.source.stop(); } catch {} }
 
     const src = ctx.createBufferSource();
     src.buffer = n.buffer;
-    src.loop = true;
-    src.connect(n.bassFilter); // entry point into the chain
+    src.loop   = true;
+    src.connect(n.bassFilter);
     src.start(0, offset % src.buffer.duration);
 
     n.source    = src;
-    n.startTime = ctx.currentTime - offset; // used to calculate pause position
+    n.startTime = ctx.currentTime - offset;
   }
 
-  // ── Event handlers ────────────────────────────────────────────────────────
+  // ── Playback handlers ─────────────────────────────────────────────────────
 
   async function handleToggle(id) {
     const deck    = id === 'A' ? deckA    : deckB;
@@ -166,43 +181,33 @@ export default function MixerPage() {
     const n       = id === 'A' ? nodesA.current : nodesB.current;
 
     if (deck.playing) {
-      // PAUSE — record current position, stop source (buffer node can't be resumed)
       const ctx = getCtx();
       n.pauseAt = n.buffer ? (ctx.currentTime - n.startTime) % n.buffer.duration : 0;
       if (n.source) { try { n.source.disconnect(); n.source.stop(); } catch {} n.source = null; }
       setDeck(d => ({ ...d, playing: false }));
-
     } else if (n.buffer && n.bassFilter && n.pauseAt != null) {
-      // RESUME — restart source from saved position using existing filter chain
       try {
         startSource(id, n.pauseAt);
         n.pauseAt = null;
         setDeck(d => ({ ...d, playing: true }));
-      } catch (err) {
-        console.error('Mixer resume error', err);
-      }
-
+      } catch (err) { console.error('Mixer resume error', err); }
     } else {
-      // FRESH START — load buffer if needed, build chain, start from 0
       if (!deck.songId) return;
       const song = songs.find(s => s.id === deck.songId);
       if (!song) return;
-
       try {
         const ctx = getCtx();
         if (n.loadedUrl !== song.url) {
           const res = await fetch(song.url);
           const ab  = await res.arrayBuffer();
-          n.buffer     = await ctx.decodeAudioData(ab);
-          n.loadedUrl  = song.url;
+          n.buffer    = await ctx.decodeAudioData(ab);
+          n.loadedUrl = song.url;
         }
         n.pauseAt = null;
         buildChain(id, deck, crossfader);
         startSource(id, 0);
         setDeck(d => ({ ...d, playing: true }));
-      } catch (err) {
-        console.error('Mixer play error', err);
-      }
+      } catch (err) { console.error('Mixer play error', err); }
     }
   }
 
@@ -210,15 +215,11 @@ export default function MixerPage() {
     const n       = id === 'A' ? nodesA.current : nodesB.current;
     const setDeck = id === 'A' ? setDeckA : setDeckB;
 
-    // Stop current playback and clear buffer cache so new song loads fresh
     if (n.source) { try { n.source.disconnect(); n.source.stop(); } catch {} n.source = null; }
-    n.loadedUrl = null;
-    n.pauseAt   = null;
+    n.loadedUrl = null; n.pauseAt = null;
 
     const song = songs.find(s => s.id === songId);
-    const bpm  = song ? estimateBpm(song.genre) : null;
-
-    setDeck(d => ({ ...d, songId, playing: false, bpm }));
+    setDeck(d => ({ ...d, songId, playing: false, bpm: song ? estimateBpm(song.genre) : null }));
   }
 
   function handleVolume(id, value) {
@@ -236,7 +237,6 @@ export default function MixerPage() {
 
   function handleCrossfader(value) {
     setCrossfader(value);
-    // Equal-power crossfade: full A at 0, equal at 0.5, full B at 1
     if (nodesA.current.crossGain) nodesA.current.crossGain.gain.value = Math.cos(value * Math.PI / 2);
     if (nodesB.current.crossGain) nodesB.current.crossGain.gain.value = Math.cos((1 - value) * Math.PI / 2);
   }
@@ -250,6 +250,93 @@ export default function MixerPage() {
       const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
       return { ...d, tapTimes: taps, bpm: Math.round(60000 / avg) };
     });
+  }
+
+  // ── Recording handlers ────────────────────────────────────────────────────
+
+  function handleRecord() {
+    if (recording) {
+      recorderRef.current?.stop();
+      clearInterval(recTimerRef.current);
+      setRecording(false);
+    } else {
+      const ctx = getCtx();
+
+      // Tap the master output into a MediaStream
+      const dest = ctx.createMediaStreamDestination();
+      masterGain.current.connect(dest);
+      recordDestRef.current = dest;
+
+      const recorder = new MediaRecorder(dest.stream);
+      recChunksRef.current = [];
+      setSaveStatus(null);
+      setLastBlob(null);
+
+      recorder.ondataavailable = e => { if (e.data.size > 0) recChunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        // Disconnect recording tap
+        try { masterGain.current.disconnect(recordDestRef.current); } catch {}
+
+        const blob = new Blob(recChunksRef.current, { type: 'audio/webm' });
+        setLastBlob(blob);
+
+        // Auto-download
+        if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
+        const url = URL.createObjectURL(blob);
+        lastBlobUrlRef.current = url;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `zeus-mix-${Date.now()}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
+      recorder.start();
+      recorderRef.current = recorder;
+      recStartRef.current = Date.now();
+      setRecording(true);
+      setRecDuration(0);
+
+      recTimerRef.current = setInterval(() => {
+        setRecDuration(Math.floor((Date.now() - recStartRef.current) / 1000));
+      }, 1000);
+    }
+  }
+
+  function handleDownload() {
+    if (!lastBlob) return;
+    if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
+    const url = URL.createObjectURL(lastBlob);
+    lastBlobUrlRef.current = url;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `zeus-mix-${Date.now()}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  async function handleSave() {
+    if (!lastBlob || saving) return;
+    setSaving(true);
+    setSaveStatus(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', lastBlob, `zeus-mix-${Date.now()}.webm`);
+      fd.append('title', `DJ Mix ${new Date().toLocaleString()}`);
+      const r = await fetch(`${BACKEND_URL}/api/mixes/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      if (!r.ok) throw new Error(r.status);
+      setSaveStatus('ok');
+    } catch {
+      setSaveStatus('err');
+    } finally {
+      setSaving(false);
+    }
   }
 
   // ── Sub-components ────────────────────────────────────────────────────────
@@ -319,7 +406,6 @@ export default function MixerPage() {
           value={deck.volume} accent={accent}
           display={`${Math.round(deck.volume * 100)}`}
           onChange={v => handleVolume(id, v)} />
-
         <SliderRow label="BASS" min={-15} max={15} step={1}
           value={deck.bass} accent={accent}
           display={`${deck.bass > 0 ? '+' : ''}${deck.bass}`}
@@ -359,6 +445,14 @@ export default function MixerPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#000', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
+      {/* Pulse keyframe for record button */}
+      <style>{`
+        @keyframes recPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(255,34,68,0.7); }
+          50%       { box-shadow: 0 0 0 10px rgba(255,34,68,0); }
+        }
+      `}</style>
+
       <BeatsDashboardHeader />
       <main style={{ padding: '28px 16px 60px', maxWidth: 1080, margin: '0 auto' }}>
 
@@ -380,11 +474,87 @@ export default function MixerPage() {
           </p>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        {/* Decks + centre record column */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 12, marginBottom: 20 }}>
           <Deck id="A" deck={deckA} accent={CYAN} />
+
+          {/* Centre channel — record controls */}
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            justifyContent: 'center', gap: 14, padding: '8px 0',
+          }}>
+            {/* Record button */}
+            <button
+              onClick={handleRecord}
+              title={recording ? 'Stop recording' : 'Start recording'}
+              style={{
+                width: 56, height: 56, borderRadius: '50%',
+                border: `2px solid ${RED}`,
+                background: recording ? RED : 'transparent',
+                color: recording ? '#fff' : RED,
+                fontSize: '1.4rem', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                animation: recording ? 'recPulse 1.2s ease-in-out infinite' : 'none',
+                transition: 'background 0.15s',
+              }}
+            >
+              {recording ? '⏹' : '⏺'}
+            </button>
+
+            {/* Timer */}
+            <div style={{
+              fontSize: '1rem', fontWeight: 700, letterSpacing: '0.1em',
+              color: recording ? RED : '#333',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {formatDuration(recDuration)}
+            </div>
+
+            <div style={{
+              fontSize: '0.62rem', color: '#444', textTransform: 'uppercase',
+              letterSpacing: '0.1em', textAlign: 'center',
+            }}>
+              {recording ? 'REC' : 'RECORD'}
+            </div>
+
+            {/* Post-recording actions */}
+            {lastBlob && !recording && (
+              <>
+                <button
+                  onClick={handleDownload}
+                  title="Download mix"
+                  style={{
+                    width: '100%', padding: '5px 0', borderRadius: 5,
+                    border: '1px solid #333', background: 'transparent',
+                    color: '#888', fontSize: '0.7rem', cursor: 'pointer',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  ⬇ DL
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || saveStatus === 'ok'}
+                  title="Save to My Songs"
+                  style={{
+                    width: '100%', padding: '5px 0', borderRadius: 5,
+                    border: `1px solid ${saveStatus === 'ok' ? '#00c853' : saveStatus === 'err' ? RED : CYAN + '66'}`,
+                    background: 'transparent',
+                    color: saveStatus === 'ok' ? '#00c853' : saveStatus === 'err' ? RED : CYAN,
+                    fontSize: '0.65rem', cursor: saving || saveStatus === 'ok' ? 'default' : 'pointer',
+                    letterSpacing: '0.04em', opacity: saving ? 0.6 : 1,
+                  }}
+                >
+                  {saving ? '…' : saveStatus === 'ok' ? '✓ Saved' : saveStatus === 'err' ? '✕ Error' : '💾 Save'}
+                </button>
+              </>
+            )}
+          </div>
+
           <Deck id="B" deck={deckB} accent={PINK} />
         </div>
 
+        {/* Crossfader */}
         <div style={{
           background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
           borderRadius: 12, padding: '18px 24px',
