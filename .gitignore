@@ -6,3 +6,13 @@ desktop/dist/
 mobile/android/app/build/
 .worktrees/
 web-beats-dist/
+
+# TWA Android build outputs and secrets
+android.keystore
+*.keystore
+*.jks
+*.aab
+*.apk
+*.idsig
+.gradle/
+build/
