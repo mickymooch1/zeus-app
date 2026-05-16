@@ -310,7 +310,7 @@ export default function LandingPage() {
                 <li>✓ AI chat assistant</li>
                 <li>✓ Content writing</li>
                 <li>✓ Web research</li>
-                <li>✓ 5 AI songs/month</li>
+                <li>✓ 5 free songs on signup</li>
                 <li className="feat-dim">✗ Website builds</li>
                 <li className="feat-dim">✗ Netlify deployment</li>
               </ul>

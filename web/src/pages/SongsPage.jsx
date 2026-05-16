@@ -11,9 +11,9 @@ const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish
 const gLabel = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
 
 const SONG_PACKS = [
-  { pack: 'song_pack_10',      label: 'Buy 10 songs',  price: '£8'  },
-  { pack: 'song_pack_50',      label: 'Buy 50 songs',  price: '£30' },
-  { pack: 'song_pack_200_sub', label: 'Buy 200 songs', price: '£99' },
+  { pack: 'song_pack_099', label: '2 songs',  price: '£0.99' },
+  { pack: 'song_pack_200', label: '5 songs',  price: '£2.00' },
+  { pack: 'song_pack_400', label: '10 songs', price: '£4.00' },
 ];
 
 const PAGE_CSS = `
@@ -727,7 +727,7 @@ export default function SongsPage() {
   const handleTopup = async (pack) => {
     setTopupLoading(pack);
     try {
-      const r = await fetch(`${BACKEND_URL}/api/songs/topup`, {
+      const r = await fetch(`${BACKEND_URL}/api/songs/payg`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ pack }),

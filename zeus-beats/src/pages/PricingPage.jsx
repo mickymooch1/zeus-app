@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 const FREE_FEATURES = [
-  '5 AI songs/month',
+  '5 free songs on signup',
   'Song download & share',
   'All music genres',
 ];
