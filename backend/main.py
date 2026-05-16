@@ -18,7 +18,7 @@ print("zeus main.py: starting imports", file=sys.stderr, flush=True)
 import time
 from collections import defaultdict, deque
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
@@ -2276,6 +2276,56 @@ async def upload_avatar_photo(
     dest.write_bytes(data)
     log.info("upload_avatar_photo: saved %s (%d bytes) for user %s", filename, len(data), current_user["id"])
     return {"url": f"/api/files/avatars/{filename}", "filename": filename}
+
+
+@app.post("/api/mixes/upload")
+async def upload_mix(
+    file: UploadFile = File(...),
+    title: str = Form(default="DJ Mix"),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Upload a recorded DJ mix and add it to the user's song library."""
+    content_type = file.content_type or ""
+    if not content_type.startswith("audio/"):
+        raise HTTPException(status_code=400, detail="File must be an audio file")
+
+    data = await file.read()
+    if len(data) > 200 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Mix must be under 200 MB")
+
+    user_id = current_user["id"]
+    timestamp = int(time.time())
+    filename = f"{user_id}_mix_{timestamp}.webm"
+
+    song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
+    song_storage.mkdir(parents=True, exist_ok=True)
+    dest = song_storage / filename
+    dest.write_bytes(data)
+
+    db_path = db.get_db_path()
+    conn = db._conn(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO lyrics (user_id, brief, lyrics_text, title) VALUES (?, ?, ?, ?)",
+            (user_id, "DJ Mix recording", "", title.strip() or "DJ Mix"),
+        )
+        lyric_id = cur.lastrowid
+        mp3_url = f"/files/songs/{filename}"
+        cur.execute(
+            """INSERT INTO song_variants
+               (lyric_id, user_id, style_prompt, genre_tag, status, mp3_url, take_number, completed_at)
+               VALUES (?, ?, 'DJ Mix', 'mix', 'complete', ?, 1, CURRENT_TIMESTAMP)""",
+            (lyric_id, user_id, mp3_url),
+        )
+        variant_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+
+    log.info("upload_mix: saved %s (%d bytes) lyric_id=%s variant_id=%s user=%s",
+             filename, len(data), lyric_id, variant_id, user_id)
+    return {"variant_id": variant_id, "lyric_id": lyric_id, "mp3_url": mp3_url}
 
 
 @app.post("/webhooks/did")
