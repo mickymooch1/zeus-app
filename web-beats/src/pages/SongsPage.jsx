@@ -441,6 +441,8 @@ export default function SongsPage() {
   const [vocals, setVocals]               = useState(true);
   const [songTitle, setSongTitle]         = useState('');
 
+  const [showWelcome, setShowWelcome] = useState(() => !!user?.is_new_user);
+
   const [ytStatus, setYtStatus]   = useState({});
   const [ytUrls, setYtUrls]       = useState({});
   const [ytModal, setYtModal]     = useState(null);
@@ -486,7 +488,7 @@ export default function SongsPage() {
 
   const isAdmin          = credits.is_admin;
   const isMusicPlan      = ['music_starter', 'music_pro', 'music_agency'].includes(credits.plan);
-  const canShowExplicit  = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
+  const canShowExplicit  = true;
   const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan) || isMusicPlan;
   const didPlanOk        = isAdmin || ['agency', 'enterprise', 'music_pro', 'music_agency'].includes(credits.plan);
   const canDid           = didPlanOk && (isAdmin || credits.video_credits > 0);
@@ -562,6 +564,12 @@ export default function SongsPage() {
     fetchCredits();
     fetchLibrary();
   }, [fetchCredits, fetchLibrary]);
+
+  useEffect(() => {
+    if (!showWelcome) return;
+    const t = setTimeout(() => setShowWelcome(false), 10000);
+    return () => clearTimeout(t);
+  }, [showWelcome]);
 
   useEffect(() => {
     if (!activeJob) return;
@@ -1008,6 +1016,33 @@ export default function SongsPage() {
         </div>
 
         <div className="songs-content-wrap" style={{ maxWidth: 880, margin: '0 auto', padding: '32px 24px 80px' }}>
+
+          {showWelcome && (
+            <div style={{
+              background: 'rgba(0,0,0,0.6)',
+              border: '1px solid #00F0FF',
+              borderRadius: 10,
+              padding: '14px 18px',
+              marginBottom: 24,
+              color: '#e0fffe',
+              fontSize: 14,
+              boxShadow: '0 0 18px rgba(0,240,255,0.15)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 12,
+            }}>
+              <span style={{ fontSize: 20, lineHeight: 1 }}>🎵</span>
+              <div style={{ flex: 1 }}>
+                <strong style={{ color: '#00F0FF', display: 'block', marginBottom: 4 }}>Welcome to Zeus Beats!</strong>
+                <span>You have 5 free songs to get started. Generate your first track below — pick a genre and hit Create.</span>
+              </div>
+              <button
+                onClick={() => setShowWelcome(false)}
+                style={{ background: 'none', border: 'none', color: '#00F0FF', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0 }}
+                aria-label="Dismiss"
+              >×</button>
+            </div>
+          )}
 
           {topupSuccess && (
             <div style={{

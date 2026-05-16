@@ -120,7 +120,6 @@ def generate_song_variant(
         conn.close()
         raise
 
-    # Diagnostic logging — remove once the integration is stable
     logger.info(
         "APIFRAME_V2_SUBMIT first6=%r last4=%r len=%d variant_id=%d",
         APIFRAME_API_KEY[:6],
@@ -128,6 +127,12 @@ def generate_song_variant(
         len(APIFRAME_API_KEY),
         variant_id,
     )
+    logger.info(
+        "APIFRAME_V2_PAYLOAD variant_id=%d genre=%r style_len=%d lyrics_len=%d extra_params=%r",
+        variant_id, genre_tag, len(style_prompt), len(lyrics), extra_suno_params,
+    )
+    logger.info("APIFRAME_V2_STYLE variant_id=%d style=%r", variant_id, style_prompt[:500])
+    logger.info("APIFRAME_V2_LYRICS variant_id=%d lyrics=%r", variant_id, lyrics[:500])
 
     try:
         response = requests.post(
@@ -150,6 +155,10 @@ def generate_song_variant(
                 },
             },
             timeout=30,
+        )
+        logger.info(
+            "APIFRAME_V2_RESPONSE variant_id=%d status=%d body=%r",
+            variant_id, response.status_code, response.text[:500],
         )
         response.raise_for_status()
         body = response.json()

@@ -585,7 +585,14 @@ async def login(request: Request, body: LoginRequest):
 
 @app.get("/auth/me")
 async def me(current_user: dict = Depends(auth.get_current_user)):
+    from datetime import datetime, timedelta, timezone
     safe_user = {k: v for k, v in current_user.items() if k != "password_hash"}
+    created_at = safe_user.get("created_at", "")
+    try:
+        created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        safe_user["is_new_user"] = (datetime.now(timezone.utc) - created_dt) < timedelta(hours=24)
+    except Exception:
+        safe_user["is_new_user"] = False
     return safe_user
 
 
@@ -2961,6 +2968,10 @@ if _beats_dist.exists():
     _beats_assets_dir = _beats_dist / "assets-beats"
     if _beats_assets_dir.exists():
         app.mount("/assets-beats", StaticFiles(directory=str(_beats_assets_dir)), name="assets-beats")
+
+    _well_known_dir = _beats_dist / ".well-known"
+    if _well_known_dir.exists():
+        app.mount("/.well-known", StaticFiles(directory=str(_well_known_dir)), name="well-known")
 
 
 @app.get("/{full_path:path}", include_in_schema=False)

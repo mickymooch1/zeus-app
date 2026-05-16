@@ -1,10 +1,13 @@
 import json
+import logging
 import pathlib
 import random
 
 from anthropic import Anthropic
 
 import db
+
+logger = logging.getLogger("zeus.lyrics")
 
 _SONG_STRUCTURES = [
     "[Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Outro]",
@@ -78,22 +81,35 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
     if explicit:
         system += _EXPLICIT_ADDENDUM
 
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1500,
-        temperature=1.0,
-        system=system,
-        messages=[{"role": "user", "content": brief}],
-    )
+    logger.info("generate_lyrics: calling Haiku — user=%s explicit=%s brief=%r", user_id, explicit, brief[:200])
+
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1500,
+            temperature=1.0,
+            system=system,
+            messages=[{"role": "user", "content": brief}],
+        )
+    except Exception:
+        logger.exception("generate_lyrics: Haiku API call failed — user=%s brief=%r", user_id, brief[:200])
+        raise
 
     raw = response.content[0].text.strip()
+    logger.info("generate_lyrics: Haiku response received, length=%d, stop_reason=%s", len(raw), response.stop_reason)
+    logger.debug("generate_lyrics: raw response: %s", raw[:500])
+
     if raw.startswith("```"):
         raw = raw.split("```", 2)[1]
         if raw.startswith("json"):
             raw = raw[4:]
         raw = raw.strip()
 
-    parsed = json.loads(raw)
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.exception("generate_lyrics: JSON parse failed — raw=%r", raw[:500])
+        raise
 
     final_title = song_title or parsed["title"]
 
