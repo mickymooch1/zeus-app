@@ -1369,6 +1369,7 @@ export default function SongsPage() {
                       'D&B MC', 'UK Rave MC', 'British MC Grime', 'Jazz Vocal',
                       'American Hip-Hop', 'K-Pop', 'West African', 'South African',
                       'American Phonk', 'New Jersey / Newark', 'British African', 'Jamaican Rasta',
+                      'West Coast G-Funk',
                     ].map((a) => (
                       <option key={a} value={a}>{a}</option>
                     ))}

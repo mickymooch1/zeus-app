@@ -1371,6 +1371,7 @@ async def songs_generate(
             "British MC Grime": "British MC vocal delivery, fast aggressive bars, East London grime accent, clipped consonants, rapid fire flow, road man energy, authentic UK grime pronunciation",
             "Jazz Vocal": "smooth jazz vocal delivery, sophisticated phrasing, warm American jazz club tone, scat influences, Ella Fitzgerald or Chet Baker style",
             "Jamaican Rasta": "Jamaican Rastafarian vocal delivery, deep patois inflection, conscious spiritual tone, roots reggae pronunciation, Jah references",
+            "West Coast G-Funk": "smooth West Coast rap vocal delivery, laid back California flow, deep relaxed tone, g-funk style, slow deliberate delivery, iconic West Coast gangsta rap pronunciation",
         }
         style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
     if body.explicit:
