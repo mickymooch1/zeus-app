@@ -42,9 +42,9 @@ function _matchTempo(text) {
 }
 
 const SONG_PACKS = [
-  { pack: 'song_pack_10',  label: 'Buy 10 songs',  price: '£8'  },
-  { pack: 'song_pack_50',  label: 'Buy 50 songs',  price: '£30' },
-  { pack: 'song_pack_200', label: 'Buy 200 songs', price: '£99' },
+  { pack: 'song_pack_099', label: '2 songs', price: '£0.99' },
+  { pack: 'song_pack_200', label: '5 songs', price: '£2.00' },
+  { pack: 'song_pack_400', label: '10 songs', price: '£4.00' },
 ];
 
 const PAGE_CSS = `
@@ -1014,6 +1014,28 @@ export default function SongsPage() {
             )}
           </div>
         </div>
+
+        {!isAdmin && balance <= 0 && (
+          <div style={{ background: 'rgba(0,240,255,0.04)', borderBottom: '1px solid rgba(0,240,255,0.12)', padding: '12px 24px' }}>
+            <div style={{ maxWidth: 880, margin: '0 auto' }}>
+              <p style={{ fontSize: 12, color: '#00F0FF', fontWeight: 600, marginBottom: 10 }}>
+                Pay As You Go — No subscription needed
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {SONG_PACKS.map(({ pack, label, price }) => (
+                  <button
+                    key={pack}
+                    onClick={() => handleTopup(pack)}
+                    disabled={topupLoading !== null}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(0,240,255,0.35)', background: 'rgba(0,240,255,0.07)', color: '#00F0FF', fontSize: 13, fontWeight: 600, cursor: topupLoading ? 'default' : 'pointer' }}
+                  >
+                    {topupLoading === pack ? t('songs.redirecting') : `${label} — ${price}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="songs-content-wrap" style={{ maxWidth: 880, margin: '0 auto', padding: '32px 24px 80px' }}>
 

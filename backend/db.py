@@ -210,6 +210,14 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
             CREATE INDEX IF NOT EXISTS idx_evt_token ON email_verification_tokens (token);
+
+            CREATE TABLE IF NOT EXISTS registration_attempts (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                ip_address   TEXT NOT NULL,
+                attempted_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_reg_attempts_ip
+                ON registration_attempts (ip_address, attempted_at);
         """)
         # Migrate existing tables — ignore error if column already exists
         for _migration in [
@@ -233,6 +241,29 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 conn.commit()
             except Exception:
                 pass
+    finally:
+        conn.close()
+
+
+def check_and_record_registration_attempt(db_path: pathlib.Path, ip_address: str) -> bool:
+    """Return True (allowed) if fewer than 3 registrations from this IP in the last 24 h.
+    Records the attempt when allowed; returns False when the limit is reached."""
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM registration_attempts WHERE ip_address = ? AND attempted_at > ?",
+            (ip_address, cutoff),
+        ).fetchone()
+        if row[0] >= 3:
+            return False
+        conn.execute(
+            "INSERT INTO registration_attempts (ip_address, attempted_at) VALUES (?, ?)",
+            (ip_address, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        return True
     finally:
         conn.close()
 

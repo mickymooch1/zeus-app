@@ -466,6 +466,13 @@ async def register(request: Request, body: RegisterRequest):
         log.exception("register: failed to get DB path")
         raise HTTPException(status_code=500, detail=f"Database unavailable: {exc}")
 
+    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    if not db.check_and_record_registration_attempt(db_path, ip):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many accounts created from this device. Please try again tomorrow.",
+        )
+
     existing = db.get_user_by_email(db_path, body.email)
     if existing:
         raise HTTPException(status_code=409, detail="An account with that email already exists")
@@ -1486,6 +1493,28 @@ async def songs_topup(
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception:
         log.exception("Song pack checkout error")
+        raise HTTPException(status_code=500, detail="Failed to create checkout session")
+    return {"url": url}
+
+
+@app.post("/api/songs/payg")
+async def songs_payg(
+    body: SongsTopupRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not billing.stripe_enabled():
+        raise HTTPException(status_code=503, detail="Billing is not configured")
+    origin = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    success_url = f"{origin}/songs?topup=success"
+    cancel_url = f"{origin}/songs"
+    try:
+        url = billing.create_song_pack_checkout_session(
+            current_user, body.pack, success_url, cancel_url
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        log.exception("Song PAYG checkout error")
         raise HTTPException(status_code=500, detail="Failed to create checkout session")
     return {"url": url}
 

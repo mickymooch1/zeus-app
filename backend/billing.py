@@ -143,23 +143,23 @@ MUSIC_PLANS: dict = {
 }
 
 SONG_PACKS = {
-    "song_pack_10": {
-        "credits": 10,
-        "label": "10 songs",
-        "price": "£8",
-        "price_id": os.environ.get("STRIPE_SONG_PACK_10_PRICE_ID", ""),
-    },
-    "song_pack_50": {
-        "credits": 50,
-        "label": "50 songs",
-        "price": "£30",
-        "price_id": os.environ.get("STRIPE_SONG_PACK_50_PRICE_ID", ""),
+    "song_pack_099": {
+        "credits": 2,
+        "label": "2 songs",
+        "price": "£0.99",
+        "price_id": os.environ.get("STRIPE_SONG_PACK_099_PRICE_ID", ""),
     },
     "song_pack_200": {
-        "credits": 200,
-        "label": "200 songs",
-        "price": "£99",
+        "credits": 5,
+        "label": "5 songs",
+        "price": "£2.00",
         "price_id": os.environ.get("STRIPE_SONG_PACK_200_PRICE_ID", ""),
+    },
+    "song_pack_400": {
+        "credits": 10,
+        "label": "10 songs",
+        "price": "£4.00",
+        "price_id": os.environ.get("STRIPE_SONG_PACK_400_PRICE_ID", ""),
     },
 }
 

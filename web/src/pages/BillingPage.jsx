@@ -47,6 +47,7 @@ export default function BillingPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelResult, setCancelResult] = useState(null);
+  const [paygLoading, setPaygLoading] = useState(null);
   const [cpCurrent, setCpCurrent] = useState('');
   const [cpNew, setCpNew] = useState('');
   const [cpConfirm, setCpConfirm] = useState('');
@@ -125,6 +126,24 @@ export default function BillingPage() {
       setError(err.message);
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  const handlePayg = async (pack) => {
+    setError('');
+    setPaygLoading(pack);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/songs/payg`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pack }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to create checkout');
+      window.location.href = data.url;
+    } catch (err) {
+      setError(err.message);
+      setPaygLoading(null);
     }
   };
 
@@ -421,6 +440,46 @@ export default function BillingPage() {
               </li>
             ))}
           </ul>
+        </div>
+
+        {/* Pay As You Go */}
+        <div className="billing-card">
+          <h2 className="billing-card-title">Pay As You Go — Song Credits</h2>
+          <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>
+            No subscription needed — buy song credits whenever you need them.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+            {[
+              { pack: 'song_pack_099', label: '2 songs', price: '£0.99' },
+              { pack: 'song_pack_200', label: '5 songs', price: '£2.00' },
+              { pack: 'song_pack_400', label: '10 songs', price: '£4.00' },
+            ].map(({ pack, label, price }) => (
+              <button
+                key={pack}
+                onClick={() => handlePayg(pack)}
+                disabled={paygLoading !== null}
+                style={{
+                  padding: '14px 12px',
+                  borderRadius: 10,
+                  border: '1px solid rgba(139,92,246,0.3)',
+                  background: 'rgba(139,92,246,0.06)',
+                  color: '#e2d9f3',
+                  cursor: paygLoading ? 'default' : 'pointer',
+                  textAlign: 'center',
+                  opacity: paygLoading && paygLoading !== pack ? 0.5 : 1,
+                }}
+              >
+                {paygLoading === pack ? (
+                  <span className="spinner spinner--inline" />
+                ) : (
+                  <>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#a78bfa', marginBottom: 4 }}>{price}</div>
+                    <div style={{ fontSize: 13, color: '#94a3b8' }}>{label}</div>
+                  </>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         <p className="billing-note">

@@ -283,6 +283,30 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+
+          {/* PAYG section */}
+          <div style={{ marginTop: 56, textAlign: 'center' }}>
+            <div className="section-label" style={{ marginBottom: 8 }}>Pay As You Go</div>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#e2d9f3', marginBottom: 8 }}>
+              No subscription needed
+            </h3>
+            <p style={{ fontSize: 14, color: '#666', marginBottom: 32 }}>
+              Buy songs whenever you want. Credits never expire.
+            </p>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 500, margin: '0 auto' }}>
+              {[
+                { label: '2 songs', price: '£0.99' },
+                { label: '5 songs', price: '£2.00' },
+                { label: '10 songs', price: '£4.00' },
+              ].map(({ label, price }) => (
+                <Link key={label} to="/register" style={{ flex: '1 1 130px', maxWidth: 160, padding: '18px 12px', borderRadius: 12, border: '1px solid rgba(0,240,255,0.25)', background: 'rgba(0,240,255,0.05)', textDecoration: 'none', textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: '#00F0FF', marginBottom: 4 }}>{price}</div>
+                  <div style={{ fontSize: 13, color: '#aaa' }}>{label}</div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
       <div className="section-divider" />

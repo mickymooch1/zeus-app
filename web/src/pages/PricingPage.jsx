@@ -400,6 +400,41 @@ export default function PricingPage() {
             Music plans do not include website building. Song top-ups available on all plans. Cancel anytime.
           </p>
         </div>
+
+        {/* PAYG */}
+        <div style={{ marginTop: '5rem', textAlign: 'center' }}>
+          <div className="section-label" style={{ textAlign: 'center' }}>Pay As You Go</div>
+          <h2 className="section-title" style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+            No subscription needed
+          </h2>
+          <p className="section-sub" style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+            Buy song credits whenever you need them. Credits never expire.
+          </p>
+          <div style={{ display: 'flex', gap: 20, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 540, margin: '0 auto' }}>
+            {[
+              { label: '2 songs', price: '£0.99' },
+              { label: '5 songs', price: '£2.00' },
+              { label: '10 songs', price: '£4.00' },
+            ].map(({ label, price }) => (
+              <div
+                key={label}
+                style={{ flex: '1 1 140px', maxWidth: 160, padding: '24px 16px', borderRadius: 14, border: '1px solid rgba(139,92,246,0.3)', background: 'rgba(139,92,246,0.05)', textAlign: 'center' }}
+              >
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#a78bfa', marginBottom: 6 }}>{price}</div>
+                <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 20 }}>{label}</div>
+                <button
+                  className="btn btn-outline btn-full"
+                  onClick={() => navigate(user ? '/billing' : '/register')}
+                >
+                  Buy Now
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="pricing-footer-note" style={{ marginTop: '2rem' }}>
+            Purchased after sign-in. Requires a free account.
+          </p>
+        </div>
       </div>
     </div>
   );
