@@ -4,12 +4,16 @@ import json
 import logging
 import os
 import pathlib
+import smtplib
 import subprocess
 import sys
+import threading
 import traceback
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 # Log to stderr immediately — before basicConfig — so Railway captures startup
 # crashes even if the import chain below fails.
@@ -116,23 +120,48 @@ def generate_docx(text: str, title: str) -> bytes:
     return buf.getvalue()
 
 
+def _send_email(to: str, subject: str, body: str) -> None:
+    """Send a plain-text email via Gmail SMTP. Logs time taken. Call from a background thread."""
+    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
+    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+    if not smtp_email or not smtp_password:
+        log.warning("_send_email: SMTP_EMAIL/SMTP_PASSWORD not set — skipping")
+        return
+
+    msg = MIMEMultipart()
+    msg["From"] = smtp_email
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    t0 = time.monotonic()
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.settimeout(10)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(smtp_email, smtp_password)
+            server.sendmail(smtp_email, [to], msg.as_string())
+        log.info("_send_email: sent to %s in %.2fs", to, time.monotonic() - t0)
+    except smtplib.SMTPAuthenticationError:
+        log.exception("_send_email: Gmail auth failed (%.2fs) — SMTP_PASSWORD must be an App Password", time.monotonic() - t0)
+    except Exception:
+        log.exception("_send_email: failed to send to %s after %.2fs", to, time.monotonic() - t0)
+
+
+def _send_email_async(to: str, subject: str, body: str) -> None:
+    """Fire-and-forget: run _send_email in a daemon thread so the caller returns immediately."""
+    threading.Thread(target=_send_email, args=(to, subject, body), daemon=True).start()
+
+
 def _send_task_email(
     user_email: str,
     description: str,
     live_url: str | None,
     result: str,
 ) -> None:
-    """Send a task completion email via Gmail SMTP. Silently skips if not configured."""
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-
-    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
-    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
-    if not smtp_email or not smtp_password:
-        log.warning("_send_task_email: SMTP_EMAIL/SMTP_PASSWORD not set — skipping")
-        return
-
+    """Send a task-completion email. Runs synchronously (caller is already a background thread)."""
     subject = f"Zeus: Your background task is complete — {description}"
     body = "\n".join([
         "Your background task has finished.",
@@ -146,25 +175,7 @@ def _send_task_email(
         "— Zeus AI Design",
         "zeusaidesign.com",
     ])
-
-    msg = MIMEMultipart()
-    msg["From"] = smtp_email
-    msg["To"] = user_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain"))
-
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(smtp_email, smtp_password)
-            server.sendmail(smtp_email, [user_email], msg.as_string())
-        log.info("_send_task_email: sent to %s", user_email)
-    except smtplib.SMTPAuthenticationError:
-        log.exception("_send_task_email: Gmail auth failed — SMTP_PASSWORD must be an App Password, not your regular Gmail password")
-    except Exception:
-        log.exception("_send_task_email: failed to send email")
+    _send_email(user_email, subject, body)
 
 
 _RAILWAY = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
@@ -515,10 +526,7 @@ async def register(request: Request, body: RegisterRequest):
 
 def _send_verification_email(user: dict, app: str = "ai") -> None:
     import secrets
-    import smtplib
-    from datetime import datetime, timedelta, timezone
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
+    from datetime import timedelta
 
     db_path = db.get_db_path()
     v_token = secrets.token_urlsafe(32)
@@ -528,40 +536,19 @@ def _send_verification_email(user: dict, app: str = "ai") -> None:
     base_url = "https://zeusbeats.com" if app == "beats" else "https://zeusaidesign.com"
     verify_url = f"{base_url}/verify-email?token={v_token}"
 
-    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
-    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
-    if not smtp_email or not smtp_password:
-        return
-
-    try:
-        msg_text = "\n".join([
-            f"Hi {user.get('name', 'there')},",
-            "",
-            "Please verify your email address by clicking the link below.",
-            "This link expires in 24 hours.",
-            "",
-            verify_url,
-            "",
-            "If you didn't create this account, you can safely ignore this email.",
-            "",
-            "— The Zeus Team",
-        ])
-        msg = MIMEMultipart()
-        msg["From"] = smtp_email
-        msg["To"] = user["email"]
-        msg["Subject"] = "Verify your Zeus email address"
-        msg.attach(MIMEText(msg_text, "plain"))
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(smtp_email, smtp_password)
-            server.sendmail(smtp_email, [user["email"]], msg.as_string())
-        log.info("verification email sent to %s", user["email"])
-    except smtplib.SMTPAuthenticationError:
-        log.exception("verification email: Gmail auth failed — SMTP_PASSWORD must be an App Password, not your regular Gmail password")
-    except Exception:
-        log.exception("verification email: failed to send")
+    msg_text = "\n".join([
+        f"Hi {user.get('name', 'there')},",
+        "",
+        "Please verify your email address by clicking the link below.",
+        "This link expires in 24 hours.",
+        "",
+        verify_url,
+        "",
+        "If you didn't create this account, you can safely ignore this email.",
+        "",
+        "— The Zeus Team",
+    ])
+    _send_email_async(user["email"], "Verify your Zeus email address", msg_text)
 
 
 @app.post("/auth/login")
@@ -607,10 +594,7 @@ async def me(current_user: dict = Depends(auth.get_current_user)):
 @limiter.limit("5/minute")
 async def forgot_password(request: Request, body: ForgotPasswordRequest):
     import secrets
-    import smtplib
-    from datetime import datetime, timedelta, timezone
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
+    from datetime import timedelta
 
     db_path = db.get_db_path()
     user = db.get_user_by_email(db_path, body.email.strip().lower())
@@ -626,38 +610,19 @@ async def forgot_password(request: Request, body: ForgotPasswordRequest):
     base_url = "https://zeusbeats.com" if body.app == "beats" else "https://zeusaidesign.com"
     reset_url = f"{base_url}/reset-password?token={token}"
 
-    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
-    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
-    if smtp_email and smtp_password:
-        try:
-            msg_text = "\n".join([
-                f"Hi {user.get('name', 'there')},",
-                "",
-                "You requested a password reset. Click the link below to set a new password.",
-                "This link expires in 1 hour.",
-                "",
-                reset_url,
-                "",
-                "If you didn't request this, you can safely ignore this email.",
-                "",
-                "— The Zeus Team",
-            ])
-            msg = MIMEMultipart()
-            msg["From"] = smtp_email
-            msg["To"] = user["email"]
-            msg["Subject"] = "Reset your Zeus password"
-            msg.attach(MIMEText(msg_text, "plain"))
-            with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(smtp_email, smtp_password)
-                server.sendmail(smtp_email, [user["email"]], msg.as_string())
-            log.info("password reset email sent to %s", user["email"])
-        except smtplib.SMTPAuthenticationError:
-            log.exception("password reset email: Gmail auth failed — SMTP_PASSWORD must be an App Password, not your regular Gmail password")
-        except Exception:
-            log.exception("password reset email: failed to send")
+    msg_text = "\n".join([
+        f"Hi {user.get('name', 'there')},",
+        "",
+        "You requested a password reset. Click the link below to set a new password.",
+        "This link expires in 1 hour.",
+        "",
+        reset_url,
+        "",
+        "If you didn't request this, you can safely ignore this email.",
+        "",
+        "— The Zeus Team",
+    ])
+    _send_email_async(user["email"], "Reset your Zeus password", msg_text)
 
     return {"ok": True, "message": "If that email is registered, a reset link has been sent."}
 
