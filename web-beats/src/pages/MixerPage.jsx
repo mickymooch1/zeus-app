@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
@@ -7,19 +6,26 @@ import { BACKEND_URL } from '../brand';
 const CYAN = '#00f0ff';
 const PINK = '#ff0099';
 
+const GENRE_BPM = {
+  dnb: 174, jungle: 160, grime: 140, niche: 138, techno: 138,
+  house: 128, techhouse: 125, ukgarage: 130, bassline: 138,
+  afrobeats: 100, amapiano: 112, hiphop: 90, soul: 85,
+  reggae: 75, rastadub: 70, blues: 80, jazz: 120,
+  pop: 120, rock: 130, default: 120,
+};
+
+function estimateBpm(genreTag) {
+  if (!genreTag) return GENRE_BPM.default;
+  const key = genreTag.toLowerCase().replace(/[^a-z]/g, '');
+  return GENRE_BPM[key] ?? GENRE_BPM.default;
+}
+
 const initialDeck = () => ({
-  songId: '',
-  volume: 0.8,
-  bass: 0,
-  mid: 0,
-  treble: 0,
-  bpm: null,
-  tapTimes: [],
-  playing: false,
+  songId: '', volume: 0.8, bass: 0, mid: 0, treble: 0,
+  bpm: null, tapTimes: [], playing: false,
 });
 
 export default function MixerPage() {
-  const { t } = useTranslation();
   const { token } = useAuth();
   const [songs, setSongs] = useState([]);
   const [loadingLib, setLoadingLib] = useState(true);
@@ -27,7 +33,7 @@ export default function MixerPage() {
   const [deckB, setDeckB] = useState(initialDeck);
   const [crossfader, setCrossfader] = useState(0.5);
 
-  // Per-deck audio nodes (mutable, no re-render needed)
+  // Per-deck audio node refs — never trigger re-renders
   const nodesA = useRef({});
   const nodesB = useRef({});
   const audioCtx = useRef(null);
@@ -44,8 +50,10 @@ export default function MixerPage() {
 
   useEffect(() => {
     return () => {
-      stopDeck('A');
-      stopDeck('B');
+      ['A', 'B'].forEach(id => {
+        const n = id === 'A' ? nodesA.current : nodesB.current;
+        if (n.source) { try { n.source.disconnect(); n.source.stop(); } catch {} }
+      });
       if (audioCtx.current) audioCtx.current.close().catch(() => {});
     };
   }, []); // eslint-disable-line
@@ -69,9 +77,7 @@ export default function MixerPage() {
                 .filter(v => v.status === 'complete' && v.mp3_url)
                 .map(v => ({
                   id: `${lyric.id}-${v.variant_id}`,
-                  title: variants.length > 1
-                    ? `${lyric.title} (v${v.variant_id})`
-                    : lyric.title,
+                  title: variants.length > 1 ? `${lyric.title} (v${v.variant_id})` : lyric.title,
                   genre: v.genre_tag || '',
                   url: v.mp3_url,
                 }));
@@ -86,34 +92,15 @@ export default function MixerPage() {
 
   // ── Audio helpers ─────────────────────────────────────────────────────────
 
-  function stopDeck(id) {
-    const n = id === 'A' ? nodesA.current : nodesB.current;
-    if (n.source) { try { n.source.stop(); } catch {} n.source = null; }
-  }
-
-  function applyGains(id, cf) {
-    const n = id === 'A' ? nodesA.current : nodesB.current;
-    if (!n.crossGain) return;
-    n.crossGain.gain.value = id === 'A'
-      ? Math.cos(cf * Math.PI / 2)
-      : Math.sin(cf * Math.PI / 2);
-  }
-
-  async function playDeck(id, deck) {
-    const song = songs.find(s => s.id === deck.songId);
-    if (!song) return;
-
+  // Build filter chain for a deck. Called once when a new song is loaded.
+  // Chain: bassFilter → midFilter → trebleFilter → volGain → crossGain → destination
+  // Source nodes are NOT created here — they attach to bassFilter on play/resume.
+  function buildChain(id, deck, cf) {
     const ctx = getCtx();
     const n = id === 'A' ? nodesA.current : nodesB.current;
-    stopDeck(id);
 
-    // Fetch & decode only if song changed
-    if (n.loadedUrl !== song.url) {
-      const res = await fetch(song.url);
-      const ab = await res.arrayBuffer();
-      n.buffer = await ctx.decodeAudioData(ab);
-      n.loadedUrl = song.url;
-    }
+    // Tear down any previous chain
+    if (n.crossGain) { try { n.crossGain.disconnect(); } catch {} }
 
     const bass = ctx.createBiquadFilter();
     bass.type = 'lowshelf';
@@ -136,41 +123,82 @@ export default function MixerPage() {
 
     const cross = ctx.createGain();
     cross.gain.value = id === 'A'
-      ? Math.cos(crossfader * Math.PI / 2)
-      : Math.sin(crossfader * Math.PI / 2);
+      ? Math.cos(cf * Math.PI / 2)
+      : Math.cos((1 - cf) * Math.PI / 2);
 
-    const src = ctx.createBufferSource();
-    src.buffer = n.buffer;
-    src.loop = true;
-    src.connect(bass);
+    // Wire in series: bass → mid → treble → vol → cross → speakers
     bass.connect(mid);
     mid.connect(treble);
     treble.connect(vol);
     vol.connect(cross);
     cross.connect(ctx.destination);
-    src.start(0);
 
-    n.source = src;
-    n.bassFilter = bass;
-    n.midFilter = mid;
+    n.bassFilter  = bass;
+    n.midFilter   = mid;
     n.trebleFilter = treble;
-    n.volGain = vol;
-    n.crossGain = cross;
+    n.volGain     = vol;
+    n.crossGain   = cross;
+  }
+
+  // Create a new AudioBufferSourceNode and start from `offset` seconds.
+  // Attaches to the existing filter chain (buildChain must have been called first).
+  function startSource(id, offset = 0) {
+    const ctx = getCtx();
+    const n = id === 'A' ? nodesA.current : nodesB.current;
+
+    if (n.source) { try { n.source.disconnect(); n.source.stop(); } catch {} }
+
+    const src = ctx.createBufferSource();
+    src.buffer = n.buffer;
+    src.loop = true;
+    src.connect(n.bassFilter); // entry point into the chain
+    src.start(0, offset % src.buffer.duration);
+
+    n.source    = src;
+    n.startTime = ctx.currentTime - offset; // used to calculate pause position
   }
 
   // ── Event handlers ────────────────────────────────────────────────────────
 
   async function handleToggle(id) {
-    const deck = id === 'A' ? deckA : deckB;
+    const deck    = id === 'A' ? deckA    : deckB;
     const setDeck = id === 'A' ? setDeckA : setDeckB;
+    const n       = id === 'A' ? nodesA.current : nodesB.current;
 
     if (deck.playing) {
-      stopDeck(id);
+      // PAUSE — record current position, stop source (buffer node can't be resumed)
+      const ctx = getCtx();
+      n.pauseAt = n.buffer ? (ctx.currentTime - n.startTime) % n.buffer.duration : 0;
+      if (n.source) { try { n.source.disconnect(); n.source.stop(); } catch {} n.source = null; }
       setDeck(d => ({ ...d, playing: false }));
-    } else {
-      if (!deck.songId) return;
+
+    } else if (n.buffer && n.bassFilter && n.pauseAt != null) {
+      // RESUME — restart source from saved position using existing filter chain
       try {
-        await playDeck(id, deck);
+        startSource(id, n.pauseAt);
+        n.pauseAt = null;
+        setDeck(d => ({ ...d, playing: true }));
+      } catch (err) {
+        console.error('Mixer resume error', err);
+      }
+
+    } else {
+      // FRESH START — load buffer if needed, build chain, start from 0
+      if (!deck.songId) return;
+      const song = songs.find(s => s.id === deck.songId);
+      if (!song) return;
+
+      try {
+        const ctx = getCtx();
+        if (n.loadedUrl !== song.url) {
+          const res = await fetch(song.url);
+          const ab  = await res.arrayBuffer();
+          n.buffer     = await ctx.decodeAudioData(ab);
+          n.loadedUrl  = song.url;
+        }
+        n.pauseAt = null;
+        buildChain(id, deck, crossfader);
+        startSource(id, 0);
         setDeck(d => ({ ...d, playing: true }));
       } catch (err) {
         console.error('Mixer play error', err);
@@ -179,41 +207,43 @@ export default function MixerPage() {
   }
 
   function handleSongSelect(id, songId) {
-    const deck = id === 'A' ? deckA : deckB;
+    const n       = id === 'A' ? nodesA.current : nodesB.current;
     const setDeck = id === 'A' ? setDeckA : setDeckB;
-    if (deck.playing) {
-      stopDeck(id);
-      const n = id === 'A' ? nodesA.current : nodesB.current;
-      n.loadedUrl = null;
-    }
-    setDeck(d => ({ ...d, songId, playing: false }));
+
+    // Stop current playback and clear buffer cache so new song loads fresh
+    if (n.source) { try { n.source.disconnect(); n.source.stop(); } catch {} n.source = null; }
+    n.loadedUrl = null;
+    n.pauseAt   = null;
+
+    const song = songs.find(s => s.id === songId);
+    const bpm  = song ? estimateBpm(song.genre) : null;
+
+    setDeck(d => ({ ...d, songId, playing: false, bpm }));
   }
 
   function handleVolume(id, value) {
-    const setDeck = id === 'A' ? setDeckA : setDeckB;
     const n = id === 'A' ? nodesA.current : nodesB.current;
-    setDeck(d => ({ ...d, volume: value }));
     if (n.volGain) n.volGain.gain.value = value;
+    (id === 'A' ? setDeckA : setDeckB)(d => ({ ...d, volume: value }));
   }
 
   function handleEQ(id, param, value) {
-    const setDeck = id === 'A' ? setDeckA : setDeckB;
     const n = id === 'A' ? nodesA.current : nodesB.current;
-    setDeck(d => ({ ...d, [param]: value }));
     const filterMap = { bass: 'bassFilter', mid: 'midFilter', treble: 'trebleFilter' };
     if (n[filterMap[param]]) n[filterMap[param]].gain.value = value;
+    (id === 'A' ? setDeckA : setDeckB)(d => ({ ...d, [param]: value }));
   }
 
   function handleCrossfader(value) {
     setCrossfader(value);
-    applyGains('A', value);
-    applyGains('B', value);
+    // Equal-power crossfade: full A at 0, equal at 0.5, full B at 1
+    if (nodesA.current.crossGain) nodesA.current.crossGain.gain.value = Math.cos(value * Math.PI / 2);
+    if (nodesB.current.crossGain) nodesB.current.crossGain.gain.value = Math.cos((1 - value) * Math.PI / 2);
   }
 
   function handleTap(id) {
-    const setDeck = id === 'A' ? setDeckA : setDeckB;
     const now = Date.now();
-    setDeck(d => {
+    (id === 'A' ? setDeckA : setDeckB)(d => {
       const taps = [...d.tapTimes, now].filter(t => now - t < 4000);
       if (taps.length < 2) return { ...d, tapTimes: taps };
       const intervals = taps.slice(1).map((t, i) => t - taps[i]);
@@ -222,15 +252,27 @@ export default function MixerPage() {
     });
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Sub-components ────────────────────────────────────────────────────────
+
+  function SliderRow({ label, min, max, step, value, accent, display, onChange }) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 }}>
+        <span style={{ width: 48, fontSize: '0.72rem', color: '#666', flexShrink: 0 }}>{label}</span>
+        <input
+          type="range" min={min} max={max} step={step} value={value}
+          style={{ flex: 1, accentColor: accent, cursor: 'pointer' }}
+          onChange={e => onChange(step < 1 ? parseFloat(e.target.value) : parseInt(e.target.value))}
+        />
+        <span style={{ width: 32, textAlign: 'right', fontSize: '0.72rem', color: '#555' }}>{display}</span>
+      </div>
+    );
+  }
 
   function Deck({ id, deck, accent }) {
     return (
       <div style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: `1px solid ${accent}33`,
-        borderRadius: 12,
-        padding: 20,
+        background: 'rgba(255,255,255,0.03)', border: `1px solid ${accent}33`,
+        borderRadius: 12, padding: 20,
       }}>
         <div style={{
           fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.15em',
@@ -239,7 +281,6 @@ export default function MixerPage() {
           Deck {id}
         </div>
 
-        {/* Song selector */}
         <select
           value={deck.songId}
           onChange={e => handleSongSelect(id, e.target.value)}
@@ -257,7 +298,6 @@ export default function MixerPage() {
           ))}
         </select>
 
-        {/* Play/Pause */}
         <button
           onClick={() => handleToggle(id)}
           disabled={!deck.songId}
@@ -266,7 +306,8 @@ export default function MixerPage() {
             border: `1px solid ${accent}`,
             background: deck.playing ? accent : 'transparent',
             color: deck.playing ? '#000' : accent,
-            fontWeight: 700, fontSize: '1rem', cursor: deck.songId ? 'pointer' : 'not-allowed',
+            fontWeight: 700, fontSize: '1rem',
+            cursor: deck.songId ? 'pointer' : 'not-allowed',
             letterSpacing: '0.05em', marginBottom: 16, transition: 'all 0.15s',
             opacity: deck.songId ? 1 : 0.4,
           }}
@@ -274,13 +315,11 @@ export default function MixerPage() {
           {deck.playing ? '⏸  PAUSE' : '▶  PLAY'}
         </button>
 
-        {/* Volume */}
         <SliderRow label="VOL" min={0} max={1} step={0.01}
           value={deck.volume} accent={accent}
           display={`${Math.round(deck.volume * 100)}`}
           onChange={v => handleVolume(id, v)} />
 
-        {/* EQ */}
         <SliderRow label="BASS" min={-15} max={15} step={1}
           value={deck.bass} accent={accent}
           display={`${deck.bass > 0 ? '+' : ''}${deck.bass}`}
@@ -294,7 +333,6 @@ export default function MixerPage() {
           display={`${deck.treble > 0 ? '+' : ''}${deck.treble}`}
           onChange={v => handleEQ(id, 'treble', v)} />
 
-        {/* BPM + Tap */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
           <div>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: accent, minWidth: 56 }}>
@@ -317,19 +355,7 @@ export default function MixerPage() {
     );
   }
 
-  function SliderRow({ label, min, max, step, value, accent, display, onChange }) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 }}>
-        <span style={{ width: 48, fontSize: '0.72rem', color: '#666', flexShrink: 0 }}>{label}</span>
-        <input
-          type="range" min={min} max={max} step={step} value={value}
-          style={{ flex: 1, accentColor: accent, cursor: 'pointer' }}
-          onChange={e => onChange(step < 1 ? parseFloat(e.target.value) : parseInt(e.target.value))}
-        />
-        <span style={{ width: 32, textAlign: 'right', fontSize: '0.72rem', color: '#555' }}>{display}</span>
-      </div>
-    );
-  }
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ minHeight: '100vh', background: '#000', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
@@ -346,9 +372,7 @@ export default function MixerPage() {
         </h1>
 
         {loadingLib && (
-          <p style={{ textAlign: 'center', color: '#555', marginBottom: 24 }}>
-            Loading your library…
-          </p>
+          <p style={{ textAlign: 'center', color: '#555', marginBottom: 24 }}>Loading your library…</p>
         )}
         {!loadingLib && songs.length === 0 && (
           <p style={{ textAlign: 'center', color: '#555', marginBottom: 24 }}>
@@ -356,16 +380,13 @@ export default function MixerPage() {
           </p>
         )}
 
-        {/* Decks */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
           <Deck id="A" deck={deckA} accent={CYAN} />
           <Deck id="B" deck={deckB} accent={PINK} />
         </div>
 
-        {/* Crossfader */}
         <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.07)',
+          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
           borderRadius: 12, padding: '18px 24px',
         }}>
           <div style={{
@@ -387,8 +408,8 @@ export default function MixerPage() {
             <span style={{ fontWeight: 700, color: PINK, width: 18, fontSize: '0.85rem', textAlign: 'right' }}>B</span>
           </div>
           <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#444', marginTop: 8 }}>
-            {crossfader === 0.5 ? 'Center' : crossfader < 0.5
-              ? `${Math.round((0.5 - crossfader) * 200)}% → A`
+            {crossfader === 0.5 ? 'Center'
+              : crossfader < 0.5 ? `${Math.round((0.5 - crossfader) * 200)}% → A`
               : `${Math.round((crossfader - 0.5) * 200)}% → B`}
           </div>
         </div>
