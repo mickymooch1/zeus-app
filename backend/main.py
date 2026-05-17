@@ -2458,6 +2458,24 @@ async def image_webhook(request: Request):
 
 # ── Telegram ─────────────────────────────────────────────────────────────────
 
+async def post_to_telegram(message: str, image_url: str = None):
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    channel = os.getenv("TELEGRAM_CHANNEL_ID")
+    if not token or not channel:
+        log.warning("post_to_telegram: TELEGRAM_BOT_TOKEN or TELEGRAM_CHANNEL_ID not set")
+        return
+    if image_url:
+        url = f"https://api.telegram.org/bot{token}/sendPhoto"
+        payload = {"chat_id": channel, "photo": image_url, "caption": message, "parse_mode": "HTML"}
+    else:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {"chat_id": channel, "text": message, "parse_mode": "HTML"}
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(url, json=payload)
+        if resp.status_code >= 300:
+            log.warning("post_to_telegram: Telegram API returned %d: %s", resp.status_code, resp.text)
+
+
 class TelegramPostRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4096)
     image_url: str | None = None
@@ -2470,11 +2488,8 @@ async def telegram_post(
     body: TelegramPostRequest,
     user: dict = Depends(auth.get_current_user),
 ):
-    import zeus_agent as _agent
-    result = await _agent._post_to_telegram(message=body.message, image_url=body.image_url)
-    if result.startswith("❌"):
-        raise HTTPException(status_code=502, detail=result)
-    return {"ok": True, "detail": result}
+    await post_to_telegram(message=body.message, image_url=body.image_url)
+    return {"ok": True}
 
 
 # ── Scheduled Tasks ─────────────────────────────────────────────────────────

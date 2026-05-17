@@ -112,6 +112,28 @@ def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = ""
         return None
 
 
+def _telegram_post_sync(message: str, image_url: str | None = None) -> None:
+    """Sync Telegram post for use inside background threads."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    channel = os.environ.get("TELEGRAM_CHANNEL_ID", "").strip()
+    if not token or not channel:
+        return
+    if image_url:
+        url = f"https://api.telegram.org/bot{token}/sendPhoto"
+        payload = {"chat_id": channel, "photo": image_url, "caption": message, "parse_mode": "HTML"}
+    else:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {"chat_id": channel, "text": message, "parse_mode": "HTML"}
+    try:
+        resp = requests.post(url, json=payload, timeout=15)
+        if resp.status_code >= 300:
+            logger.warning("_telegram_post_sync: Telegram API %d: %s", resp.status_code, resp.text)
+        else:
+            logger.info("_telegram_post_sync: posted to Telegram channel")
+    except Exception as exc:
+        logger.warning("_telegram_post_sync: failed — %s", exc)
+
+
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]
 SIGNING_SECRET = hashlib.sha256(APIFRAME_API_KEY.encode()).hexdigest()
 STORAGE_PATH = os.environ["SONG_STORAGE_PATH"]
@@ -388,6 +410,26 @@ async def apiframe_webhook(request: Request):
     finally:
         conn.close()
     logger.info("Apiframe webhook take 1 complete: variant_id=%d url=%s", variant_id, permanent_url1)
+
+    # Auto-post new song announcement to Telegram channel
+    _tg_genre = (genre_tag or "").replace("drumandbass", "Drum & Bass").replace("hiphop", "Hip-Hop") \
+                                  .replace("rnb", "R&B").replace("ukgarage", "UK Garage") \
+                                  .replace("ukdrill", "UK Drill").replace("ukstreetsoul", "UK Street Soul") \
+                                  .replace("loversrock", "Lovers Rock").replace("irishfolk", "Irish Folk") \
+                                  .replace("irishjig", "Irish Jig").replace("afrobeats", "Afrobeats") \
+                                  .replace("amapiano", "Amapiano").replace("driftphonk", "Phonk") \
+                                  .title()
+    _tg_title = song_title or "Untitled"
+    _tg_message = (
+        f"🎵 New song generated on Zeus Beats!\n"
+        f"🎶 <b>{_tg_title}</b> — {_tg_genre}\n"
+        f"🌐 Listen and create your own at zeusbeats.com"
+    )
+    threading.Thread(
+        target=_telegram_post_sync,
+        args=(_tg_message, permanent_image_url1),
+        daemon=True,
+    ).start()
 
     if flux_cover1 and duration1 and FAL_API_KEY:
         threading.Thread(
