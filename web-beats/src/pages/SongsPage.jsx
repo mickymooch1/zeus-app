@@ -42,9 +42,9 @@ function _matchTempo(text) {
 }
 
 const SONG_PACKS = [
-  { pack: 'song_pack_099', label: '2 songs',  price: '£0.99' },
-  { pack: 'song_pack_200', label: '5 songs',  price: '£2.00' },
-  { pack: 'song_pack_400', label: '10 songs', price: '£4.00' },
+  { pack: 'song_pack_099', label: '2 Songs',  price: '£0.99' },
+  { pack: 'song_pack_200', label: '5 Songs',  price: '£2.00' },
+  { pack: 'song_pack_400', label: '10 Songs', price: '£4.00' },
 ];
 
 const PAGE_CSS = `
@@ -81,6 +81,13 @@ const PAGE_CSS = `
 .song-card-anim:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,240,255,0.12); }
 .dl-btn:hover { box-shadow: 0 0 16px rgba(124,58,237,0.5) !important; }
 .fav-star-btn:hover { transform: scale(1.2); }
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 15px rgba(0,240,255,0.3), inset 0 0 15px rgba(0,240,255,0.03); border-color: #00f0ff; }
+  50%       { box-shadow: 0 0 28px rgba(0,240,255,0.55), inset 0 0 20px rgba(0,240,255,0.06); border-color: #66f9ff; }
+}
+.topup-section { animation: pulse-glow 3s ease-in-out infinite; }
+.topup-btn:hover { background: linear-gradient(135deg, rgba(0,240,255,0.22) 0%, rgba(0,191,255,0.22) 100%) !important; box-shadow: 0 0 14px rgba(0,240,255,0.45) !important; transform: translateY(-1px) !important; }
+@media (max-width: 599px) { .topup-section .topup-btn { width: 100% !important; justify-content: center !important; } }
 `;
 
 const S = {
@@ -1246,23 +1253,27 @@ export default function SongsPage() {
         )}
 
         {!isAdmin && balance <= 0 && (
-          <div style={{ background: 'rgba(0,240,255,0.04)', borderBottom: '1px solid rgba(0,240,255,0.12)', padding: '12px 24px' }}>
-            <div style={{ maxWidth: 880, margin: '0 auto' }}>
-              <p style={{ fontSize: 12, color: '#00F0FF', fontWeight: 600, marginBottom: 10 }}>
-                Pay As You Go — No subscription needed
-              </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ borderBottom: '1px solid rgba(0,240,255,0.12)', padding: '16px 24px' }}>
+            <div className="topup-section" style={{ maxWidth: 880, margin: '0 auto', padding: '20px 24px', borderRadius: 14, border: '1px solid #00f0ff', background: 'rgba(0,240,255,0.03)' }}>
+              <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 13, fontWeight: 700, color: '#00f0ff', marginBottom: 14, letterSpacing: '0.5px' }}>
+                ⚡ Buy More Songs
+              </h3>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {SONG_PACKS.map(({ pack, label, price }) => (
                   <button
                     key={pack}
+                    className="topup-btn"
                     onClick={() => handleTopup(pack)}
                     disabled={topupLoading !== null}
-                    style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(0,240,255,0.35)', background: 'rgba(0,240,255,0.07)', color: '#00F0FF', fontSize: 13, fontWeight: 600, cursor: topupLoading ? 'default' : 'pointer' }}
+                    style={{ padding: '11px 22px', borderRadius: 10, border: '1px solid rgba(0,240,255,0.5)', background: 'linear-gradient(135deg, rgba(0,240,255,0.1) 0%, rgba(0,191,255,0.08) 100%)', color: '#00f0ff', fontSize: 13, fontWeight: 700, cursor: topupLoading ? 'default' : 'pointer', transition: 'all 0.2s', letterSpacing: '0.3px' }}
                   >
                     {topupLoading === pack ? t('songs.redirecting') : `${label} — ${price}`}
                   </button>
                 ))}
               </div>
+              <p style={{ fontSize: 11, color: '#4a9fb5', marginTop: 12, marginBottom: 0 }}>
+                Credits never expire · No subscription needed
+              </p>
             </div>
           </div>
         )}
@@ -1752,17 +1763,49 @@ export default function SongsPage() {
             {error && <p style={{ color: '#f87171', fontSize: 13, marginTop: 12 }}>{error}</p>}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', marginBottom: 44, padding: '8px 0' }}>
-            {SONG_PACKS.map(({ pack, label, price }) => (
-              <button
-                key={pack}
-                onClick={() => handleTopup(pack)}
-                disabled={topupLoading !== null}
-                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 12, cursor: topupLoading ? 'default' : 'pointer' }}
-              >
-                {topupLoading === pack ? t('songs.redirecting') : `${label} — ${price}`}
-              </button>
-            ))}
+          {/* ── Top-up section ─────────────────────────────────────────── */}
+          <div className="topup-section" style={{
+            marginBottom: 44,
+            padding: '20px 24px',
+            borderRadius: 14,
+            border: '1px solid #00f0ff',
+            background: 'rgba(0,240,255,0.03)',
+          }}>
+            <h3 style={{
+              fontFamily: "'Orbitron', sans-serif",
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#00f0ff',
+              marginBottom: 14,
+              letterSpacing: '0.5px',
+            }}>⚡ Buy More Songs</h3>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {SONG_PACKS.map(({ pack, label, price }) => (
+                <button
+                  key={pack}
+                  className="topup-btn"
+                  onClick={() => handleTopup(pack)}
+                  disabled={topupLoading !== null}
+                  style={{
+                    padding: '11px 22px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(0,240,255,0.5)',
+                    background: 'linear-gradient(135deg, rgba(0,240,255,0.1) 0%, rgba(0,191,255,0.08) 100%)',
+                    color: '#00f0ff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: topupLoading ? 'default' : 'pointer',
+                    transition: 'all 0.2s',
+                    letterSpacing: '0.3px',
+                  }}
+                >
+                  {topupLoading === pack ? t('songs.redirecting') : `${label} — ${price}`}
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: '#4a9fb5', marginTop: 12, marginBottom: 0 }}>
+              Credits never expire · No subscription needed
+            </p>
           </div>
 
           {activeJob && (
