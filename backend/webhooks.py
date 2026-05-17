@@ -411,26 +411,6 @@ async def apiframe_webhook(request: Request):
         conn.close()
     logger.info("Apiframe webhook take 1 complete: variant_id=%d url=%s", variant_id, permanent_url1)
 
-    # Auto-post new song announcement to Telegram channel
-    _tg_genre = (genre_tag or "").replace("drumandbass", "Drum & Bass").replace("hiphop", "Hip-Hop") \
-                                  .replace("rnb", "R&B").replace("ukgarage", "UK Garage") \
-                                  .replace("ukdrill", "UK Drill").replace("ukstreetsoul", "UK Street Soul") \
-                                  .replace("loversrock", "Lovers Rock").replace("irishfolk", "Irish Folk") \
-                                  .replace("irishjig", "Irish Jig").replace("afrobeats", "Afrobeats") \
-                                  .replace("amapiano", "Amapiano").replace("driftphonk", "Phonk") \
-                                  .title()
-    _tg_title = song_title or "Untitled"
-    _tg_message = (
-        f"🎵 New song generated on Zeus Beats!\n"
-        f"🎶 <b>{_tg_title}</b> — {_tg_genre}\n"
-        f"🌐 Listen and create your own at zeusbeats.com"
-    )
-    threading.Thread(
-        target=_telegram_post_sync,
-        args=(_tg_message, permanent_image_url1),
-        daemon=True,
-    ).start()
-
     if flux_cover1 and duration1 and FAL_API_KEY:
         threading.Thread(
             target=_kling_pipeline,

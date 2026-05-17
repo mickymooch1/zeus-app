@@ -131,7 +131,9 @@
       "remake": "🔄 Refazer",
       "delete": "✕ Excluir",
       "deleting": "Excluindo…",
-      "retryYT": "Tentar YT novamente"
+      "retryYT": "Tentar YT novamente",
+      "telegram": "✈ Telegram",
+      "telegramPosted": "✓ Publicado!"
     },
     "ytModal": {
       "title": "Enviar para o YouTube",

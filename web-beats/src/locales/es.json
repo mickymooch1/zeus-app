@@ -131,7 +131,9 @@
       "remake": "🔄 Rehacer",
       "delete": "✕ Eliminar",
       "deleting": "Eliminando…",
-      "retryYT": "Reintentar YT"
+      "retryYT": "Reintentar YT",
+      "telegram": "✈ Telegram",
+      "telegramPosted": "✓ Publicado!"
     },
     "ytModal": {
       "title": "Subir a YouTube",

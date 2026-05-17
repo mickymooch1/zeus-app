@@ -163,13 +163,15 @@ function SongCard({
   variant, title, activeWsRef,
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
-  onDelete, deleting, musicVideoUrl, onRemake,
+  onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick,
 }) {
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
-  const [playing, setPlaying] = useState(false);
-  const [wsReady, setWsReady] = useState(false);
-  const [copied, setCopied]   = useState(false);
+  const [playing, setPlaying]     = useState(false);
+  const [wsReady, setWsReady]     = useState(false);
+  const [copied, setCopied]       = useState(false);
+  const [tgPosting, setTgPosting] = useState(false);
+  const [tgPosted, setTgPosted]   = useState(false);
 
   useEffect(() => {
     if (!variant.mp3_url || !waveRef.current) return;
@@ -209,6 +211,18 @@ function SongCard({
     } else {
       wsRef.current.play();
       activeWsRef.current = wsRef.current;
+    }
+  };
+
+  const handleTelegram = async () => {
+    if (tgPosting || !onTelegramClick) return;
+    setTgPosting(true);
+    try {
+      await onTelegramClick();
+      setTgPosted(true);
+      setTimeout(() => setTgPosted(false), 3000);
+    } finally {
+      setTgPosting(false);
     }
   };
 
@@ -359,13 +373,20 @@ function SongCard({
         </div>
         {!isFailed && variant.mp3_url && (
           <>
-            {/* Row 1: Download + Share */}
+            {/* Row 1: Download + Share + Telegram */}
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
               <a href={variant.mp3_url} download={safeFilename} style={actionBtnStyle}>
                 ↓ Download
               </a>
               <button onClick={handleShare} style={actionBtnStyle}>
                 {copied ? '✓ Copied!' : '↗ Share'}
+              </button>
+              <button
+                onClick={handleTelegram}
+                disabled={tgPosting}
+                style={{ ...actionBtnStyle, color: tgPosted ? '#4ade80' : '#0088cc', borderColor: tgPosted ? 'rgba(74,222,128,0.3)' : 'rgba(0,136,204,0.25)' }}
+              >
+                {tgPosting ? '…' : tgPosted ? '✓ Posted!' : '✈ Telegram'}
               </button>
             </div>
             {/* Row 2: YouTube + Avatar Video */}
@@ -759,6 +780,17 @@ export default function SongsPage() {
     } finally {
       setArtistLoading(false);
     }
+  };
+
+  const handleTelegramPost = async (variant, songTitle) => {
+    const genre = gLabel(variant.genre_tag || '');
+    const message = `🎵 <b>${songTitle || 'New Song'}</b> — ${genre}\n\nCreated with Zeus Beats AI Music\n🌐 zeusbeats.com`;
+    const r = await fetch(`${BACKEND_URL}/api/telegram/post`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ message, image_url: variant.image_url || null }),
+    });
+    if (!r.ok) throw new Error('Telegram post failed');
   };
 
   const handleYouTubeClick = (variant) => {
@@ -1665,6 +1697,7 @@ export default function SongsPage() {
                       deleting={deletingVariants.has(v.variant_id)}
                       musicVideoUrl={musicVideoUrls[v.variant_id]}
                       onRemake={() => setRemakeModal({ variantId: v.variant_id, title: activeJob.title })}
+                      onTelegramClick={() => handleTelegramPost(v, activeJob.title)}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -1703,6 +1736,7 @@ export default function SongsPage() {
                     deleting={deletingVariants.has(v.variant_id)}
                     musicVideoUrl={musicVideoUrls[v.variant_id]}
                     onRemake={() => setRemakeModal({ variantId: v.variant_id, title: v.title })}
+                    onTelegramClick={() => handleTelegramPost(v, v.title)}
                   />
                 ))}
               </div>

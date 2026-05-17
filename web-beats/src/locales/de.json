@@ -131,7 +131,9 @@
       "remake": "🔄 Neu erstellen",
       "delete": "✕ Löschen",
       "deleting": "Löschen…",
-      "retryYT": "YT erneut versuchen"
+      "retryYT": "YT erneut versuchen",
+      "telegram": "✈ Telegram",
+      "telegramPosted": "✓ Gepostet!"
     },
     "ytModal": {
       "title": "Auf YouTube hochladen",
