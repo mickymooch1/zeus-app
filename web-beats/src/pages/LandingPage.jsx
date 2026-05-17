@@ -222,6 +222,50 @@ export default function LandingPage() {
 
       <div className="section-divider" />
 
+      {/* FIND YOUR SOUND */}
+      <section style={{ padding: '80px 24px', textAlign: 'center', background: 'linear-gradient(180deg, #000 0%, #050510 100%)' }}>
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
+          <h2 style={{
+            fontFamily: "'Orbitron', sans-serif",
+            fontSize: 'clamp(26px, 5vw, 44px)',
+            fontWeight: 900,
+            background: 'linear-gradient(90deg, #00f0ff 0%, #00bfff 50%, #00f0ff 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            marginBottom: 16,
+            lineHeight: 1.1,
+            letterSpacing: '-0.5px',
+          }}>Find Your Sound</h2>
+          <p style={{ color: '#aaa', fontSize: 16, lineHeight: 1.7, marginBottom: 36, maxWidth: 560, margin: '0 auto 36px' }}>
+            Search artists, genres or tracks for inspiration, then generate original songs with the same energy — from Grime and Garage to Afrobeats, Jungle and Drill.
+          </p>
+          <a
+            href="/search"
+            style={{
+              display: 'inline-block',
+              padding: '14px 32px',
+              background: 'transparent',
+              border: '2px solid #00f0ff',
+              borderRadius: 10,
+              color: '#00f0ff',
+              fontWeight: 700,
+              fontSize: 15,
+              textDecoration: 'none',
+              letterSpacing: '0.5px',
+              boxShadow: '0 0 18px rgba(0,240,255,0.25)',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,240,255,0.10)'; e.currentTarget.style.boxShadow = '0 0 28px rgba(0,240,255,0.45)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.boxShadow = '0 0 18px rgba(0,240,255,0.25)'; }}
+          >
+            Search for Inspiration →
+          </a>
+        </div>
+      </section>
+
+      <div className="section-divider" />
+
       {/* PRICING */}
       <section className="pricing" id="pricing">
         <div className="container">
