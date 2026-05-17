@@ -152,6 +152,14 @@
       "savedFavourite": "Gespeichert ✅",
       "removedFavourite": "Entfernt"
     },
+    "locked": {
+      "upgradeYT": "Upgrade deinen Plan, um auf YouTube hochzuladen.",
+      "connectYT": "Verbinde YouTube in den Einstellungen.",
+      "upgradeAvatar": "Upgrade auf Music Pro für Avatar-Videos.",
+      "noAvatarCredits": "Keine Avatar-Credits mehr verfügbar.",
+      "upgradeLink": "Upgrade →",
+      "topUpLink": "Aufladen →"
+    },
     "ytModal": {
       "title": "Auf YouTube hochladen",
       "privacyLabel": "Datenschutz",

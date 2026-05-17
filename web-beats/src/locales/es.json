@@ -152,6 +152,14 @@
       "savedFavourite": "Guardado ✅",
       "removedFavourite": "Eliminado"
     },
+    "locked": {
+      "upgradeYT": "Mejora tu plan para subir a YouTube.",
+      "connectYT": "Conecta YouTube en Configuración para subir.",
+      "upgradeAvatar": "Mejora a Music Pro para vídeos avatar.",
+      "noAvatarCredits": "Sin créditos de avatar disponibles.",
+      "upgradeLink": "Mejorar →",
+      "topUpLink": "Recargar →"
+    },
     "ytModal": {
       "title": "Subir a YouTube",
       "privacyLabel": "Privacidad",

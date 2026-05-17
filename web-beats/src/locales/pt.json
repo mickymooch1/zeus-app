@@ -152,6 +152,14 @@
       "savedFavourite": "Salvo ✅",
       "removedFavourite": "Removido"
     },
+    "locked": {
+      "upgradeYT": "Faça upgrade do plano para enviar ao YouTube.",
+      "connectYT": "Conecte o YouTube nas Configurações para enviar.",
+      "upgradeAvatar": "Faça upgrade para Music Pro para vídeos avatar.",
+      "noAvatarCredits": "Sem créditos de avatar disponíveis.",
+      "upgradeLink": "Fazer upgrade →",
+      "topUpLink": "Recarregar →"
+    },
     "ytModal": {
       "title": "Enviar para o YouTube",
       "privacyLabel": "Privacidade",

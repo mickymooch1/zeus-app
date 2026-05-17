@@ -152,6 +152,14 @@
       "savedFavourite": "Sauvegardé ✅",
       "removedFavourite": "Retiré"
     },
+    "locked": {
+      "upgradeYT": "Passez à un plan supérieur pour publier sur YouTube.",
+      "connectYT": "Connectez YouTube dans les Paramètres pour publier.",
+      "upgradeAvatar": "Passez à Music Pro pour les vidéos avatar.",
+      "noAvatarCredits": "Plus de crédits avatar disponibles.",
+      "upgradeLink": "Mettre à niveau →",
+      "topUpLink": "Recharger →"
+    },
     "ytModal": {
       "title": "Publier sur YouTube",
       "privacyLabel": "Confidentialité",

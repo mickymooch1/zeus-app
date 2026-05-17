@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -74,6 +74,13 @@ const PAGE_CSS = `
   50%       { box-shadow: 0 0 0 7px rgba(239,68,68,0); }
 }
 .mic-btn-listening { animation: micPulse 1s ease-in-out infinite !important; }
+.songs-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 640px)  { .songs-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .songs-grid { grid-template-columns: repeat(3, 1fr); } }
+.song-card-anim { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.song-card-anim:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,240,255,0.12); }
+.dl-btn:hover { box-shadow: 0 0 16px rgba(124,58,237,0.5) !important; }
+.fav-star-btn:hover { transform: scale(1.2); }
 `;
 
 const S = {
@@ -124,7 +131,6 @@ const S = {
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
     gap: 16,
   },
 };
@@ -173,7 +179,8 @@ function SkeletonCard({ genre }) {
 
 const actionBtnStyle = {
   flex: 1,
-  padding: '5px 0',
+  minHeight: 44,
+  padding: '6px 0',
   borderRadius: 6,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'transparent',
@@ -184,8 +191,10 @@ const actionBtnStyle = {
   letterSpacing: '0.2px',
   textAlign: 'center',
   textDecoration: 'none',
-  display: 'block',
-  transition: 'color 0.15s, border-color 0.15s',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
 };
 
 const SONG_TEMPLATES = [
@@ -205,7 +214,6 @@ const SongCard = memo(function SongCard({
   isFavourite, onToggleFavourite,
 }) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
   const [playing, setPlaying]     = useState(false);
@@ -222,7 +230,14 @@ const SongCard = memo(function SongCard({
     onToggleFavourite(variant.variant_id);
     setFavToast(adding ? 'added' : 'removed');
     clearTimeout(favToastTimer.current);
-    favToastTimer.current = setTimeout(() => setFavToast(null), 2000);
+    favToastTimer.current = setTimeout(() => setFavToast(null), 2500);
+  };
+  const [lockedMsg, setLockedMsg] = useState(null);
+  const lockedTimer = useRef(null);
+  const showLocked = (msg) => {
+    setLockedMsg(msg);
+    clearTimeout(lockedTimer.current);
+    lockedTimer.current = setTimeout(() => setLockedMsg(null), 3500);
   };
 
   const handleRegen = async () => {
@@ -315,13 +330,13 @@ const SongCard = memo(function SongCard({
   let avatarBtn;
   if (!didPlanOk) {
     avatarBtn = (
-      <button onClick={() => navigate('/billing')} title="Upgrade to Music Pro for avatar videos" style={avatarStyle}>
+      <button onClick={() => showLocked('upgrade-avatar')} style={avatarStyle}>
         {t('songs.buttons.avatar')}
       </button>
     );
   } else if (!isAdmin && videoCredits === 0) {
     avatarBtn = (
-      <button onClick={() => navigate('/billing')} title="Top up avatar video credits" style={avatarStyle}>
+      <button onClick={() => showLocked('no-avatar-credits')} style={avatarStyle}>
         {t('songs.buttons.avatar')}
       </button>
     );
@@ -349,7 +364,7 @@ const SongCard = memo(function SongCard({
   let ytBtn;
   if (!canYouTube) {
     ytBtn = (
-      <button onClick={() => navigate('/billing')} title="Upgrade to access YouTube upload" style={ytStyle}>
+      <button onClick={() => showLocked('upgrade-yt')} style={ytStyle}>
         {t('songs.buttons.youtube')}
       </button>
     );
@@ -367,8 +382,8 @@ const SongCard = memo(function SongCard({
     );
   } else if (!ytConnected) {
     ytBtn = (
-      <button onClick={() => onYouTubeClick(variant, title)} style={ytStyle} title="Connect YouTube in settings to upload">
-        {t('songs.buttons.connectYT')}
+      <button onClick={() => showLocked('connect-yt')} style={ytStyle}>
+        {t('songs.buttons.youtube')}
       </button>
     );
   } else {
@@ -410,6 +425,7 @@ const SongCard = memo(function SongCard({
           </button>
         )}
         <button
+          className="fav-star-btn"
           onClick={handleFavToggle}
           style={{
             position: 'absolute', top: 8, right: 8,
@@ -426,12 +442,12 @@ const SongCard = memo(function SongCard({
         {favToast && (
           <div style={{
             position: 'absolute', top: 44, right: 8,
-            background: 'rgba(0,0,0,0.85)', borderRadius: 6,
+            background: 'rgba(0,0,0,0.88)', borderRadius: 6,
             color: favToast === 'added' ? '#4ade80' : '#aaa',
             fontSize: 11, padding: '4px 9px', pointerEvents: 'none',
             whiteSpace: 'nowrap', zIndex: 10,
             border: `1px solid ${favToast === 'added' ? 'rgba(74,222,128,0.25)' : 'rgba(255,255,255,0.1)'}`,
-            animation: 'favToastFade 2s forwards',
+            animation: 'favToastFade 2.5s forwards',
           }}>
             {favToast === 'added' ? t('songs.buttons.savedFavourite') : t('songs.buttons.removedFavourite')}
           </div>
@@ -463,39 +479,45 @@ const SongCard = memo(function SongCard({
         </div>
         {!isFailed && variant.mp3_url && (
           <>
-            {/* Row 1: Download (primary) + Share */}
-            <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+            {/* Row 1: Download — full width primary */}
+            <div style={{ marginTop: 10 }}>
               <a
+                className="dl-btn"
                 href={variant.mp3_url}
                 download={safeFilename}
                 onClick={() => { setDownloaded(true); setTimeout(() => setDownloaded(false), 2000); }}
                 style={{
-                  flex: 2, padding: '7px 0', borderRadius: 7, border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: '100%', minHeight: 44, borderRadius: 7, border: 'none',
                   background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
                   color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                  textAlign: 'center', textDecoration: 'none', display: 'block',
+                  textDecoration: 'none', boxSizing: 'border-box',
+                  transition: 'box-shadow 0.2s ease',
                 }}
               >
                 {downloaded ? t('songs.buttons.downloaded') : t('songs.buttons.download')}
               </a>
-              <button onClick={handleShare} style={{ ...actionBtnStyle, flex: 1, color: '#38bdf8', borderColor: 'rgba(56,189,248,0.25)' }}>
+            </div>
+            {/* Row 2: Share + Telegram */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button onClick={handleShare} style={{ ...actionBtnStyle, flex: 1, color: '#38bdf8', borderColor: 'rgba(56,189,248,0.3)' }}>
                 {copied ? t('songs.buttons.copied') : t('songs.buttons.share')}
               </button>
-            </div>
-            {/* Row 2: Telegram + YouTube + Avatar */}
-            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
               <button
                 onClick={handleTelegram}
                 disabled={tgPosting}
-                style={{ ...actionBtnStyle, flex: 1, color: tgPosted ? '#4ade80' : '#0088cc', borderColor: tgPosted ? 'rgba(74,222,128,0.3)' : 'rgba(0,136,204,0.25)' }}
+                style={{ ...actionBtnStyle, flex: 1, color: tgPosted ? '#4ade80' : '#0088cc', borderColor: tgPosted ? 'rgba(74,222,128,0.3)' : 'rgba(0,136,204,0.3)' }}
               >
                 {tgPosting ? '…' : tgPosted ? t('songs.buttons.telegramPosted') : '✈ Telegram'}
               </button>
+            </div>
+            {/* Row 3: YouTube + Avatar */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               {ytBtn}
               {avatarBtn}
             </div>
-            {/* Row 3: Remake + Regen */}
-            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+            {/* Row 4: Remake + Regen */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, flex: 1, color: '#f59e0b', borderColor: 'rgba(245,158,11,0.25)' }}>
                 {t('songs.buttons.remake')}
               </button>
@@ -507,15 +529,28 @@ const SongCard = memo(function SongCard({
                 {regenLoading ? '…' : t('songs.buttons.regenerate')}
               </button>
             </div>
-            {/* Row 4: Delete — small, subtle red */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+            {/* Locked feature message */}
+            {lockedMsg && (
+              <div style={{
+                marginTop: 8, padding: '8px 12px', borderRadius: 7,
+                background: 'rgba(18,18,30,0.96)', border: '1px solid rgba(0,240,255,0.15)',
+                fontSize: 11, color: '#c4b5fd', textAlign: 'center', lineHeight: 1.5,
+              }}>
+                {lockedMsg === 'upgrade-yt' && <>{t('songs.locked.upgradeYT')} <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.upgradeLink')}</Link></>}
+                {lockedMsg === 'connect-yt' && <>{t('songs.locked.connectYT')}</>}
+                {lockedMsg === 'upgrade-avatar' && <>{t('songs.locked.upgradeAvatar')} <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.upgradeLink')}</Link></>}
+                {lockedMsg === 'no-avatar-credits' && <>{t('songs.locked.noAvatarCredits')} <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.topUpLink')}</Link></>}
+              </div>
+            )}
+            {/* Row 5: Delete */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
               <button
                 onClick={() => onDelete(variant.variant_id)}
                 disabled={deleting}
                 style={{
                   background: 'none', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 5,
                   color: deleting ? '#555' : '#f87171',
-                  fontSize: 11, cursor: deleting ? 'default' : 'pointer', padding: '2px 8px',
+                  fontSize: 11, cursor: deleting ? 'default' : 'pointer', padding: '3px 10px',
                   transition: 'color 0.15s',
                 }}
               >
@@ -1738,7 +1773,7 @@ export default function SongsPage() {
                   {t('songs.generatingStatus')}
                 </span>
               </div>
-              <div style={S.grid}>
+              <div className="songs-grid" style={S.grid}>
                 {activeJob.variants.map((v) =>
                   v.status === 'complete' || v.status === 'failed' ? (
                     <SongCard
@@ -1808,7 +1843,7 @@ export default function SongsPage() {
                   {t('songs.tabs.noRecent')}
                 </p>
               )}
-              <div style={S.grid}>
+              <div className="songs-grid" style={S.grid}>
                 {visibleLibrary.map((v) => (
                   <SongCard
                     key={v.variant_id}

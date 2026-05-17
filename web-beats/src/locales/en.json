@@ -152,6 +152,14 @@
       "savedFavourite": "Saved ✅",
       "removedFavourite": "Removed"
     },
+    "locked": {
+      "upgradeYT": "Upgrade your plan to upload to YouTube.",
+      "connectYT": "Connect YouTube in Settings to upload.",
+      "upgradeAvatar": "Upgrade to Music Pro for avatar videos.",
+      "noAvatarCredits": "No avatar credits remaining.",
+      "upgradeLink": "Upgrade →",
+      "topUpLink": "Top up →"
+    },
     "ytModal": {
       "title": "Upload to YouTube",
       "privacyLabel": "Privacy",
