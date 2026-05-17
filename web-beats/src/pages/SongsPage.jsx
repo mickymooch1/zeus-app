@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -205,6 +205,7 @@ const SongCard = memo(function SongCard({
   isFavourite, onToggleFavourite,
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
   const [playing, setPlaying]     = useState(false);
@@ -310,74 +311,69 @@ const SongCard = memo(function SongCard({
   const isFailed = variant.status === 'failed';
   const safeFilename = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
 
+  const avatarStyle = { ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' };
   let avatarBtn;
   if (!didPlanOk) {
     avatarBtn = (
-      <button disabled title="Upgrade to Music Pro for avatar videos"
-        style={{ ...actionBtnStyle, opacity: 0.25, cursor: 'not-allowed' }}>
+      <button onClick={() => navigate('/billing')} title="Upgrade to Music Pro for avatar videos" style={avatarStyle}>
         {t('songs.buttons.avatar')}
       </button>
     );
   } else if (!isAdmin && videoCredits === 0) {
     avatarBtn = (
-      <button disabled title="No avatar video credits remaining"
-        style={{ ...actionBtnStyle, opacity: 0.35, cursor: 'not-allowed', color: '#f87171' }}>
-        {t('songs.buttons.avatarNoCredits')}
+      <button onClick={() => navigate('/billing')} title="Top up avatar video credits" style={avatarStyle}>
+        {t('songs.buttons.avatar')}
       </button>
     );
   } else if (didSt === 'processing') {
     avatarBtn = (
-      <button disabled style={{ ...actionBtnStyle, opacity: 0.55, cursor: 'default' }}>
+      <button disabled style={{ ...avatarStyle, opacity: 0.55, cursor: 'default' }}>
         {t('songs.buttons.avatarMaking')}
       </button>
     );
   } else if (didSt === 'done' && videoUrl) {
     avatarBtn = (
-      <button onClick={() => onAvatarClick(variant, title)}
-        style={{ ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
+      <button onClick={() => onAvatarClick(variant, title)} style={avatarStyle}>
         {t('songs.buttons.avatarRedo')}
       </button>
     );
   } else {
     avatarBtn = (
-      <button onClick={() => onAvatarClick(variant, title)}
-        style={{ ...actionBtnStyle, color: didSt === 'error' ? '#f87171' : '#555' }}>
+      <button onClick={() => onAvatarClick(variant, title)} style={{ ...avatarStyle, color: didSt === 'error' ? '#f87171' : '#a78bfa' }}>
         {didSt === 'error' ? t('songs.buttons.avatarRetry') : t('songs.buttons.avatar')}
       </button>
     );
   }
 
+  const ytStyle = { ...actionBtnStyle, color: '#ff4444', borderColor: 'rgba(255,68,68,0.25)' };
   let ytBtn;
   if (!canYouTube) {
     ytBtn = (
-      <button disabled title="Available on Music Starter plan and above"
-        style={{ ...actionBtnStyle, opacity: 0.25, cursor: 'not-allowed' }}>
+      <button onClick={() => navigate('/billing')} title="Upgrade to access YouTube upload" style={ytStyle}>
         {t('songs.buttons.youtube')}
       </button>
     );
   } else if (ytSt === 'done' && ytUrl) {
     ytBtn = (
-      <a href={ytUrl} target="_blank" rel="noopener noreferrer"
-        style={{ ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
+      <a href={ytUrl} target="_blank" rel="noopener noreferrer" style={ytStyle}>
         {t('songs.buttons.viewYT')}
       </a>
     );
   } else if (ytSt === 'uploading') {
     ytBtn = (
-      <button disabled style={{ ...actionBtnStyle, opacity: 0.55, cursor: 'default' }}>
+      <button disabled style={{ ...ytStyle, opacity: 0.55, cursor: 'default' }}>
         {t('songs.buttons.uploading')}
       </button>
     );
   } else if (!ytConnected) {
     ytBtn = (
-      <button onClick={() => onYouTubeClick(variant, title)} style={{ ...actionBtnStyle, color: '#a78bfa' }} title="Connect YouTube in settings to upload">
+      <button onClick={() => onYouTubeClick(variant, title)} style={ytStyle} title="Connect YouTube in settings to upload">
         {t('songs.buttons.connectYT')}
       </button>
     );
   } else {
     ytBtn = (
-      <button onClick={() => onYouTubeClick(variant, title)}
-        style={{ ...actionBtnStyle, color: ytSt === 'error' ? '#f87171' : '#555' }}>
+      <button onClick={() => onYouTubeClick(variant, title)} style={{ ...ytStyle, color: ytSt === 'error' ? '#f87171' : '#ff4444' }}>
         {ytSt === 'error' ? t('songs.buttons.retryYT') : t('songs.buttons.youtube')}
       </button>
     );
@@ -482,7 +478,7 @@ const SongCard = memo(function SongCard({
               >
                 {downloaded ? t('songs.buttons.downloaded') : t('songs.buttons.download')}
               </a>
-              <button onClick={handleShare} style={{ ...actionBtnStyle, flex: 1 }}>
+              <button onClick={handleShare} style={{ ...actionBtnStyle, flex: 1, color: '#38bdf8', borderColor: 'rgba(56,189,248,0.25)' }}>
                 {copied ? t('songs.buttons.copied') : t('songs.buttons.share')}
               </button>
             </div>
@@ -500,25 +496,27 @@ const SongCard = memo(function SongCard({
             </div>
             {/* Row 3: Remake + Regen */}
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-              <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, flex: 1, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.2)' }}>
+              <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, flex: 1, color: '#f59e0b', borderColor: 'rgba(245,158,11,0.25)' }}>
                 {t('songs.buttons.remake')}
               </button>
               <button
                 onClick={handleRegen}
                 disabled={regenLoading}
-                style={{ ...actionBtnStyle, flex: 1, color: regenLoading ? '#444' : '#a78bfa', borderColor: 'rgba(167,139,250,0.25)', opacity: regenLoading ? 0.5 : 1 }}
+                style={{ ...actionBtnStyle, flex: 1, color: '#4ade80', borderColor: 'rgba(74,222,128,0.25)', opacity: regenLoading ? 0.55 : 1 }}
               >
                 {regenLoading ? '…' : t('songs.buttons.regenerate')}
               </button>
             </div>
-            {/* Row 4: Delete — tiny, grey */}
+            {/* Row 4: Delete — small, subtle red */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
               <button
                 onClick={() => onDelete(variant.variant_id)}
                 disabled={deleting}
                 style={{
-                  background: 'none', border: 'none', color: deleting ? '#333' : '#3a3a4a',
-                  fontSize: 11, cursor: deleting ? 'default' : 'pointer', padding: '2px 4px',
+                  background: 'none', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 5,
+                  color: deleting ? '#555' : '#f87171',
+                  fontSize: 11, cursor: deleting ? 'default' : 'pointer', padding: '2px 8px',
+                  transition: 'color 0.15s',
                 }}
               >
                 {deleting ? t('songs.buttons.deleting') : t('songs.buttons.delete')}
