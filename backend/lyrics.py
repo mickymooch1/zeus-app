@@ -15,9 +15,45 @@ _SONG_STRUCTURES = [
     "[Verse 1], [Pre-Chorus], [Chorus], [Verse 2], [Pre-Chorus], [Chorus], [Bridge], [Outro]",
     "[Verse 1], [Verse 2], [Bridge], [Chorus], [Outro]",
     "[Intro], [Verse 1], [Chorus], [Verse 2], [Bridge], [Chorus], [Outro]",
+    "verse-chorus-verse-chorus-bridge-chorus",
+    "intro-verse-pre-chorus-chorus-verse-chorus-outro",
+    "verse-verse-chorus-verse-chorus-bridge-chorus",
+    "hook-verse-hook-verse-hook-bridge-hook",
+    "spoken intro-verse-chorus-verse-chorus-outro",
 ]
 
-_MOODS = ["uplifting", "melancholic", "aggressive", "romantic", "nostalgic", "euphoric", "defiant", "playful"]
+_MOODS = [
+    "uplifting", "melancholic", "aggressive", "romantic", "nostalgic", "euphoric", "defiant", "playful",
+    "dark and gritty", "euphoric and uplifting", "melancholic and reflective",
+    "aggressive and intense", "smooth and sensual", "raw and emotional",
+    "energetic and hype", "calm and introspective", "bittersweet",
+]
+
+_THEMES = [
+    "redemption", "betrayal", "nostalgia", "ambition", "heartbreak",
+    "freedom", "struggle", "celebration", "loneliness", "revenge",
+    "hope", "loss", "success", "street life", "love found", "love lost",
+    "identity", "home", "money", "loyalty", "family", "the come up",
+]
+
+GENRE_VOCABULARY: dict[str, str] = {
+    "grime":       "mandem, road, ends, bare, peng, wasteman, dutty, link, P's",
+    "afrobeats":   "omo, wahala, jollof, Lagos, naija, vibez, soro soke",
+    "reggae":      "Jah, Babylon, irie, riddim, roots, natty, Zion",
+    "soul":        "testify, church, gospel, amen, spirit, move me, feel it",
+    "hiphop":      "hustle, grind, stack, flex, drip, plug, bag, real talk",
+    "jungle":      "rewind, selector, massive, jungle fever, dark and lovely",
+    "niche":       "proper job, mint, banging, Sheffield, lass, lad, mental",
+    "drumandbass": "amen break, rewind, selector, massive, liquid, dark, rollers",
+    "ukdrill":     "opps, trap, 150, sliders, smoke, woadie, on site, bits",
+    "afroswing":   "gyallis, ting, wavey, plug, buss, wul, oshun, agege",
+    "amapiano":    "yano, log drum, piano, South Africa, umlando, siyathandana",
+    "rastadub":    "Jah Rastafari, Babylon system, roots and culture, fire burn, ital",
+    "bluessoul":   "low down dirty shame, crossroads, testify, mojo, 12-bar",
+    "rnb":         "vibe, situationship, soft life, real love, body, drip, finesse",
+    "ukgarage":    "rewind, two-step, selector, garage ting, bare, mandem, swerve",
+    "bassline":    "banger, rave, proper, dark, filthy, Sheffield, bounce, wobble",
+}
 
 _LYRIC_SYSTEM_BASE = """You are the most creative songwriter alive. Your job is to write lyrics that genuinely surprise people.
 
@@ -57,7 +93,7 @@ _EXPLICIT_ADDENDUM = (
 )
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None) -> dict:
     if instrumental:
         title = song_title or "Instrumental"
         conn = db._conn(db_path)
@@ -77,11 +113,30 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
 
     structure = random.choice(_SONG_STRUCTURES)
     mood = random.choice(_MOODS)
+    theme = random.choice(_THEMES)
     system = _LYRIC_SYSTEM_BASE.format(structure=structure, mood=mood)
     if explicit:
         system += _EXPLICIT_ADDENDUM
 
-    logger.info("generate_lyrics: calling Haiku — user=%s explicit=%s brief=%r", user_id, explicit, brief[:200])
+    # Build enriched user message with randomised creative directives
+    user_message = brief
+    user_message += (
+        f"\n\nTheme: {theme}. Song structure: {structure}. Mood: {mood}. "
+        "Make this song completely unique and unlike anything generated before."
+    )
+    if genres:
+        vocab_lines = [
+            f"Use authentic {g} vocabulary and slang: {GENRE_VOCABULARY[g]}"
+            for g in genres
+            if g in GENRE_VOCABULARY
+        ]
+        if vocab_lines:
+            user_message += "\n" + " | ".join(vocab_lines)
+
+    logger.info(
+        "generate_lyrics: calling Haiku — user=%s explicit=%s theme=%r mood=%r brief=%r",
+        user_id, explicit, theme, mood, brief[:200],
+    )
 
     try:
         response = client.messages.create(
@@ -89,7 +144,7 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             max_tokens=1500,
             temperature=1.0,
             system=system,
-            messages=[{"role": "user", "content": brief}],
+            messages=[{"role": "user", "content": user_message}],
         )
     except Exception:
         logger.exception("generate_lyrics: Haiku API call failed — user=%s brief=%r", user_id, brief[:200])

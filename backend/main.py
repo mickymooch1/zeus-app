@@ -1347,7 +1347,7 @@ async def songs_generate(
                 song_title=body.song_title or None,
             )
         else:
-            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None)
+            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres))
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")

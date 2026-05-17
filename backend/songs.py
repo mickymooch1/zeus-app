@@ -1,8 +1,20 @@
 """Song variant generation via Apiframe v2 (https://api.apiframe.ai/v2/music/generate)."""
 import os
+import random
 import sqlite3
 import logging
 import requests
+
+RANDOM_PRODUCTION = [
+    "with unexpected key change",
+    "with a dramatic breakdown",
+    "with call and response vocals",
+    "with an extended outro",
+    "with a spoken word section",
+    "with double time flow",
+    "with a slow intro building to full energy",
+    "with stripped back verses and huge chorus",
+]
 
 logger = logging.getLogger("zeus.songs")
 
@@ -240,6 +252,7 @@ def generate_multiple_variants(
             style = f"{style}, {tempo_suffix}"
         if inspired_by_descriptors:
             style = f"{style}, {inspired_by_descriptors}"
+        style = f"{style}, {random.choice(RANDOM_PRODUCTION)}"
         result = generate_song_variant(
             user_id=user_id,
             lyric_id=lyric_id,
