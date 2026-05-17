@@ -50,6 +50,8 @@ const PAGE_CSS = `
 .song-card-anim:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(124,58,237,0.18); }
 .dl-btn:hover { box-shadow: 0 0 16px rgba(124,58,237,0.5) !important; }
 .fav-star-btn:hover { transform: scale(1.2); }
+.cover-video { transition: filter 0.2s; }
+.cover-video:hover { filter: brightness(1.12); }
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 15px rgba(0,240,255,0.3), inset 0 0 15px rgba(0,240,255,0.03); border-color: #00f0ff; }
   50%       { box-shadow: 0 0 28px rgba(0,240,255,0.55), inset 0 0 20px rgba(0,240,255,0.06); border-color: #66f9ff; }
@@ -201,6 +203,7 @@ const SongCard = memo(function SongCard({
   const [tgPosted, setTgPosted]     = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
+  const [videoErr, setVideoErr] = useState(false);
   const [favToast, setFavToast] = useState(null); // null | 'added' | 'removed'
   const favToastTimer = useRef(null);
   const handleFavToggle = () => {
@@ -377,20 +380,35 @@ const SongCard = memo(function SongCard({
   return (
     <div className="song-card-anim" style={S.card}>
       <div style={{ position: 'relative' }}>
-        {musicVideoUrl ? (
+        {musicVideoUrl && !videoErr ? (
           <video
             src={musicVideoUrl}
             autoPlay
             muted
             loop
             playsInline
+            className="cover-video"
             style={S.artBox}
+            onError={() => setVideoErr(true)}
           />
         ) : variant.image_url ? (
           <img src={variant.image_url} alt={title} style={S.artBox} />
         ) : (
           <div style={{ ...S.artBox, ...S.artPlaceholder }}>
             <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
+          </div>
+        )}
+        {!musicVideoUrl && !isFailed && variant.image_url && (
+          <div style={{
+            position: 'absolute', bottom: 8, left: 8,
+            background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)',
+            borderRadius: 6, padding: '3px 8px',
+            fontSize: 10, color: '#aaa',
+            display: 'flex', alignItems: 'center', gap: 4,
+            border: '1px solid rgba(255,255,255,0.08)',
+            pointerEvents: 'none',
+          }}>
+            🎬 Generating video…
           </div>
         )}
         {!isFailed && (
@@ -772,6 +790,14 @@ export default function SongsPage() {
     }, 10000);
     return () => clearTimeout(timer);
   }, [didStatus, token]);
+
+  // Music video URL polling (30s) — silently re-fetches library while videos are pending
+  useEffect(() => {
+    const hasPending = library.some(v => v.image_url && !musicVideoUrls[v.variant_id]);
+    if (!hasPending) return;
+    const t = setTimeout(fetchLibrary, 30_000);
+    return () => clearTimeout(t);
+  }, [library, musicVideoUrls, fetchLibrary]);
 
   // Portrait generation polling (5s, max 36 polls = 3 min)
   useEffect(() => {
