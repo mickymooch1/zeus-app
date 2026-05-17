@@ -1818,18 +1818,23 @@ _YOUTUBE_PLANS = {"agency", "enterprise", "music_starter", "music_pro", "music_a
 import jwt as _jwt
 
 
-def _make_yt_state(user_id: str) -> str:
+def _make_yt_state(user_id: str, origin: str = "beats") -> str:
     from datetime import timedelta
-    payload = {"sub": user_id, "exp": datetime.now(timezone.utc) + timedelta(minutes=30)}
+    payload = {
+        "sub": user_id,
+        "origin": origin,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
+    }
     return _jwt.encode(payload, auth.SECRET_KEY, algorithm="HS256")
 
 
-def _decode_yt_state(state: str) -> str | None:
+def _decode_yt_state(state: str) -> tuple[str | None, str]:
+    """Returns (user_id, origin). origin defaults to 'beats' if not in payload."""
     try:
         payload = _jwt.decode(state, auth.SECRET_KEY, algorithms=["HS256"])
-        return payload.get("sub")
+        return payload.get("sub"), payload.get("origin", "beats")
     except Exception:
-        return None
+        return None, "beats"
 
 
 @app.get("/api/youtube/debug")
@@ -1844,11 +1849,17 @@ async def youtube_debug():
 
 
 @app.get("/api/youtube/auth")
-async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
-    """Redirect the browser to Google's OAuth consent screen."""
+async def youtube_auth(
+    current_user: dict = Depends(auth.get_current_user),
+    origin: str = Query(default="beats"),
+):
+    """Redirect the browser to Google's OAuth consent screen.
+    Pass ?origin=beats (zeusbeats.com) or ?origin=web (zeusaidesign.com) so the
+    callback knows which frontend to return the user to.
+    """
     from fastapi.responses import RedirectResponse as _RR
     _gid = os.environ.get("GOOGLE_CLIENT_ID", "NOT_SET").strip()
-    log.info("youtube_auth: GOOGLE_CLIENT_ID first10=%r", _gid[:10])
+    log.info("youtube_auth: GOOGLE_CLIENT_ID first10=%r origin=%r", _gid[:10], origin)
     if not youtube_uploader.youtube_enabled():
         raise HTTPException(status_code=503, detail="YouTube integration not configured (GOOGLE_CLIENT_ID/SECRET missing)")
 
@@ -1859,7 +1870,7 @@ async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
 
     redirect_uri = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
     log.info("youtube_auth: redirect_uri=%r", redirect_uri)
-    state = _make_yt_state(current_user["id"])
+    state = _make_yt_state(current_user["id"], origin=origin)
 
     try:
         auth_url = youtube_uploader.build_auth_url(state=state, redirect_uri=redirect_uri)
@@ -1870,11 +1881,21 @@ async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
     return _RR(auth_url)
 
 
+def _yt_frontend(origin: str) -> str:
+    """Return the correct frontend base URL for the given origin."""
+    if origin == "beats":
+        return "https://zeusbeats.com"
+    return "https://zeusaidesign.com"
+
+
 @app.get("/api/youtube/callback")
 async def youtube_callback(code: str = Query(None), state: str = Query(None), error: str = Query(None)):
     """Google OAuth callback — exchange code, store refresh token, redirect to frontend /songs."""
     from fastapi.responses import RedirectResponse as _RR
-    _frontend = os.environ.get("FRONTEND_URL", "https://zeusbeats.com").rstrip("/")
+
+    # Decode origin early so errors redirect to the right frontend too
+    _, origin = _decode_yt_state(state) if state else (None, "beats")
+    _frontend = _yt_frontend(origin)
     _success  = f"{_frontend}/songs?youtube=connected"
     _fail     = f"{_frontend}/songs?youtube=error"
 
@@ -1886,7 +1907,11 @@ async def youtube_callback(code: str = Query(None), state: str = Query(None), er
         log.warning("youtube_callback: missing code or state")
         return _RR(_fail)
 
-    user_id = _decode_yt_state(state)
+    user_id, origin = _decode_yt_state(state)
+    _frontend = _yt_frontend(origin)
+    _success  = f"{_frontend}/songs?youtube=connected"
+    _fail     = f"{_frontend}/songs?youtube=error"
+
     if not user_id:
         log.warning("youtube_callback: invalid or expired state token")
         return _RR(_fail)

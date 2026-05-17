@@ -144,7 +144,7 @@ export default function BillingPage() {
   };
 
   const handleConnectYouTube = () => {
-    window.location.href = `${BACKEND_URL}/api/youtube/auth?token=${token}`;
+    window.location.href = `${BACKEND_URL}/api/youtube/auth?token=${token}&origin=beats`;
   };
 
   const handlePayg = async (pack) => {

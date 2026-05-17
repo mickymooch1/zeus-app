@@ -957,7 +957,7 @@ export default function SongsPage() {
   const handleYouTubeClick = useCallback((variant, titleArg) => {
     if (!canYouTube) return;
     if (!youtubeConnected) {
-      window.location.href = `${BACKEND_URL}/api/youtube/auth?token=${token}`;
+      window.location.href = `${BACKEND_URL}/api/youtube/auth?token=${token}&origin=web`;
       return;
     }
     setYtModal({ ...variant, title: titleArg || variant.title });
