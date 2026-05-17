@@ -120,7 +120,8 @@
       "all": "Todas",
       "favourites": "★ Favoritos",
       "recent": "🕐 Recentes",
-      "noFavourites": "Nenhum favorito — toque ☆ para salvar."
+      "noFavourites": "Nenhum favorito. Toque ★ em uma música para salvar.",
+      "noRecent": "Nenhuma música recente. Gere sua primeira faixa acima."
     },
     "upgradeBanner": "Faça upgrade para mais músicas, vídeos e exportações premium",
     "viewPlans": "Ver planos",
@@ -145,7 +146,11 @@
       "retryYT": "Tentar YT novamente",
       "telegram": "✈ Telegram",
       "telegramPosted": "✓ Publicado!",
-      "telegramShort": "✈ TG"
+      "telegramShort": "✈ TG",
+      "addFavourite": "Adicionar aos favoritos",
+      "removeFavourite": "Remover dos favoritos",
+      "savedFavourite": "Salvo ✅",
+      "removedFavourite": "Removido"
     },
     "ytModal": {
       "title": "Enviar para o YouTube",

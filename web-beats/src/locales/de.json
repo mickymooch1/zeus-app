@@ -120,7 +120,8 @@
       "all": "Alle Songs",
       "favourites": "★ Favoriten",
       "recent": "🕐 Zuletzt",
-      "noFavourites": "Noch keine Favoriten — tippe ☆ um zu speichern."
+      "noFavourites": "Noch keine Favoriten. Tippe ★ auf einen Song zum Speichern.",
+      "noRecent": "Keine aktuellen Songs. Erstelle deinen ersten Track oben."
     },
     "upgradeBanner": "Upgrade für mehr Songs, Avatar-Videos und Premium-Exporte",
     "viewPlans": "Pläne ansehen",
@@ -145,7 +146,11 @@
       "retryYT": "YT erneut versuchen",
       "telegram": "✈ Telegram",
       "telegramPosted": "✓ Gepostet!",
-      "telegramShort": "✈ TG"
+      "telegramShort": "✈ TG",
+      "addFavourite": "Zu Favoriten hinzufügen",
+      "removeFavourite": "Aus Favoriten entfernen",
+      "savedFavourite": "Gespeichert ✅",
+      "removedFavourite": "Entfernt"
     },
     "ytModal": {
       "title": "Auf YouTube hochladen",

@@ -61,6 +61,7 @@ const PAGE_CSS = `
 .avatar-thumb:hover { border-color: #a78bfa !important; opacity: 1 !important; }
 .genre-pill:hover { border-color: rgba(255,255,255,0.65) !important; background: rgba(255,255,255,0.13) !important; color: #fff !important; }
 .genre-pill--sel:hover { background: #6d28d9 !important; }
+@keyframes favToastFade { 0% { opacity:0 } 10% { opacity:1 } 70% { opacity:1 } 100% { opacity:0 } }
 .adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 28px; }
 @media (max-width: 599px) {
   .adv-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
@@ -213,6 +214,15 @@ const SongCard = memo(function SongCard({
   const [tgPosted, setTgPosted]         = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
+  const [favToast, setFavToast] = useState(null); // null | 'added' | 'removed'
+  const favToastTimer = useRef(null);
+  const handleFavToggle = () => {
+    const adding = !isFavourite;
+    onToggleFavourite(variant.variant_id);
+    setFavToast(adding ? 'added' : 'removed');
+    clearTimeout(favToastTimer.current);
+    favToastTimer.current = setTimeout(() => setFavToast(null), 2000);
+  };
 
   const handleRegen = async () => {
     if (regenLoading || !onRegenerate) return;
@@ -303,7 +313,7 @@ const SongCard = memo(function SongCard({
   let avatarBtn;
   if (!didPlanOk) {
     avatarBtn = (
-      <button disabled title="Available on Music Pro plan and above"
+      <button disabled title="Upgrade to Music Pro for avatar videos"
         style={{ ...actionBtnStyle, opacity: 0.25, cursor: 'not-allowed' }}>
         {t('songs.buttons.avatar')}
       </button>
@@ -360,7 +370,7 @@ const SongCard = memo(function SongCard({
     );
   } else if (!ytConnected) {
     ytBtn = (
-      <button onClick={() => onYouTubeClick(variant, title)} style={{ ...actionBtnStyle, color: '#a78bfa' }}>
+      <button onClick={() => onYouTubeClick(variant, title)} style={{ ...actionBtnStyle, color: '#a78bfa' }} title="Connect YouTube in settings to upload">
         {t('songs.buttons.connectYT')}
       </button>
     );
@@ -404,7 +414,7 @@ const SongCard = memo(function SongCard({
           </button>
         )}
         <button
-          onClick={() => onToggleFavourite(variant.variant_id)}
+          onClick={handleFavToggle}
           style={{
             position: 'absolute', top: 8, right: 8,
             width: 30, height: 30, borderRadius: '50%',
@@ -413,9 +423,23 @@ const SongCard = memo(function SongCard({
             fontSize: 16, backdropFilter: 'blur(4px)', transition: 'transform 0.15s',
             color: isFavourite ? '#fbbf24' : 'rgba(255,255,255,0.5)',
           }}
+          title={isFavourite ? t('songs.buttons.removeFavourite') : t('songs.buttons.addFavourite')}
         >
           {isFavourite ? '★' : '☆'}
         </button>
+        {favToast && (
+          <div style={{
+            position: 'absolute', top: 44, right: 8,
+            background: 'rgba(0,0,0,0.85)', borderRadius: 6,
+            color: favToast === 'added' ? '#4ade80' : '#aaa',
+            fontSize: 11, padding: '4px 9px', pointerEvents: 'none',
+            whiteSpace: 'nowrap', zIndex: 10,
+            border: `1px solid ${favToast === 'added' ? 'rgba(74,222,128,0.25)' : 'rgba(255,255,255,0.1)'}`,
+            animation: 'favToastFade 2s forwards',
+          }}>
+            {favToast === 'added' ? t('songs.buttons.savedFavourite') : t('songs.buttons.removedFavourite')}
+          </div>
+        )}
       </div>
 
       {videoUrl && (
@@ -469,7 +493,7 @@ const SongCard = memo(function SongCard({
                 disabled={tgPosting}
                 style={{ ...actionBtnStyle, flex: 1, color: tgPosted ? '#4ade80' : '#0088cc', borderColor: tgPosted ? 'rgba(74,222,128,0.3)' : 'rgba(0,136,204,0.25)' }}
               >
-                {tgPosting ? '…' : tgPosted ? t('songs.buttons.telegramPosted') : t('songs.buttons.telegramShort')}
+                {tgPosting ? '…' : tgPosted ? t('songs.buttons.telegramPosted') : '✈ Telegram'}
               </button>
               {ytBtn}
               {avatarBtn}
@@ -488,7 +512,7 @@ const SongCard = memo(function SongCard({
               </button>
             </div>
             {/* Row 4: Delete — tiny, grey */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
               <button
                 onClick={() => onDelete(variant.variant_id)}
                 disabled={deleting}
@@ -1779,6 +1803,11 @@ export default function SongsPage() {
               {activeTab === 'favourites' && tabFilteredLibrary.length === 0 && (
                 <p style={{ color: '#444', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>
                   {t('songs.tabs.noFavourites')}
+                </p>
+              )}
+              {activeTab === 'recent' && tabFilteredLibrary.length === 0 && (
+                <p style={{ color: '#444', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>
+                  {t('songs.tabs.noRecent')}
                 </p>
               )}
               <div style={S.grid}>

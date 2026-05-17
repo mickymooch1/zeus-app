@@ -120,7 +120,8 @@
       "all": "All Songs",
       "favourites": "★ Favourites",
       "recent": "🕐 Recent",
-      "noFavourites": "No favourites yet — tap ☆ on any song to save it."
+      "noFavourites": "No favourites yet. Tap the ★ on a song to save it.",
+      "noRecent": "No recent songs. Generate your first track above."
     },
     "upgradeBanner": "Upgrade for more songs, avatar videos and premium exports",
     "viewPlans": "View plans",
@@ -145,7 +146,11 @@
       "retryYT": "Retry YT",
       "telegram": "✈ Telegram",
       "telegramPosted": "✓ Posted!",
-      "telegramShort": "✈ TG"
+      "telegramShort": "✈ TG",
+      "addFavourite": "Add to favourites",
+      "removeFavourite": "Remove from favourites",
+      "savedFavourite": "Saved ✅",
+      "removedFavourite": "Removed"
     },
     "ytModal": {
       "title": "Upload to YouTube",
