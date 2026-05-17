@@ -2456,6 +2456,27 @@ async def image_webhook(request: Request):
     return {"ok": True, "url": public_url}
 
 
+# ── Telegram ─────────────────────────────────────────────────────────────────
+
+class TelegramPostRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4096)
+    image_url: str | None = None
+
+
+@app.post("/api/telegram/post")
+@limiter.limit("20/minute", key_func=_user_key)
+async def telegram_post(
+    request: Request,
+    body: TelegramPostRequest,
+    user: dict = Depends(auth.get_current_user),
+):
+    import zeus_agent as _agent
+    result = await _agent._post_to_telegram(message=body.message, image_url=body.image_url)
+    if result.startswith("❌"):
+        raise HTTPException(status_code=502, detail=result)
+    return {"ok": True, "detail": result}
+
+
 # ── Scheduled Tasks ─────────────────────────────────────────────────────────
 
 class ScheduledTaskParseRequest(BaseModel):

@@ -78,10 +78,33 @@ def get_anthropic_client() -> anthropic.AsyncAnthropic:
         _anthropic_client = _make_anthropic_client()
     return _anthropic_client
 
+async def _post_to_telegram(message: str, image_url: str | None = None) -> str:
+    """Send a text message or photo with caption to the configured Telegram channel."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    channel_id = os.environ.get("TELEGRAM_CHANNEL_ID", "").strip()
+    if not token or not channel_id:
+        return "❌ PostToTelegram: TELEGRAM_BOT_TOKEN and TELEGRAM_CHANNEL_ID must be set in Railway variables."
+    base = f"https://api.telegram.org/bot{token}"
+    async with httpx.AsyncClient(timeout=15) as client:
+        if image_url:
+            resp = await client.post(
+                f"{base}/sendPhoto",
+                json={"chat_id": channel_id, "photo": image_url, "caption": message, "parse_mode": "HTML"},
+            )
+        else:
+            resp = await client.post(
+                f"{base}/sendMessage",
+                json={"chat_id": channel_id, "text": message, "parse_mode": "HTML"},
+            )
+    if resp.status_code < 300:
+        return "✅ Posted to Telegram channel."
+    return f"❌ Telegram API error (HTTP {resp.status_code}): {resp.text}"
+
+
 ZEUS_SYSTEM_PROMPT = """You are Zeus — senior AI assistant for Zeus AI Design. Direct, sharp, experienced. Fix bugs don't explain them. No filler openers ("Certainly!", "Great question!"). Write naturally, answer concisely. When done, say what was done in 1–2 sentences.
 
 ## Tools — use proactively
-GenerateImage (fal.ai Flux — call whenever user asks for any image, hero, banner, social post, or visual), SaveMemory/SearchMemory (search before substantial tasks), UpsertClient/GetClient/ListClients, UpsertProject/ListProjects, PostToFacebook (call GenerateImage first, then pass the URL), PushToGitHub (admin only), SendEmail (draft → confirm → send), MultiAgentBuild, CreateBackgroundTask (Enterprise only), SaveWebsite/ListWebsites/GetWebsiteFiles (call SaveWebsite after every build; ListWebsites before editing existing sites).
+GenerateImage (fal.ai Flux — call whenever user asks for any image, hero, banner, social post, or visual), SaveMemory/SearchMemory (search before substantial tasks), UpsertClient/GetClient/ListClients, UpsertProject/ListProjects, PostToFacebook (call GenerateImage first, then pass the URL), PostToTelegram (post announcements/updates to Telegram channel; draft → confirm → post), PushToGitHub (admin only), SendEmail (draft → confirm → send), MultiAgentBuild, CreateBackgroundTask (Enterprise only), SaveWebsite/ListWebsites/GetWebsiteFiles (call SaveWebsite after every build; ListWebsites before editing existing sites).
 
 ## Image & video generation
 Zeus has full fal.ai integration. GenerateImage uses fal.ai Flux to generate photorealistic images — call it whenever the user asks for any visual content. GenerateVideoArt animates a still image into a short MP4 using fal.ai Kling — call it when the user asks for animated cover art, a music video loop, or any animated clip (call GenerateImage first to get the source image). Music videos for songs are generated automatically via Kling as part of the song pipeline — no tool call needed for those.
@@ -500,6 +523,30 @@ TOOLS = [
                 },
             },
             "required": ["message", "photo_url"],
+        },
+    },
+    {
+        "name": "PostToTelegram",
+        "description": (
+            "Post a message to the Zeus Telegram channel. "
+            "Use this to share song announcements, website launches, updates, or any content. "
+            "Pass 'image_url' to send a photo with caption instead of a plain text message. "
+            "Always show the user the message text and ask 'Shall I post this to Telegram?' "
+            "before calling this tool."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "The text content to post. Supports HTML formatting (<b>, <i>, <a href>).",
+                },
+                "image_url": {
+                    "type": "string",
+                    "description": "Optional URL of an image to send as a photo with the message as caption.",
+                },
+            },
+            "required": ["message"],
         },
     },
     {
@@ -2920,6 +2967,14 @@ async def run_turn_stream(
                             result = f"❌ Facebook post failed (HTTP {fb_resp.status_code}): {fb_resp.text}"
                     except Exception as _exc:
                         result = f"❌ PostToFacebook failed: {_exc}"
+                elif tb["name"] == "PostToTelegram":
+                    try:
+                        result = await _post_to_telegram(
+                            message=tb["input"].get("message", ""),
+                            image_url=tb["input"].get("image_url"),
+                        )
+                    except Exception as _exc:
+                        result = f"❌ PostToTelegram failed: {_exc}"
                 else:
                     result = _run_tool(tb["name"], tb["input"], history)
                 path = (tb["input"].get("file_path")
