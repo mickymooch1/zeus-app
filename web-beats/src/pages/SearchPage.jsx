@@ -88,9 +88,21 @@ export default function SearchPage() {
       <BeatsDashboardHeader />
 
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 24px 80px', width: '100%' }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 6 }}>Music Search</h1>
-        <p style={{ color: '#666', fontSize: 14, marginBottom: 32 }}>
-          Find inspiration, analyse styles, and fast-track your next song.
+        <h1 style={{
+          fontFamily: "'Orbitron', sans-serif",
+          fontSize: 'clamp(24px, 5vw, 40px)',
+          fontWeight: 900,
+          background: 'linear-gradient(90deg, #00f0ff 0%, #00bfff 50%, #00f0ff 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          marginBottom: 10,
+          letterSpacing: '-0.5px',
+          textShadow: 'none',
+          lineHeight: 1.1,
+        }}>Find Your Sound</h1>
+        <p style={{ color: '#888', fontSize: 14, marginBottom: 32, lineHeight: 1.6, maxWidth: 620 }}>
+          Search artists, genres or tracks for inspiration, then generate original songs with the same energy — from Grime and Garage to Afrobeats, Jungle and Drill.
         </p>
 
         {/* Tabs */}
