@@ -72,8 +72,7 @@ export default function LandingPage() {
           <h1 className="hero-title">
             <span className="hero-word-cyan">{t('landing.heroTitle1')}</span>{' '}
             <span className="hero-word-pink">{t('landing.heroTitle2')}</span>{' '}
-            <span className="hero-word-green">{t('landing.heroTitle3')}</span><br />
-            <span className="gradient-text">{t('landing.heroTagline')}</span>
+            <span className="hero-word-green">{t('landing.heroTitle3')}</span>
           </h1>
           <p className="hero-sub">
             {t('landing.heroSub', { brand: BRAND.name })}
@@ -122,7 +121,7 @@ export default function LandingPage() {
 
           <div className="features-grid">
             <div className="feat-card feat-lead">
-              <span className="feat-icon">🎵</span>
+              <span className="feat-icon">🎶</span>
               <h3>{t('landing.feature1Title')}</h3>
               <p>{t('landing.feature1Desc')}</p>
               <div className="feat-tags">
@@ -134,27 +133,33 @@ export default function LandingPage() {
             </div>
 
             <div className="feat-card">
-              <span className="feat-icon">🎬</span>
+              <span className="feat-icon">⚖️</span>
               <h3>{t('landing.feature2Title')}</h3>
               <p>{t('landing.feature2Desc')}</p>
             </div>
 
             <div className="feat-card">
-              <span className="feat-icon">▶️</span>
-              <h3>{t('landing.feature3Title')}</h3>
-              <p>{t('landing.feature3Desc', { brand: BRAND.name })}</p>
-            </div>
-
-            <div className="feat-card">
-              <span className="feat-icon">📘</span>
-              <h3>{t('landing.feature4Title')}</h3>
-              <p>{t('landing.feature4Desc', { brand: BRAND.name })}</p>
-            </div>
-
-            <div className="feat-card">
               <span className="feat-icon">🖼️</span>
+              <h3>{t('landing.feature3Title')}</h3>
+              <p>{t('landing.feature3Desc')}</p>
+            </div>
+
+            <div className="feat-card">
+              <span className="feat-icon">▶️</span>
+              <h3>{t('landing.feature4Title')}</h3>
+              <p>{t('landing.feature4Desc')}</p>
+            </div>
+
+            <div className="feat-card">
+              <span className="feat-icon">🎬</span>
               <h3>{t('landing.feature5Title')}</h3>
               <p>{t('landing.feature5Desc')}</p>
+            </div>
+
+            <div className="feat-card">
+              <span className="feat-icon">🎛️</span>
+              <h3>{t('landing.feature6Title')}</h3>
+              <p>{t('landing.feature6Desc')}</p>
             </div>
           </div>
         </div>
@@ -174,7 +179,7 @@ export default function LandingPage() {
                 <div className="cap-num">01</div>
                 <div className="cap-body">
                   <h4>{t('landing.step1Title')}</h4>
-                  <p>{t('landing.step1Desc', { brand: BRAND.name })}</p>
+                  <p>{t('landing.step1Desc')}</p>
                 </div>
               </div>
               <div className="cap-item">
@@ -191,13 +196,6 @@ export default function LandingPage() {
                   <p>{t('landing.step3Desc')}</p>
                 </div>
               </div>
-              <div className="cap-item">
-                <div className="cap-num">04</div>
-                <div className="cap-body">
-                  <h4>{t('landing.step4Title')}</h4>
-                  <p>{t('landing.step4Desc')}</p>
-                </div>
-              </div>
             </div>
 
             <div className="caps-terminal">
@@ -206,15 +204,15 @@ export default function LandingPage() {
                 <span className="terminal-title">beats-session.log</span>
               </div>
               <div className="terminal-body">
-                <div className="t-line"><span className="t-user">you</span> <span>Dark hip-hop track — late night grind, motivational</span></div>
-                <div className="t-line"><span className="t-zeus">zeus</span> <span>Writing lyrics... midnight themes, hustle hook ready</span></div>
-                <div className="t-line"><span className="t-sys">▶</span> <span>Sending to Suno...</span> <span className="t-ok">done</span></div>
+                <div className="t-line"><span className="t-user">you</span> <span>A sad R&amp;B song about moving on</span></div>
+                <div className="t-line"><span className="t-zeus">zeus</span> <span>Writing lyrics... soulful, heartbreak theme, hook ready</span></div>
+                <div className="t-line"><span className="t-sys">▶</span> <span>Producing track...</span> <span className="t-ok">done</span></div>
                 <div className="t-line"><span className="t-sys">▶</span> <span>Generating cover art...</span> <span className="t-ok">done</span></div>
-                <div className="t-line"><span className="t-zeus">zeus</span> <span>"Midnight Drive" is ready — 3:42, hip-hop</span></div>
+                <div className="t-line"><span className="t-sys">▶</span> <span>Animating cover art...</span> <span className="t-ok">done</span></div>
+                <div className="t-line"><span className="t-zeus">zeus</span> <span>"Let You Go" is ready — 3:28, R&amp;B 🎵</span></div>
                 <div className="t-line t-gap"><span className="t-user">you</span> <span>[clicked Upload to YouTube]</span></div>
-                <div className="t-line"><span className="t-zeus">zeus</span> <span>Uploading to your channel...</span></div>
-                <div className="t-line"><span className="t-sys">▶</span> <span>Publishing...</span> <span className="t-ok">live ✓</span></div>
-                <div className="t-line"><span className="t-zeus">zeus</span> <span>Live → youtu.be/xyz123 🎵</span></div>
+                <div className="t-line"><span className="t-sys">▶</span> <span>Publishing to your channel...</span> <span className="t-ok">live ✓</span></div>
+                <div className="t-line"><span className="t-zeus">zeus</span> <span>Live → youtu.be/abc456 · 0:58 total 🚀</span></div>
                 <div className="t-cursor">█</div>
               </div>
             </div>
