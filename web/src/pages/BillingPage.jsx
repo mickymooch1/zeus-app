@@ -371,7 +371,7 @@ export default function BillingPage() {
               <div className="billing-upgrade-card">
                 <span className="badge-pro">Music Pro</span>
                 <div className="billing-upgrade-price">£19/mo</div>
-                <p className="billing-upgrade-desc">40 songs/month, YouTube upload, 3 avatar videos</p>
+                <p className="billing-upgrade-desc">55 songs/month, YouTube upload, 3 avatar videos</p>
                 <button
                   className="btn btn-primary btn-full"
                   disabled={loadingCheckout === 'music_pro'}
@@ -384,7 +384,7 @@ export default function BillingPage() {
               <div className="billing-upgrade-card">
                 <span className="badge-agency">Music Agency</span>
                 <div className="billing-upgrade-price">£39/mo</div>
-                <p className="billing-upgrade-desc">80 songs/month, YouTube upload, 10 avatar videos</p>
+                <p className="billing-upgrade-desc">110 songs/month, YouTube upload, 10 avatar videos</p>
                 <button
                   className="btn btn-outline btn-full"
                   disabled={loadingCheckout === 'music_agency'}
@@ -455,7 +455,7 @@ export default function BillingPage() {
               </li>
             ))}
             {effectivePlan === 'music_pro' && isActive && [
-              '40 AI songs/month',
+              '55 AI songs/month',
               'YouTube upload',
               '3 avatar videos/month',
               'Song download & share',
@@ -466,7 +466,7 @@ export default function BillingPage() {
               </li>
             ))}
             {effectivePlan === 'music_agency' && isActive && [
-              '80 AI songs/month',
+              '110 AI songs/month',
               'YouTube upload',
               '10 avatar videos/month',
               'Song download & share',

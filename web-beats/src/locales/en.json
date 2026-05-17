@@ -256,8 +256,8 @@
       "getAgency": "Get Music Agency",
       "features": {
         "songs15": "25 AI songs/month",
-        "songs40": "40 AI songs/month",
-        "songs80": "80 AI songs/month",
+        "songs40": "55 AI songs/month",
+        "songs80": "110 AI songs/month",
         "songs5": "5 free songs on signup",
         "allGenres": "All genres",
         "youtube": "YouTube upload",
