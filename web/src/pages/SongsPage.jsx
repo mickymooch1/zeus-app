@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
 import { useAuth } from '../contexts/AuthContext';
@@ -168,7 +168,7 @@ const SONG_TEMPLATES = [
 ];
 
 // ── SongCard ─────────────────────────────────────────────────────────────────
-function SongCard({
+const SongCard = memo(function SongCard({
   variant, title, artistName, activeWsRef,
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
@@ -187,7 +187,7 @@ function SongCard({
     if (regenLoading || !onRegenerate) return;
     setRegenLoading(true);
     try {
-      await onRegenerate();
+      await onRegenerate(variant.variant_id, variant.genre_tag, title);
     } finally {
       setRegenLoading(false);
     }
@@ -238,7 +238,7 @@ function SongCard({
     if (tgPosting || !onTelegramClick) return;
     setTgPosting(true);
     try {
-      await onTelegramClick();
+      await onTelegramClick(variant, title);
       setTgPosted(true);
       setTimeout(() => setTgPosted(false), 3000);
     } finally {
@@ -293,14 +293,14 @@ function SongCard({
     );
   } else if (didSt === 'done' && videoUrl) {
     avatarBtn = (
-      <button onClick={onAvatarClick}
+      <button onClick={() => onAvatarClick(variant, title)}
         style={{ ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
         ◉ Redo
       </button>
     );
   } else {
     avatarBtn = (
-      <button onClick={onAvatarClick}
+      <button onClick={() => onAvatarClick(variant, title)}
         style={{ ...actionBtnStyle, color: didSt === 'error' ? '#f87171' : '#555' }}>
         {didSt === 'error' ? 'Retry' : '◉ Avatar'}
       </button>
@@ -331,13 +331,13 @@ function SongCard({
     );
   } else if (!ytConnected) {
     ytBtn = (
-      <button onClick={onYouTubeClick} style={{ ...actionBtnStyle, color: '#a78bfa' }}>
+      <button onClick={() => onYouTubeClick(variant, title)} style={{ ...actionBtnStyle, color: '#a78bfa' }}>
         + Connect YT
       </button>
     );
   } else {
     ytBtn = (
-      <button onClick={onYouTubeClick}
+      <button onClick={() => onYouTubeClick(variant, title)}
         style={{ ...actionBtnStyle, color: ytSt === 'error' ? '#f87171' : '#555' }}>
         {ytSt === 'error' ? 'Retry YT' : '▲ YouTube'}
       </button>
@@ -417,7 +417,7 @@ function SongCard({
             </div>
             {/* Row 3: Remake + Regenerate + Delete */}
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-              <button onClick={onRemake} style={{ ...actionBtnStyle, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.15)' }}>
+              <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.15)' }}>
                 🔄 Remake
               </button>
               <button
@@ -428,7 +428,7 @@ function SongCard({
                 {regenLoading ? '…' : '↺ Regen'}
               </button>
               <button
-                onClick={onDelete}
+                onClick={() => onDelete(variant.variant_id)}
                 disabled={deleting}
                 style={{
                   ...actionBtnStyle,
@@ -445,7 +445,7 @@ function SongCard({
       </div>
     </div>
   );
-}
+});
 
 // ── SongsPage ────────────────────────────────────────────────────────────────
 export default function SongsPage() {
@@ -810,7 +810,7 @@ export default function SongsPage() {
     }
   };
 
-  const handleTelegramPost = async (variant, songTitle) => {
+  const handleTelegramPost = useCallback(async (variant, songTitle) => {
     const genre = gLabel(variant.genre_tag || '');
     const message = `🎵 <b>${songTitle || 'New Song'}</b> — ${genre}\n\nCreated with Zeus Beats AI Music\n🌐 zeusbeats.com`;
     const r = await fetch(`${BACKEND_URL}/api/telegram/post`, {
@@ -819,16 +819,16 @@ export default function SongsPage() {
       body: JSON.stringify({ message, image_url: variant.image_url || null }),
     });
     if (!r.ok) throw new Error('Telegram post failed');
-  };
+  }, [token]);
 
-  const handleYouTubeClick = (variant) => {
+  const handleYouTubeClick = useCallback((variant, titleArg) => {
     if (!canYouTube) return;
     if (!youtubeConnected) {
       window.location.href = `${BACKEND_URL}/api/youtube/auth?token=${token}`;
       return;
     }
-    setYtModal(variant);
-  };
+    setYtModal({ ...variant, title: titleArg || variant.title });
+  }, [canYouTube, youtubeConnected, token]);
 
   const handleYouTubeUpload = async () => {
     if (!ytModal) return;
@@ -862,14 +862,14 @@ export default function SongsPage() {
     if (portraitPollRef.current) clearTimeout(portraitPollRef.current);
   };
 
-  const handleAvatarClick = async (variant) => {
+  const handleAvatarClick = useCallback(async (variant, titleArg) => {
     if (!canDid) return;
     setSelectedAvatarUrl(null);
     setPortraitGenerating(false);
     setPortraitJobId(null);
     setPortraitImageUrl(null);
     setPortraitTimedOut(false);
-    setAvatarModal(variant);
+    setAvatarModal({ ...variant, title: titleArg || variant.title });
     if (avatars.length === 0) {
       try {
         const r = await fetch(`${BACKEND_URL}/api/did/avatars`, {
@@ -881,7 +881,7 @@ export default function SongsPage() {
         }
       } catch (_) {}
     }
-  };
+  }, [canDid, token, avatars.length]);
 
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -938,7 +938,7 @@ export default function SongsPage() {
     setPortraitImageUrl(null);
   };
 
-  const handleDeleteVariant = async (variantId) => {
+  const handleDeleteVariant = useCallback(async (variantId) => {
     setDeletingVariants((prev) => new Set(prev).add(variantId));
     try {
       const r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}`, {
@@ -960,7 +960,11 @@ export default function SongsPage() {
     } finally {
       setDeletingVariants((prev) => { const s = new Set(prev); s.delete(variantId); return s; });
     }
-  };
+  }, [token]);
+
+  const handleOpenRemake = useCallback((variantId, title) => {
+    setRemakeModal({ variantId, title });
+  }, []);
 
   const handleRemake = async () => {
     if (!remakeGenre || remakeLoading) return;
@@ -993,7 +997,7 @@ export default function SongsPage() {
     }
   };
 
-  const handleRegenerate = async (variantId, genreTag, songTitle) => {
+  const handleRegenerate = useCallback(async (variantId, genreTag, songTitle) => {
     const res = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/regenerate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
@@ -1006,7 +1010,7 @@ export default function SongsPage() {
       title: songTitle,
       variants: [{ variant_id: data.variant_id, genre_tag: genreTag, status: 'generating', title: songTitle }],
     });
-  };
+  }, [token]);
 
   const handleAvatarSubmit = async () => {
     if (!avatarModal || !selectedAvatarUrl || avatarSubmitting) return;
@@ -1057,8 +1061,16 @@ export default function SongsPage() {
   const pct      = isAdmin ? 100 : (allowance > 0 ? Math.min(100, (balance / allowance) * 100) : 0);
   const barColor = isAdmin ? '#a78bfa' : (pct > 30 ? '#a78bfa' : pct > 10 ? '#fbbf24' : '#f87171');
 
-  const activeLyricId    = activeJob?.lyric_id;
-  const filteredLibrary  = library.filter((v) => v.lyric_id !== activeLyricId);
+  const activeLyricId   = activeJob?.lyric_id;
+  const filteredLibrary = useMemo(
+    () => library.filter((v) => v.lyric_id !== activeLyricId),
+    [library, activeLyricId]
+  );
+  const [visibleCount, setVisibleCount] = useState(10);
+  const visibleLibrary = useMemo(
+    () => filteredLibrary.slice(0, visibleCount),
+    [filteredLibrary, visibleCount]
+  );
 
   return (
     <>
@@ -1748,21 +1760,21 @@ export default function SongsPage() {
                       ytConnected={youtubeConnected}
                       ytStatus={ytStatus[v.variant_id]}
                       ytUrl={ytUrls[v.variant_id]}
-                      onYouTubeClick={() => handleYouTubeClick({ ...v, title: activeJob.title })}
+                      onYouTubeClick={handleYouTubeClick}
                       canDid={canDid}
                       didSt={didStatus[v.variant_id]}
                       videoUrl={videoUrls[v.variant_id]}
-                      onAvatarClick={() => handleAvatarClick({ ...v, title: activeJob.title })}
+                      onAvatarClick={handleAvatarClick}
                       videoCredits={credits.video_credits}
                       didPlanOk={didPlanOk}
                       isAdmin={isAdmin}
-                      onDelete={() => handleDeleteVariant(v.variant_id)}
+                      onDelete={handleDeleteVariant}
                       deleting={deletingVariants.has(v.variant_id)}
                       musicVideoUrl={musicVideoUrls[v.variant_id]}
-                      onRemake={() => setRemakeModal({ variantId: v.variant_id, title: activeJob.title })}
-                      onTelegramClick={() => handleTelegramPost(v, activeJob.title)}
+                      onRemake={handleOpenRemake}
+                      onTelegramClick={handleTelegramPost}
                       artistName={credits.artist_name}
-                      onRegenerate={() => handleRegenerate(v.variant_id, v.genre_tag, activeJob.title)}
+                      onRegenerate={handleRegenerate}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -1779,7 +1791,7 @@ export default function SongsPage() {
                 Your Songs
               </h2>
               <div style={S.grid}>
-                {filteredLibrary.map((v) => (
+                {visibleLibrary.map((v) => (
                   <SongCard
                     key={v.variant_id}
                     variant={v}
@@ -1789,24 +1801,42 @@ export default function SongsPage() {
                     ytConnected={youtubeConnected}
                     ytStatus={ytStatus[v.variant_id]}
                     ytUrl={ytUrls[v.variant_id]}
-                    onYouTubeClick={() => handleYouTubeClick(v)}
+                    onYouTubeClick={handleYouTubeClick}
                     canDid={canDid}
                     didSt={didStatus[v.variant_id]}
                     videoUrl={videoUrls[v.variant_id]}
-                    onAvatarClick={() => handleAvatarClick(v)}
+                    onAvatarClick={handleAvatarClick}
                     videoCredits={credits.video_credits}
                     didPlanOk={didPlanOk}
                     isAdmin={isAdmin}
-                    onDelete={() => handleDeleteVariant(v.variant_id)}
+                    onDelete={handleDeleteVariant}
                     deleting={deletingVariants.has(v.variant_id)}
                     musicVideoUrl={musicVideoUrls[v.variant_id]}
-                    onRemake={() => setRemakeModal({ variantId: v.variant_id, title: v.title })}
-                    onTelegramClick={() => handleTelegramPost(v, v.title)}
+                    onRemake={handleOpenRemake}
+                    onTelegramClick={handleTelegramPost}
                     artistName={credits.artist_name}
-                    onRegenerate={() => handleRegenerate(v.variant_id, v.genre_tag, v.title)}
+                    onRegenerate={handleRegenerate}
                   />
                 ))}
               </div>
+              {visibleCount < filteredLibrary.length && (
+                <button
+                  onClick={() => setVisibleCount((c) => c + 10)}
+                  style={{
+                    display: 'block',
+                    margin: '24px auto 0',
+                    padding: '10px 28px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'transparent',
+                    color: '#666',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Load more ({filteredLibrary.length - visibleCount} remaining)
+                </button>
+              )}
             </section>
           )}
 

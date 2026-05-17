@@ -107,6 +107,7 @@
     "redirecting": "Weiterleitung…",
     "generatingStatus": "Wird generiert — in ca. 60 Sekunden fertig",
     "yourSongs": "Deine Songs",
+    "loadMore": "Mehr laden ({{count}} verbleibend)",
     "emptySongs": "Noch keine Songs — erstelle deinen ersten oben.",
     "unlimited": "Unbegrenzt",
     "songsBalance": "{{balance}} / {{allowance}} Songs",

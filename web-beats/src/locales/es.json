@@ -107,6 +107,7 @@
     "redirecting": "Redirigiendo…",
     "generatingStatus": "Generando — lista en unos 60 segundos",
     "yourSongs": "Tus canciones",
+    "loadMore": "Cargar más ({{count}} restantes)",
     "emptySongs": "Aún no hay canciones — crea tu primera arriba.",
     "unlimited": "Ilimitado",
     "songsBalance": "{{balance}} / {{allowance}} canciones",
