@@ -288,6 +288,24 @@ async def lifespan(app: FastAPI):
     get_anthropic_client()  # validate key and warm up client at startup
     log.info("Anthropic client initialised")
 
+    # Register Telegram bot webhook (fire-and-forget — non-fatal if it fails)
+    def _register_telegram_webhook() -> None:
+        import requests as _req
+        _tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+        if not _tg_token:
+            return
+        _webhook_url = "https://zeusaidesign.com/api/telegram/webhook"
+        try:
+            r = _req.post(
+                f"https://api.telegram.org/bot{_tg_token}/setWebhook",
+                json={"url": _webhook_url, "allowed_updates": ["message"]},
+                timeout=10,
+            )
+            log.info("Telegram setWebhook → %d: %s", r.status_code, r.text)
+        except Exception as _exc:
+            log.warning("Telegram setWebhook failed (non-fatal): %s", _exc)
+    threading.Thread(target=_register_telegram_webhook, daemon=True).start()
+
     _serper_key = os.environ.get("SERPER_API_KEY", "").strip()
     log.info("SERPER_API_KEY present: %s — value prefix: %s", bool(_serper_key), (_serper_key[:6] + "…") if _serper_key else "MISSING")
     print(f"[startup] SERPER_API_KEY present={bool(_serper_key)} prefix={(_serper_key[:6] + '…') if _serper_key else 'MISSING'}", file=sys.stderr, flush=True)
@@ -2458,7 +2476,26 @@ async def image_webhook(request: Request):
 
 # ── Telegram ─────────────────────────────────────────────────────────────────
 
+_PORICK_SYSTEM_PROMPT = (
+    "You are Porick, the friendly AI assistant for Zeus Beats — an AI music creation platform at zeusbeats.com. "
+    "You help users with:\n"
+    "- Creating AI songs in 30+ genres\n"
+    "- Understanding Zeus Beats features\n"
+    "- Directing users to sign up at zeusbeats.com\n"
+    "- Answering questions about music generation, cover art, YouTube upload, and avatar videos\n"
+    "Keep responses short and friendly. Always encourage users to try Zeus Beats for free."
+)
+
+_PORICK_WELCOME = (
+    "👋 Hey! I'm <b>Porick</b>, the Zeus Beats assistant.\n\n"
+    "I can help you with AI music generation, cover art, and everything on "
+    "<a href='https://zeusbeats.com'>zeusbeats.com</a>.\n\n"
+    "Just ask me anything — or head to zeusbeats.com to start creating! 🎵"
+)
+
+
 async def post_to_telegram(message: str, image_url: str = None):
+    """Post to the configured Telegram channel (broadcast, not a reply)."""
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     channel = os.getenv("TELEGRAM_CHANNEL_ID")
     if not token or not channel:
@@ -2476,6 +2513,17 @@ async def post_to_telegram(message: str, image_url: str = None):
             log.warning("post_to_telegram: Telegram API returned %d: %s", resp.status_code, resp.text)
 
 
+async def _telegram_reply(token: str, chat_id: int, text: str) -> None:
+    """Send a message to a specific Telegram chat_id (user reply)."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+        )
+        if resp.status_code >= 300:
+            log.warning("_telegram_reply: Telegram API %d: %s", resp.status_code, resp.text)
+
+
 class TelegramPostRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4096)
     image_url: str | None = None
@@ -2489,6 +2537,60 @@ async def telegram_post(
     user: dict = Depends(auth.get_current_user),
 ):
     await post_to_telegram(message=body.message, image_url=body.image_url)
+    return {"ok": True}
+
+
+@app.post("/api/telegram/webhook")
+async def telegram_webhook(request: Request):
+    """Receive Telegram updates and reply as Porick via Claude Haiku."""
+    try:
+        body = await request.json()
+    except Exception:
+        return {"ok": True}
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        return {"ok": True}
+
+    message = body.get("message") or body.get("edited_message", {})
+    if not message:
+        return {"ok": True}
+
+    chat_id: int = message.get("chat", {}).get("id")
+    text: str = (message.get("text") or "").strip()
+    chat_type: str = message.get("chat", {}).get("type", "private")
+
+    if not chat_id or not text:
+        return {"ok": True}
+
+    # In groups, only respond when directly mentioned
+    if chat_type != "private":
+        if "@porickbot" not in text.lower():
+            return {"ok": True}
+        text = text.replace("@porickbot", "").replace("@Porickbot", "").strip()
+        if not text:
+            return {"ok": True}
+
+    # /start command — send welcome without calling Claude
+    if text.startswith("/start"):
+        await _telegram_reply(token, chat_id, _PORICK_WELCOME)
+        return {"ok": True}
+
+    # Ask Claude Haiku
+    try:
+        client = get_anthropic_client()
+        ai_resp = await client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=500,
+            system=_PORICK_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": text}],
+        )
+        reply = ai_resp.content[0].text
+    except Exception:
+        log.exception("telegram_webhook: Claude call failed")
+        reply = "Sorry, I'm having trouble right now. Visit zeusbeats.com to start creating music! 🎵"
+
+    await _telegram_reply(token, chat_id, reply)
     return {"ok": True}
 
 
