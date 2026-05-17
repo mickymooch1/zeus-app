@@ -116,8 +116,17 @@
     "topupSuccess": "Paiement réussi — vos crédits de chansons ont été ajoutés.",
     "ytConnectedSuccess": "YouTube connecté — vous pouvez maintenant télécharger des chansons directement sur votre chaîne.",
     "ytConnectedFail": "Échec de la connexion YouTube — veuillez réessayer.",
+    "tabs": {
+      "all": "Toutes",
+      "favourites": "★ Favoris",
+      "recent": "🕐 Récents",
+      "noFavourites": "Aucun favori — touchez ☆ pour sauvegarder."
+    },
+    "upgradeBanner": "Passez à la version supérieure pour plus de chansons et d'exports premium",
+    "viewPlans": "Voir les offres",
     "buttons": {
       "download": "↓ Télécharger",
+      "downloaded": "✓ Sauvegardé!",
       "share": "↗ Partager",
       "copied": "✓ Copié !",
       "youtube": "▲ YouTube",
@@ -135,7 +144,8 @@
       "deleting": "Suppression…",
       "retryYT": "Réessayer YT",
       "telegram": "✈ Telegram",
-      "telegramPosted": "✓ Publié !"
+      "telegramPosted": "✓ Publié !",
+      "telegramShort": "✈ TG"
     },
     "ytModal": {
       "title": "Publier sur YouTube",

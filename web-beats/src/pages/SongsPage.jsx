@@ -201,6 +201,7 @@ const SongCard = memo(function SongCard({
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
   onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick, onRegenerate,
+  isFavourite, onToggleFavourite,
 }) {
   const { t } = useTranslation();
   const waveRef = useRef(null);
@@ -211,6 +212,7 @@ const SongCard = memo(function SongCard({
   const [tgPosting, setTgPosting]       = useState(false);
   const [tgPosted, setTgPosted]         = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
 
   const handleRegen = async () => {
     if (regenLoading || !onRegenerate) return;
@@ -373,15 +375,48 @@ const SongCard = memo(function SongCard({
 
   return (
     <div className="song-card-anim" style={S.card}>
-      {musicVideoUrl ? (
-        <video src={musicVideoUrl} autoPlay muted loop playsInline style={S.artBox} />
-      ) : variant.image_url ? (
-        <img src={variant.image_url} alt={title} style={S.artBox} />
-      ) : (
-        <div style={{ ...S.artBox, ...S.artPlaceholder }}>
-          <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
-        </div>
-      )}
+      <div style={{ position: 'relative' }}>
+        {musicVideoUrl ? (
+          <video src={musicVideoUrl} autoPlay muted loop playsInline style={S.artBox} />
+        ) : variant.image_url ? (
+          <img src={variant.image_url} alt={title} style={S.artBox} />
+        ) : (
+          <div style={{ ...S.artBox, ...S.artPlaceholder }}>
+            <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
+          </div>
+        )}
+        {!isFailed && (
+          <button
+            onClick={handlePlay}
+            style={{
+              position: 'absolute', top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 52, height: 52, borderRadius: '50%',
+              border: '2px solid rgba(255,255,255,0.85)',
+              background: playing ? 'rgba(124,58,237,0.9)' : 'rgba(0,0,0,0.65)',
+              color: '#fff', fontSize: 20, cursor: wsReady ? 'pointer' : 'default',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(4px)', opacity: wsReady ? 1 : 0.45,
+              transition: 'all 0.2s', pointerEvents: wsReady ? 'auto' : 'none', flexShrink: 0,
+            }}
+          >
+            {playing ? '⏸' : '▶'}
+          </button>
+        )}
+        <button
+          onClick={() => onToggleFavourite(variant.variant_id)}
+          style={{
+            position: 'absolute', top: 8, right: 8,
+            width: 30, height: 30, borderRadius: '50%',
+            background: 'rgba(0,0,0,0.6)', border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16, backdropFilter: 'blur(4px)', transition: 'transform 0.15s',
+            color: isFavourite ? '#fbbf24' : 'rgba(255,255,255,0.5)',
+          }}
+        >
+          {isFavourite ? '★' : '☆'}
+        </button>
+      </div>
 
       {videoUrl && (
         <video
@@ -398,14 +433,9 @@ const SongCard = memo(function SongCard({
             <span style={{ color: '#f87171', fontSize: 12 }}>Generation failed</span>
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <button onClick={handlePlay} disabled={!wsReady} style={playBtnStyle(playing, wsReady)}>
-              {playing ? '⏸' : '▶'}
-            </button>
-            <div ref={waveRef} style={{ flex: 1, opacity: wsReady ? 1 : 0.2, transition: 'opacity 0.4s', minWidth: 0 }} />
-          </div>
+          <div ref={waveRef} style={{ flex: 1, height: 32, opacity: wsReady ? 1 : 0.15, transition: 'opacity 0.4s', minWidth: 0, marginBottom: 8 }} />
         )}
-        <div style={S.cardTitle}>{title || `Song #${variant.variant_id}`}</div>
+        <div style={{ ...S.cardTitle, fontSize: 15, fontWeight: 700 }}>{title || `Song #${variant.variant_id}`}</div>
         {artistName && <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{artistName}</div>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
           <span style={S.pill}>{gLabel(variant.genre_tag)}</span>
@@ -413,44 +443,58 @@ const SongCard = memo(function SongCard({
         </div>
         {!isFailed && variant.mp3_url && (
           <>
+            {/* Row 1: Download (primary) + Share */}
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-              <a href={variant.mp3_url} download={safeFilename} style={actionBtnStyle}>
-                {t('songs.buttons.download')}
+              <a
+                href={variant.mp3_url}
+                download={safeFilename}
+                onClick={() => { setDownloaded(true); setTimeout(() => setDownloaded(false), 2000); }}
+                style={{
+                  flex: 2, padding: '7px 0', borderRadius: 7, border: 'none',
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+                  color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  textAlign: 'center', textDecoration: 'none', display: 'block',
+                }}
+              >
+                {downloaded ? t('songs.buttons.downloaded') : t('songs.buttons.download')}
               </a>
-              <button onClick={handleShare} style={actionBtnStyle}>
+              <button onClick={handleShare} style={{ ...actionBtnStyle, flex: 1 }}>
                 {copied ? t('songs.buttons.copied') : t('songs.buttons.share')}
               </button>
+            </div>
+            {/* Row 2: Telegram + YouTube + Avatar */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
               <button
                 onClick={handleTelegram}
                 disabled={tgPosting}
-                style={{ ...actionBtnStyle, color: tgPosted ? '#4ade80' : '#0088cc', borderColor: tgPosted ? 'rgba(74,222,128,0.3)' : 'rgba(0,136,204,0.25)' }}
+                style={{ ...actionBtnStyle, flex: 1, color: tgPosted ? '#4ade80' : '#0088cc', borderColor: tgPosted ? 'rgba(74,222,128,0.3)' : 'rgba(0,136,204,0.25)' }}
               >
-                {tgPosting ? '…' : tgPosted ? t('songs.buttons.telegramPosted') : t('songs.buttons.telegram')}
+                {tgPosting ? '…' : tgPosted ? t('songs.buttons.telegramPosted') : t('songs.buttons.telegramShort')}
               </button>
-            </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
               {ytBtn}
               {avatarBtn}
             </div>
+            {/* Row 3: Remake + Regen */}
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-              <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.15)' }}>
+              <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, flex: 1, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.2)' }}>
                 {t('songs.buttons.remake')}
               </button>
               <button
                 onClick={handleRegen}
                 disabled={regenLoading}
-                style={{ ...actionBtnStyle, color: regenLoading ? '#444' : '#a78bfa', borderColor: 'rgba(167,139,250,0.2)', opacity: regenLoading ? 0.5 : 1 }}
+                style={{ ...actionBtnStyle, flex: 1, color: regenLoading ? '#444' : '#a78bfa', borderColor: 'rgba(167,139,250,0.25)', opacity: regenLoading ? 0.5 : 1 }}
               >
                 {regenLoading ? '…' : t('songs.buttons.regenerate')}
               </button>
+            </div>
+            {/* Row 4: Delete — tiny, grey */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
               <button
                 onClick={() => onDelete(variant.variant_id)}
                 disabled={deleting}
                 style={{
-                  ...actionBtnStyle,
-                  color: deleting ? '#444' : '#555',
-                  cursor: deleting ? 'default' : 'pointer',
-                  opacity: deleting ? 0.5 : 1,
+                  background: 'none', border: 'none', color: deleting ? '#333' : '#3a3a4a',
+                  fontSize: 11, cursor: deleting ? 'default' : 'pointer', padding: '2px 4px',
                 }}
               >
                 {deleting ? t('songs.buttons.deleting') : t('songs.buttons.delete')}
@@ -523,6 +567,9 @@ export default function SongsPage() {
 
   const [deletingVariants, setDeletingVariants]     = useState(new Set());
 
+  const [favourites, setFavourites] = useState(new Set());
+  const [activeTab, setActiveTab] = useState('all');
+
   // Custom lyrics
   const [useCustomLyrics, setUseCustomLyrics]   = useState(false);
   const [customLyricsText, setCustomLyricsText] = useState('');
@@ -576,6 +623,7 @@ export default function SongsPage() {
       );
       const flat = groups.flat().sort((a, b) => b.variant_id - a.variant_id);
       setLibrary(flat);
+      setFavourites(new Set(flat.filter(v => v.is_favourite).map(v => v.variant_id)));
 
       const newDidSt = {};
       const newVidUrls = {};
@@ -826,6 +874,26 @@ export default function SongsPage() {
     });
   }, [token]);
 
+  const handleToggleFavourite = useCallback(async (variantId) => {
+    setFavourites(prev => {
+      const next = new Set(prev);
+      if (next.has(variantId)) next.delete(variantId); else next.add(variantId);
+      return next;
+    });
+    try {
+      await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/favourite`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (_) {
+      setFavourites(prev => {
+        const next = new Set(prev);
+        if (next.has(variantId)) next.delete(variantId); else next.add(variantId);
+        return next;
+      });
+    }
+  }, [token]);
+
   const handleYouTubeClick = useCallback((variant, titleArg) => {
     if (!canYouTube) return;
     if (!youtubeConnected) {
@@ -1055,10 +1123,19 @@ export default function SongsPage() {
     [library, activeLyricId]
   );
   const [visibleCount, setVisibleCount] = useState(10);
+
+  const tabFilteredLibrary = useMemo(() => {
+    if (activeTab === 'favourites') return filteredLibrary.filter(v => favourites.has(v.variant_id));
+    if (activeTab === 'recent') return filteredLibrary.slice(0, 10);
+    return filteredLibrary;
+  }, [filteredLibrary, activeTab, favourites]);
+
   const visibleLibrary = useMemo(
-    () => filteredLibrary.slice(0, visibleCount),
-    [filteredLibrary, visibleCount]
+    () => tabFilteredLibrary.slice(0, visibleCount),
+    [tabFilteredLibrary, visibleCount]
   );
+
+  useEffect(() => { setVisibleCount(10); }, [activeTab]);
 
   return (
     <>
@@ -1101,6 +1178,15 @@ export default function SongsPage() {
             )}
           </div>
         </div>
+
+        {!isAdmin && !credits.plan && (
+          <div style={{ background: 'rgba(0,240,255,0.04)', borderBottom: '1px solid rgba(0,240,255,0.08)', padding: '8px 24px', textAlign: 'center' }}>
+            <span style={{ fontSize: 12, color: '#555' }}>
+              {t('songs.upgradeBanner')}{' '}
+              <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>→ {t('songs.viewPlans')}</Link>
+            </span>
+          </div>
+        )}
 
         {!isAdmin && balance <= 0 && (
           <div style={{ background: 'rgba(0,240,255,0.04)', borderBottom: '1px solid rgba(0,240,255,0.12)', padding: '12px 24px' }}>
@@ -1657,6 +1743,8 @@ export default function SongsPage() {
                       onTelegramClick={handleTelegramPost}
                       artistName={credits.artist_name}
                       onRegenerate={handleRegenerate}
+                      isFavourite={favourites.has(v.variant_id)}
+                      onToggleFavourite={handleToggleFavourite}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -1667,8 +1755,32 @@ export default function SongsPage() {
           )}
 
           {filteredLibrary.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+              {[['all', t('songs.tabs.all')], ['favourites', t('songs.tabs.favourites')], ['recent', t('songs.tabs.recent')]].map(([tab, label]) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                    border: `1px solid ${activeTab === tab ? 'rgba(0,240,255,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                    background: activeTab === tab ? 'rgba(0,240,255,0.1)' : 'transparent',
+                    color: activeTab === tab ? '#00f0ff' : '#555',
+                    fontWeight: activeTab === tab ? 600 : 400,
+                    transition: 'all 0.15s', whiteSpace: 'nowrap',
+                  }}
+                >{label}</button>
+              ))}
+            </div>
+          )}
+
+          {filteredLibrary.length > 0 && (
             <section>
               <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', marginBottom: 20 }}>{t('songs.yourSongs')}</h2>
+              {activeTab === 'favourites' && tabFilteredLibrary.length === 0 && (
+                <p style={{ color: '#444', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>
+                  {t('songs.tabs.noFavourites')}
+                </p>
+              )}
               <div style={S.grid}>
                 {visibleLibrary.map((v) => (
                   <SongCard
@@ -1695,10 +1807,12 @@ export default function SongsPage() {
                     onTelegramClick={handleTelegramPost}
                     artistName={credits.artist_name}
                     onRegenerate={handleRegenerate}
+                    isFavourite={favourites.has(v.variant_id)}
+                    onToggleFavourite={handleToggleFavourite}
                   />
                 ))}
               </div>
-              {visibleCount < filteredLibrary.length && (
+              {visibleCount < tabFilteredLibrary.length && (
                 <button
                   onClick={() => setVisibleCount((c) => c + 10)}
                   style={{
@@ -1713,7 +1827,7 @@ export default function SongsPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  {t('songs.loadMore', { count: filteredLibrary.length - visibleCount })}
+                  {t('songs.loadMore', { count: tabFilteredLibrary.length - visibleCount })}
                 </button>
               )}
             </section>

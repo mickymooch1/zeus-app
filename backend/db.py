@@ -236,6 +236,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE users ADD COLUMN cancel_at TEXT",
             "ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN artist_name TEXT",
+            "ALTER TABLE song_variants ADD COLUMN is_favourite INTEGER NOT NULL DEFAULT 0",
         ]:
             try:
                 conn.execute(_migration)

@@ -173,15 +173,17 @@ const SongCard = memo(function SongCard({
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
   onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick, onRegenerate,
+  isFavourite, onToggleFavourite,
 }) {
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
-  const [playing, setPlaying]     = useState(false);
-  const [wsReady, setWsReady]     = useState(false);
-  const [copied, setCopied]       = useState(false);
-  const [tgPosting, setTgPosting]     = useState(false);
-  const [tgPosted, setTgPosted]       = useState(false);
+  const [playing, setPlaying]       = useState(false);
+  const [wsReady, setWsReady]       = useState(false);
+  const [copied, setCopied]         = useState(false);
+  const [tgPosting, setTgPosting]   = useState(false);
+  const [tgPosted, setTgPosted]     = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
 
   const handleRegen = async () => {
     if (regenLoading || !onRegenerate) return;
@@ -346,22 +348,58 @@ const SongCard = memo(function SongCard({
 
   return (
     <div className="song-card-anim" style={S.card}>
-      {musicVideoUrl ? (
-        <video
-          src={musicVideoUrl}
-          autoPlay
-          muted
-          loop
-          playsInline
-          style={S.artBox}
-        />
-      ) : variant.image_url ? (
-        <img src={variant.image_url} alt={title} style={S.artBox} />
-      ) : (
-        <div style={{ ...S.artBox, ...S.artPlaceholder }}>
-          <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
-        </div>
-      )}
+      <div style={{ position: 'relative' }}>
+        {musicVideoUrl ? (
+          <video
+            src={musicVideoUrl}
+            autoPlay
+            muted
+            loop
+            playsInline
+            style={S.artBox}
+          />
+        ) : variant.image_url ? (
+          <img src={variant.image_url} alt={title} style={S.artBox} />
+        ) : (
+          <div style={{ ...S.artBox, ...S.artPlaceholder }}>
+            <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
+          </div>
+        )}
+        {!isFailed && (
+          <button
+            onClick={handlePlay}
+            style={{
+              position: 'absolute', top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 52, height: 52, borderRadius: '50%',
+              border: '2px solid rgba(255,255,255,0.85)',
+              background: playing ? 'rgba(124,58,237,0.9)' : 'rgba(0,0,0,0.65)',
+              color: '#fff', fontSize: 20, cursor: wsReady ? 'pointer' : 'default',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(4px)', opacity: wsReady ? 1 : 0.45,
+              transition: 'all 0.2s', pointerEvents: wsReady ? 'auto' : 'none',
+              flexShrink: 0,
+            }}
+          >
+            {playing ? '⏸' : '▶'}
+          </button>
+        )}
+        <button
+          onClick={() => onToggleFavourite(variant.variant_id)}
+          style={{
+            position: 'absolute', top: 8, right: 8,
+            width: 30, height: 30, borderRadius: '50%',
+            background: 'rgba(0,0,0,0.6)', border: 'none',
+            cursor: 'pointer', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', fontSize: 16,
+            backdropFilter: 'blur(4px)', transition: 'transform 0.15s',
+            color: isFavourite ? '#fbbf24' : 'rgba(255,255,255,0.5)',
+          }}
+          title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+        >
+          {isFavourite ? '★' : '☆'}
+        </button>
+      </div>
 
       {/* Inline video player — shown when avatar video is ready */}
       {videoUrl && (
@@ -374,19 +412,10 @@ const SongCard = memo(function SongCard({
       )}
 
       <div style={S.cardBody}>
-        {isFailed ? (
-          <div style={{ height: 40, display: 'flex', alignItems: 'center' }}>
-            <span style={{ color: '#f87171', fontSize: 12 }}>Generation failed</span>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <button onClick={handlePlay} disabled={!wsReady} style={playBtnStyle(playing, wsReady)}>
-              {playing ? '⏸' : '▶'}
-            </button>
-            <div ref={waveRef} style={{ flex: 1, opacity: wsReady ? 1 : 0.2, transition: 'opacity 0.4s', minWidth: 0 }} />
-          </div>
+        {!isFailed && (
+          <div ref={waveRef} style={{ flex: 1, height: 32, opacity: wsReady ? 1 : 0.15, transition: 'opacity 0.4s', minWidth: 0, marginBottom: 8 }} />
         )}
-        <div style={S.cardTitle}>{title || `Song #${variant.variant_id}`}</div>
+        <div style={{ ...S.cardTitle, fontSize: 15, fontWeight: 700 }}>{title || `Song #${variant.variant_id}`}</div>
         {artistName && <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{artistName}</div>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
           <span style={S.pill}>{gLabel(variant.genre_tag)}</span>
@@ -394,47 +423,60 @@ const SongCard = memo(function SongCard({
         </div>
         {!isFailed && variant.mp3_url && (
           <>
-            {/* Row 1: Download + Share + Telegram */}
+            {/* Row 1: Download (primary) + Share */}
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-              <a href={variant.mp3_url} download={safeFilename} style={actionBtnStyle}>
-                ↓ Download
+              <a
+                href={variant.mp3_url}
+                download={safeFilename}
+                onClick={() => { setDownloaded(true); setTimeout(() => setDownloaded(false), 2000); }}
+                style={{
+                  flex: 2, padding: '7px 0', borderRadius: 7, border: 'none',
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+                  color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  textAlign: 'center', textDecoration: 'none', display: 'block',
+                  transition: 'opacity 0.15s',
+                }}
+              >
+                {downloaded ? '✓ Saved!' : '↓ Download'}
               </a>
-              <button onClick={handleShare} style={actionBtnStyle}>
+              <button onClick={handleShare} style={{ ...actionBtnStyle, flex: 1 }}>
                 {copied ? '✓ Copied!' : '↗ Share'}
               </button>
+            </div>
+            {/* Row 2: Telegram + YouTube + Avatar (3 equal cols) */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
               <button
                 onClick={handleTelegram}
                 disabled={tgPosting}
-                style={{ ...actionBtnStyle, color: tgPosted ? '#4ade80' : '#0088cc', borderColor: tgPosted ? 'rgba(74,222,128,0.3)' : 'rgba(0,136,204,0.25)' }}
+                style={{ ...actionBtnStyle, flex: 1, color: tgPosted ? '#4ade80' : '#0088cc', borderColor: tgPosted ? 'rgba(74,222,128,0.3)' : 'rgba(0,136,204,0.25)' }}
               >
-                {tgPosting ? '…' : tgPosted ? '✓ Posted!' : '✈ Telegram'}
+                {tgPosting ? '…' : tgPosted ? '✓ Sent!' : '✈ TG'}
               </button>
-            </div>
-            {/* Row 2: YouTube + Avatar Video */}
-            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
               {ytBtn}
               {avatarBtn}
             </div>
-            {/* Row 3: Remake + Regenerate + Delete */}
+            {/* Row 3: Remake + Regen */}
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-              <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.15)' }}>
+              <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, flex: 1, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.2)' }}>
                 🔄 Remake
               </button>
               <button
                 onClick={handleRegen}
                 disabled={regenLoading}
-                style={{ ...actionBtnStyle, color: regenLoading ? '#444' : '#a78bfa', borderColor: 'rgba(167,139,250,0.2)', opacity: regenLoading ? 0.5 : 1 }}
+                style={{ ...actionBtnStyle, flex: 1, color: regenLoading ? '#444' : '#a78bfa', borderColor: 'rgba(167,139,250,0.25)', opacity: regenLoading ? 0.5 : 1 }}
               >
                 {regenLoading ? '…' : '↺ Regen'}
               </button>
+            </div>
+            {/* Row 4: Delete — small, grey, right-aligned */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
               <button
                 onClick={() => onDelete(variant.variant_id)}
                 disabled={deleting}
                 style={{
-                  ...actionBtnStyle,
-                  color: deleting ? '#444' : '#555',
-                  cursor: deleting ? 'default' : 'pointer',
-                  opacity: deleting ? 0.5 : 1,
+                  background: 'none', border: 'none', color: deleting ? '#333' : '#3a3a4a',
+                  fontSize: 11, cursor: deleting ? 'default' : 'pointer', padding: '2px 4px',
+                  transition: 'color 0.15s',
                 }}
               >
                 {deleting ? 'Deleting…' : '✕ Delete'}
@@ -515,6 +557,9 @@ export default function SongsPage() {
   // Delete state
   const [deletingVariants, setDeletingVariants]     = useState(new Set());
 
+  const [favourites, setFavourites] = useState(new Set());
+  const [activeTab, setActiveTab]   = useState('all'); // 'all' | 'favourites' | 'recent'
+
   const [listening, setListening] = useState(false);
 
   const activeWsRef     = useRef(null);
@@ -565,6 +610,7 @@ export default function SongsPage() {
       );
       const flat = groups.flat().sort((a, b) => b.variant_id - a.variant_id);
       setLibrary(flat);
+      setFavourites(new Set(flat.filter(v => v.is_favourite).map(v => v.variant_id)));
 
       // Sync D-ID state from DB — DB wins over stale UI state
       const newDidSt = {};
@@ -1012,6 +1058,26 @@ export default function SongsPage() {
     });
   }, [token]);
 
+  const handleToggleFavourite = useCallback(async (variantId) => {
+    setFavourites(prev => {
+      const next = new Set(prev);
+      if (next.has(variantId)) next.delete(variantId); else next.add(variantId);
+      return next;
+    });
+    try {
+      await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/favourite`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (_) {
+      setFavourites(prev => {
+        const next = new Set(prev);
+        if (next.has(variantId)) next.delete(variantId); else next.add(variantId);
+        return next;
+      });
+    }
+  }, [token]);
+
   const handleAvatarSubmit = async () => {
     if (!avatarModal || !selectedAvatarUrl || avatarSubmitting) return;
     const vId = avatarModal.variant_id;
@@ -1067,10 +1133,19 @@ export default function SongsPage() {
     [library, activeLyricId]
   );
   const [visibleCount, setVisibleCount] = useState(10);
+
+  const tabFilteredLibrary = useMemo(() => {
+    if (activeTab === 'favourites') return filteredLibrary.filter(v => favourites.has(v.variant_id));
+    if (activeTab === 'recent') return filteredLibrary.slice(0, 10);
+    return filteredLibrary;
+  }, [filteredLibrary, activeTab, favourites]);
+
   const visibleLibrary = useMemo(
-    () => filteredLibrary.slice(0, visibleCount),
-    [filteredLibrary, visibleCount]
+    () => tabFilteredLibrary.slice(0, visibleCount),
+    [tabFilteredLibrary, visibleCount]
   );
+
+  useEffect(() => { setVisibleCount(10); }, [activeTab]);
 
   return (
     <>
@@ -1114,6 +1189,16 @@ export default function SongsPage() {
             )}
           </div>
         </div>
+
+        {/* ── Upgrade prompt ─────────────────────────────────────────────── */}
+        {!isAdmin && !credits.plan && (
+          <div style={{ background: 'rgba(167,139,250,0.06)', borderBottom: '1px solid rgba(167,139,250,0.1)', padding: '8px 24px', textAlign: 'center' }}>
+            <span style={{ fontSize: 12, color: '#555' }}>
+              Upgrade for more songs, avatar videos and premium exports{' '}
+              <Link to="/billing" style={{ color: '#a78bfa', fontWeight: 600 }}>→ View plans</Link>
+            </span>
+          </div>
+        )}
 
         {/* ── Main content ───────────────────────────────────────────────── */}
         <div className="songs-content-wrap" style={{ maxWidth: 880, margin: '0 auto', padding: '32px 24px 80px' }}>
@@ -1775,6 +1860,8 @@ export default function SongsPage() {
                       onTelegramClick={handleTelegramPost}
                       artistName={credits.artist_name}
                       onRegenerate={handleRegenerate}
+                      isFavourite={favourites.has(v.variant_id)}
+                      onToggleFavourite={handleToggleFavourite}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -1786,10 +1873,33 @@ export default function SongsPage() {
 
           {/* ── Library ────────────────────────────────────────────────── */}
           {filteredLibrary.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+              {[['all', 'All Songs'], ['favourites', '★ Favourites'], ['recent', '🕐 Recent']].map(([tab, label]) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                    border: `1px solid ${activeTab === tab ? 'rgba(167,139,250,0.6)' : 'rgba(255,255,255,0.1)'}`,
+                    background: activeTab === tab ? 'rgba(167,139,250,0.15)' : 'transparent',
+                    color: activeTab === tab ? '#c4b5fd' : '#555',
+                    fontWeight: activeTab === tab ? 600 : 400,
+                    transition: 'all 0.15s', whiteSpace: 'nowrap',
+                  }}
+                >{label}</button>
+              ))}
+            </div>
+          )}
+          {filteredLibrary.length > 0 && (
             <section>
               <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', marginBottom: 20 }}>
                 Your Songs
               </h2>
+              {activeTab === 'favourites' && tabFilteredLibrary.length === 0 && (
+                <p style={{ color: '#444', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>
+                  No favourites yet — tap ☆ on any song to save it.
+                </p>
+              )}
               <div style={S.grid}>
                 {visibleLibrary.map((v) => (
                   <SongCard
@@ -1816,10 +1926,12 @@ export default function SongsPage() {
                     onTelegramClick={handleTelegramPost}
                     artistName={credits.artist_name}
                     onRegenerate={handleRegenerate}
+                    isFavourite={favourites.has(v.variant_id)}
+                    onToggleFavourite={handleToggleFavourite}
                   />
                 ))}
               </div>
-              {visibleCount < filteredLibrary.length && (
+              {visibleCount < tabFilteredLibrary.length && (
                 <button
                   onClick={() => setVisibleCount((c) => c + 10)}
                   style={{
@@ -1834,7 +1946,7 @@ export default function SongsPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  Load more ({filteredLibrary.length - visibleCount} remaining)
+                  Load more ({tabFilteredLibrary.length - visibleCount} remaining)
                 </button>
               )}
             </section>

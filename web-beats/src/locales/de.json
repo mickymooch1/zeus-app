@@ -116,8 +116,17 @@
     "topupSuccess": "Zahlung erfolgreich — deine Song-Credits wurden hinzugefügt.",
     "ytConnectedSuccess": "YouTube verbunden — du kannst jetzt Songs direkt auf deinen Kanal hochladen.",
     "ytConnectedFail": "YouTube-Verbindung fehlgeschlagen — bitte erneut versuchen.",
+    "tabs": {
+      "all": "Alle Songs",
+      "favourites": "★ Favoriten",
+      "recent": "🕐 Zuletzt",
+      "noFavourites": "Noch keine Favoriten — tippe ☆ um zu speichern."
+    },
+    "upgradeBanner": "Upgrade für mehr Songs, Avatar-Videos und Premium-Exporte",
+    "viewPlans": "Pläne ansehen",
     "buttons": {
       "download": "↓ Herunterladen",
+      "downloaded": "✓ Gespeichert!",
       "share": "↗ Teilen",
       "copied": "✓ Kopiert!",
       "youtube": "▲ YouTube",
@@ -135,7 +144,8 @@
       "deleting": "Löschen…",
       "retryYT": "YT erneut versuchen",
       "telegram": "✈ Telegram",
-      "telegramPosted": "✓ Gepostet!"
+      "telegramPosted": "✓ Gepostet!",
+      "telegramShort": "✈ TG"
     },
     "ytModal": {
       "title": "Auf YouTube hochladen",

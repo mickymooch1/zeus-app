@@ -116,8 +116,17 @@
     "topupSuccess": "Payment successful — your song credits have been added.",
     "ytConnectedSuccess": "YouTube connected — you can now upload songs directly to your channel.",
     "ytConnectedFail": "YouTube connection failed — please try again.",
+    "tabs": {
+      "all": "All Songs",
+      "favourites": "★ Favourites",
+      "recent": "🕐 Recent",
+      "noFavourites": "No favourites yet — tap ☆ on any song to save it."
+    },
+    "upgradeBanner": "Upgrade for more songs, avatar videos and premium exports",
+    "viewPlans": "View plans",
     "buttons": {
       "download": "↓ Download",
+      "downloaded": "✓ Saved!",
       "share": "↗ Share",
       "copied": "✓ Copied!",
       "youtube": "▲ YouTube",
@@ -135,7 +144,8 @@
       "deleting": "Deleting…",
       "retryYT": "Retry YT",
       "telegram": "✈ Telegram",
-      "telegramPosted": "✓ Posted!"
+      "telegramPosted": "✓ Posted!",
+      "telegramShort": "✈ TG"
     },
     "ytModal": {
       "title": "Upload to YouTube",

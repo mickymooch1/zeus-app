@@ -116,8 +116,17 @@
     "topupSuccess": "Pago exitoso — tus créditos de canciones han sido añadidos.",
     "ytConnectedSuccess": "YouTube conectado — ahora puedes subir canciones directamente a tu canal.",
     "ytConnectedFail": "Error al conectar YouTube — inténtalo de nuevo.",
+    "tabs": {
+      "all": "Todas",
+      "favourites": "★ Favoritos",
+      "recent": "🕐 Recientes",
+      "noFavourites": "Sin favoritos — toca ☆ para guardar."
+    },
+    "upgradeBanner": "Mejora tu plan para más canciones, videos y exportaciones premium",
+    "viewPlans": "Ver planes",
     "buttons": {
       "download": "↓ Descargar",
+      "downloaded": "✓ Guardado!",
       "share": "↗ Compartir",
       "copied": "✓ ¡Copiado!",
       "youtube": "▲ YouTube",
@@ -135,7 +144,8 @@
       "deleting": "Eliminando…",
       "retryYT": "Reintentar YT",
       "telegram": "✈ Telegram",
-      "telegramPosted": "✓ Publicado!"
+      "telegramPosted": "✓ Publicado!",
+      "telegramShort": "✈ TG"
     },
     "ytModal": {
       "title": "Subir a YouTube",

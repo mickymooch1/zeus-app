@@ -116,8 +116,17 @@
     "topupSuccess": "Pagamento realizado — seus créditos de músicas foram adicionados.",
     "ytConnectedSuccess": "YouTube conectado — agora você pode enviar músicas diretamente para o seu canal.",
     "ytConnectedFail": "Falha ao conectar YouTube — tente novamente.",
+    "tabs": {
+      "all": "Todas",
+      "favourites": "★ Favoritos",
+      "recent": "🕐 Recentes",
+      "noFavourites": "Nenhum favorito — toque ☆ para salvar."
+    },
+    "upgradeBanner": "Faça upgrade para mais músicas, vídeos e exportações premium",
+    "viewPlans": "Ver planos",
     "buttons": {
       "download": "↓ Baixar",
+      "downloaded": "✓ Salvo!",
       "share": "↗ Compartilhar",
       "copied": "✓ Copiado!",
       "youtube": "▲ YouTube",
@@ -135,7 +144,8 @@
       "deleting": "Excluindo…",
       "retryYT": "Tentar YT novamente",
       "telegram": "✈ Telegram",
-      "telegramPosted": "✓ Publicado!"
+      "telegramPosted": "✓ Publicado!",
+      "telegramShort": "✈ TG"
     },
     "ytModal": {
       "title": "Enviar para o YouTube",

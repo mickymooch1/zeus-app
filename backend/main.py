@@ -1483,6 +1483,7 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
                 "did_job_id": v.get("did_job_id"),
                 "video_url": v.get("video_url"),
                 "youtube_url": v.get("youtube_url"),
+                "is_favourite": bool(v.get("is_favourite", 0)),
             }
             for v in (variants or [])
         ],
@@ -2195,6 +2196,18 @@ async def delete_song_variant(
 
     log.info("delete_song_variant: deleted variant %s for user %s", variant_id, current_user["id"])
     return {"deleted": True}
+
+
+@app.patch("/api/songs/variants/{variant_id}/favourite")
+async def toggle_variant_favourite(variant_id: int, current_user=Depends(auth.get_current_user)):
+    user_id = current_user["id"]
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != user_id:
+        raise HTTPException(status_code=404, detail="Variant not found")
+    new_val = 0 if variant.get("is_favourite") else 1
+    db.update_song_variant(db_path, variant_id, is_favourite=new_val)
+    return {"variant_id": variant_id, "is_favourite": bool(new_val)}
 
 
 class RemakeRequest(BaseModel):

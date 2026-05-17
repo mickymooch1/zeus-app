@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
+import MixerSongDropdown from '../components/MixerSongDropdown';
 
 const CYAN = '#00f0ff';
 const PINK = '#ff0099';
@@ -377,22 +378,15 @@ export default function MixerPage() {
           Deck {id}
         </div>
 
-        <select
-          value={deck.songId}
-          onChange={e => handleSongSelect(id, e.target.value)}
-          style={{
-            width: '100%', background: '#111', border: `1px solid ${accent}44`,
-            borderRadius: 6, color: '#fff', padding: '8px 10px',
-            fontSize: '0.83rem', marginBottom: 12, outline: 'none', cursor: 'pointer',
-          }}
-        >
-          <option value="">— Select a song —</option>
-          {songs.map(s => (
-            <option key={s.id} value={s.id}>
-              {s.genre ? `${s.title} · ${s.genre}` : s.title}
-            </option>
-          ))}
-        </select>
+        <div style={{ marginBottom: 12 }}>
+          <MixerSongDropdown
+            songs={songs}
+            selected={deck.songId}
+            onSelect={(songId) => handleSongSelect(id, songId)}
+            accentColor={accent}
+            placeholder="Select a song…"
+          />
+        </div>
 
         <button
           onClick={() => handleToggle(id)}
