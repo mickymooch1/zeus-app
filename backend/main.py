@@ -1846,6 +1846,7 @@ async def youtube_debug():
 @app.get("/api/youtube/auth")
 async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
     """Redirect the browser to Google's OAuth consent screen."""
+    from fastapi.responses import RedirectResponse as _RR
     _gid = os.environ.get("GOOGLE_CLIENT_ID", "NOT_SET").strip()
     log.info("youtube_auth: GOOGLE_CLIENT_ID first10=%r", _gid[:10])
     if not youtube_uploader.youtube_enabled():
@@ -1857,58 +1858,56 @@ async def youtube_auth(current_user: dict = Depends(auth.get_current_user)):
         raise HTTPException(status_code=403, detail="YouTube upload requires Agency plan or above")
 
     redirect_uri = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
-    log.info("youtube_auth: redirect_uri first30=%r", redirect_uri[:30])
+    log.info("youtube_auth: redirect_uri=%r", redirect_uri)
     state = _make_yt_state(current_user["id"])
 
     try:
-        auth_url = youtube_uploader.build_auth_url(state=state)
+        auth_url = youtube_uploader.build_auth_url(state=state, redirect_uri=redirect_uri)
     except Exception as exc:
         log.exception("youtube_auth: failed to build auth URL")
         raise HTTPException(status_code=500, detail=str(exc))
 
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(auth_url)
+    return _RR(auth_url)
 
 
 @app.get("/api/youtube/callback")
 async def youtube_callback(code: str = Query(None), state: str = Query(None), error: str = Query(None)):
-    """Google OAuth callback — exchange code, store refresh token, redirect to /songs."""
+    """Google OAuth callback — exchange code, store refresh token, redirect to frontend /songs."""
+    from fastapi.responses import RedirectResponse as _RR
+    _frontend = os.environ.get("FRONTEND_URL", "https://zeusbeats.com").rstrip("/")
+    _success  = f"{_frontend}/songs?youtube=connected"
+    _fail     = f"{_frontend}/songs?youtube=error"
+
     if error:
         log.warning("youtube_callback: Google returned error=%s", error)
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse("/songs?youtube=error")
+        return _RR(_fail)
 
     if not code or not state:
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse("/songs?youtube=error")
+        log.warning("youtube_callback: missing code or state")
+        return _RR(_fail)
 
     user_id = _decode_yt_state(state)
     if not user_id:
         log.warning("youtube_callback: invalid or expired state token")
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse("/songs?youtube=error")
+        return _RR(_fail)
 
     db_path = db.get_db_path()
     user = db.get_user_by_id(db_path, user_id)
     if not user:
         log.warning("youtube_callback: user %s not found", user_id)
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse("/songs?youtube=error")
+        return _RR(_fail)
 
     redirect_uri = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
 
     try:
         refresh_token = youtube_uploader.exchange_code(code=code, redirect_uri=redirect_uri, state=state)
     except Exception as exc:
-        log.exception("youtube_callback: token exchange failed")
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse("/songs?youtube=error")
+        log.exception("youtube_callback: token exchange failed: %s", exc)
+        return _RR(_fail)
 
     db.update_user(db_path, user_id, youtube_refresh_token=refresh_token)
     log.info("youtube_callback: stored refresh token for user %s", user_id)
-
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse("/songs?youtube=connected")
+    return _RR(_success)
 
 
 class YouTubeUploadRequest(BaseModel):

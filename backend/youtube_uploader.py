@@ -30,8 +30,9 @@ def youtube_enabled() -> bool:
     return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 
 
-def build_auth_url(state: str) -> str:
+def build_auth_url(state: str, redirect_uri: str | None = None) -> str:
     """Build the Google OAuth consent-screen URL with PKCE, storing the verifier for the callback."""
+    _redirect_uri = redirect_uri or YOUTUBE_REDIRECT_URI
     verifier = secrets.token_urlsafe(96)
     challenge = base64.urlsafe_b64encode(
         hashlib.sha256(verifier.encode()).digest()
@@ -39,7 +40,7 @@ def build_auth_url(state: str) -> str:
     _pkce_store[state] = verifier
     params = {
         "client_id": GOOGLE_CLIENT_ID,
-        "redirect_uri": YOUTUBE_REDIRECT_URI,
+        "redirect_uri": _redirect_uri,
         "response_type": "code",
         "scope": YOUTUBE_SCOPE,
         "access_type": "offline",
