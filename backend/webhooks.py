@@ -65,8 +65,8 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"
 
 
-def _add_text_overlay(image_path: str, title: str) -> None:
-    """Burn a bold title into the bottom quarter of the cover image."""
+def _add_text_overlay(image_path: str, title: str, artist_name: str = "") -> None:
+    """Burn title (and optional artist name) into the bottom quarter of the cover image."""
     img = Image.open(image_path).convert("RGBA")
     draw = ImageDraw.Draw(img)
     w, h = img.size
@@ -79,8 +79,10 @@ def _add_text_overlay(image_path: str, title: str) -> None:
 
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size=int(h * 0.07))
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size=int(h * 0.055))
     except Exception:
         font = ImageFont.load_default()
+        font_small = font
 
     lines = textwrap.wrap(title.upper(), width=20)
     y = int(h * 0.78)
@@ -90,10 +92,16 @@ def _add_text_overlay(image_path: str, title: str) -> None:
         draw.text(((w - text_w) / 2, y), line, font=font, fill=(255, 255, 255, 255))
         y += int(h * 0.09)
 
+    if artist_name:
+        artist_line = artist_name[:40]
+        bbox = draw.textbbox((0, 0), artist_line, font=font_small)
+        text_w = bbox[2] - bbox[0]
+        draw.text(((w - text_w) / 2, y), artist_line, font=font_small, fill=(200, 200, 200, 220))
+
     img.convert("RGB").save(image_path, "JPEG", quality=95)
 
 
-def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = "") -> str | None:
+def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = "", artist_name: str = "") -> str | None:
     """Generate a Flux cover image and save to song storage. Returns public URL or None."""
     try:
         import image_generator as _img
@@ -103,7 +111,7 @@ def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = ""
         src = pathlib.Path("/data/images") / f"{job_id}.jpg"
         dst = pathlib.Path(STORAGE_PATH) / f"{variant_id}_cover.jpg"
         shutil.copy2(src, dst)
-        _add_text_overlay(str(dst), title or genre_tag or "")
+        _add_text_overlay(str(dst), title or genre_tag or "", artist_name)
         cover_url = f"{PUBLIC_BASE_URL}/{variant_id}_cover.jpg"
         logger.info("Flux cover generated: variant_id=%d genre=%s → %s", variant_id, genre_tag, cover_url)
         return cover_url
@@ -386,14 +394,17 @@ async def apiframe_webhook(request: Request):
 
     genre_tag = orig[3] if orig else None
     song_title = ""
+    artist_name = ""
     if orig:
         conn = sqlite3.connect(DB_PATH)
         try:
             row = conn.execute("SELECT title FROM lyrics WHERE id = ?", (orig[0],)).fetchone()
             song_title = row[0] if row and row[0] else ""
+            user_row = conn.execute("SELECT artist_name FROM users WHERE id = ?", (orig[1],)).fetchone()
+            artist_name = (user_row[0] or "") if user_row else ""
         finally:
             conn.close()
-    flux_cover1 = _generate_flux_cover(variant_id, genre_tag, song_title)
+    flux_cover1 = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name)
     if flux_cover1:
         permanent_image_url1 = flux_cover1
 
@@ -476,7 +487,7 @@ async def apiframe_webhook(request: Request):
                 except Exception as exc:
                     logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
 
-            flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title)
+            flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name)
             if flux_cover2:
                 permanent_image_url2 = flux_cover2
 

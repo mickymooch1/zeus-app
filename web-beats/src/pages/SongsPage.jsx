@@ -187,11 +187,20 @@ const actionBtnStyle = {
   transition: 'color 0.15s, border-color 0.15s',
 };
 
+const SONG_TEMPLATES = [
+  { emoji: '🔥', label: 'Club Banger', value: 'An energetic club banger with a massive drop, euphoric build up and a crowd going crazy' },
+  { emoji: '😢', label: 'Emotional R&B', value: 'A heartfelt emotional R&B song about losing someone you love and trying to move on' },
+  { emoji: '🎤', label: 'Grime Bars', value: 'Hard hitting grime bars about coming from nothing and making it against all odds, fast aggressive flow' },
+  { emoji: '📱', label: 'TikTok Viral', value: 'A catchy viral TikTok song with an irresistible hook that gets stuck in your head instantly' },
+  { emoji: '💔', label: 'Sad Love Song', value: 'A sad love song about heartbreak and missing someone who left, slow and emotional' },
+  { emoji: '🌴', label: 'Afrobeats Vibe', value: 'A feel good afrobeats song about summer, good vibes and celebrating life' },
+];
+
 function SongCard({
-  variant, title, activeWsRef,
+  variant, title, artistName, activeWsRef,
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
-  onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick,
+  onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick, onRegenerate,
 }) {
   const { t } = useTranslation();
   const waveRef = useRef(null);
@@ -199,8 +208,19 @@ function SongCard({
   const [playing, setPlaying]     = useState(false);
   const [wsReady, setWsReady]     = useState(false);
   const [copied, setCopied]       = useState(false);
-  const [tgPosting, setTgPosting] = useState(false);
-  const [tgPosted, setTgPosted]   = useState(false);
+  const [tgPosting, setTgPosting]       = useState(false);
+  const [tgPosted, setTgPosted]         = useState(false);
+  const [regenLoading, setRegenLoading] = useState(false);
+
+  const handleRegen = async () => {
+    if (regenLoading || !onRegenerate) return;
+    setRegenLoading(true);
+    try {
+      await onRegenerate();
+    } finally {
+      setRegenLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!variant.mp3_url || !waveRef.current) return;
@@ -386,6 +406,7 @@ function SongCard({
           </div>
         )}
         <div style={S.cardTitle}>{title || `Song #${variant.variant_id}`}</div>
+        {artistName && <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{artistName}</div>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
           <span style={S.pill}>{gLabel(variant.genre_tag)}</span>
           {durStr && <span style={{ color: '#555', fontSize: 12 }}>{durStr}</span>}
@@ -416,6 +437,13 @@ function SongCard({
                 {t('songs.buttons.remake')}
               </button>
               <button
+                onClick={handleRegen}
+                disabled={regenLoading}
+                style={{ ...actionBtnStyle, color: regenLoading ? '#444' : '#a78bfa', borderColor: 'rgba(167,139,250,0.2)', opacity: regenLoading ? 0.5 : 1 }}
+              >
+                {regenLoading ? '…' : t('songs.buttons.regenerate')}
+              </button>
+              <button
                 onClick={onDelete}
                 disabled={deleting}
                 style={{
@@ -441,7 +469,7 @@ export default function SongsPage() {
   const location = useLocation();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
-  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0 });
+  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '' });
   const [brief, setBrief]               = useState('');
   const [selGenres, setSelGenres]       = useState(() => { const s = _matchGenreSlug(location.state?.prefillGenre); return s ? new Set([s]) : new Set(); });
   const [generating, setGenerating]     = useState(false);
@@ -781,6 +809,21 @@ export default function SongsPage() {
       body: JSON.stringify({ message, image_url: variant.image_url || null }),
     });
     if (!r.ok) throw new Error('Telegram post failed');
+  };
+
+  const handleRegenerate = async (variantId, genreTag, songTitle) => {
+    const res = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/regenerate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Regenerate failed');
+    setCredits((p) => ({ ...p, balance: Math.max(0, p.balance - 1) }));
+    setActiveJob({
+      lyric_id: data.lyric_id,
+      title: songTitle,
+      variants: [{ variant_id: data.variant_id, genre_tag: genreTag, status: 'generating', title: songTitle }],
+    });
   };
 
   const handleYouTubeClick = (variant) => {
@@ -1169,6 +1212,25 @@ export default function SongsPage() {
             </div>
 
             {!useCustomLyrics && (
+              <>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                  {SONG_TEMPLATES.map(({ emoji, label, value }) => (
+                    <button
+                      key={label}
+                      onClick={() => setBrief(value)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        border: '1px solid rgba(0,240,255,0.25)',
+                        background: 'rgba(0,240,255,0.04)',
+                        color: '#00f0ff',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                    >{emoji} {label}</button>
+                  ))}
+                </div>
               <div style={{ position: 'relative', marginBottom: 12 }}>
                 <textarea
                   className="songs-textarea"
@@ -1222,6 +1284,7 @@ export default function SongsPage() {
                   <p style={{ fontSize: 12, color: '#ef4444', marginTop: 5, marginBottom: 0 }}>{t('songs.listeningLabel')}</p>
                 )}
               </div>
+              </>
             )}
 
             {useCustomLyrics && (
@@ -1580,6 +1643,8 @@ export default function SongsPage() {
                       musicVideoUrl={musicVideoUrls[v.variant_id]}
                       onRemake={() => setRemakeModal({ variantId: v.variant_id, title: activeJob.title })}
                       onTelegramClick={() => handleTelegramPost(v, activeJob.title)}
+                      artistName={credits.artist_name}
+                      onRegenerate={() => handleRegenerate(v.variant_id, v.genre_tag, activeJob.title)}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -1616,6 +1681,8 @@ export default function SongsPage() {
                     musicVideoUrl={musicVideoUrls[v.variant_id]}
                     onRemake={() => setRemakeModal({ variantId: v.variant_id, title: v.title })}
                     onTelegramClick={() => handleTelegramPost(v, v.title)}
+                    artistName={credits.artist_name}
+                    onRegenerate={() => handleRegenerate(v.variant_id, v.genre_tag, v.title)}
                   />
                 ))}
               </div>

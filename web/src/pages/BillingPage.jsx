@@ -54,6 +54,10 @@ export default function BillingPage() {
   const [cpLoading, setCpLoading] = useState(false);
   const [cpError, setCpError] = useState('');
   const [cpSuccess, setCpSuccess] = useState('');
+  const [anName, setAnName]     = useState('');
+  const [anLoading, setAnLoading] = useState(false);
+  const [anError, setAnError]   = useState('');
+  const [anSuccess, setAnSuccess] = useState('');
 
   const successParam = new URLSearchParams(location.search).get('success');
 
@@ -72,6 +76,39 @@ export default function BillingPage() {
       .then((data) => { if (data) setStatus(data); })
       .catch(() => {});
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${BACKEND_URL}/api/users/me/song_credits`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.artist_name !== undefined) setAnName(data.artist_name || ''); })
+      .catch(() => {});
+  }, [token]);
+
+  const handleSaveArtistName = async (e) => {
+    e.preventDefault();
+    setAnLoading(true);
+    setAnError('');
+    setAnSuccess('');
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/users/artist-name`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ artist_name: anName }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.detail || 'Save failed');
+      }
+      setAnSuccess('Artist name saved.');
+    } catch (err) {
+      setAnError(err.message);
+    } finally {
+      setAnLoading(false);
+    }
+  };
 
   const handlePortal = async () => {
     setError('');
@@ -490,6 +527,29 @@ export default function BillingPage() {
           {'. '}
           View our <Link to="/refund-policy" className="auth-link">Refund Policy</Link>.
         </p>
+
+        {/* Artist Name */}
+        <div className="billing-card" style={{ marginTop: '2rem' }}>
+          <h2 className="billing-card-title">Artist Name</h2>
+          <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '1rem' }}>
+            Your artist name appears on song cards and cover art.
+          </p>
+          <form onSubmit={handleSaveArtistName} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 400 }}>
+            <input
+              type="text"
+              placeholder="Your artist name (e.g. DJ Zeus)"
+              value={anName}
+              onChange={e => setAnName(e.target.value)}
+              maxLength={60}
+              className="form-input"
+            />
+            {anError && <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: 0 }}>{anError}</p>}
+            {anSuccess && <p style={{ color: '#22c55e', fontSize: '0.875rem', margin: 0 }}>{anSuccess}</p>}
+            <button type="submit" disabled={anLoading} className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
+              {anLoading ? 'Saving…' : 'Save Artist Name'}
+            </button>
+          </form>
+        </div>
 
         {/* Change Password */}
         <div className="billing-card" style={{ marginTop: '2rem' }}>

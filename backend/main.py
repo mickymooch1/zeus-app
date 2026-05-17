@@ -1593,7 +1593,24 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
         "youtube_connected": bool(current_user.get("youtube_refresh_token")),
         "video_credits": video_row["balance"] if video_row else 0,
         "video_monthly_allowance": video_allowance,
+        "artist_name": current_user.get("artist_name") or "",
     }
+
+
+# ── Artist name ──────────────────────────────────────────────────────────────
+
+class ArtistNameRequest(BaseModel):
+    artist_name: str = Field(max_length=60)
+
+
+@app.patch("/api/users/artist-name")
+async def update_artist_name(
+    body: ArtistNameRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    db_path = db.get_db_path()
+    db.update_user(db_path, current_user["id"], artist_name=body.artist_name.strip() or None)
+    return {"ok": True}
 
 
 # ── Artist style lookup ──────────────────────────────────────────────────────
@@ -2228,6 +2245,43 @@ async def remake_song_variant(
 
     log.info("remake_song_variant: variant %s → new variant %s (%s) for user %s",
              variant_id, result["variant_id"], body.genre, user_id)
+    return {**result, "lyric_id": variant["lyric_id"]}
+
+
+@app.post("/api/songs/variants/{variant_id}/regenerate")
+async def regenerate_song_variant(
+    variant_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Re-generate the same song in the exact same genre/style. Costs 1 song credit."""
+    import songs as _songs_mod
+    from songs import InsufficientCreditsError
+
+    db_path = db.get_db_path()
+    user_id = current_user["id"]
+    is_admin = bool(current_user.get("is_admin", 0))
+
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != user_id:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    try:
+        result = _songs_mod.generate_song_variant(
+            user_id=user_id,
+            lyric_id=variant["lyric_id"],
+            style_prompt=variant["style_prompt"],
+            genre_tag=variant["genre_tag"],
+            db_path=db_path,
+            is_admin=is_admin,
+        )
+    except InsufficientCreditsError as exc:
+        raise HTTPException(status_code=402, detail=str(exc))
+    except Exception as exc:
+        log.exception("regenerate_song_variant: failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    log.info("regenerate_song_variant: variant %s → new variant %s for user %s",
+             variant_id, result["variant_id"], user_id)
     return {**result, "lyric_id": variant["lyric_id"]}
 
 
