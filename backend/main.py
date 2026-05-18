@@ -138,12 +138,12 @@ def _send_via_resend(to: str, subject: str, body: str, api_key: str) -> bool:
             },
             timeout=15,
         )
-        if resp.ok:
+        if resp.status_code < 300:
             log.info("_send_email[resend]: OK to=%s id=%s elapsed=%.2fs",
                      to, resp.json().get("id", "?"), time.monotonic() - t0)
             return True
-        log.error("_send_email[resend]: FAIL to=%s status=%d body=%s elapsed=%.2fs",
-                  to, resp.status_code, resp.text[:300], time.monotonic() - t0)
+        log.error("_send_email[resend]: FAIL to=%s status=%d body=%r elapsed=%.2fs",
+                  to, resp.status_code, resp.text, time.monotonic() - t0)
         return False
     except Exception:
         log.exception("_send_email[resend]: exception to=%s elapsed=%.2fs", to, time.monotonic() - t0)
