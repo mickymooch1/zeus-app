@@ -88,8 +88,10 @@ Rules:
 
 
 _EXPLICIT_ADDENDUM = (
-    "\n\nThis is an explicit track. Include strong language, profanity, and adult themes "
-    "authentically. Do not self-censor — write the lyrics as a real explicit song would be written."
+    "\n\nExplicit content is enabled. You may use strong language, profanity and adult themes "
+    "authentically where it fits the genre. For grime, drill, hip-hop and street genres use "
+    "authentic street language including swearing where it adds authenticity. Don't force it "
+    "— only use explicit language where it genuinely fits the song."
 )
 
 
