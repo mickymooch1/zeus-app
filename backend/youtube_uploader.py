@@ -17,29 +17,38 @@ import requests
 
 log = logging.getLogger("zeus.youtube")
 
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+# Keep module-level constants for upload path (rarely changes after startup).
+# OAuth helpers read live env vars so Railway changes take effect immediately.
 YOUTUBE_REDIRECT_URI = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
 YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
 YOUTUBE_SCOPES = [YOUTUBE_SCOPE]
 
-_pkce_store: dict[str, str] = {}  # state -> verifier
-
 
 def youtube_enabled() -> bool:
-    return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+    """Read live env vars every call — survives Railway env var updates without redeploy."""
+    return bool(
+        os.environ.get("GOOGLE_CLIENT_ID", "").strip() and
+        os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+    )
 
 
-def build_auth_url(state: str, redirect_uri: str | None = None) -> str:
-    """Build the Google OAuth consent-screen URL with PKCE, storing the verifier for the callback."""
-    _redirect_uri = redirect_uri or YOUTUBE_REDIRECT_URI
-    verifier = secrets.token_urlsafe(96)
+def build_auth_url(state: str, redirect_uri: str | None = None, verifier: str | None = None) -> str:
+    """Build Google OAuth consent URL.
+
+    verifier — the PKCE code_verifier to embed as the challenge.  When the
+    caller passes this in (sourced from the signed state JWT) the in-process
+    _pkce_store is not needed and multi-instance / restart safety is guaranteed.
+    If omitted a fresh verifier is generated (legacy path).
+    """
+    _redirect_uri = redirect_uri or os.environ.get("YOUTUBE_REDIRECT_URI", YOUTUBE_REDIRECT_URI)
+    _client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    if not verifier:
+        verifier = secrets.token_urlsafe(96)
     challenge = base64.urlsafe_b64encode(
         hashlib.sha256(verifier.encode()).digest()
     ).rstrip(b"=").decode()
-    _pkce_store[state] = verifier
     params = {
-        "client_id": GOOGLE_CLIENT_ID,
+        "client_id": _client_id,
         "redirect_uri": _redirect_uri,
         "response_type": "code",
         "scope": YOUTUBE_SCOPE,
@@ -49,26 +58,32 @@ def build_auth_url(state: str, redirect_uri: str | None = None) -> str:
         "code_challenge": challenge,
         "code_challenge_method": "S256",
     }
-    return "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(params)
+    url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(params)
+    log.info("build_auth_url: redirect_uri=%r client_id_first10=%r", _redirect_uri, _client_id[:10] if _client_id else "UNSET")
+    return url
 
 
-def exchange_code(code: str, redirect_uri: str, state: str | None = None) -> str:
-    """Exchange an OAuth authorisation code for a refresh token."""
-    verifier = _pkce_store.pop(state, None) if state else None
-    resp = requests.post(
-        "https://oauth2.googleapis.com/token",
-        data={
-            "code": code,
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "redirect_uri": redirect_uri,
-            "grant_type": "authorization_code",
-            "code_verifier": verifier,
-        },
-        timeout=30,
-    )
+def exchange_code(code: str, redirect_uri: str, code_verifier: str | None = None) -> str:
+    """Exchange an OAuth authorisation code for a refresh token.
+
+    code_verifier — the PKCE verifier, sourced from the signed state JWT.
+    """
+    _client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    _client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+    body = {
+        "code": code,
+        "client_id": _client_id,
+        "client_secret": _client_secret,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code",
+    }
+    if code_verifier:
+        body["code_verifier"] = code_verifier
+    log.info("exchange_code: redirect_uri=%r verifier_present=%s", redirect_uri, bool(code_verifier))
+    resp = requests.post("https://oauth2.googleapis.com/token", data=body, timeout=30)
     data = resp.json()
     if "error" in data:
+        log.error("exchange_code: Google error: %s", data)
         raise ValueError(f"Token exchange failed: {data}")
     refresh_token = data.get("refresh_token")
     if not refresh_token:
@@ -99,6 +114,9 @@ def upload_song_to_youtube(
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
 
+    _client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    _client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+
     refresh_token = user.get("youtube_refresh_token")
     if not refresh_token:
         raise ValueError("YouTube not connected")
@@ -111,8 +129,8 @@ def upload_song_to_youtube(
             token=None,
             refresh_token=refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
-            client_id=GOOGLE_CLIENT_ID,
-            client_secret=GOOGLE_CLIENT_SECRET,
+            client_id=_client_id,
+            client_secret=_client_secret,
             scopes=YOUTUBE_SCOPES,
         )
         yt = build("youtube", "v3", credentials=creds)

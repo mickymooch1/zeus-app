@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import pathlib
+import secrets
 import smtplib
 import subprocess
 import sys
@@ -1818,34 +1819,53 @@ _YOUTUBE_PLANS = {"agency", "enterprise", "music_starter", "music_pro", "music_a
 import jwt as _jwt
 
 
-def _make_yt_state(user_id: str, origin: str = "beats") -> str:
+def _make_yt_state(user_id: str, origin: str = "beats") -> tuple[str, str]:
+    """Return (state_jwt, pkce_verifier).
+
+    The PKCE verifier is embedded in the signed JWT so the callback can retrieve
+    it without any in-process store — safe across Railway restarts and instances.
+    """
     from datetime import timedelta
+    verifier = secrets.token_urlsafe(96)
     payload = {
         "sub": user_id,
         "origin": origin,
+        "pkce": verifier,
         "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
     }
-    return _jwt.encode(payload, auth.SECRET_KEY, algorithm="HS256")
+    state = _jwt.encode(payload, auth.SECRET_KEY, algorithm="HS256")
+    return state, verifier
 
 
-def _decode_yt_state(state: str) -> tuple[str | None, str]:
-    """Returns (user_id, origin). origin defaults to 'beats' if not in payload."""
+def _decode_yt_state(state: str) -> tuple[str | None, str, str | None]:
+    """Return (user_id, origin, pkce_verifier). All fields default-safe on error."""
     try:
         payload = _jwt.decode(state, auth.SECRET_KEY, algorithms=["HS256"])
-        return payload.get("sub"), payload.get("origin", "beats")
+        return payload.get("sub"), payload.get("origin", "beats"), payload.get("pkce")
     except Exception:
-        return None, "beats"
+        return None, "beats", None
 
 
 @app.get("/api/youtube/debug")
 async def youtube_debug():
-    """Temporary — verify YouTube env vars are present in production."""
+    """Verify YouTube env vars and OAuth config are present in production."""
     client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
     client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+    redirect_uri = os.environ.get("YOUTUBE_REDIRECT_URI", "NOT_SET")
+    frontend_url = os.environ.get("FRONTEND_URL", "NOT_SET")
     return {
         "GOOGLE_CLIENT_ID_first15": client_id[:15] if client_id else "NOT_SET",
         "GOOGLE_CLIENT_SECRET_set": bool(client_secret),
+        "YOUTUBE_REDIRECT_URI": redirect_uri,
+        "FRONTEND_URL": frontend_url,
+        "youtube_enabled": youtube_uploader.youtube_enabled(),
     }
+
+
+def _yt_frontend(origin: str) -> str:
+    if origin == "beats":
+        return "https://zeusbeats.com"
+    return "https://zeusaidesign.com"
 
 
 @app.get("/api/youtube/auth")
@@ -1854,63 +1874,56 @@ async def youtube_auth(
     origin: str = Query(default="beats"),
 ):
     """Redirect the browser to Google's OAuth consent screen.
-    Pass ?origin=beats (zeusbeats.com) or ?origin=web (zeusaidesign.com) so the
-    callback knows which frontend to return the user to.
+    ?origin=beats → zeusbeats.com  |  ?origin=web → zeusaidesign.com
     """
     from fastapi.responses import RedirectResponse as _RR
-    _gid = os.environ.get("GOOGLE_CLIENT_ID", "NOT_SET").strip()
-    log.info("youtube_auth: GOOGLE_CLIENT_ID first10=%r origin=%r", _gid[:10], origin)
+    _fail = f"{_yt_frontend(origin)}/songs?youtube=error"
+
+    _gid = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    log.info("youtube_auth: origin=%r client_id_set=%s", origin, bool(_gid))
+
     if not youtube_uploader.youtube_enabled():
-        raise HTTPException(status_code=503, detail="YouTube integration not configured (GOOGLE_CLIENT_ID/SECRET missing)")
+        log.error("youtube_auth: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET missing from env")
+        return _RR(_fail)
 
     is_admin = bool(current_user.get("is_admin", 0))
     plan = current_user.get("subscription_plan")
     if not is_admin and plan not in _YOUTUBE_PLANS:
-        raise HTTPException(status_code=403, detail="YouTube upload requires Agency plan or above")
+        log.warning("youtube_auth: plan %r not in YOUTUBE_PLANS", plan)
+        return _RR(_fail)
 
     redirect_uri = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
     log.info("youtube_auth: redirect_uri=%r", redirect_uri)
-    state = _make_yt_state(current_user["id"], origin=origin)
 
+    state, verifier = _make_yt_state(current_user["id"], origin=origin)
     try:
-        auth_url = youtube_uploader.build_auth_url(state=state, redirect_uri=redirect_uri)
+        auth_url = youtube_uploader.build_auth_url(state=state, redirect_uri=redirect_uri, verifier=verifier)
     except Exception as exc:
-        log.exception("youtube_auth: failed to build auth URL")
-        raise HTTPException(status_code=500, detail=str(exc))
+        log.exception("youtube_auth: failed to build auth URL: %s", exc)
+        return _RR(_fail)
 
+    log.info("youtube_auth: redirecting to Google consent screen")
     return _RR(auth_url)
-
-
-def _yt_frontend(origin: str) -> str:
-    """Return the correct frontend base URL for the given origin."""
-    if origin == "beats":
-        return "https://zeusbeats.com"
-    return "https://zeusaidesign.com"
 
 
 @app.get("/api/youtube/callback")
 async def youtube_callback(code: str = Query(None), state: str = Query(None), error: str = Query(None)):
-    """Google OAuth callback — exchange code, store refresh token, redirect to frontend /songs."""
+    """Google OAuth callback — exchange code for refresh token, redirect to frontend /songs."""
     from fastapi.responses import RedirectResponse as _RR
 
-    # Decode origin early so errors redirect to the right frontend too
-    _, origin = _decode_yt_state(state) if state else (None, "beats")
+    # Decode state first so all error paths land on the right frontend.
+    user_id, origin, pkce_verifier = _decode_yt_state(state) if state else (None, "beats", None)
     _frontend = _yt_frontend(origin)
     _success  = f"{_frontend}/songs?youtube=connected"
     _fail     = f"{_frontend}/songs?youtube=error"
 
     if error:
-        log.warning("youtube_callback: Google returned error=%s", error)
+        log.warning("youtube_callback: Google returned error=%r", error)
         return _RR(_fail)
 
     if not code or not state:
         log.warning("youtube_callback: missing code or state")
         return _RR(_fail)
-
-    user_id, origin = _decode_yt_state(state)
-    _frontend = _yt_frontend(origin)
-    _success  = f"{_frontend}/songs?youtube=connected"
-    _fail     = f"{_frontend}/songs?youtube=error"
 
     if not user_id:
         log.warning("youtube_callback: invalid or expired state token")
@@ -1923,15 +1936,19 @@ async def youtube_callback(code: str = Query(None), state: str = Query(None), er
         return _RR(_fail)
 
     redirect_uri = os.environ.get("YOUTUBE_REDIRECT_URI", "http://localhost:8080/api/youtube/callback")
+    log.info("youtube_callback: user=%s redirect_uri=%r verifier_present=%s",
+             user_id, redirect_uri, bool(pkce_verifier))
 
     try:
-        refresh_token = youtube_uploader.exchange_code(code=code, redirect_uri=redirect_uri, state=state)
+        refresh_token = youtube_uploader.exchange_code(
+            code=code, redirect_uri=redirect_uri, code_verifier=pkce_verifier
+        )
     except Exception as exc:
         log.exception("youtube_callback: token exchange failed: %s", exc)
         return _RR(_fail)
 
     db.update_user(db_path, user_id, youtube_refresh_token=refresh_token)
-    log.info("youtube_callback: stored refresh token for user %s", user_id)
+    log.info("youtube_callback: success — refresh token stored for user %s", user_id)
     return _RR(_success)
 
 
