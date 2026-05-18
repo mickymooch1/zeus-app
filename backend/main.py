@@ -44,6 +44,7 @@ import auth
 import billing
 import did_uploader
 import scheduler as _scheduler_mod
+import telegram_admin as _tg_admin
 import webhooks as _webhooks_mod
 import youtube_uploader
 
@@ -340,13 +341,16 @@ async def lifespan(app: FastAPI):
     get_anthropic_client()  # validate key and warm up client at startup
     log.info("Anthropic client initialised")
 
+    # Install in-memory log ring buffer (used by admin bot `logs` command)
+    _tg_admin.install_log_buffer()
+
     # Register Telegram bot webhook (fire-and-forget — non-fatal if it fails)
     def _register_telegram_webhook() -> None:
         import requests as _req
         _tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
         if not _tg_token:
             return
-        _webhook_url = "https://zeusaidesign.com/api/telegram/webhook"
+        _webhook_url = "https://zeusaidesign.com/webhooks/telegram"
         try:
             r = _req.post(
                 f"https://api.telegram.org/bot{_tg_token}/setWebhook",

@@ -1,8 +1,4 @@
-"""Apiframe v2 webhook handler.
-
-Verifies HMAC-SHA256 signature using a signing secret derived from the API key
-(SHA256(api_key)), per https://apiframe.ai/docs/webhooks.
-"""
+"""Apiframe v2 + Telegram admin webhook handlers."""
 import os
 import hmac
 import hashlib
@@ -13,6 +9,7 @@ import logging
 import textwrap
 import threading
 import requests
+import httpx
 from PIL import Image, ImageDraw, ImageFont
 from fastapi import APIRouter, Request, HTTPException
 
@@ -514,3 +511,115 @@ async def apiframe_webhook(request: Request):
         payload["take2_variant_id"] = take2_variant_id
         payload["take2_url"] = permanent_url2
     return payload
+
+
+# ── Telegram admin bot ───────────────────────────────────────────────────────
+
+async def _tg_send(token: str, chat_id: int, text: str) -> None:
+    async with httpx.AsyncClient(timeout=15) as c:
+        await c.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+        )
+
+
+async def _tg_send_photo(token: str, chat_id: int, photo: str, caption: str) -> None:
+    async with httpx.AsyncClient(timeout=15) as c:
+        await c.post(
+            f"https://api.telegram.org/bot{token}/sendPhoto",
+            json={"chat_id": chat_id, "photo": photo, "caption": caption,
+                  "parse_mode": "HTML"},
+        )
+
+
+async def _handle_post_song(token: str, chat_id: int, variant_id: int) -> None:
+    """Look up song variant and post to channel, then confirm to admin."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            """SELECT sv.id, sv.mp3_url, sv.image_url, l.title
+               FROM song_variants sv
+               LEFT JOIN lyrics l ON l.id = sv.lyric_id
+               WHERE sv.id = ?""",
+            (variant_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        await _tg_send(token, chat_id, f"❌ Variant {variant_id} not found")
+        return
+
+    tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    channel = os.environ.get("TELEGRAM_CHANNEL_ID", "")
+    title = row["title"] or f"Song #{variant_id}"
+    mp3_url = row["mp3_url"] or ""
+    image_url = row["image_url"] or ""
+
+    caption = f"🎵 <b>{title}</b>\n\n🎧 <a href=\"{mp3_url}\">Listen</a>"
+    if image_url:
+        _telegram_post_sync(caption, image_url)
+    else:
+        _telegram_post_sync(caption)
+
+    await _tg_send(token, chat_id,
+                   f"✅ Posted <b>{title}</b> to {channel}")
+
+
+@router.post("/webhooks/telegram")
+async def telegram_admin_webhook(request: Request):
+    """Unified Telegram webhook — admin commands for TELEGRAM_ADMIN_USER_ID,
+    Porick chatbot for everyone else."""
+    try:
+        body = await request.json()
+    except Exception:
+        return {"ok": True}
+
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    if not token:
+        return {"ok": True}
+
+    message = body.get("message") or body.get("edited_message") or {}
+    if not message:
+        return {"ok": True}
+
+    chat_id: int = message.get("chat", {}).get("id")
+    from_id: int = message.get("from", {}).get("id")
+    text: str = (message.get("text") or "").strip()
+
+    if not chat_id or not text:
+        return {"ok": True}
+
+    admin_uid_str = os.environ.get("TELEGRAM_ADMIN_USER_ID", "").strip()
+
+    # ── Admin path ────────────────────────────────────────────────────────────
+    if admin_uid_str and str(from_id) == admin_uid_str:
+        logger.info("telegram_admin: command from admin uid=%s: %r", from_id, text[:80])
+        import telegram_admin as _tg_admin
+        result = _tg_admin.parse_and_run(text)
+
+        if result.startswith("__POST__:"):
+            msg = result[len("__POST__:"):]
+            _telegram_post_sync(msg)
+            await _tg_send(token, chat_id, f"✅ Posted to channel")
+
+        elif result.startswith("__POST_SONG__:"):
+            vid = int(result.split(":", 1)[1])
+            await _handle_post_song(token, chat_id, vid)
+
+        else:
+            # Telegram message limit is 4096 chars
+            await _tg_send(token, chat_id, result[:4000])
+
+        return {"ok": True}
+
+    # ── Non-admin: reject with Unauthorised ───────────────────────────────────
+    if admin_uid_str:
+        logger.warning("telegram_admin: rejected uid=%s (not admin)", from_id)
+        await _tg_send(token, chat_id, "Unauthorised")
+        return {"ok": True}
+
+    # ── No admin configured: fall through silently (existing Porick logic
+    #    in /api/telegram/webhook handles public users) ─────────────────────
+    return {"ok": True}
