@@ -121,34 +121,85 @@ def generate_docx(text: str, title: str) -> bytes:
     return buf.getvalue()
 
 
-def _send_email(to: str, subject: str, body: str) -> None:
-    """Send a plain-text email via Gmail SMTP. Logs time taken. Call from a background thread."""
+def _send_via_resend(to: str, subject: str, body: str, api_key: str) -> bool:
+    """Send via Resend REST API. Returns True on success."""
+    t0 = time.monotonic()
+    try:
+        resp = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": "Zeus Beats <hello@zeusbeats.com>",
+                "to": [to],
+                "subject": subject,
+                "text": body,
+                "reply_to": "hello@zeusbeats.com",
+            },
+            timeout=15,
+        )
+        if resp.ok:
+            log.info("_send_email[resend]: OK to=%s id=%s elapsed=%.2fs",
+                     to, resp.json().get("id", "?"), time.monotonic() - t0)
+            return True
+        log.error("_send_email[resend]: FAIL to=%s status=%d body=%s elapsed=%.2fs",
+                  to, resp.status_code, resp.text[:300], time.monotonic() - t0)
+        return False
+    except Exception:
+        log.exception("_send_email[resend]: exception to=%s elapsed=%.2fs", to, time.monotonic() - t0)
+        return False
+
+
+def _send_via_smtp(to: str, subject: str, body: str) -> bool:
+    """Send via Gmail SMTP with one retry after 5 s. Returns True on success."""
     smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
     smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
     if not smtp_email or not smtp_password:
-        log.warning("_send_email: SMTP_EMAIL/SMTP_PASSWORD not set — skipping")
-        return
+        log.warning("_send_email[smtp]: SMTP_EMAIL/SMTP_PASSWORD not set — skipping")
+        return False
 
     msg = MIMEMultipart()
-    msg["From"] = smtp_email
+    msg["From"] = f"Zeus Beats <{smtp_email}>"
     msg["To"] = to
+    msg["Reply-To"] = "hello@zeusbeats.com"
     msg["Subject"] = subject
+    msg["X-Mailer"] = "Zeus Platform"
     msg.attach(MIMEText(body, "plain"))
 
-    t0 = time.monotonic()
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.settimeout(10)
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(smtp_email, smtp_password)
-            server.sendmail(smtp_email, [to], msg.as_string())
-        log.info("_send_email: sent to %s in %.2fs", to, time.monotonic() - t0)
-    except smtplib.SMTPAuthenticationError:
-        log.exception("_send_email: Gmail auth failed (%.2fs) — SMTP_PASSWORD must be an App Password", time.monotonic() - t0)
-    except Exception:
-        log.exception("_send_email: failed to send to %s after %.2fs", to, time.monotonic() - t0)
+    def _attempt(attempt: int) -> bool:
+        t0 = time.monotonic()
+        try:
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.settimeout(15)
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(smtp_email, smtp_password)
+                server.sendmail(smtp_email, [to], msg.as_string())
+            log.info("_send_email[smtp]: OK to=%s attempt=%d elapsed=%.2fs", to, attempt, time.monotonic() - t0)
+            return True
+        except smtplib.SMTPAuthenticationError:
+            log.error("_send_email[smtp]: auth FAILED attempt=%d elapsed=%.2fs — "
+                      "check Gmail App Password is still valid", attempt, time.monotonic() - t0)
+            return False
+        except Exception:
+            log.exception("_send_email[smtp]: exception to=%s attempt=%d elapsed=%.2fs",
+                          to, attempt, time.monotonic() - t0)
+            return False
+
+    if _attempt(1):
+        return True
+    log.warning("_send_email[smtp]: retrying in 5s for %s", to)
+    time.sleep(5)
+    return _attempt(2)
+
+
+def _send_email(to: str, subject: str, body: str) -> bool:
+    """Send email via Resend (if RESEND_API_KEY set) or Gmail SMTP fallback.
+    Returns True on success. Call from a background thread."""
+    resend_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if resend_key:
+        return _send_via_resend(to, subject, body, resend_key)
+    return _send_via_smtp(to, subject, body)
 
 
 def _send_email_async(to: str, subject: str, body: str) -> None:
@@ -552,22 +603,26 @@ def _send_verification_email(user: dict, app: str = "ai") -> None:
     expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
     db.create_verification_token(db_path, user["id"], v_token, expires_at)
 
+    brand = "Zeus Beats" if app == "beats" else "Zeus AI"
     base_url = "https://zeusbeats.com" if app == "beats" else "https://zeusaidesign.com"
     verify_url = f"{base_url}/verify-email?token={v_token}"
 
     msg_text = "\n".join([
         f"Hi {user.get('name', 'there')},",
         "",
-        "Please verify your email address by clicking the link below.",
+        f"Thanks for signing up to {brand}! Please verify your email address by clicking the link below.",
         "This link expires in 24 hours.",
         "",
         verify_url,
         "",
         "If you didn't create this account, you can safely ignore this email.",
         "",
-        "— The Zeus Team",
+        f"— The {brand} Team",
+        base_url,
     ])
-    _send_email_async(user["email"], "Verify your Zeus email address", msg_text)
+    subject = f"Verify your {brand} account"
+    log.info("_send_verification_email: queuing to=%s subject=%r", user["email"], subject)
+    _send_email_async(user["email"], subject, msg_text)
 
 
 @app.post("/auth/login")
