@@ -58,8 +58,10 @@ export default function BillingPage() {
   const [anLoading, setAnLoading] = useState(false);
   const [anError, setAnError]   = useState('');
   const [anSuccess, setAnSuccess] = useState('');
+  const [ytConnected, setYtConnected] = useState(false);
 
   const successParam = new URLSearchParams(location.search).get('success');
+  const ytParam      = new URLSearchParams(location.search).get('youtube');
 
   useEffect(() => {
     if (successParam === 'true') {
@@ -85,7 +87,31 @@ export default function BillingPage() {
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data?.artist_name !== undefined) setAnName(data.artist_name || ''); })
       .catch(() => {});
+    fetch(`${BACKEND_URL}/api/youtube/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setYtConnected(data.connected); })
+      .catch(() => {});
   }, [token]);
+
+  useEffect(() => {
+    if (ytParam === 'connected') setYtConnected(true);
+  }, [ytParam]);
+
+  const handleConnectYouTube = () => {
+    window.location.href = `${BACKEND_URL}/api/youtube/auth?token=${token}&origin=web`;
+  };
+
+  const handleDisconnectYouTube = async () => {
+    try {
+      await fetch(`${BACKEND_URL}/api/youtube/disconnect`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setYtConnected(false);
+    } catch (_) {}
+  };
 
   const handleSaveArtistName = async (e) => {
     e.preventDefault();
@@ -516,6 +542,41 @@ export default function BillingPage() {
                 )}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Connected Accounts */}
+        <div className="billing-card">
+          <h2 className="billing-card-title">Connected Accounts</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0' }}>
+            <div>
+              <div style={{ fontWeight: 600, color: '#e2d9f3', marginBottom: 4 }}>▶ YouTube</div>
+              <div style={{ fontSize: 13, color: '#666' }}>
+                {ytConnected ? 'Connected — upload songs directly to your channel' : 'Connect to upload songs directly to your YouTube channel'}
+              </div>
+            </div>
+            {ytConnected ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 600 }}>
+                  Connected
+                </span>
+                <button
+                  onClick={handleDisconnectYouTube}
+                  className="btn btn-outline"
+                  style={{ fontSize: 12, padding: '4px 12px', color: '#94a3b8', borderColor: 'rgba(255,255,255,0.1)' }}
+                >
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleConnectYouTube}
+                className="btn btn-outline"
+                style={{ fontSize: 13, padding: '6px 16px' }}
+              >
+                Connect YouTube
+              </button>
+            )}
           </div>
         </div>
 

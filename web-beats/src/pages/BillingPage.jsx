@@ -147,6 +147,16 @@ export default function BillingPage() {
     window.location.href = `${BACKEND_URL}/api/youtube/auth?token=${token}&origin=beats`;
   };
 
+  const handleDisconnectYouTube = async () => {
+    try {
+      await fetch(`${BACKEND_URL}/api/youtube/disconnect`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCredits((prev) => prev ? { ...prev, youtube_connected: false } : prev);
+    } catch (_) {}
+  };
+
   const handlePayg = async (pack) => {
     setError('');
     setPaygLoading(pack);
@@ -437,9 +447,18 @@ export default function BillingPage() {
               </div>
             </div>
             {ytConnected ? (
-              <span style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 600 }}>
-                {t('billing.ytConnected')}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 600 }}>
+                  {t('billing.ytConnected')}
+                </span>
+                <button
+                  onClick={handleDisconnectYouTube}
+                  className="btn btn-outline"
+                  style={{ fontSize: 12, padding: '4px 12px', color: '#94a3b8', borderColor: 'rgba(255,255,255,0.1)' }}
+                >
+                  {t('billing.disconnectYoutube')}
+                </button>
+              </div>
             ) : (
               <button
                 onClick={handleConnectYouTube}

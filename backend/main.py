@@ -1852,6 +1852,16 @@ async def youtube_status(current_user: dict = Depends(auth.get_current_user)):
     return {"connected": bool(current_user.get("youtube_refresh_token"))}
 
 
+@app.delete("/api/youtube/disconnect")
+async def youtube_disconnect(
+    current_user: dict = Depends(auth.get_current_user),
+    db_path=Depends(get_db_path_dep),
+):
+    """Clear the YouTube refresh token so the user can reconnect with a different account."""
+    db.update_user(db_path, current_user["id"], youtube_refresh_token=None)
+    return {"disconnected": True}
+
+
 @app.delete("/api/admin/youtube-token")
 async def admin_clear_youtube_token(email: str, secret: str, db_path=Depends(get_db_path_dep)):
     """Admin utility: clear expired YouTube refresh token for a user."""
