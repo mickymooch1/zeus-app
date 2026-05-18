@@ -1853,20 +1853,19 @@ async def youtube_status(current_user: dict = Depends(auth.get_current_user)):
 
 
 @app.delete("/api/youtube/disconnect")
-async def youtube_disconnect(
-    current_user: dict = Depends(auth.get_current_user),
-    db_path=Depends(get_db_path_dep),
-):
+async def youtube_disconnect(current_user: dict = Depends(auth.get_current_user)):
     """Clear the YouTube refresh token so the user can reconnect with a different account."""
+    db_path = db.get_db_path()
     db.update_user(db_path, current_user["id"], youtube_refresh_token=None)
     return {"disconnected": True}
 
 
 @app.delete("/api/admin/youtube-token")
-async def admin_clear_youtube_token(email: str, secret: str, db_path=Depends(get_db_path_dep)):
+async def admin_clear_youtube_token(email: str, secret: str):
     """Admin utility: clear expired YouTube refresh token for a user."""
     if secret != os.environ.get("ADMIN_SECRET", ""):
         raise HTTPException(status_code=403, detail="Forbidden")
+    db_path = db.get_db_path()
     user = db.get_user_by_email(db_path, email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
