@@ -270,12 +270,85 @@ export default function LandingPage() {
       <section className="pricing" id="pricing">
         <div className="container">
           <div className="section-label">{t('landing.pricingLabel')}</div>
-          <h2 className="section-title">{t('landing.pricingTitle')}</h2>
-          <p className="section-sub">{t('landing.pricingSub')}</p>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 48 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.3)', borderRadius: 20, padding: '6px 16px', fontSize: 13, color: '#00F0FF', fontWeight: 600 }}>
               <span>🎵</span> New users get 5 free songs on signup
             </span>
+          </div>
+
+          {/* PAYG — first */}
+          <div style={{ textAlign: 'center', marginBottom: 72 }}>
+            <h2 style={{
+              fontFamily: "'Orbitron', sans-serif",
+              fontSize: 'clamp(22px, 4vw, 36px)',
+              fontWeight: 900,
+              color: '#00F0FF',
+              marginBottom: 10,
+              letterSpacing: '-0.3px',
+              textShadow: '0 0 24px rgba(0,240,255,0.45)',
+            }}>
+              Just want to try? No commitment needed.
+            </h2>
+            <p style={{ fontSize: 15, color: '#94a3b8', marginBottom: 36 }}>
+              Buy songs instantly — credits never expire
+            </p>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 520, margin: '0 auto' }}>
+              {[
+                { label: '2 Songs', price: '£0.99' },
+                { label: '5 Songs', price: '£2.00' },
+                { label: '10 Songs', price: '£4.00' },
+              ].map(({ label, price }) => (
+                <Link
+                  key={label}
+                  to="/register"
+                  style={{
+                    flex: '1 1 140px',
+                    maxWidth: 160,
+                    padding: '22px 12px',
+                    borderRadius: 14,
+                    border: '1px solid rgba(0,240,255,0.3)',
+                    background: 'rgba(0,240,255,0.06)',
+                    textDecoration: 'none',
+                    textAlign: 'center',
+                    boxShadow: '0 0 18px rgba(0,240,255,0.08)',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,240,255,0.12)'; e.currentTarget.style.boxShadow = '0 0 28px rgba(0,240,255,0.22)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,240,255,0.06)'; e.currentTarget.style.boxShadow = '0 0 18px rgba(0,240,255,0.08)'; }}
+                >
+                  <div style={{ fontSize: 26, fontWeight: 900, color: '#00F0FF', marginBottom: 6, fontFamily: "'Orbitron', sans-serif" }}>{price}</div>
+                  <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>{label}</div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Divider between PAYG and plans */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 56 }}>
+            <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, rgba(0,240,255,0.2))' }} />
+            <span style={{ fontSize: 12, color: '#555', letterSpacing: '1px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>or</span>
+            <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(0,240,255,0.2), transparent)' }} />
+          </div>
+
+          {/* Subscription plans — second */}
+          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+            <h2 style={{
+              fontFamily: "'Orbitron', sans-serif",
+              fontSize: 'clamp(22px, 4vw, 36px)',
+              fontWeight: 900,
+              background: 'linear-gradient(90deg, #c084fc 0%, #a855f7 50%, #c084fc 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              marginBottom: 10,
+              letterSpacing: '-0.3px',
+              textShadow: 'none',
+            }}>
+              Ready to create more? Subscribe and save.
+            </h2>
+            <p style={{ fontSize: 15, color: '#94a3b8' }}>
+              Monthly plans with more songs, avatar videos and YouTube upload
+            </p>
           </div>
 
           <div className="pricing-grid pricing-grid--music">
@@ -325,29 +398,6 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-
-          {/* PAYG section */}
-          <div style={{ marginTop: 56, textAlign: 'center' }}>
-            <div className="section-label" style={{ marginBottom: 8 }}>Pay As You Go</div>
-            <h3 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#e2d9f3', marginBottom: 8 }}>
-              No subscription needed
-            </h3>
-            <p style={{ fontSize: 14, color: '#666', marginBottom: 32 }}>
-              Buy songs whenever you want. Credits never expire.
-            </p>
-            <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 500, margin: '0 auto' }}>
-              {[
-                { label: '2 songs', price: '£0.99' },
-                { label: '5 songs', price: '£2.00' },
-                { label: '10 songs', price: '£4.00' },
-              ].map(({ label, price }) => (
-                <Link key={label} to="/register" style={{ flex: '1 1 130px', maxWidth: 160, padding: '18px 12px', borderRadius: 12, border: '1px solid rgba(0,240,255,0.25)', background: 'rgba(0,240,255,0.05)', textDecoration: 'none', textAlign: 'center' }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: '#00F0FF', marginBottom: 4 }}>{price}</div>
-                  <div style={{ fontSize: 13, color: '#aaa' }}>{label}</div>
-                </Link>
-              ))}
-            </div>
-          </div>
       </section>
 
       <div className="section-divider" />
