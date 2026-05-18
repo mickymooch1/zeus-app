@@ -1846,6 +1846,12 @@ def _decode_yt_state(state: str) -> tuple[str | None, str, str | None]:
         return None, "beats", None
 
 
+@app.get("/api/youtube/status")
+async def youtube_status(current_user: dict = Depends(auth.get_current_user)):
+    """Return whether the user has a YouTube refresh token stored."""
+    return {"connected": bool(current_user.get("youtube_refresh_token"))}
+
+
 @app.get("/api/youtube/debug")
 async def youtube_debug():
     """Verify YouTube env vars and OAuth config are present in production."""
@@ -2000,11 +2006,21 @@ async def upload_to_youtube(
             prebuilt_mp4=prebuilt_mp4,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        exc_str = str(exc)
+        if "invalid_grant" in exc_str.lower():
+            log.warning("upload_to_youtube: invalid_grant — clearing expired YT token for user %s", current_user["id"])
+            db.update_user(db_path, current_user["id"], youtube_refresh_token=None)
+            raise HTTPException(status_code=401, detail="youtube_reconnect_required")
+        raise HTTPException(status_code=400, detail=exc_str)
     except subprocess.CalledProcessError as exc:
         log.error("upload_to_youtube: ffmpeg failed: %s", exc.stderr)
         raise HTTPException(status_code=500, detail="Audio processing failed")
     except Exception as exc:
+        exc_str = str(exc)
+        if "invalid_grant" in exc_str.lower():
+            log.warning("upload_to_youtube: invalid_grant in exception — clearing token for user %s", current_user["id"])
+            db.update_user(db_path, current_user["id"], youtube_refresh_token=None)
+            raise HTTPException(status_code=401, detail="youtube_reconnect_required")
         log.exception("upload_to_youtube: unexpected error")
         raise HTTPException(status_code=500, detail="Upload failed — please try again")
 

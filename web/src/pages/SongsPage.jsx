@@ -365,8 +365,8 @@ const SongCard = memo(function SongCard({
     );
   } else if (!ytConnected) {
     ytBtn = (
-      <button onClick={() => showLocked('connect-yt')} style={ytStyle}>
-        ▲ YouTube
+      <button onClick={() => onYouTubeClick(variant, title)} style={ytStyle}>
+        + Connect YT
       </button>
     );
   } else {
@@ -976,7 +976,10 @@ export default function SongsPage() {
         body: JSON.stringify({ privacy: ytPrivacy, title: vTitle }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.detail || 'Upload failed');
+      if (!r.ok) {
+        if (r.status === 401) fetchCredits(); // token expired — re-fetch resets youtube_connected
+        throw new Error(d.detail || 'Upload failed');
+      }
       setYtStatus((prev) => ({ ...prev, [vId]: 'done' }));
       setYtUrls((prev) => ({ ...prev, [vId]: d.youtube_url }));
     } catch (_) {
