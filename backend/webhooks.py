@@ -602,11 +602,32 @@ async def telegram_admin_webhook(request: Request):
         if result.startswith("__POST__:"):
             msg = result[len("__POST__:"):]
             _telegram_post_sync(msg)
-            await _tg_send(token, chat_id, f"✅ Posted to channel")
+            await _tg_send(token, chat_id, "✅ Posted to channel")
 
         elif result.startswith("__POST_SONG__:"):
             vid = int(result.split(":", 1)[1])
             await _handle_post_song(token, chat_id, vid)
+
+        elif result.startswith("__AI__:"):
+            user_text = result[len("__AI__:"):]
+            try:
+                from zeus_agent import get_anthropic_client
+                ai_resp = await get_anthropic_client().messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=500,
+                    system=(
+                        "You are Zeus, an AI music assistant for Zeus Beats. "
+                        "Help users with song ideas, genre suggestions, lyrics inspiration "
+                        "and questions about the Zeus Beats platform at zeusbeats.com. "
+                        "Keep responses concise and friendly."
+                    ),
+                    messages=[{"role": "user", "content": user_text}],
+                )
+                reply = ai_resp.content[0].text
+            except Exception as exc:
+                logger.exception("telegram_admin: Claude fallback failed")
+                reply = "Sorry, I'm having trouble right now. Try again in a moment."
+            await _tg_send(token, chat_id, reply[:4000])
 
         else:
             # Telegram message limit is 4096 chars

@@ -332,7 +332,8 @@ def parse_and_run(text: str) -> str:
     if m:
         return f"__POST_SONG__:{m.group(1)}"
 
-    return f"❓ Unknown command. Type <code>help</code> for the full list."
+    # No admin command matched — hand off to Claude AI fallback
+    return f"__AI__:{t}"
 
 
 # ── Log buffer setup ─────────────────────────────────────────────────────────
