@@ -1852,6 +1852,18 @@ async def youtube_status(current_user: dict = Depends(auth.get_current_user)):
     return {"connected": bool(current_user.get("youtube_refresh_token"))}
 
 
+@app.delete("/api/admin/youtube-token")
+async def admin_clear_youtube_token(email: str, secret: str, db_path=Depends(get_db_path_dep)):
+    """Admin utility: clear expired YouTube refresh token for a user."""
+    if secret != os.environ.get("ADMIN_SECRET", ""):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    user = db.get_user_by_email(db_path, email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.update_user(db_path, user["id"], youtube_refresh_token=None)
+    return {"cleared": True, "email": email}
+
+
 @app.get("/api/youtube/debug")
 async def youtube_debug():
     """Verify YouTube env vars and OAuth config are present in production."""
