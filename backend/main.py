@@ -126,7 +126,7 @@ def _send_via_resend(to: str, subject: str, body: str, api_key: str) -> bool:
     """Send via Resend REST API. Returns True on success."""
     t0 = time.monotonic()
     try:
-        resp = requests.post(
+        resp = httpx.post(
             "https://api.resend.com/emails",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
