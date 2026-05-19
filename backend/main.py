@@ -382,6 +382,44 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("Song credit backfill failed (non-fatal)")
 
+    # Fix: ensure free-plan users have monthly_allowance=0 (no periodic refill)
+    # Also log bugrowle@gmail.com specifically for manual verification
+    try:
+        import sqlite3 as _sqlite3
+        _fc = _sqlite3.connect(str(_db_path))
+        _fc.row_factory = _sqlite3.Row
+        try:
+            _fc.execute(
+                """UPDATE song_credits SET monthly_allowance = 0
+                   WHERE user_id IN (
+                       SELECT id FROM users
+                       WHERE subscription_status IS NULL OR subscription_status = 'free'
+                   ) AND monthly_allowance != 0"""
+            )
+            _fixed_count = _fc.execute("SELECT changes()").fetchone()[0]
+            _fc.commit()
+            if _fixed_count:
+                log.info("Free-user credit fix: zeroed monthly_allowance for %d user(s)", _fixed_count)
+            # Log bugrowle@gmail.com state for manual verification
+            _brow = _fc.execute(
+                """SELECT u.email, u.subscription_status, u.subscription_plan, u.has_paid,
+                          sc.balance, sc.monthly_allowance
+                   FROM users u LEFT JOIN song_credits sc ON sc.user_id = u.id
+                   WHERE lower(u.email) = 'bugrowle@gmail.com'"""
+            ).fetchone()
+            if _brow:
+                log.info(
+                    "bugrowle@gmail.com — status=%r plan=%r has_paid=%r balance=%r monthly_allowance=%r",
+                    _brow["subscription_status"], _brow["subscription_plan"],
+                    _brow["has_paid"], _brow["balance"], _brow["monthly_allowance"],
+                )
+            else:
+                log.info("bugrowle@gmail.com — not found in DB")
+        finally:
+            _fc.close()
+    except Exception:
+        log.exception("Free-user credit fix failed (non-fatal)")
+
     try:
         _scheduler_mod.init_scheduler(history)
         log.info("Scheduler initialised")
@@ -1486,11 +1524,12 @@ async def songs_generate(
     user_id = current_user["id"]
 
     # Lazy-init free credits for users with no credits row yet
+    # Free users get a one-time signup bonus only — monthly_allowance=0 prevents any periodic refill
     credits_row = db.get_song_credits(db_path, user_id)
     if credits_row is None:
         db.upsert_song_credits(db_path, user_id,
                                balance=billing.FREE_SONG_CREDITS,
-                               monthly_allowance=billing.FREE_SONG_CREDITS)
+                               monthly_allowance=0)
         credits_row = db.get_song_credits(db_path, user_id)
 
     log.info(
