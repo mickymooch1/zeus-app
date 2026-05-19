@@ -1738,6 +1738,28 @@ async def songs_payg(
     return {"url": url}
 
 
+@app.post("/api/songs/animation-topup")
+async def songs_animation_topup(
+    body: SongsTopupRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not billing.stripe_enabled():
+        raise HTTPException(status_code=503, detail="Billing is not configured")
+    origin = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    success_url = f"{origin}/songs?topup=success"
+    cancel_url = f"{origin}/songs"
+    try:
+        url = billing.create_animation_pack_checkout_session(
+            current_user, body.pack, success_url, cancel_url
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        log.exception("Animation pack checkout error")
+        raise HTTPException(status_code=500, detail="Failed to create checkout session")
+    return {"url": url}
+
+
 @app.get("/api/users/me/chat-usage")
 async def get_my_chat_usage(current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()
@@ -1768,6 +1790,8 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
     row = db.ensure_free_song_credits(db_path, current_user["id"], balance=default_credits, monthly_allowance=default_credits if is_paid else 0)
 
     video_row = db.get_video_credits(db_path, current_user["id"])
+    anim_row = db.get_animation_credits(db_path, current_user["id"])
+    anim_allowance = billing._PLAN_ANIMATION_CREDITS.get(plan, 0)
     return {
         "balance": row["balance"],
         "monthly_allowance": allowance,
@@ -1778,6 +1802,8 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
         "video_credits": video_row["balance"] if video_row else 0,
         "video_monthly_allowance": video_allowance,
         "artist_name": current_user.get("artist_name") or "",
+        "animation_credits": anim_row["animation_balance"] if anim_row else 0,
+        "animation_monthly_allowance": anim_allowance,
     }
 
 

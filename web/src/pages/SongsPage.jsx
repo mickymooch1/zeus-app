@@ -16,6 +16,11 @@ const SONG_PACKS = [
   { pack: 'song_pack_400', label: '10 Songs', price: '£4.00' },
 ];
 
+const ANIMATION_PACKS = [
+  { pack: 'animation_pack_5',  label: '5 animations',  price: '£2' },
+  { pack: 'animation_pack_15', label: '15 animations', price: '£5' },
+];
+
 const PAGE_CSS = `
 @keyframes shimmer {
   0%   { transform: translateX(-100%); }
@@ -600,7 +605,7 @@ export default function SongsPage() {
   const location = useLocation();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
-  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, has_paid: false, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '' });
+  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, has_paid: false, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '', animation_credits: 0, animation_monthly_allowance: 0 });
   const [brief, setBrief]               = useState('');
   const [selGenres, setSelGenres]       = useState(new Set());
   const [generating, setGenerating]     = useState(false);
@@ -963,6 +968,23 @@ export default function SongsPage() {
     }
   };
 
+  const handleAnimationTopup = async (pack) => {
+    setTopupLoading(pack);
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/songs/animation-topup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pack }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Checkout failed');
+      window.location.href = d.url;
+    } catch (e) {
+      setError(e.message);
+      setTopupLoading(null);
+    }
+  };
+
   const handleArtistLookup = async () => {
     const name = inspiredBy.trim();
     if (!name) { setArtistDescriptors(''); return; }
@@ -1310,6 +1332,11 @@ export default function SongsPage() {
             {didPlanOk && !isAdmin && (
               <span style={{ fontSize: 13, color: credits.video_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
                 · {credits.video_credits} avatar video{credits.video_credits !== 1 ? 's' : ''} remaining
+              </span>
+            )}
+            {!isFreeTier && !isAdmin && credits.animation_monthly_allowance > 0 && (
+              <span style={{ fontSize: 13, color: credits.animation_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
+                · {credits.animation_credits} animation{credits.animation_credits !== 1 ? 's' : ''} remaining
               </span>
             )}
             {!isAdmin && balance <= 2 && (
@@ -1858,6 +1885,13 @@ export default function SongsPage() {
                         {animateCoverPref ? 'Animated Cover Art' : 'Animated Cover Art (off)'}
                       </span>
                     </label>
+                    {animateCoverPref && !isAdmin && credits.animation_credits === 0 && (
+                      <p style={{ fontSize: 11, color: '#f87171', margin: '6px 0 0 46px' }}>
+                        No animation credits left this month.{' '}
+                        <button onClick={() => handleAnimationTopup('animation_pack_5')} disabled={topupLoading !== null} style={{ background: 'none', border: 'none', color: '#f87171', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: 11 }}>Buy more</button>
+                        {' '}or <Link to="/billing" style={{ color: '#f87171' }}>upgrade</Link>.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -1995,6 +2029,52 @@ export default function SongsPage() {
               Credits never expire · No subscription needed
             </p>
           </div>
+
+          {/* ── Animation credits top-up ───────────────────────────────── */}
+          {!isAdmin && !isFreeTier && animateCoverPref && credits.animation_credits === 0 && (
+            <div style={{
+              marginBottom: 44,
+              padding: '20px 24px',
+              borderRadius: 14,
+              border: '1px solid rgba(167,139,250,0.4)',
+              background: 'rgba(124,58,237,0.04)',
+            }}>
+              <h3 style={{
+                fontFamily: "'Orbitron', sans-serif",
+                fontSize: 13,
+                fontWeight: 700,
+                color: '#c4b5fd',
+                marginBottom: 14,
+                letterSpacing: '0.5px',
+              }}>🎬 Buy Animation Credits</h3>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {ANIMATION_PACKS.map(({ pack, label, price }) => (
+                  <button
+                    key={pack}
+                    onClick={() => handleAnimationTopup(pack)}
+                    disabled={topupLoading !== null}
+                    style={{
+                      padding: '11px 22px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(167,139,250,0.5)',
+                      background: 'linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(139,92,246,0.08) 100%)',
+                      color: '#c4b5fd',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: topupLoading ? 'default' : 'pointer',
+                      transition: 'all 0.2s',
+                      letterSpacing: '0.3px',
+                    }}
+                  >
+                    {topupLoading === pack ? 'Redirecting…' : `${label} — ${price}`}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: '#7c3aed', marginTop: 12, marginBottom: 0 }}>
+                Credits never expire · Animated cover art for your songs
+              </p>
+            </div>
+          )}
 
           {/* ── Currently generating ───────────────────────────────────── */}
           {activeJob && (

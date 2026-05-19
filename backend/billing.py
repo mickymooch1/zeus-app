@@ -101,6 +101,15 @@ _PLAN_VIDEO_CREDITS = {
     "music_agency": 10,
 }
 
+_PLAN_ANIMATION_CREDITS = {
+    "pro":           10,
+    "agency":        20,
+    "enterprise":    50,
+    "music_starter": 3,
+    "music_pro":     10,
+    "music_agency":  20,
+}
+
 MUSIC_PLANS: dict = {
     "music_starter": {
         "name": "Music Starter",
@@ -139,6 +148,24 @@ MUSIC_PLANS: dict = {
             "All music genres",
             "No website builder",
         ],
+    },
+}
+
+STRIPE_ANIMATION_PACK_5_PRICE_ID  = os.environ.get("STRIPE_ANIMATION_PACK_5_PRICE_ID", "")
+STRIPE_ANIMATION_PACK_15_PRICE_ID = os.environ.get("STRIPE_ANIMATION_PACK_15_PRICE_ID", "")
+
+ANIMATION_PACKS = {
+    "animation_pack_5": {
+        "credits": 5,
+        "label": "5 animations",
+        "price": "£2",
+        "price_id": STRIPE_ANIMATION_PACK_5_PRICE_ID,
+    },
+    "animation_pack_15": {
+        "credits": 15,
+        "label": "15 animations",
+        "price": "£5",
+        "price_id": STRIPE_ANIMATION_PACK_15_PRICE_ID,
     },
 }
 
@@ -287,6 +314,40 @@ def create_song_pack_checkout_session(user: dict, pack: str, success_url: str, c
     return session.url
 
 
+def create_animation_pack_checkout_session(user: dict, pack: str, success_url: str, cancel_url: str) -> str:
+    """Create a one-time Stripe Checkout Session for an animation credit top-up pack."""
+    stripe = _get_stripe()
+
+    if pack not in ANIMATION_PACKS:
+        raise ValueError(f"Unknown animation pack: {pack}")
+
+    price_id = ANIMATION_PACKS[pack]["price_id"]
+    if not price_id:
+        raise ValueError(f"No Stripe price ID configured for pack '{pack}' — set STRIPE_{pack.upper()}_PRICE_ID")
+
+    customer_id = user.get("stripe_customer_id")
+
+    params: dict = {
+        "payment_method_types": ["card"],
+        "line_items": [{"price": price_id, "quantity": 1}],
+        "mode": "payment",
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "metadata": {
+            "user_id": user["id"],
+            "animation_pack": pack,
+        },
+    }
+
+    if customer_id:
+        params["customer"] = customer_id
+    else:
+        params["customer_email"] = user["email"]
+
+    session = stripe.checkout.Session.create(**params)
+    return session.url
+
+
 def create_portal_session(customer_id: str, return_url: str) -> str:
     """
     Create a Stripe Customer Portal session.
@@ -367,17 +428,19 @@ def _handle_checkout_completed(db_path, session) -> None:
     subscription_id = session.get("subscription")
     user_id = session.get("metadata", {}).get("user_id")
 
-    # ── One-time payment: song credit top-up ─────────────────────────────────
+    # ── One-time payment: song or animation credit top-up ────────────────────
     if session.get("mode") == "payment":
         pack = session.get("metadata", {}).get("song_pack")
+        anim_pack = session.get("metadata", {}).get("animation_pack")
+        user = None
+        if customer_email:
+            user = db.get_user_by_email(db_path, customer_email)
+        if not user and customer_id:
+            user = _find_user_by_customer(db_path, customer_id)
+        if not user and user_id:
+            user = db.get_user_by_id(db_path, user_id)
+
         if pack and pack in SONG_PACKS:
-            user = None
-            if customer_email:
-                user = db.get_user_by_email(db_path, customer_email)
-            if not user and customer_id:
-                user = _find_user_by_customer(db_path, customer_id)
-            if not user and user_id:
-                user = db.get_user_by_id(db_path, user_id)
             if user:
                 credits = SONG_PACKS[pack]["credits"]
                 db.increment_song_credits(db_path, user["id"], credits)
@@ -386,8 +449,17 @@ def _handle_checkout_completed(db_path, session) -> None:
             else:
                 log.warning("Song top-up: could not find user (email=%s customer=%s user_id=%s)",
                             customer_email, customer_id, user_id)
+        elif anim_pack and anim_pack in ANIMATION_PACKS:
+            if user:
+                credits = ANIMATION_PACKS[anim_pack]["credits"]
+                db.increment_animation_credits(db_path, user["id"], credits)
+                db.update_user(db_path, user["id"], has_paid=1)
+                log.info("Animation top-up: added %d credits (%s) to user %s", credits, anim_pack, user["id"])
+            else:
+                log.warning("Animation top-up: could not find user (email=%s customer=%s user_id=%s)",
+                            customer_email, customer_id, user_id)
         else:
-            log.warning("checkout.session.completed payment: unrecognised pack %r — ignoring", pack)
+            log.warning("checkout.session.completed payment: unrecognised pack song=%r anim=%r — ignoring", pack, anim_pack)
         return
 
     # Determine plan from the subscription's price ID
@@ -446,6 +518,10 @@ def _handle_checkout_completed(db_path, session) -> None:
         db.upsert_video_credits(db_path, user["id"], balance=video_allowance, monthly_allowance=video_allowance)
         log.info("Granted %d video credits (%s plan) to user %s", video_allowance, plan, user["id"])
 
+    anim_allowance = _PLAN_ANIMATION_CREDITS.get(plan, 0)
+    db.upsert_animation_credits(db_path, user["id"], balance=anim_allowance, monthly_allowance=anim_allowance)
+    log.info("Granted %d animation credits (%s plan) to user %s", anim_allowance, plan, user["id"])
+
 
 def _handle_invoice_paid(db_path, invoice) -> None:
     """Reset monthly song credit balance on recurring Stripe invoice."""
@@ -471,6 +547,10 @@ def _handle_invoice_paid(db_path, invoice) -> None:
     if video_allowance > 0:
         db.upsert_video_credits(db_path, user["id"], balance=video_allowance, monthly_allowance=video_allowance)
         log.info("Monthly video credits reset for user %s: %d credits (%s plan)", user["id"], video_allowance, plan)
+
+    anim_allowance = _PLAN_ANIMATION_CREDITS.get(plan, 0)
+    db.upsert_animation_credits(db_path, user["id"], balance=anim_allowance, monthly_allowance=anim_allowance)
+    log.info("Monthly animation credits reset for user %s: %d credits (%s plan)", user["id"], anim_allowance, plan)
 
 
 def _handle_subscription_updated(db_path, subscription) -> None:

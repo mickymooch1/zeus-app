@@ -10,6 +10,7 @@ import textwrap
 import threading
 import requests
 import httpx
+import db as _db
 from PIL import Image, ImageDraw, ImageFont
 from fastapi import APIRouter, Request, HTTPException
 
@@ -170,7 +171,7 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
         _kling_conn = sqlite3.connect(DB_PATH)
         try:
             _user_row = _kling_conn.execute(
-                "SELECT u.subscription_status, u.subscription_plan, u.has_paid "
+                "SELECT u.id, u.subscription_status, u.subscription_plan, u.has_paid "
                 "FROM song_variants sv JOIN users u ON u.id = sv.user_id WHERE sv.id = ?",
                 (variant_id,),
             ).fetchone()
@@ -178,9 +179,10 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
             _kling_conn.close()
 
         if _user_row:
-            _sub_status, _plan, _has_paid = _user_row
+            _user_id, _sub_status, _plan, _has_paid = _user_row
             _is_eligible = (_sub_status and _sub_status != "free") or bool(_plan) or bool(_has_paid)
         else:
+            _user_id = None
             _is_eligible = False
             logger.warning("Kling pipeline: user lookup failed for variant_id=%d — skipping", variant_id)
 
@@ -189,14 +191,28 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
                 "Kling skipped for variant_id=%d: free tier user "
                 "(status=%r plan=%r has_paid=%r) — static cover art only",
                 variant_id,
-                _user_row[0] if _user_row else None,
                 _user_row[1] if _user_row else None,
                 _user_row[2] if _user_row else None,
+                _user_row[3] if _user_row else None,
             )
             return
 
         logger.info("Kling eligible: variant_id=%d status=%r plan=%r has_paid=%r",
-                    variant_id, _user_row[0], _user_row[1], _user_row[2])
+                    variant_id, _user_row[1], _user_row[2], _user_row[3])
+
+        # Gate: deduct 1 animation credit; skip if user has none remaining
+        if _user_id:
+            _has_anim_credit = _db.check_and_deduct_animation_credit(pathlib.Path(DB_PATH), _user_id)
+            if not _has_anim_credit:
+                logger.info(
+                    "Kling skipped for variant_id=%d: no animation credits remaining for user %s",
+                    variant_id, _user_id,
+                )
+                return
+            logger.info("Kling animation credit deducted for user %s (variant_id=%d)", _user_id, variant_id)
+        else:
+            logger.warning("Kling pipeline: no user_id for variant_id=%d — skipping animation credit check", variant_id)
+            return
 
         from songs import GENRE_MOTION_PROMPTS
         prompt = GENRE_MOTION_PROMPTS.get(

@@ -239,6 +239,8 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_variants ADD COLUMN is_favourite INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN has_paid INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE song_variants ADD COLUMN animate_cover INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE song_credits ADD COLUMN animation_balance INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE song_credits ADD COLUMN animation_monthly_allowance INTEGER NOT NULL DEFAULT 0",
         ]:
             try:
                 conn.execute(_migration)
@@ -1138,6 +1140,92 @@ def refund_video_credit(db_path: pathlib.Path, user_id: str) -> None:
     try:
         conn.execute(
             "UPDATE video_credits SET balance = balance + 1 WHERE user_id = ?",
+            (user_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ── Animation credits CRUD ────────────────────────────────────────────────────
+
+def get_animation_credits(db_path: pathlib.Path, user_id: str) -> dict | None:
+    """Return animation_balance and animation_monthly_allowance from song_credits."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT animation_balance, animation_monthly_allowance FROM song_credits WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        return {"animation_balance": row["animation_balance"], "animation_monthly_allowance": row["animation_monthly_allowance"]} if row else None
+    finally:
+        conn.close()
+
+
+def upsert_animation_credits(
+    db_path: pathlib.Path,
+    user_id: str,
+    balance: int,
+    monthly_allowance: int,
+) -> None:
+    """Set animation credits columns on song_credits row, creating it if absent."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """INSERT INTO song_credits (user_id, balance, monthly_allowance, animation_balance, animation_monthly_allowance, last_reset)
+               VALUES (?, 0, 0, ?, ?, CURRENT_TIMESTAMP)
+               ON CONFLICT(user_id) DO UPDATE SET
+                   animation_balance = ?,
+                   animation_monthly_allowance = ?""",
+            (user_id, balance, monthly_allowance, balance, monthly_allowance),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def check_and_deduct_animation_credit(db_path: pathlib.Path, user_id: str) -> bool:
+    """Atomically deduct 1 animation credit. Returns True on success, False if balance is 0."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT animation_balance FROM song_credits WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if not row or row["animation_balance"] < 1:
+            return False
+        conn.execute(
+            "UPDATE song_credits SET animation_balance = animation_balance - 1 WHERE user_id = ?",
+            (user_id,),
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def increment_animation_credits(db_path: pathlib.Path, user_id: str, amount: int) -> None:
+    """Add animation credits to song_credits row (for top-up pack purchases)."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """INSERT INTO song_credits (user_id, balance, monthly_allowance, animation_balance, animation_monthly_allowance)
+               VALUES (?, 0, 0, ?, 0)
+               ON CONFLICT(user_id) DO UPDATE SET animation_balance = animation_balance + ?""",
+            (user_id, amount, amount),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def reset_animation_credits_balance(db_path: pathlib.Path, user_id: str) -> None:
+    """Reset animation_balance back to animation_monthly_allowance — called on Stripe monthly renewal."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """UPDATE song_credits
+               SET animation_balance = animation_monthly_allowance
+               WHERE user_id = ?""",
             (user_id,),
         )
         conn.commit()
