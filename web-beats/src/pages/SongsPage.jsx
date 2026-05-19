@@ -236,7 +236,7 @@ const SongCard = memo(function SongCard({
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
   onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick, onRegenerate,
-  isFavourite, onToggleFavourite,
+  isFavourite, onToggleFavourite, isFreeTier,
 }) {
   const { t } = useTranslation();
   const waveRef = useRef(null);
@@ -440,6 +440,25 @@ const SongCard = memo(function SongCard({
             <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
           </div>
         )}
+        {isFreeTier && !musicVideoUrl && variant.image_url && (
+          <a
+            href="#pricing"
+            style={{
+              position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
+              display: 'inline-block',
+              background: 'rgba(0,0,0,0.78)',
+              border: '1px solid rgba(0,240,255,0.35)',
+              borderRadius: 20,
+              padding: '3px 10px',
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#00f0ff',
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+              letterSpacing: '0.02em',
+            }}
+          >🎬 Upgrade for animated cover art</a>
+        )}
         {!isFailed && (
           <button
             onClick={handlePlay}
@@ -606,7 +625,7 @@ export default function SongsPage() {
   const location = useLocation();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
-  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '' });
+  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, has_paid: false, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '' });
   const [brief, setBrief]               = useState('');
   const [selGenres, setSelGenres]       = useState(() => { const s = _matchGenreSlug(location.state?.prefillGenre); return s ? new Set([s]) : new Set(); });
   const [generating, setGenerating]     = useState(false);
@@ -677,6 +696,7 @@ export default function SongsPage() {
   const recognitionRef  = useRef(null);
 
   const isAdmin          = credits.is_admin;
+  const isFreeTier       = !isAdmin && !credits.plan && !credits.has_paid;
   const isMusicPlan      = ['music_starter', 'music_pro', 'music_agency'].includes(credits.plan);
   const canShowExplicit  = true;
   const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan) || isMusicPlan;
@@ -1902,6 +1922,7 @@ export default function SongsPage() {
                       onRegenerate={handleRegenerate}
                       isFavourite={favourites.has(v.variant_id)}
                       onToggleFavourite={handleToggleFavourite}
+                      isFreeTier={isFreeTier}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -1971,6 +1992,7 @@ export default function SongsPage() {
                     onRegenerate={handleRegenerate}
                     isFavourite={favourites.has(v.variant_id)}
                     onToggleFavourite={handleToggleFavourite}
+                    isFreeTier={isFreeTier}
                   />
                 ))}
               </div>

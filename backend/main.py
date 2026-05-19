@@ -1767,6 +1767,7 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
         "monthly_allowance": allowance,
         "is_admin": bool(current_user.get("is_admin", 0)),
         "plan": plan,
+        "has_paid": bool(current_user.get("has_paid", 0)),
         "youtube_connected": bool(current_user.get("youtube_refresh_token")),
         "video_credits": video_row["balance"] if video_row else 0,
         "video_monthly_allowance": video_allowance,

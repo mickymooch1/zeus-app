@@ -381,7 +381,8 @@ def _handle_checkout_completed(db_path, session) -> None:
             if user:
                 credits = SONG_PACKS[pack]["credits"]
                 db.increment_song_credits(db_path, user["id"], credits)
-                log.info("Song top-up: added %d credits (%s) to user %s", credits, pack, user["id"])
+                db.update_user(db_path, user["id"], has_paid=1)
+                log.info("Song top-up: added %d credits (%s) to user %s — marked has_paid=1", credits, pack, user["id"])
             else:
                 log.warning("Song top-up: could not find user (email=%s customer=%s user_id=%s)",
                             customer_email, customer_id, user_id)
@@ -426,6 +427,7 @@ def _handle_checkout_completed(db_path, session) -> None:
     updates = {
         "subscription_status": "active",
         "subscription_plan": plan,
+        "has_paid": 1,
     }
     if customer_id:
         updates["stripe_customer_id"] = customer_id
@@ -433,7 +435,7 @@ def _handle_checkout_completed(db_path, session) -> None:
         updates["subscription_id"] = subscription_id
 
     db.update_user(db_path, user["id"], **updates)
-    log.info("Activated %s plan for user %s", plan, user["id"])
+    log.info("Activated %s plan for user %s — marked has_paid=1", plan, user["id"])
 
     allowance = _PLAN_SONG_CREDITS.get(plan, FREE_SONG_CREDITS)
     db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)

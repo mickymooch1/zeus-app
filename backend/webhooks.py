@@ -160,6 +160,38 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
             logger.warning("Kling pipeline: FAL_API_KEY not set — skipping variant_id=%d", variant_id)
             return
 
+        # Gate: only paid users (subscription or PAYG purchase) get Kling animation
+        _kling_conn = sqlite3.connect(DB_PATH)
+        try:
+            _user_row = _kling_conn.execute(
+                "SELECT u.subscription_status, u.subscription_plan, u.has_paid "
+                "FROM song_variants sv JOIN users u ON u.id = sv.user_id WHERE sv.id = ?",
+                (variant_id,),
+            ).fetchone()
+        finally:
+            _kling_conn.close()
+
+        if _user_row:
+            _sub_status, _plan, _has_paid = _user_row
+            _is_eligible = (_sub_status and _sub_status != "free") or bool(_plan) or bool(_has_paid)
+        else:
+            _is_eligible = False
+            logger.warning("Kling pipeline: user lookup failed for variant_id=%d — skipping", variant_id)
+
+        if not _is_eligible:
+            logger.info(
+                "Kling skipped for variant_id=%d: free tier user "
+                "(status=%r plan=%r has_paid=%r) — static cover art only",
+                variant_id,
+                _user_row[0] if _user_row else None,
+                _user_row[1] if _user_row else None,
+                _user_row[2] if _user_row else None,
+            )
+            return
+
+        logger.info("Kling eligible: variant_id=%d status=%r plan=%r has_paid=%r",
+                    variant_id, _user_row[0], _user_row[1], _user_row[2])
+
         from songs import GENRE_MOTION_PROMPTS
         prompt = GENRE_MOTION_PROMPTS.get(
             genre_tag or "",
