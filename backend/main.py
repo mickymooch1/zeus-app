@@ -3609,6 +3609,7 @@ if _beats_dist.exists():
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str, request: Request):
+    import re as _re
     host = request.headers.get("host", "")
     is_beats = "zeusbeats" in host
 
@@ -3619,7 +3620,26 @@ async def serve_spa(full_path: str, request: Request):
     candidate = dist / full_path
     if candidate.exists() and candidate.is_file():
         return FileResponse(str(candidate))
-    return FileResponse(str(dist / "index.html"))
+
+    index_path = dist / "index.html"
+    if is_beats and index_path.exists():
+        html = index_path.read_text(encoding="utf-8")
+        html = _re.sub(
+            r"<title>[^<]*</title>",
+            (
+                '<title>Zeus Beats — Create AI Music in Seconds | 30+ Genres</title>\n'
+                '    <meta name="description" content="Create original AI songs in 30+ genres including Soul, Grime, Afrobeats, D&amp;B, Jazz and more. Animated cover art, YouTube upload, avatar videos. 5 free songs on signup. No studio needed.">\n'
+                '    <meta name="keywords" content="AI music generator, create AI songs, grime AI, afrobeats generator, UK music AI, AI beats maker, zeus beats">\n'
+                '    <meta property="og:title" content="Zeus Beats — AI Music Creator">\n'
+                '    <meta property="og:description" content="Create original songs in seconds. 30+ genres. Free to start.">\n'
+                '    <meta property="og:url" content="https://zeusbeats.com">\n'
+                '    <meta property="og:type" content="website">'
+            ),
+            html,
+            count=1,
+        )
+        return HTMLResponse(html)
+    return FileResponse(str(index_path))
 
 
 if __name__ == "__main__":
