@@ -26,14 +26,16 @@ export default function RegisterPage() {
     if (!email || !email.includes('@')) errors.email = t('auth.register.errors.email');
     if (password.length < 8) errors.password = t('auth.register.errors.password');
     if (password !== confirmPassword) errors.confirmPassword = t('auth.register.errors.passwordMatch');
+    if (!tcAccepted) errors.terms = 'You must accept the Terms & Conditions to continue.';
     return errors;
   };
 
   const canSubmit =
-    name.trim() && email && password.length >= 8 && password === confirmPassword && tcAccepted;
+    name.trim() && email && password.length >= 8 && password === confirmPassword;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('[RegisterPage] handleSubmit called', { email, name, tcAccepted });
     setError('');
     const errors = validate();
     if (Object.keys(errors).length > 0) {
@@ -163,24 +165,27 @@ export default function RegisterPage() {
             )}
           </div>
 
-          <label className="checkbox-row">
-            <input
-              type="checkbox"
-              checked={tcAccepted}
-              onChange={(e) => setTcAccepted(e.target.checked)}
-              className="checkbox-input"
-            />
-            <span className="checkbox-label">
-              {t('auth.register.termsAgree')}{' '}
-              <a href="/terms" target="_blank" rel="noopener noreferrer" className="auth-link">
-                {t('auth.register.termsLink')}
-              </a>{' '}
-              {t('auth.register.and')}{' '}
-              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="auth-link">
-                {t('auth.register.privacyLink')}
-              </a>
-            </span>
-          </label>
+          <div>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={tcAccepted}
+                onChange={(e) => { setTcAccepted(e.target.checked); setFieldErrors((fe) => ({ ...fe, terms: undefined })); }}
+                className="checkbox-input"
+              />
+              <span className="checkbox-label">
+                {t('auth.register.termsAgree')}{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="auth-link">
+                  {t('auth.register.termsLink')}
+                </a>{' '}
+                {t('auth.register.and')}{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="auth-link">
+                  {t('auth.register.privacyLink')}
+                </a>
+              </span>
+            </label>
+            {fieldErrors.terms && <span className="form-error">{fieldErrors.terms}</span>}
+          </div>
 
           <button
             type="submit"
