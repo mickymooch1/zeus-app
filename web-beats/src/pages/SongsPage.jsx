@@ -649,7 +649,7 @@ export default function SongsPage() {
   const [explicit, setExplicit]           = useState(false);
   const [vocals, setVocals]               = useState(true);
   const [animateCoverPref, setAnimateCoverPref] = useState(
-    () => localStorage.getItem('zeus_animated_covers') !== 'false'
+    () => localStorage.getItem('zeus_animated_covers') === 'true'
   );
   const [songTitle, setSongTitle]         = useState('');
 
