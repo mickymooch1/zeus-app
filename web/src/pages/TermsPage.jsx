@@ -16,8 +16,8 @@ export default function TermsPage() {
           <p>
             By accessing or using Zeus AI Design ("the Service"), you agree to be bound by these
             Terms &amp; Conditions ("Terms"). If you do not agree to these Terms, you must not use
-            the Service. These Terms constitute a legally binding agreement between you and Aero
-            Space Parking Ltd (company number 17141941), trading as Zeus AI Design ("we", "us",
+            the Service. These Terms constitute a legally binding agreement between you and Zeus
+            Beats Ltd (company number 17230535), trading as Zeus AI Design ("we", "us",
             "our"), a company registered in England and Wales. We reserve the right to update these
             Terms at any time. Continued use of the Service after changes constitutes acceptance of
             the updated Terms.
@@ -234,11 +234,11 @@ export default function TermsPage() {
         <section className="content-section">
           <h2>10. Data Protection &amp; GDPR</h2>
           <p>
-            Aero Space Parking Ltd (trading as Zeus AI Design, company number 17141941,
+            Zeus Beats Ltd (trading as Zeus AI Design, company number 17230535,
             registered in England and Wales) is committed to protecting your personal data in
             accordance with the UK General Data Protection Regulation (UK GDPR), the Data
             Protection Act 2018, and applicable EU GDPR requirements. We act as the data
-            controller for personal data processed through the Service. Aero Space Parking Ltd
+            controller for personal data processed through the Service. Zeus Beats Ltd
             (trading as Zeus AI Design) is registered with the Information Commissioner's Office
             (ICO), registration number C1903581.
           </p>
@@ -332,9 +332,10 @@ export default function TermsPage() {
             If you have any questions about these Terms, please contact us at:
           </p>
           <address className="content-address">
-            Aero Space Parking Ltd<br />
+            Zeus Beats Ltd<br />
             Trading as: Zeus AI Design<br />
-            Company number: 17141941<br />
+            Company number: 17230535<br />
+            Registered address: 79 Brookway Court, Wythenshawe, Manchester, M23 0GL<br />
             Registered in England and Wales<br />
             Email:{' '}
             <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a><br />

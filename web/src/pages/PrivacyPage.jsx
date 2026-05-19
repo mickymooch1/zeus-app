@@ -225,15 +225,16 @@ export default function PrivacyPage() {
         <section className="content-section">
           <h2>11. Contact &amp; Data Controller</h2>
           <p>
-            Aero Space Parking Ltd (trading as Zeus AI Design) is the data controller for
-            personal data processed through the Service. Aero Space Parking Ltd (trading as
+            Zeus Beats Ltd (trading as Zeus AI Design) is the data controller for
+            personal data processed through the Service. Zeus Beats Ltd (trading as
             Zeus AI Design) is registered with the Information Commissioner's Office (ICO),
             registration number C1903581.
           </p>
           <address className="content-address">
-            Aero Space Parking Ltd<br />
+            Zeus Beats Ltd<br />
             Trading as: Zeus AI Design<br />
-            Company number: 17141941<br />
+            Company number: 17230535<br />
+            Registered address: 79 Brookway Court, Wythenshawe, Manchester, M23 0GL<br />
             Registered in England and Wales<br />
             Data Protection Enquiries:<br />
             Email: <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a><br />

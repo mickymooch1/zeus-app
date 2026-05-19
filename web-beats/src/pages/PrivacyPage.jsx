@@ -245,14 +245,14 @@ export default function PrivacyPage() {
         <section className="content-section">
           <h2>11. Contact &amp; Data Controller</h2>
           <p>
-            Aero Space Parking Ltd (trading as Zeus Beats) is the data controller for personal
-            data processed through the Service. Aero Space Parking Ltd is registered with the
+            Zeus Beats Ltd is the data controller for personal
+            data processed through the Service. Zeus Beats Ltd is registered with the
             Information Commissioner's Office (ICO), registration number C1903581.
           </p>
           <address className="content-address">
-            Aero Space Parking Ltd<br />
-            Trading as: Zeus Beats<br />
-            Company number: 17141941<br />
+            Zeus Beats Ltd<br />
+            Company number: 17230535<br />
+            Registered address: 79 Brookway Court, Wythenshawe, Manchester, M23 0GL<br />
             Registered in England and Wales<br />
             Data Protection Enquiries:<br />
             Email: <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a><br />
