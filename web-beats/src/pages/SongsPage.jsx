@@ -83,6 +83,22 @@ const PAGE_CSS = `
 .fav-star-btn:hover { transform: scale(1.2); }
 .cover-video { transition: filter 0.2s; }
 .cover-video:hover { filter: brightness(1.12); }
+@keyframes cover-float {
+  0%, 100% { transform: scale(1) translateY(0px); }
+  50% { transform: scale(1.03) translateY(-4px); }
+}
+@keyframes cover-shimmer {
+  0% { filter: brightness(1) saturate(1); }
+  50% { filter: brightness(1.1) saturate(1.2); }
+  100% { filter: brightness(1) saturate(1); }
+}
+@keyframes cover-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(0,240,255,0.3); }
+  50% { box-shadow: 0 0 25px rgba(0,240,255,0.7); }
+}
+.cover-art-live {
+  animation: cover-float 4s ease-in-out infinite, cover-shimmer 3s ease-in-out infinite, cover-glow 3s ease-in-out infinite;
+}
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 15px rgba(0,240,255,0.3), inset 0 0 15px rgba(0,240,255,0.03); border-color: #00f0ff; }
   50%       { box-shadow: 0 0 28px rgba(0,240,255,0.55), inset 0 0 20px rgba(0,240,255,0.06); border-color: #66f9ff; }
@@ -307,7 +323,6 @@ const SongCard = memo(function SongCard({
     try {
       await onTelegramClick(variant, title);
       setTgPosted(true);
-      setTimeout(() => setTgPosted(false), 3000);
     } finally {
       setTgPosting(false);
     }
@@ -378,11 +393,11 @@ const SongCard = memo(function SongCard({
         {t('songs.buttons.youtube')}
       </button>
     );
-  } else if (ytSt === 'done' && ytUrl) {
+  } else if (ytSt === 'done') {
     ytBtn = (
-      <a href={ytUrl} target="_blank" rel="noopener noreferrer" style={ytStyle}>
-        {t('songs.buttons.viewYT')}
-      </a>
+      <button style={{ ...ytStyle, color: '#4ade80', borderColor: 'rgba(74,222,128,0.55)', opacity: 0.6, cursor: 'default', pointerEvents: 'none' }}>
+        ✓ Uploaded
+      </button>
     );
   } else if (ytSt === 'uploading') {
     ytBtn = (
@@ -419,23 +434,10 @@ const SongCard = memo(function SongCard({
             onError={() => setVideoErr(true)}
           />
         ) : variant.image_url ? (
-          <img src={variant.image_url} alt={title} style={S.artBox} />
+          <img src={variant.image_url} alt={title} style={S.artBox} className="cover-art-live" />
         ) : (
           <div style={{ ...S.artBox, ...S.artPlaceholder }}>
             <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
-          </div>
-        )}
-        {!musicVideoUrl && !isFailed && variant.image_url && (
-          <div style={{
-            position: 'absolute', bottom: 8, left: 8,
-            background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)',
-            borderRadius: 6, padding: '3px 8px',
-            fontSize: 10, color: '#aaa',
-            display: 'flex', alignItems: 'center', gap: 4,
-            border: '1px solid rgba(255,255,255,0.08)',
-            pointerEvents: 'none',
-          }}>
-            🎬 Generating video…
           </div>
         )}
         {!isFailed && (
@@ -517,17 +519,19 @@ const SongCard = memo(function SongCard({
                 className="dl-btn"
                 href={variant.mp3_url}
                 download={safeFilename}
-                onClick={() => { setDownloaded(true); setTimeout(() => setDownloaded(false), 2000); }}
+                onClick={() => setDownloaded(true)}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   width: '100%', minHeight: 44, borderRadius: 7, border: 'none',
-                  background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
-                  color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  background: downloaded ? 'rgba(74,222,128,0.15)' : 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+                  color: downloaded ? '#4ade80' : '#fff', fontSize: 12, fontWeight: 600,
+                  cursor: downloaded ? 'default' : 'pointer',
                   textDecoration: 'none', boxSizing: 'border-box',
-                  transition: 'box-shadow 0.2s ease',
+                  transition: 'all 0.2s ease', pointerEvents: downloaded ? 'none' : 'auto',
+                  border: downloaded ? '1px solid rgba(74,222,128,0.35)' : 'none',
                 }}
               >
-                {downloaded ? t('songs.buttons.downloaded') : t('songs.buttons.download')}
+                {downloaded ? '✓ Downloaded' : t('songs.buttons.download')}
               </a>
             </div>
             {/* Row 2: Share + Telegram */}
@@ -538,7 +542,7 @@ const SongCard = memo(function SongCard({
               <button
                 onClick={handleTelegram}
                 disabled={tgPosting}
-                style={{ ...actionBtnStyle, flex: 1, color: tgPosted ? '#4ade80' : '#00aaff', borderColor: tgPosted ? 'rgba(74,222,128,0.55)' : 'rgba(0,170,255,0.55)' }}
+                style={{ ...actionBtnStyle, flex: 1, color: tgPosted ? '#4ade80' : '#00aaff', borderColor: tgPosted ? 'rgba(74,222,128,0.55)' : 'rgba(0,170,255,0.55)', opacity: tgPosted ? 0.6 : 1, pointerEvents: tgPosted ? 'none' : 'auto', cursor: tgPosted ? 'default' : 'pointer' }}
               >
                 {tgPosting ? '…' : tgPosted ? t('songs.buttons.telegramPosted') : '✈ Telegram'}
               </button>

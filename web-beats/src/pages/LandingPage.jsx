@@ -119,47 +119,59 @@ export default function LandingPage() {
           <h2 className="section-title">{t('landing.featuresTitle')}<br /><span className="gradient-text">{t('landing.featuresTitle2')}</span></h2>
           <p className="section-sub">{t('landing.featuresSub', { brand: BRAND.name })}</p>
 
-          <div className="features-grid">
-            <div className="feat-card feat-lead">
-              <span className="feat-icon">🎶</span>
-              <h3>{t('landing.feature1Title')}</h3>
-              <p>{t('landing.feature1Desc')}</p>
-              <div className="feat-tags">
-                <span>{t('landing.feature1Tag1')}</span>
-                <span>{t('landing.feature1Tag2')}</span>
-                <span>{t('landing.feature1Tag3')}</span>
-                <span>{t('landing.feature1Tag4')}</span>
+          {/* MUSIC CREATION */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#00f0ff', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>🎵 Music Creation</div>
+            <div className="features-grid">
+              <div className="feat-card feat-lead">
+                <span className="feat-icon">🎵</span>
+                <h3>AI Song Generator</h3>
+                <p>Turn a text brief into a full original song — lyrics by Claude AI, audio by Suno. Full lyrics and vocals in 60 seconds.</p>
+                <div className="feat-tags"><span>35+ Genres</span><span>Custom Lyrics</span><span>AI Vocals</span><span>Instrumental Mode</span></div>
               </div>
+              <div className="feat-card"><span className="feat-icon">🎸</span><h3>35+ Genres</h3><p>Soul, Grime, D&amp;B, Afrobeats, Jungle, Jazz, Drill, Amapiano, Niche, UK Garage, Lo-Fi, Reggae, Bassline and more.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎨</span><h3>Animated Cover Art</h3><p>AI generates and animates your artwork automatically — every song gets a unique, genre-matched cover image that moves.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎬</span><h3>Avatar Lip-Sync Videos</h3><p>AI performer sings your track in HD video. Perfect for YouTube, Instagram Reels, and music promotion.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎛️</span><h3>DJ Mixer</h3><p>Mix your songs together and record your set — a built-in DJ deck for blending your AI tracks.</p></div>
+              <div className="feat-card"><span className="feat-icon">🔄</span><h3>Song Remake</h3><p>Regenerate any song in a completely different genre — same lyrics, totally new sound.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎤</span><h3>Voice to Text</h3><p>Describe your song by speaking, not typing. Hit the mic and Zeus transcribes your idea instantly.</p></div>
+              <div className="feat-card"><span className="feat-icon">📋</span><h3>Song Templates</h3><p>One-click starters: Club Banger, Emotional R&amp;B, Grime Bars and more — skip the blank page.</p></div>
             </div>
+          </div>
 
-            <div className="feat-card">
-              <span className="feat-icon">⚖️</span>
-              <h3>{t('landing.feature2Title')}</h3>
-              <p>{t('landing.feature2Desc')}</p>
+          {/* PUBLISHING */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#00f0ff', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14, marginTop: 40 }}>🌐 Publishing &amp; Sharing</div>
+            <div className="features-grid">
+              <div className="feat-card"><span className="feat-icon">▶️</span><h3>YouTube Upload</h3><p>One click — song goes live on your channel. Zeus uploads the audio, sets the title, and handles everything.</p></div>
+              <div className="feat-card"><span className="feat-icon">📘</span><h3>Facebook Auto-posting</h3><p>Zeus writes the caption and posts directly to your Facebook page — no copying, no switching apps.</p></div>
+              <div className="feat-card"><span className="feat-icon">✈️</span><h3>Telegram Sharing</h3><p>Share directly to your Telegram channel with one tap. Your audience gets it instantly.</p></div>
+              <div className="feat-card"><span className="feat-icon">🔍</span><h3>Music Search</h3><p>Find any artist, copy their style, generate your version — search for inspiration and make it your own.</p></div>
             </div>
+          </div>
 
-            <div className="feat-card">
-              <span className="feat-icon">🖼️</span>
-              <h3>{t('landing.feature3Title')}</h3>
-              <p>{t('landing.feature3Desc')}</p>
+          {/* ADVANCED CONTROLS */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#00f0ff', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14, marginTop: 40 }}>🎛️ Advanced Controls</div>
+            <div className="features-grid">
+              <div className="feat-card"><span className="feat-icon">🤖</span><h3>Model Selector</h3><p>Choose your Suno model — V4, V5, or V5.5 for the latest sound quality and features.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎤</span><h3>Vocal Gender</h3><p>Male, Female, or Duet — control who sings your track.</p></div>
+              <div className="feat-card"><span className="feat-icon">🗣️</span><h3>25+ Accents</h3><p>British, Jamaican, Grime MC, West African, American Hip-Hop, Irish, Scottish and more — pinpoint the vocal style.</p></div>
+              <div className="feat-card"><span className="feat-icon">🔞</span><h3>Explicit Toggle</h3><p>Enable explicit content for grime, drill, and street genres — authentic language where it fits.</p></div>
+              <div className="feat-card"><span className="feat-icon">🌀</span><h3>Weirdness Control</h3><p>Slide from Safe to Experimental — control how conventional or boundary-pushing your track sounds.</p></div>
+              <div className="feat-card"><span className="feat-icon">🚫</span><h3>Avoid Tags</h3><p>Tell Zeus what NOT to include — no piano, no trumpet, no slow sections. You're in control.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎨</span><h3>Inspired by Artist</h3><p>Type any artist name for style inspiration — Zeus captures the vibe without copying the sound.</p></div>
             </div>
+          </div>
 
-            <div className="feat-card">
-              <span className="feat-icon">▶️</span>
-              <h3>{t('landing.feature4Title')}</h3>
-              <p>{t('landing.feature4Desc')}</p>
-            </div>
-
-            <div className="feat-card">
-              <span className="feat-icon">🎬</span>
-              <h3>{t('landing.feature5Title')}</h3>
-              <p>{t('landing.feature5Desc')}</p>
-            </div>
-
-            <div className="feat-card">
-              <span className="feat-icon">🎛️</span>
-              <h3>{t('landing.feature6Title')}</h3>
-              <p>{t('landing.feature6Desc')}</p>
+          {/* ACCOUNT FEATURES */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#00f0ff', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14, marginTop: 40 }}>👤 Account Features</div>
+            <div className="features-grid">
+              <div className="feat-card"><span className="feat-icon">🎭</span><h3>Artist Name</h3><p>Set your stage name — it's shown on all your songs and videos automatically.</p></div>
+              <div className="feat-card"><span className="feat-icon">⭐</span><h3>Favourites</h3><p>Star and save your best songs. Find your hits instantly without scrolling through everything.</p></div>
+              <div className="feat-card"><span className="feat-icon">🔎</span><h3>Song Filters</h3><p>All Songs, Favourites, Recent — find exactly what you need in seconds.</p></div>
+              <div className="feat-card"><span className="feat-icon">🌍</span><h3>Multi-language</h3><p>English, French, Spanish, German, Portuguese — Zeus Beats speaks your language.</p></div>
             </div>
           </div>
         </div>
