@@ -3,6 +3,7 @@ import os
 import random
 import sqlite3
 import logging
+import re
 import requests
 
 RANDOM_PRODUCTION = [
@@ -62,7 +63,82 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]
 APIFRAME_BASE = "https://api.apiframe.ai"
-WEBHOOK_URL = os.environ["SONG_WEBHOOK_URL"]
+WEBHOOK_URL = os.environ["SONG_WEBHOOK_URL"].strip().rstrip("/")
+EXPECTED_PRODUCTION_WEBHOOK_URL = "https://zeusaidesign.com/webhooks/apiframe"
+if WEBHOOK_URL != EXPECTED_PRODUCTION_WEBHOOK_URL:
+    logger.warning("SONG_WEBHOOK_URL is %r; production should be %r", WEBHOOK_URL, EXPECTED_PRODUCTION_WEBHOOK_URL)
+
+DIRECT_ARTIST_STYLE_MAP = {
+    "drake": "melodic rap, emotional vocals, atmospheric trap drums, late night mood, polished hip-hop production",
+    "travis scott": "psychedelic trap, atmospheric synths, heavy 808 drums, spacious ad-libs, dark festival energy",
+    "billie eilish": "intimate whisper vocals, minimalist dark pop, sub bass, eerie atmosphere, sparse percussion",
+    "taylor swift": "confessional pop songwriting, bright melodic hooks, polished pop production, emotional storytelling",
+    "the weeknd": "dark synth pop, falsetto vocals, nocturnal R&B, pulsing drums, cinematic atmosphere",
+    "rihanna": "island-influenced pop, confident vocals, dancehall rhythm, glossy R&B production",
+    "beyonce": "powerful R&B vocals, layered harmonies, dynamic pop production, danceable groove",
+    "kendrick lamar": "conscious rap, intricate flow, jazz-influenced hip-hop, dramatic storytelling",
+    "post malone": "melodic trap-pop, raspy vocals, guitar textures, laid back drums",
+    "ariana grande": "airy pop vocals, agile runs, glossy R&B-pop production, stacked harmonies",
+}
+
+UNSAFE_INSPIRATION_PATTERNS = (
+    r"\blike\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+){0,3})",
+    r"\binspired\s+by\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+){0,3})",
+    r"\bin\s+the\s+style\s+of\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+){0,3})",
+    r"\bsimilar\s+to\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+){0,3})",
+    r"\ba\s+la\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+){0,3})",
+)
+
+
+def sanitize_inspired_by_descriptors(raw: str | None) -> str | None:
+    """Convert user inspiration text into Suno-safe style descriptors."""
+    if not raw:
+        return None
+
+    text = raw.strip()
+    if not text:
+        return None
+
+    descriptor_parts: list[str] = []
+    lower_text = text.lower()
+    for artist, descriptors in DIRECT_ARTIST_STYLE_MAP.items():
+        if artist in lower_text:
+            descriptor_parts.append(descriptors)
+
+    scrubbed = text
+    for pattern in UNSAFE_INSPIRATION_PATTERNS:
+        scrubbed = re.sub(pattern, "", scrubbed, flags=re.IGNORECASE)
+
+    for artist in DIRECT_ARTIST_STYLE_MAP:
+        scrubbed = re.sub(rf"\b{re.escape(artist)}\b", "", scrubbed, flags=re.IGNORECASE)
+
+    scrubbed = re.sub(r"\b(like|inspired by|style of|similar to|a la)\b", "", scrubbed, flags=re.IGNORECASE)
+    scrubbed = re.sub(r"\s+", " ", scrubbed)
+
+    for part in re.split(r"[,;\n]+", scrubbed):
+        part = part.strip(" .:-")
+        if not part:
+            continue
+        if re.search(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b", part):
+            continue
+        descriptor_parts.append(part)
+
+    if not descriptor_parts:
+        descriptor_parts.append("contemporary pop songwriting, polished production, expressive vocals")
+
+    seen: set[str] = set()
+    safe_parts: list[str] = []
+    for part in descriptor_parts:
+        for item in [p.strip(" .:-") for p in part.split(",")]:
+            if not item:
+                continue
+            key = item.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            safe_parts.append(item)
+
+    return ", ".join(safe_parts)[:500] or None
 
 
 class InsufficientCreditsError(Exception):
@@ -137,18 +213,16 @@ def generate_song_variant(
         variant_id, lyric_id, user_id, genre_tag, variant_id,
     )
     logger.info(
-        "APIFRAME_V2_SUBMIT first6=%r last4=%r len=%d variant_id=%d",
-        APIFRAME_API_KEY[:6],
-        APIFRAME_API_KEY[-4:],
+        "APIFRAME_V2_SUBMIT api_key_configured=%s key_len=%d variant_id=%d webhook_url=%r",
+        bool(APIFRAME_API_KEY),
         len(APIFRAME_API_KEY),
         variant_id,
+        WEBHOOK_URL,
     )
     logger.info(
         "APIFRAME_V2_PAYLOAD variant_id=%d genre=%r style_len=%d lyrics_len=%d extra_params=%r",
         variant_id, genre_tag, len(style_prompt), len(lyrics), extra_suno_params,
     )
-    logger.info("APIFRAME_V2_STYLE variant_id=%d style=%r", variant_id, style_prompt[:500])
-    logger.info("APIFRAME_V2_LYRICS variant_id=%d lyrics=%r", variant_id, lyrics[:500])
     logger.info("APIFRAME_V2_WEBHOOK_URL variant_id=%d url=%r", variant_id, f"{WEBHOOK_URL}?variant_id={variant_id}")
 
     try:
@@ -255,8 +329,9 @@ def generate_multiple_variants(
         style = GENRE_PRESETS[genre]
         if tempo_suffix:
             style = f"{style}, {tempo_suffix}"
-        if inspired_by_descriptors:
-            style = f"{style}, {inspired_by_descriptors}"
+        safe_inspired_by = sanitize_inspired_by_descriptors(inspired_by_descriptors)
+        if safe_inspired_by:
+            style = f"{style}, {safe_inspired_by}"
         style = f"{style}, {random.choice(RANDOM_PRODUCTION)}"
         result = generate_song_variant(
             user_id=user_id,

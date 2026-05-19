@@ -321,6 +321,7 @@ const SongCard = memo(function SongCard({
   const durStr = dur ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}` : '';
   const isFailed = variant.status === 'failed';
   const safeFilename = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
+  const displayMusicVideoUrl = !isFreeTier && musicVideoUrl;
 
   // ── Avatar video button state ──────────────────────────────────────────────
   const avatarStyle = { ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.55)' };
@@ -395,9 +396,9 @@ const SongCard = memo(function SongCard({
   return (
     <div className="song-card-anim" style={S.card}>
       <div style={{ position: 'relative' }}>
-        {musicVideoUrl && !videoErr ? (
+        {displayMusicVideoUrl && !videoErr ? (
           <video
-            src={musicVideoUrl}
+            src={displayMusicVideoUrl}
             autoPlay
             muted
             loop
@@ -413,7 +414,7 @@ const SongCard = memo(function SongCard({
             <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
           </div>
         )}
-        {isFreeTier && !musicVideoUrl && variant.image_url && (
+        {isFreeTier && variant.image_url && (
           <a
             href="/billing"
             style={{

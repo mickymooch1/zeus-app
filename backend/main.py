@@ -1585,12 +1585,13 @@ async def songs_generate(
 
     log.info(
         "songs_generate: submitting to Apiframe user_id=%s lyric_id=%s genres=%r "
-        "extra_suno_params=%r tempo_suffix=%r inspired_by=%r is_admin=%s",
+        "extra_suno_params=%r tempo_suffix=%r inspired_by_len=%d is_admin=%s",
         user_id, lyric_id, body.genres, extra_suno_params, tempo_suffix,
-        body.inspired_by_descriptors, is_admin,
+        len(body.inspired_by_descriptors or ""), is_admin,
     )
 
     try:
+        safe_inspired_by = _songs_mod.sanitize_inspired_by_descriptors(body.inspired_by_descriptors)
         variant_result = _songs_mod.generate_multiple_variants(
             user_id=user_id,
             lyric_id=lyric_id,
@@ -1599,7 +1600,7 @@ async def songs_generate(
             extra_suno_params=extra_suno_params or None,
             tempo_suffix=tempo_suffix,
             is_admin=is_admin,
-            inspired_by_descriptors=body.inspired_by_descriptors or None,
+            inspired_by_descriptors=safe_inspired_by,
         )
         log.info(
             "songs_generate: Apiframe submission ok user_id=%s lyric_id=%s variants=%r",
@@ -1661,6 +1662,7 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
                 "did_job_id": v.get("did_job_id"),
                 "video_url": v.get("video_url"),
                 "youtube_url": v.get("youtube_url"),
+                "music_video_url": v.get("music_video_url"),
                 "is_favourite": bool(v.get("is_favourite", 0)),
             }
             for v in (variants or [])
@@ -1854,7 +1856,9 @@ async def artist_style(
         log.exception("artist_style: Haiku call failed for %r", artist)
         raise HTTPException(status_code=500, detail="Style extraction failed — try again")
 
-    descriptors = haiku.content[0].text.strip()
+    from songs import sanitize_inspired_by_descriptors
+
+    descriptors = sanitize_inspired_by_descriptors(haiku.content[0].text.strip()) or ""
     log.info("artist_style: artist=%r descriptors=%r", artist, descriptors[:80])
     return {"style_descriptors": descriptors}
 

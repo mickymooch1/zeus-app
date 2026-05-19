@@ -327,9 +327,9 @@ async def apiframe_webhook(request: Request):
     # Log BEFORE reading body so this fires even if body parsing fails
     _raw_variant_id = request.query_params.get("variant_id", "MISSING")
     logger.info(
-        "WEBHOOK RECEIVED: POST /webhooks/apiframe variant_id=%s headers=%s",
+        "WEBHOOK RECEIVED: POST /webhooks/apiframe variant_id=%s header_keys=%s",
         _raw_variant_id,
-        dict(request.headers),
+        sorted(request.headers.keys()),
     )
 
     raw_body = await request.body()
@@ -340,8 +340,8 @@ async def apiframe_webhook(request: Request):
     if signature:
         if not _verify_signature(raw_body, signature):
             logger.warning(
-                "Apiframe webhook: signature MISMATCH for variant_id=%s (sig=%r) — rejecting",
-                _raw_variant_id, signature[:30],
+                "Apiframe webhook: signature MISMATCH for variant_id=%s has_signature=%s - rejecting",
+                _raw_variant_id, bool(signature),
             )
             raise HTTPException(401, "Invalid signature")
         logger.info("Apiframe webhook: signature OK for variant_id=%s", _raw_variant_id)
