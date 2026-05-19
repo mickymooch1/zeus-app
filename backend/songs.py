@@ -133,6 +133,10 @@ def generate_song_variant(
         raise
 
     logger.info(
+        "SONG_VARIANT_CREATED variant_id=%d lyric_id=%d user_id=%s genre=%r — webhook will fire to ?variant_id=%d",
+        variant_id, lyric_id, user_id, genre_tag, variant_id,
+    )
+    logger.info(
         "APIFRAME_V2_SUBMIT first6=%r last4=%r len=%d variant_id=%d",
         APIFRAME_API_KEY[:6],
         APIFRAME_API_KEY[-4:],
@@ -145,6 +149,7 @@ def generate_song_variant(
     )
     logger.info("APIFRAME_V2_STYLE variant_id=%d style=%r", variant_id, style_prompt[:500])
     logger.info("APIFRAME_V2_LYRICS variant_id=%d lyrics=%r", variant_id, lyrics[:500])
+    logger.info("APIFRAME_V2_WEBHOOK_URL variant_id=%d url=%r", variant_id, f"{WEBHOOK_URL}?variant_id={variant_id}")
 
     try:
         response = requests.post(

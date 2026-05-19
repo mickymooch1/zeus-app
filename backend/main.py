@@ -1540,6 +1540,8 @@ async def songs_generate(
         extra_suno_params["model_version"] = _MODEL_VERSION_MAP[body.model_version]
     if body.negative_tags and body.negative_tags.strip():
         extra_suno_params["negative_tags"] = body.negative_tags.strip()[:500]
+    if body.instrumental:
+        extra_suno_params["instrumental"] = True
 
     style_suffix_parts: list[str] = []
     if body.tempo == "slow":
@@ -1601,7 +1603,7 @@ async def songs_generate(
         )
         log.info(
             "songs_generate: Apiframe submission ok user_id=%s lyric_id=%s variants=%r",
-            user_id, lyric_id, [v.get("id") for v in variant_result.get("variants", [])],
+            user_id, lyric_id, [v.get("variant_id") for v in variant_result.get("variants", [])],
         )
     except InsufficientCreditsError as exc:
         log.warning("songs_generate: insufficient credits user_id=%s detail=%s", user_id, exc)
