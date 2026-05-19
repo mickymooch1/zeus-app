@@ -243,11 +243,16 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
         result_url = f"https://queue.fal.run/fal-ai/kling-video/v2/master/image-to-video/requests/{request_id}"
         poll_headers = {"Authorization": f"Key {FAL_API_KEY}"}
         completed = False
-        for _ in range(60):
+        max_attempts = 60
+        for attempt in range(1, max_attempts + 1):
             time.sleep(15)
             sr = requests.get(status_url, headers=poll_headers, timeout=15)
             sr.raise_for_status()
             status = sr.json().get("status")
+            logger.info(
+                "Kling poll: variant_id=%d request_id=%s attempt=%d status=%s",
+                variant_id, request_id, attempt, status,
+            )
             if status == "COMPLETED":
                 completed = True
                 break
@@ -255,6 +260,7 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
                 raise RuntimeError(f"Kling job {request_id} reported FAILED")
 
         if not completed:
+            logger.error("Kling polling timed out: variant_id=%d request_id=%s", variant_id, request_id)
             raise RuntimeError(f"Kling job {request_id} timed out after 15 min")
 
         # Fetch result
