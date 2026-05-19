@@ -229,6 +229,13 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
         request_id = body.get("request_id")
         if not request_id:
             raise RuntimeError(f"Kling: no request_id in response: {body!r}")
+        status_url = body.get("status_url")
+        result_url = body.get("response_url")
+        if not status_url or not result_url:
+            raise RuntimeError(
+                "Kling: response missing status_url or response_url "
+                f"for request_id={request_id}: keys={list(body.keys())!r}"
+            )
 
         logger.info("Kling submitted: variant_id=%d request_id=%s", variant_id, request_id)
         conn = sqlite3.connect(DB_PATH)
@@ -239,14 +246,17 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
             conn.close()
 
         # Poll for completion (max 15 min)
-        status_url = f"https://queue.fal.run/fal-ai/kling-video/v2/master/image-to-video/requests/{request_id}/status"
-        result_url = f"https://queue.fal.run/fal-ai/kling-video/v2/master/image-to-video/requests/{request_id}"
         poll_headers = {"Authorization": f"Key {FAL_API_KEY}"}
         completed = False
         max_attempts = 60
         for attempt in range(1, max_attempts + 1):
             time.sleep(15)
             sr = requests.get(status_url, headers=poll_headers, timeout=15)
+            if sr.status_code == 405:
+                logger.error(
+                    "Kling status poll returned 405: method=GET variant_id=%d request_id=%s url=%s",
+                    variant_id, request_id, status_url,
+                )
             sr.raise_for_status()
             status = sr.json().get("status")
             logger.info(
@@ -265,6 +275,11 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
 
         # Fetch result
         rr = requests.get(result_url, headers=poll_headers, timeout=15)
+        if rr.status_code == 405:
+            logger.error(
+                "Kling result fetch returned 405: method=GET variant_id=%d request_id=%s url=%s",
+                variant_id, request_id, result_url,
+            )
         rr.raise_for_status()
         result_data = rr.json()
         video_dl_url = (result_data.get("video") or {}).get("url")
