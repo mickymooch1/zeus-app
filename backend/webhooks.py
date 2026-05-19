@@ -591,6 +591,8 @@ async def telegram_admin_webhook(request: Request):
     if not chat_id or not text:
         return {"ok": True}
 
+    logger.info("Telegram message from user_id=%s text=%r", from_id, text[:200])
+
     admin_uid_str = os.environ.get("TELEGRAM_ADMIN_USER_ID", "").strip()
 
     # ── Admin path ────────────────────────────────────────────────────────────
