@@ -151,6 +151,10 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
     """Background thread: submit cover art to Kling, loop clip with FFmpeg, save music video."""
     import time
     import subprocess
+    logger.info(
+        "Kling pipeline START: variant_id=%d cover_url=%s mp3_path=%s duration=%s genre=%s FAL_KEY_len=%d",
+        variant_id, cover_url, mp3_path, duration_seconds, genre_tag, len(FAL_API_KEY) if FAL_API_KEY else 0,
+    )
     try:
         if not FAL_API_KEY:
             logger.warning("Kling pipeline: FAL_API_KEY not set — skipping variant_id=%d", variant_id)
@@ -163,14 +167,25 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
         )
 
         fal_headers = {"Authorization": f"Key {FAL_API_KEY}", "Content-Type": "application/json"}
+        kling_payload = {"image_url": cover_url, "prompt": prompt, "duration": "5", "aspect_ratio": "1:1"}
 
         # Submit to Kling via fal.ai async queue
+        logger.info("Kling API request: variant_id=%d payload=%r", variant_id, kling_payload)
         resp = requests.post(
             "https://queue.fal.run/fal-ai/kling-video/v2/master/image-to-video",
             headers=fal_headers,
-            json={"image_url": cover_url, "prompt": prompt, "duration": "5", "aspect_ratio": "1:1"},
+            json=kling_payload,
             timeout=30,
         )
+        logger.info(
+            "Kling API response: variant_id=%d status=%d body=%r",
+            variant_id, resp.status_code, resp.text[:800],
+        )
+        if resp.status_code == 403:
+            raise RuntimeError(
+                f"Kling: 403 Forbidden — fal.ai balance likely exhausted. "
+                f"Top up at fal.ai/dashboard/billing. Body: {resp.text[:300]}"
+            )
         resp.raise_for_status()
         body = resp.json()
         request_id = body.get("request_id")
@@ -419,12 +434,22 @@ async def apiframe_webhook(request: Request):
         conn.close()
     logger.info("Apiframe webhook take 1 complete: variant_id=%d url=%s", variant_id, permanent_url1)
 
+    logger.info(
+        "Kling thread check take1: variant_id=%d has_cover=%s duration=%s FAL_KEY_set=%s",
+        variant_id, bool(flux_cover1), duration1, bool(FAL_API_KEY),
+    )
     if flux_cover1 and duration1 and FAL_API_KEY:
+        logger.info("Starting Kling background thread for variant_id=%d", variant_id)
         threading.Thread(
             target=_kling_pipeline,
             args=(variant_id, flux_cover1, local_path1, duration1, genre_tag),
             daemon=True,
         ).start()
+    else:
+        logger.warning(
+            "Kling thread NOT started for variant_id=%d: has_cover=%s has_duration=%s has_fal_key=%s",
+            variant_id, bool(flux_cover1), bool(duration1), bool(FAL_API_KEY),
+        )
 
     # ── Take 2: insert new row, download second track if present ─────────────
     take2_variant_id = None
@@ -499,12 +524,22 @@ async def apiframe_webhook(request: Request):
                 conn.close()
             logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
 
+            logger.info(
+                "Kling thread check take2: variant_id=%d has_cover=%s duration=%s FAL_KEY_set=%s",
+                take2_variant_id, bool(flux_cover2), duration2, bool(FAL_API_KEY),
+            )
             if flux_cover2 and duration2 and FAL_API_KEY:
+                logger.info("Starting Kling background thread for variant_id=%d (take2)", take2_variant_id)
                 threading.Thread(
                     target=_kling_pipeline,
                     args=(take2_variant_id, flux_cover2, local_path2, duration2, genre_tag),
                     daemon=True,
                 ).start()
+            else:
+                logger.warning(
+                    "Kling thread NOT started for variant_id=%d (take2): has_cover=%s has_duration=%s has_fal_key=%s",
+                    take2_variant_id, bool(flux_cover2), bool(duration2), bool(FAL_API_KEY),
+                )
 
     payload = {"ok": True, "status": "complete", "take1_url": permanent_url1}
     if take2_variant_id:
