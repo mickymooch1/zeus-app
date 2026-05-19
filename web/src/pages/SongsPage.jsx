@@ -437,17 +437,19 @@ const SongCard = memo(function SongCard({
           <button
             onClick={handlePlay}
             style={{
-              position: 'absolute', top: '50%', left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 52, height: 52, borderRadius: '50%',
-              border: '2px solid rgba(255,255,255,0.85)',
-              background: playing ? 'rgba(124,58,237,0.9)' : 'rgba(0,0,0,0.65)',
-              color: '#fff', fontSize: 20, cursor: wsReady ? 'pointer' : 'default',
+              position: 'absolute', bottom: 8, left: 8,
+              transform: 'none',
+              width: 40, height: 40, borderRadius: '50%',
+              border: '1.5px solid rgba(255,255,255,0.7)',
+              background: playing ? 'rgba(124,58,237,0.85)' : 'rgba(0,0,0,0.6)',
+              color: '#fff', fontSize: 16, cursor: wsReady ? 'pointer' : 'default',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              backdropFilter: 'blur(4px)', opacity: wsReady ? 1 : 0.45,
+              backdropFilter: 'blur(6px)', opacity: wsReady ? 1 : 0.4,
               transition: 'all 0.2s', pointerEvents: wsReady ? 'auto' : 'none',
               flexShrink: 0,
             }}
+            onMouseEnter={(e) => { if (wsReady) e.currentTarget.style.boxShadow = '0 0 10px rgba(0,240,255,0.6)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
           >
             {playing ? '⏸' : '▶'}
           </button>
