@@ -162,11 +162,11 @@ const actionBtnStyle = {
   minHeight: 44,
   padding: '6px 0',
   borderRadius: 6,
-  border: '1px solid rgba(255,255,255,0.08)',
+  border: '1px solid rgba(255,255,255,0.3)',
   background: 'transparent',
-  color: '#555',
+  color: '#ccc',
   fontSize: 11,
-  fontWeight: 500,
+  fontWeight: 600,
   cursor: 'pointer',
   letterSpacing: '0.2px',
   textAlign: 'center',
@@ -308,7 +308,7 @@ const SongCard = memo(function SongCard({
   const safeFilename = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
 
   // ── Avatar video button state ──────────────────────────────────────────────
-  const avatarStyle = { ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' };
+  const avatarStyle = { ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.55)' };
   let avatarBtn;
   if (!didPlanOk) {
     avatarBtn = (
@@ -343,7 +343,7 @@ const SongCard = memo(function SongCard({
   }
 
   // ── YouTube button state ───────────────────────────────────────────────────
-  const ytStyle = { ...actionBtnStyle, color: '#ff4444', borderColor: 'rgba(255,68,68,0.25)' };
+  const ytStyle = { ...actionBtnStyle, color: '#ff4444', borderColor: 'rgba(255,68,68,0.5)' };
   let ytBtn;
   if (!canYouTube) {
     ytBtn = (
@@ -440,7 +440,7 @@ const SongCard = memo(function SongCard({
             cursor: 'pointer', display: 'flex', alignItems: 'center',
             justifyContent: 'center', fontSize: 16,
             backdropFilter: 'blur(4px)', transition: 'transform 0.15s',
-            color: isFavourite ? '#fbbf24' : 'rgba(255,255,255,0.5)',
+            color: isFavourite ? '#fbbf24' : 'rgba(255,255,255,0.8)',
           }}
           title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
         >
@@ -479,7 +479,7 @@ const SongCard = memo(function SongCard({
         {artistName && <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{artistName}</div>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
           <span style={S.pill}>{gLabel(variant.genre_tag)}</span>
-          {durStr && <span style={{ color: '#555', fontSize: 12 }}>{durStr}</span>}
+          {durStr && <span style={{ color: '#999', fontSize: 12 }}>{durStr}</span>}
         </div>
         {!isFailed && variant.mp3_url && (
           <>
@@ -504,13 +504,13 @@ const SongCard = memo(function SongCard({
             </div>
             {/* Row 2: Share + Telegram */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button onClick={handleShare} style={{ ...actionBtnStyle, flex: 1, color: '#38bdf8', borderColor: 'rgba(56,189,248,0.3)' }}>
+              <button onClick={handleShare} style={{ ...actionBtnStyle, flex: 1, color: '#38bdf8', borderColor: 'rgba(56,189,248,0.55)' }}>
                 {copied ? '✓ Copied!' : '↗ Share'}
               </button>
               <button
                 onClick={handleTelegram}
                 disabled={tgPosting}
-                style={{ ...actionBtnStyle, flex: 1, color: tgPosted ? '#4ade80' : '#0088cc', borderColor: tgPosted ? 'rgba(74,222,128,0.3)' : 'rgba(0,136,204,0.3)' }}
+                style={{ ...actionBtnStyle, flex: 1, color: tgPosted ? '#4ade80' : '#00aaff', borderColor: tgPosted ? 'rgba(74,222,128,0.55)' : 'rgba(0,170,255,0.55)' }}
               >
                 {tgPosting ? '…' : tgPosted ? '✓ Sent!' : '✈ Telegram'}
               </button>
@@ -522,13 +522,13 @@ const SongCard = memo(function SongCard({
             </div>
             {/* Row 4: Remake + Regen */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, flex: 1, color: '#f59e0b', borderColor: 'rgba(245,158,11,0.25)' }}>
+              <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, flex: 1, color: '#f59e0b', borderColor: 'rgba(245,158,11,0.5)' }}>
                 🔄 Remake
               </button>
               <button
                 onClick={handleRegen}
                 disabled={regenLoading}
-                style={{ ...actionBtnStyle, flex: 1, color: '#4ade80', borderColor: 'rgba(74,222,128,0.25)', opacity: regenLoading ? 0.55 : 1 }}
+                style={{ ...actionBtnStyle, flex: 1, color: '#4ade80', borderColor: 'rgba(74,222,128,0.5)', opacity: regenLoading ? 0.55 : 1 }}
               >
                 {regenLoading ? '…' : '↺ Regen'}
               </button>
@@ -552,8 +552,8 @@ const SongCard = memo(function SongCard({
                 onClick={() => onDelete(variant.variant_id)}
                 disabled={deleting}
                 style={{
-                  background: 'none', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 5,
-                  color: deleting ? '#555' : '#f87171',
+                  background: 'none', border: '1px solid rgba(248,113,113,0.5)', borderRadius: 5,
+                  color: deleting ? '#888' : '#f87171',
                   fontSize: 11, cursor: deleting ? 'default' : 'pointer', padding: '3px 10px',
                   transition: 'color 0.15s',
                 }}
