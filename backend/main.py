@@ -122,7 +122,7 @@ def generate_docx(text: str, title: str) -> bytes:
     return buf.getvalue()
 
 
-def _send_via_resend(to: str, subject: str, body: str, api_key: str) -> bool:
+def _send_via_resend(to: str, subject: str, html: str, text: str, api_key: str) -> bool:
     """Send via Resend REST API. Returns True on success."""
     t0 = time.monotonic()
     try:
@@ -133,8 +133,13 @@ def _send_via_resend(to: str, subject: str, body: str, api_key: str) -> bool:
                 "from": "Zeus Beats <hello@zeusbeats.com>",
                 "to": [to],
                 "subject": subject,
-                "text": body,
+                "html": html,
+                "text": text,
                 "reply_to": "hello@zeusbeats.com",
+                "headers": {
+                    "X-Entity-Ref-ID": str(uuid.uuid4()),
+                },
+                "tags": [{"name": "category", "value": "transactional"}],
             },
             timeout=15,
         )
@@ -150,7 +155,7 @@ def _send_via_resend(to: str, subject: str, body: str, api_key: str) -> bool:
         return False
 
 
-def _send_via_smtp(to: str, subject: str, body: str) -> bool:
+def _send_via_smtp(to: str, subject: str, html: str, text: str) -> bool:
     """Send via Gmail SMTP with one retry after 5 s. Returns True on success."""
     smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
     smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
@@ -158,13 +163,14 @@ def _send_via_smtp(to: str, subject: str, body: str) -> bool:
         log.warning("_send_email[smtp]: SMTP_EMAIL/SMTP_PASSWORD not set — skipping")
         return False
 
-    msg = MIMEMultipart()
+    msg = MIMEMultipart("alternative")
     msg["From"] = f"Zeus Beats <{smtp_email}>"
     msg["To"] = to
     msg["Reply-To"] = "hello@zeusbeats.com"
     msg["Subject"] = subject
     msg["X-Mailer"] = "Zeus Platform"
-    msg.attach(MIMEText(body, "plain"))
+    msg.attach(MIMEText(text, "plain"))
+    msg.attach(MIMEText(html, "html"))
 
     def _attempt(attempt: int) -> bool:
         t0 = time.monotonic()
@@ -194,18 +200,18 @@ def _send_via_smtp(to: str, subject: str, body: str) -> bool:
     return _attempt(2)
 
 
-def _send_email(to: str, subject: str, body: str) -> bool:
+def _send_email(to: str, subject: str, html: str, text: str) -> bool:
     """Send email via Resend (if RESEND_API_KEY set) or Gmail SMTP fallback.
     Returns True on success. Call from a background thread."""
     resend_key = os.environ.get("RESEND_API_KEY", "").strip()
     if resend_key:
-        return _send_via_resend(to, subject, body, resend_key)
-    return _send_via_smtp(to, subject, body)
+        return _send_via_resend(to, subject, html, text, resend_key)
+    return _send_via_smtp(to, subject, html, text)
 
 
-def _send_email_async(to: str, subject: str, body: str) -> None:
+def _send_email_async(to: str, subject: str, html: str, text: str) -> None:
     """Fire-and-forget: run _send_email in a daemon thread so the caller returns immediately."""
-    threading.Thread(target=_send_email, args=(to, subject, body), daemon=True).start()
+    threading.Thread(target=_send_email, args=(to, subject, html, text), daemon=True).start()
 
 
 def _send_task_email(
@@ -216,7 +222,7 @@ def _send_task_email(
 ) -> None:
     """Send a task-completion email. Runs synchronously (caller is already a background thread)."""
     subject = f"Zeus: Your background task is complete — {description}"
-    body = "\n".join([
+    text = "\n".join([
         "Your background task has finished.",
         "",
         f"Task: {description}",
@@ -228,7 +234,8 @@ def _send_task_email(
         "— Zeus AI Design",
         "zeusaidesign.com",
     ])
-    _send_email(user_email, subject, body)
+    html = f"<pre style='font-family:monospace;white-space:pre-wrap'>{text}</pre>"
+    _send_email(user_email, subject, html, text)
 
 
 _RAILWAY = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
@@ -610,23 +617,72 @@ def _send_verification_email(user: dict, app: str = "ai") -> None:
     brand = "Zeus Beats" if app == "beats" else "Zeus AI"
     base_url = "https://zeusbeats.com" if app == "beats" else "https://zeusaidesign.com"
     verify_url = f"{base_url}/verify-email?token={v_token}"
+    name = user.get("name", "there")
 
-    msg_text = "\n".join([
-        f"Hi {user.get('name', 'there')},",
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:Arial,Helvetica,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:40px 20px">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#12121a;border-radius:12px;overflow:hidden;border:1px solid #2a2a3a">
+        <!-- Header -->
+        <tr><td style="background:linear-gradient(135deg,#1a0533 0%,#0d1a33 100%);padding:32px 40px;text-align:center">
+          <h1 style="margin:0;font-size:28px;font-weight:900;letter-spacing:2px;color:#ffffff">{brand}</h1>
+          <p style="margin:8px 0 0;font-size:13px;color:#a0a0c0;letter-spacing:1px">AI MUSIC PLATFORM</p>
+        </td></tr>
+        <!-- Body -->
+        <tr><td style="padding:40px">
+          <p style="margin:0 0 16px;font-size:16px;color:#e0e0f0">Hi {name},</p>
+          <p style="margin:0 0 24px;font-size:15px;color:#b0b0c8;line-height:1.6">
+            Thanks for signing up to {brand}. Please verify your email address to activate your account.
+            This link expires in <strong style="color:#e0e0f0">24 hours</strong>.
+          </p>
+          <!-- Button -->
+          <table cellpadding="0" cellspacing="0" style="margin:32px auto">
+            <tr><td align="center" style="border-radius:8px;background:linear-gradient(135deg,#7b2fff,#00bfff)">
+              <a href="{verify_url}" style="display:inline-block;padding:16px 40px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:0.5px">Verify My Email</a>
+            </td></tr>
+          </table>
+          <p style="margin:24px 0 0;font-size:13px;color:#606080;line-height:1.5">
+            Or copy and paste this link into your browser:<br>
+            <a href="{verify_url}" style="color:#7b2fff;word-break:break-all">{verify_url}</a>
+          </p>
+          <p style="margin:24px 0 0;font-size:13px;color:#606080">
+            If you didn't create this account, you can safely ignore this email.
+          </p>
+        </td></tr>
+        <!-- Footer -->
+        <tr><td style="background:#0d0d15;padding:24px 40px;border-top:1px solid #2a2a3a;text-align:center">
+          <p style="margin:0 0 8px;font-size:12px;color:#404060">{brand} &bull; Manchester, UK</p>
+          <p style="margin:0;font-size:12px;color:#404060">
+            You're receiving this because you created an account at
+            <a href="{base_url}" style="color:#7b2fff;text-decoration:none">{base_url}</a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    text = "\n".join([
+        f"Hi {name},",
         "",
-        f"Thanks for signing up to {brand}! Please verify your email address by clicking the link below.",
+        f"Thanks for signing up to {brand}! Please verify your email address by visiting the link below.",
         "This link expires in 24 hours.",
         "",
-        verify_url,
+        f"Verify your email: {verify_url}",
         "",
         "If you didn't create this account, you can safely ignore this email.",
         "",
         f"— The {brand} Team",
+        f"{brand}, Manchester, UK",
         base_url,
     ])
     subject = f"Verify your {brand} account"
     log.info("_send_verification_email: queuing to=%s subject=%r", user["email"], subject)
-    _send_email_async(user["email"], subject, msg_text)
+    _send_email_async(user["email"], subject, html, text)
 
 
 @app.post("/auth/login")
@@ -686,21 +742,72 @@ async def forgot_password(request: Request, body: ForgotPasswordRequest):
     db.create_reset_token(db_path, user["id"], token, expires_at)
 
     base_url = "https://zeusbeats.com" if body.app == "beats" else "https://zeusaidesign.com"
+    brand = "Zeus Beats" if body.app == "beats" else "Zeus AI"
     reset_url = f"{base_url}/reset-password?token={token}"
+    name = user.get("name", "there")
 
-    msg_text = "\n".join([
-        f"Hi {user.get('name', 'there')},",
+    reset_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:Arial,Helvetica,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:40px 20px">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#12121a;border-radius:12px;overflow:hidden;border:1px solid #2a2a3a">
+        <!-- Header -->
+        <tr><td style="background:linear-gradient(135deg,#1a0533 0%,#0d1a33 100%);padding:32px 40px;text-align:center">
+          <h1 style="margin:0;font-size:28px;font-weight:900;letter-spacing:2px;color:#ffffff">{brand}</h1>
+          <p style="margin:8px 0 0;font-size:13px;color:#a0a0c0;letter-spacing:1px">AI MUSIC PLATFORM</p>
+        </td></tr>
+        <!-- Body -->
+        <tr><td style="padding:40px">
+          <p style="margin:0 0 16px;font-size:16px;color:#e0e0f0">Hi {name},</p>
+          <p style="margin:0 0 24px;font-size:15px;color:#b0b0c8;line-height:1.6">
+            We received a request to reset your password. Click the button below to set a new password.
+            This link expires in <strong style="color:#e0e0f0">1 hour</strong>.
+          </p>
+          <!-- Button -->
+          <table cellpadding="0" cellspacing="0" style="margin:32px auto">
+            <tr><td align="center" style="border-radius:8px;background:linear-gradient(135deg,#7b2fff,#00bfff)">
+              <a href="{reset_url}" style="display:inline-block;padding:16px 40px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:0.5px">Reset My Password</a>
+            </td></tr>
+          </table>
+          <p style="margin:24px 0 0;font-size:13px;color:#606080;line-height:1.5">
+            Or copy and paste this link into your browser:<br>
+            <a href="{reset_url}" style="color:#7b2fff;word-break:break-all">{reset_url}</a>
+          </p>
+          <p style="margin:24px 0 0;font-size:13px;color:#606080">
+            If you didn't request a password reset, you can safely ignore this email. Your password will not change.
+          </p>
+        </td></tr>
+        <!-- Footer -->
+        <tr><td style="background:#0d0d15;padding:24px 40px;border-top:1px solid #2a2a3a;text-align:center">
+          <p style="margin:0 0 8px;font-size:12px;color:#404060">{brand} &bull; Manchester, UK</p>
+          <p style="margin:0;font-size:12px;color:#404060">
+            You're receiving this because a password reset was requested for your account at
+            <a href="{base_url}" style="color:#7b2fff;text-decoration:none">{base_url}</a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    reset_text = "\n".join([
+        f"Hi {name},",
         "",
-        "You requested a password reset. Click the link below to set a new password.",
+        "We received a request to reset your password. Visit the link below to set a new password.",
         "This link expires in 1 hour.",
         "",
-        reset_url,
+        f"Reset your password: {reset_url}",
         "",
-        "If you didn't request this, you can safely ignore this email.",
+        "If you didn't request this, you can safely ignore this email. Your password will not change.",
         "",
-        "— The Zeus Team",
+        f"— The {brand} Team",
+        f"{brand}, Manchester, UK",
+        base_url,
     ])
-    _send_email_async(user["email"], "Reset your Zeus password", msg_text)
+    _send_email_async(user["email"], f"Reset your {brand} password", reset_html, reset_text)
 
     return {"ok": True, "message": "If that email is registered, a reset link has been sent."}
 
