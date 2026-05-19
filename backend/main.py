@@ -1458,6 +1458,7 @@ class SongsGenerateRequest(BaseModel):
     inspired_by_descriptors: str | None = None  # from /api/songs/artist-style
     negative_tags: str | None = Field(default=None, max_length=500)  # → sunoParams.negative_tags
     song_title: str | None = None        # optional user-supplied title; overrides AI-generated title
+    animate_cover: bool = True           # generate Kling animated video after song completes
 
 
 @app.post("/api/songs/generate")
@@ -1601,6 +1602,7 @@ async def songs_generate(
             tempo_suffix=tempo_suffix,
             is_admin=is_admin,
             inspired_by_descriptors=safe_inspired_by,
+            animate_cover=body.animate_cover,
         )
         log.info(
             "songs_generate: Apiframe submission ok user_id=%s lyric_id=%s variants=%r",

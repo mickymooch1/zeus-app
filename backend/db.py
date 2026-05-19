@@ -238,6 +238,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE users ADD COLUMN artist_name TEXT",
             "ALTER TABLE song_variants ADD COLUMN is_favourite INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN has_paid INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE song_variants ADD COLUMN animate_cover INTEGER NOT NULL DEFAULT 1",
         ]:
             try:
                 conn.execute(_migration)

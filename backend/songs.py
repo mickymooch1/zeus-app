@@ -173,6 +173,7 @@ def generate_song_variant(
     db_path: str,
     extra_suno_params: dict | None = None,
     is_admin: bool = False,
+    animate_cover: bool = True,
 ) -> dict:
     """
     Submit a song generation job to Apiframe v2.
@@ -198,9 +199,9 @@ def generate_song_variant(
 
         cur.execute(
             """INSERT INTO song_variants
-               (lyric_id, user_id, style_prompt, genre_tag, status, take_number)
-               VALUES (?, ?, ?, ?, 'pending', 1)""",
-            (lyric_id, user_id, style_prompt, genre_tag),
+               (lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover)
+               VALUES (?, ?, ?, ?, 'pending', 1, ?)""",
+            (lyric_id, user_id, style_prompt, genre_tag, 1 if animate_cover else 0),
         )
         variant_id = cur.lastrowid
         conn.commit()
@@ -298,6 +299,7 @@ def generate_multiple_variants(
     tempo_suffix: str | None = None,
     is_admin: bool = False,
     inspired_by_descriptors: str | None = None,
+    animate_cover: bool = True,
 ) -> dict:
     """Generate the same lyrics in multiple genres. Costs len(genres) credits.
     Admin users bypass credit checks entirely."""
@@ -341,6 +343,7 @@ def generate_multiple_variants(
             db_path=db_path,
             extra_suno_params=extra_suno_params,
             is_admin=is_admin,
+            animate_cover=animate_cover,
         )
         variants.append({"genre": genre, **result})
 

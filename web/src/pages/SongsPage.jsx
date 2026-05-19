@@ -208,7 +208,7 @@ const SongCard = memo(function SongCard({
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
   onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick, onRegenerate,
-  isFavourite, onToggleFavourite, isFreeTier,
+  isFavourite, onToggleFavourite, isFreeTier, animateCover,
 }) {
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
@@ -321,7 +321,7 @@ const SongCard = memo(function SongCard({
   const durStr = dur ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}` : '';
   const isFailed = variant.status === 'failed';
   const safeFilename = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
-  const displayMusicVideoUrl = !isFreeTier && musicVideoUrl;
+  const displayMusicVideoUrl = !isFreeTier && animateCover && musicVideoUrl;
 
   // ── Avatar video button state ──────────────────────────────────────────────
   const avatarStyle = { ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.55)' };
@@ -619,6 +619,9 @@ export default function SongsPage() {
   const [negativeTags, setNegativeTags]   = useState('');
   const [explicit, setExplicit]           = useState(false);
   const [vocals, setVocals]               = useState(true);
+  const [animateCoverPref, setAnimateCoverPref] = useState(
+    () => localStorage.getItem('zeus_animated_covers') !== 'false'
+  );
   const [songTitle, setSongTitle]         = useState('');
 
   // YouTube upload state
@@ -674,6 +677,7 @@ export default function SongsPage() {
 
   const isAdmin          = credits.is_admin;
   const isFreeTier       = !isAdmin && !credits.plan && !credits.has_paid;
+  const animateCover     = !isFreeTier && animateCoverPref;
   const isMusicPlan      = ['music_starter', 'music_pro', 'music_agency'].includes(credits.plan);
   const canShowExplicit  = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
   const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan) || isMusicPlan;
@@ -756,6 +760,10 @@ export default function SongsPage() {
     fetchCredits();
     fetchLibrary();
   }, [fetchCredits, fetchLibrary]);
+
+  useEffect(() => {
+    localStorage.setItem('zeus_animated_covers', animateCoverPref ? 'true' : 'false');
+  }, [animateCoverPref]);
 
   // Song generation polling (5s)
   useEffect(() => {
@@ -874,6 +882,7 @@ export default function SongsPage() {
           custom_lyrics: customLyrics.trim(),
           genres: Array.from(selGenres),
           song_title: songTitle.trim() || undefined,
+          animate_cover: animateCover,
           ...(showAdvanced ? {
             vocal_gender: vocalGender || undefined,
             accent: accent || undefined,
@@ -893,6 +902,7 @@ export default function SongsPage() {
           genres: Array.from(selGenres),
           inspired_by_descriptors: artistDescriptors || undefined,
           song_title: songTitle.trim() || undefined,
+          animate_cover: animateCover,
           ...(showAdvanced ? {
             vocal_gender: vocalGender || undefined,
             accent: accent || undefined,
@@ -1832,6 +1842,23 @@ export default function SongsPage() {
                   </label>
                 </div>
 
+                {/* Animated cover art toggle — paid users only */}
+                {!isFreeTier && (
+                  <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                      <div
+                        onClick={() => setAnimateCoverPref((v) => !v)}
+                        style={{ width: 36, height: 20, borderRadius: 10, background: animateCoverPref ? '#7c3aed' : 'rgba(255,255,255,0.08)', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}
+                      >
+                        <div style={{ position: 'absolute', top: 3, left: animateCoverPref ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+                      </div>
+                      <span style={{ fontSize: 12, color: animateCoverPref ? '#c4b5fd' : '#555', fontWeight: 500 }}>
+                        {animateCoverPref ? 'Animated Cover Art' : 'Animated Cover Art (off)'}
+                      </span>
+                    </label>
+                  </div>
+                )}
+
                 {/* Explicit content */}
                 {canShowExplicit && (
                   <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
@@ -2015,6 +2042,7 @@ export default function SongsPage() {
                       isFavourite={favourites.has(v.variant_id)}
                       onToggleFavourite={handleToggleFavourite}
                       isFreeTier={isFreeTier}
+                      animateCover={animateCover}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -2087,6 +2115,7 @@ export default function SongsPage() {
                     isFavourite={favourites.has(v.variant_id)}
                     onToggleFavourite={handleToggleFavourite}
                     isFreeTier={isFreeTier}
+                    animateCover={animateCover}
                   />
                 ))}
               </div>

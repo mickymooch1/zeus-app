@@ -440,11 +440,14 @@ async def apiframe_webhook(request: Request):
     conn = sqlite3.connect(DB_PATH)
     try:
         orig = conn.execute(
-            "SELECT lyric_id, user_id, style_prompt, genre_tag, provider_job_id FROM song_variants WHERE id = ?",
+            "SELECT lyric_id, user_id, style_prompt, genre_tag, provider_job_id, animate_cover FROM song_variants WHERE id = ?",
             (variant_id,),
         ).fetchone()
     finally:
         conn.close()
+
+    # orig[5] = animate_cover (default True for rows predating this column)
+    orig_animate_cover = bool(orig[5]) if orig and orig[5] is not None else True
 
     os.makedirs(STORAGE_PATH, exist_ok=True)
 
@@ -545,16 +548,18 @@ async def apiframe_webhook(request: Request):
             logger.warning("Kling pre-check take1: user plan lookup failed: %s", _pe1)
 
     logger.info(
-        "Kling check: has_cover=%s has_fal_key=%s duration=%s is_paid=%s",
-        bool(flux_cover1), bool(FAL_API_KEY), duration1, _kling_is_paid1,
+        "Kling check: has_cover=%s has_fal_key=%s duration=%s is_paid=%s animate_cover=%s",
+        bool(flux_cover1), bool(FAL_API_KEY), duration1, _kling_is_paid1, orig_animate_cover,
     )
-    if not flux_cover1:
+    if not orig_animate_cover:
+        logger.info("Kling skipped: user turned off animated cover art for variant_id=%d", variant_id)
+    elif not flux_cover1:
         logger.warning("Kling skipped: no cover art (Flux generation failed for variant_id=%d)", variant_id)
     elif not duration1:
         logger.warning("Kling skipped: duration is 0 for variant_id=%d", variant_id)
     elif not FAL_API_KEY:
         logger.warning("Kling skipped: FAL_API_KEY environment variable not set")
-    elif flux_cover1 and duration1 and FAL_API_KEY:
+    else:
         logger.info("Kling thread STARTING for variant_id=%d", variant_id)
         threading.Thread(
             target=_kling_pipeline,
@@ -640,16 +645,18 @@ async def apiframe_webhook(request: Request):
             logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
 
             logger.info(
-                "Kling check (take2): has_cover=%s has_fal_key=%s duration=%s is_paid=%s",
-                bool(flux_cover2), bool(FAL_API_KEY), duration2, _kling_is_paid1,
+                "Kling check (take2): has_cover=%s has_fal_key=%s duration=%s is_paid=%s animate_cover=%s",
+                bool(flux_cover2), bool(FAL_API_KEY), duration2, _kling_is_paid1, orig_animate_cover,
             )
-            if not flux_cover2:
+            if not orig_animate_cover:
+                logger.info("Kling skipped (take2): user turned off animated cover art for variant_id=%d", take2_variant_id)
+            elif not flux_cover2:
                 logger.warning("Kling skipped (take2): no cover art (Flux failed for variant_id=%d)", take2_variant_id)
             elif not duration2:
                 logger.warning("Kling skipped (take2): duration is 0 for variant_id=%d", take2_variant_id)
             elif not FAL_API_KEY:
                 logger.warning("Kling skipped (take2): FAL_API_KEY not set")
-            elif flux_cover2 and duration2 and FAL_API_KEY:
+            else:
                 logger.info("Kling thread STARTING for variant_id=%d (take2)", take2_variant_id)
                 threading.Thread(
                     target=_kling_pipeline,

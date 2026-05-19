@@ -100,6 +100,8 @@
     "tempoCustom": "Custom BPM",
     "vocalsOn": "Vocals",
     "vocalsOff": "Instrumental",
+    "animatedCoverOn": "Animated Cover Art",
+    "animatedCoverOff": "Animated Cover Art (off)",
     "explicitLabel": "Explicit content",
     "explicitWarning": "May include strong language. You are responsible for content generated.",
     "creditInfo": "Will use {{cost}} of your {{balance}} remaining credits.",
