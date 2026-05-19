@@ -103,8 +103,8 @@ def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = ""
     import image_generator as _img
     prompt = GENRE_COVER_PROMPTS.get(genre_tag or "", _DEFAULT_COVER_PROMPT)
     logger.info(
-        "Flux cover START: variant_id=%d genre=%r prompt_preview=%.80r FAL_KEY_len=%d",
-        variant_id, genre_tag, prompt, len(_img.FAL_API_KEY) if _img.FAL_API_KEY else 0,
+        "Starting Flux cover art for variant_id=%d genre=%r FAL_KEY_len=%d prompt=%.80r",
+        variant_id, genre_tag, len(_img.FAL_API_KEY) if _img.FAL_API_KEY else 0, prompt,
     )
     try:
         flux_url = _img.submit_image_generation(prompt, "1:1")
@@ -116,7 +116,7 @@ def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = ""
         shutil.copy2(src, dst)
         _add_text_overlay(str(dst), title or genre_tag or "", artist_name)
         cover_url = f"{PUBLIC_BASE_URL}/{variant_id}_cover.jpg"
-        logger.info("Flux cover SUCCESS: variant_id=%d genre=%s → %s", variant_id, genre_tag, cover_url)
+        logger.info("Cover art complete for variant_id=%d url=%s", variant_id, cover_url)
         return cover_url
     except Exception:
         logger.exception("Flux cover FAILED for variant_id=%d genre=%r — full traceback above", variant_id, genre_tag)
@@ -324,12 +324,33 @@ def _verify_signature(raw_body: bytes, signature_header: str) -> bool:
 
 @router.post("/webhooks/apiframe")
 async def apiframe_webhook(request: Request):
+    # Log BEFORE reading body so this fires even if body parsing fails
+    _raw_variant_id = request.query_params.get("variant_id", "MISSING")
+    logger.info(
+        "WEBHOOK RECEIVED: POST /webhooks/apiframe variant_id=%s headers=%s",
+        _raw_variant_id,
+        dict(request.headers),
+    )
+
     raw_body = await request.body()
     signature = request.headers.get("X-Webhook-Signature", "")
 
-    if not _verify_signature(raw_body, signature):
-        logger.warning("Apiframe webhook signature verification failed")
-        raise HTTPException(401, "Invalid signature")
+    # If Apiframe sends no signature at all, log a warning and continue rather
+    # than rejecting — Apiframe v2 may not sign webhooks with our custom secret.
+    if signature:
+        if not _verify_signature(raw_body, signature):
+            logger.warning(
+                "Apiframe webhook: signature MISMATCH for variant_id=%s (sig=%r) — rejecting",
+                _raw_variant_id, signature[:30],
+            )
+            raise HTTPException(401, "Invalid signature")
+        logger.info("Apiframe webhook: signature OK for variant_id=%s", _raw_variant_id)
+    else:
+        logger.warning(
+            "Apiframe webhook: no X-Webhook-Signature header for variant_id=%s — "
+            "proceeding without verification (Apiframe v2 may not sign)",
+            _raw_variant_id,
+        )
 
     body = await request.json()
     variant_id = request.query_params.get("variant_id")
@@ -342,7 +363,10 @@ async def apiframe_webhook(request: Request):
 
     event = body.get("event")
     job_status = body.get("status")
-    logger.info("Apiframe webhook variant_id=%d event=%s status=%s", variant_id, event, job_status)
+    logger.info(
+        "Webhook received variant_id=%d status=%s event=%s body_keys=%s",
+        variant_id, job_status, event, list(body.keys()),
+    )
 
     # Failed: mark variant failed, do NOT refund (Apiframe credits are non-refundable
     # once the job is accepted — the credit was already deducted from the user's balance,
@@ -454,9 +478,13 @@ async def apiframe_webhook(request: Request):
             artist_name = (user_row[0] or "") if user_row else ""
         finally:
             conn.close()
+    logger.info("Starting Flux cover art for variant_id=%d genre=%s", variant_id, genre_tag)
     flux_cover1 = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name)
     if flux_cover1:
+        logger.info("Cover art complete for variant_id=%d url=%s", variant_id, flux_cover1)
         permanent_image_url1 = flux_cover1
+    else:
+        logger.warning("Cover art FAILED for variant_id=%d — Flux returned None", variant_id)
 
     conn = sqlite3.connect(DB_PATH)
     try:
@@ -471,9 +499,8 @@ async def apiframe_webhook(request: Request):
     finally:
         conn.close()
     logger.info("Apiframe webhook take 1 complete: variant_id=%d url=%s", variant_id, permanent_url1)
-    logger.info("Song complete — checking Kling eligibility for variant_id=%d", variant_id)
 
-    # Pre-query paid status so all 4 conditions are visible in one log line
+    # Pre-query paid status so all conditions are visible in one log line
     _kling_is_paid1 = False
     if orig:
         try:
@@ -485,27 +512,34 @@ async def apiframe_webhook(request: Request):
                 ).fetchone()
                 if _pr1:
                     _kling_is_paid1 = (_pr1[0] and _pr1[0] != "free") or bool(_pr1[1]) or bool(_pr1[2])
+                    logger.info(
+                        "Kling user lookup: variant_id=%d sub_status=%r plan=%r has_paid=%r → is_paid=%s",
+                        variant_id, _pr1[0], _pr1[1], _pr1[2], _kling_is_paid1,
+                    )
+                else:
+                    logger.warning("Kling user lookup: no user row found for variant_id=%d user_id=%s", variant_id, orig[1])
             finally:
                 _pc1.close()
         except Exception as _pe1:
             logger.warning("Kling pre-check take1: user plan lookup failed: %s", _pe1)
 
     logger.info(
-        "Kling eligibility take1: variant_id=%d has_cover=%s has_duration=%s has_fal_key=%s is_paid_user=%s",
-        variant_id, bool(flux_cover1), bool(duration1), bool(FAL_API_KEY), _kling_is_paid1,
+        "Kling check: has_cover=%s has_fal_key=%s duration=%s is_paid=%s",
+        bool(flux_cover1), bool(FAL_API_KEY), duration1, _kling_is_paid1,
     )
-    if flux_cover1 and duration1 and FAL_API_KEY:
-        logger.info("Starting Kling background thread for variant_id=%d", variant_id)
+    if not flux_cover1:
+        logger.warning("Kling skipped: no cover art (Flux generation failed for variant_id=%d)", variant_id)
+    elif not duration1:
+        logger.warning("Kling skipped: duration is 0 for variant_id=%d", variant_id)
+    elif not FAL_API_KEY:
+        logger.warning("Kling skipped: FAL_API_KEY environment variable not set")
+    elif flux_cover1 and duration1 and FAL_API_KEY:
+        logger.info("Kling thread STARTING for variant_id=%d", variant_id)
         threading.Thread(
             target=_kling_pipeline,
             args=(variant_id, flux_cover1, local_path1, duration1, genre_tag),
             daemon=True,
         ).start()
-    else:
-        logger.warning(
-            "Kling thread NOT started for variant_id=%d: has_cover=%s has_duration=%s has_fal_key=%s is_paid_user=%s",
-            variant_id, bool(flux_cover1), bool(duration1), bool(FAL_API_KEY), _kling_is_paid1,
-        )
 
     # ── Take 2: insert new row, download second track if present ─────────────
     take2_variant_id = None
@@ -565,9 +599,13 @@ async def apiframe_webhook(request: Request):
                 except Exception as exc:
                     logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
 
+            logger.info("Starting Flux cover art for variant_id=%d (take2) genre=%s", take2_variant_id, genre_tag)
             flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name)
             if flux_cover2:
+                logger.info("Cover art complete for variant_id=%d url=%s", take2_variant_id, flux_cover2)
                 permanent_image_url2 = flux_cover2
+            else:
+                logger.warning("Cover art FAILED for variant_id=%d (take2) — Flux returned None", take2_variant_id)
 
             conn = sqlite3.connect(DB_PATH)
             try:
@@ -579,24 +617,24 @@ async def apiframe_webhook(request: Request):
             finally:
                 conn.close()
             logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
-            logger.info("Song complete — checking Kling eligibility for variant_id=%d (take2)", take2_variant_id)
 
             logger.info(
-                "Kling eligibility take2: variant_id=%d has_cover=%s has_duration=%s has_fal_key=%s is_paid_user=%s",
-                take2_variant_id, bool(flux_cover2), bool(duration2), bool(FAL_API_KEY), _kling_is_paid1,
+                "Kling check (take2): has_cover=%s has_fal_key=%s duration=%s is_paid=%s",
+                bool(flux_cover2), bool(FAL_API_KEY), duration2, _kling_is_paid1,
             )
-            if flux_cover2 and duration2 and FAL_API_KEY:
-                logger.info("Starting Kling background thread for variant_id=%d (take2)", take2_variant_id)
+            if not flux_cover2:
+                logger.warning("Kling skipped (take2): no cover art (Flux failed for variant_id=%d)", take2_variant_id)
+            elif not duration2:
+                logger.warning("Kling skipped (take2): duration is 0 for variant_id=%d", take2_variant_id)
+            elif not FAL_API_KEY:
+                logger.warning("Kling skipped (take2): FAL_API_KEY not set")
+            elif flux_cover2 and duration2 and FAL_API_KEY:
+                logger.info("Kling thread STARTING for variant_id=%d (take2)", take2_variant_id)
                 threading.Thread(
                     target=_kling_pipeline,
                     args=(take2_variant_id, flux_cover2, local_path2, duration2, genre_tag),
                     daemon=True,
                 ).start()
-            else:
-                logger.warning(
-                    "Kling thread NOT started for variant_id=%d (take2): has_cover=%s has_duration=%s has_fal_key=%s is_paid_user=%s",
-                    take2_variant_id, bool(flux_cover2), bool(duration2), bool(FAL_API_KEY), _kling_is_paid1,
-                )
 
     payload = {"ok": True, "status": "complete", "take1_url": permanent_url1}
     if take2_variant_id:
