@@ -1456,6 +1456,7 @@ class SongsGenerateRequest(BaseModel):
     explicit: bool = False               # agency/enterprise only — loosens Suno content filter
     instrumental: bool = False           # skip lyrics; append instrumental style suffix
     inspired_by_descriptors: str | None = None  # from /api/songs/artist-style
+    negative_tags: str | None = Field(default=None, max_length=500)  # → sunoParams.negative_tags
     song_title: str | None = None        # optional user-supplied title; overrides AI-generated title
 
 
@@ -1522,6 +1523,12 @@ async def songs_generate(
     lyric_id = lyric_result["lyric_id"]
 
     # Build extra sunoParams from advanced controls
+    _MODEL_VERSION_MAP = {
+        "V4.5": "V4_5",
+        "V4.5 Plus": "V4_5PLUS",
+        "V5": "V5",
+        "V5.5": "V5_5",
+    }
     extra_suno_params: dict = {}
     if body.vocal_gender in ("m", "f"):
         extra_suno_params["vocal_gender"] = body.vocal_gender
@@ -1529,8 +1536,10 @@ async def songs_generate(
         extra_suno_params["weirdness_constraint"] = max(0.0, min(1.0, body.creativity))
     if body.style_weight is not None:
         extra_suno_params["style_weight"] = max(0.0, min(1.0, body.style_weight))
-    if body.model_version in ("V4.5", "V4.5 Plus", "V5", "V5.5"):
-        extra_suno_params["model_version"] = body.model_version
+    if body.model_version in _MODEL_VERSION_MAP:
+        extra_suno_params["model_version"] = _MODEL_VERSION_MAP[body.model_version]
+    if body.negative_tags and body.negative_tags.strip():
+        extra_suno_params["negative_tags"] = body.negative_tags.strip()[:500]
 
     style_suffix_parts: list[str] = []
     if body.tempo == "slow":

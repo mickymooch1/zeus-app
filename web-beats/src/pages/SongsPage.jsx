@@ -619,6 +619,7 @@ export default function SongsPage() {
   const [tempo, setTempo]                 = useState(() => _matchTempo(location.state?.prefillTempo));
   const [tempoBpm, setTempoBpm]           = useState(120);
   const [modelVersion, setModelVersion]   = useState('V5');
+  const [negativeTags, setNegativeTags]   = useState('');
   const [explicit, setExplicit]           = useState(false);
   const [vocals, setVocals]               = useState(true);
   const [songTitle, setSongTitle]         = useState('');
@@ -883,6 +884,7 @@ export default function SongsPage() {
             model_version: modelVersion,
             explicit: explicit || undefined,
             instrumental: !vocals || undefined,
+            negative_tags: negativeTags.trim() || undefined,
           } : {}),
         }),
       });
@@ -1681,11 +1683,15 @@ export default function SongsPage() {
                 </div>
 
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', margin: 0 }}>{t('songs.creativityLabel')}</p>
                     <span style={{ fontSize: 11, color: '#a78bfa' }}>{creativity}%</span>
                   </div>
                   <input type="range" min={0} max={100} value={creativity} onChange={(e) => setCreativity(Number(e.target.value))} style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+                    <span style={{ fontSize: 10, color: '#666' }}>{t('songs.weirdnessSafe')}</span>
+                    <span style={{ fontSize: 10, color: '#666' }}>{t('songs.weirdnessExperimental')}</span>
+                  </div>
                 </div>
 
                 <div>
@@ -1694,6 +1700,19 @@ export default function SongsPage() {
                     <span style={{ fontSize: 11, color: '#a78bfa' }}>{styleWeight}%</span>
                   </div>
                   <input type="range" min={0} max={100} value={styleWeight} onChange={(e) => setStyleWeight(Number(e.target.value))} style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }} />
+                </div>
+
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>{t('songs.negativeTagsLabel')}</p>
+                  <input
+                    type="text"
+                    maxLength={500}
+                    value={negativeTags}
+                    onChange={(e) => setNegativeTags(e.target.value)}
+                    placeholder={t('songs.negativeTagsPlaceholder')}
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '7px 10px', color: '#c4b5fd', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  {negativeTags.length > 400 && <span style={{ fontSize: 10, color: '#f59e0b', float: 'right', marginTop: 3 }}>{500 - negativeTags.length} chars left</span>}
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
