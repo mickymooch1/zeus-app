@@ -2136,13 +2136,13 @@ export default function SongsPage() {
 
           {/* ── Library ────────────────────────────────────────────────── */}
           {filteredLibrary.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 4 }}>
               {[['all', 'All Songs'], ['favourites', '★ Favourites'], ['recent', '🕐 Recent']].map(([tab, label]) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   style={{
-                    padding: '6px 14px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                    padding: '6px 12px', borderRadius: 20, fontSize: 13, cursor: 'pointer', flexShrink: 0,
                     border: `1px solid ${activeTab === tab ? 'rgba(167,139,250,0.6)' : 'rgba(255,255,255,0.1)'}`,
                     background: activeTab === tab ? 'rgba(167,139,250,0.15)' : 'transparent',
                     color: activeTab === tab ? '#c4b5fd' : '#555',
