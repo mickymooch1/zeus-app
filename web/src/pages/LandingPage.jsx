@@ -406,7 +406,7 @@ export default function LandingPage() {
             <span className="logo-icon">⚡</span>
             <span className="logo-text">Zeus <span className="logo-accent">AI</span></span>
           </a>
-          <p className="footer-copy">© {new Date().getFullYear()} Zeus AI Design. Built with ⚡ by Zeus.</p>
+          <p className="footer-copy">© {new Date().getFullYear()} Zeus Beats Ltd. All rights reserved. Company No. 17230535</p>
           <div className="footer-links">
             <Link to="/login">Sign In</Link>
             <a href="#pricing">Pricing</a>

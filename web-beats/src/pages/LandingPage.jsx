@@ -436,7 +436,7 @@ export default function LandingPage() {
             <span className="logo-icon">⚡</span>
             <span>{BRAND.name}</span>
           </a>
-          <p className="footer-copy">© {new Date().getFullYear()} {BRAND.name}. {BRAND.tagline}</p>
+          <p className="footer-copy">© {new Date().getFullYear()} Zeus Beats Ltd. All rights reserved. Company No. 17230535</p>
           <div className="footer-links">
             <Link to="/login">{t('landing.footerSignIn')}</Link>
             <a href="#pricing">{t('landing.footerPricing')}</a>
