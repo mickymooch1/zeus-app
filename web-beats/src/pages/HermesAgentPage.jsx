@@ -22,6 +22,8 @@ export default function HermesAgentPage() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [issues, setIssues] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -57,6 +59,32 @@ export default function HermesAgentPage() {
     }
   };
 
+  const runHealthCheck = async () => {
+    if (checking) return;
+    setChecking(true);
+    setError('');
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/hermes/check`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Health check failed');
+      setIssues(data.issues || []);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          text: `Health check complete. ${data.issue_count || 0} issue type${data.issue_count === 1 ? '' : 's'} found.`,
+        },
+      ]);
+    } catch (err) {
+      setError(err.message || 'Health check failed');
+    } finally {
+      setChecking(false);
+    }
+  };
+
   if (!user?.is_admin) {
     return (
       <div style={{ minHeight: '100vh', background: '#000' }}>
@@ -77,21 +105,39 @@ export default function HermesAgentPage() {
             <h1 style={{ fontSize: 26, fontWeight: 900, color: '#fff', margin: '0 0 6px' }}>Hermes Agent</h1>
             <p style={{ color: '#555', fontSize: 13, margin: 0 }}>Read-only admin diagnostics for Zeus Beats.</p>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/admin')}
-            style={{
-              border: '1px solid rgba(0,240,255,0.28)',
-              background: 'rgba(0,240,255,0.08)',
-              color: '#00f0ff',
-              borderRadius: 8,
-              padding: '10px 14px',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            Back to Admin
-          </button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => navigate('/admin')}
+              style={{
+                border: '1px solid rgba(0,240,255,0.28)',
+                background: 'rgba(0,240,255,0.08)',
+                color: '#00f0ff',
+                borderRadius: 8,
+                padding: '10px 14px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Back to Admin
+            </button>
+            <button
+              type="button"
+              onClick={runHealthCheck}
+              disabled={checking}
+              style={{
+                border: '1px solid rgba(168,85,247,0.34)',
+                background: checking ? 'rgba(255,255,255,0.05)' : 'rgba(168,85,247,0.12)',
+                color: checking ? '#555' : '#c084fc',
+                borderRadius: 8,
+                padding: '10px 14px',
+                fontWeight: 800,
+                cursor: checking ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {checking ? 'Checking...' : 'Run Health Check'}
+            </button>
+          </div>
         </div>
 
         <section style={{
@@ -102,6 +148,33 @@ export default function HermesAgentPage() {
           boxShadow: '0 22px 70px rgba(0,0,0,0.42)',
         }}>
           <div style={{ minHeight: 430, maxHeight: 580, overflowY: 'auto', padding: 18 }}>
+            {issues && (
+              <div style={{
+                marginBottom: 18,
+                border: '1px solid rgba(0,240,255,0.2)',
+                borderRadius: 10,
+                background: 'rgba(0,240,255,0.06)',
+                padding: 14,
+              }}>
+                <div style={{ color: '#00f0ff', fontWeight: 900, marginBottom: 10 }}>
+                  Watcher issues: {issues.length}
+                </div>
+                {issues.length === 0 ? (
+                  <p style={{ color: '#555', margin: 0, fontSize: 13 }}>No current issues detected.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {issues.map((issue) => (
+                      <div key={issue.code} style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10 }}>
+                        <div style={{ color: '#fff', fontWeight: 800 }}>{issue.title}</div>
+                        <div style={{ color: '#c084fc', fontSize: 12, marginTop: 2 }}>{issue.severity} · {issue.count} item{issue.count === 1 ? '' : 's'}</div>
+                        <div style={{ color: '#cbd5e1', fontSize: 13, marginTop: 6 }}>{issue.summary}</div>
+                        <div style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>{issue.recommended_action}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {messages.map((msg, idx) => (
               <div
                 key={`${msg.role}-${idx}`}

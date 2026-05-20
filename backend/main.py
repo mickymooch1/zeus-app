@@ -369,6 +369,7 @@ async def lifespan(app: FastAPI):
         except Exception as _exc:
             log.warning("Telegram setWebhook failed (non-fatal): %s", _exc)
     threading.Thread(target=_register_telegram_webhook, daemon=True).start()
+    _hermes_start_watcher_background(_db_path)
 
     _serper_key = os.environ.get("SERPER_API_KEY", "").strip()
     log.info("SERPER_API_KEY present: %s — value prefix: %s", bool(_serper_key), (_serper_key[:6] + "…") if _serper_key else "MISSING")
@@ -1539,6 +1540,258 @@ def _hermes_sanitize_reply(reply: str) -> str:
     return reply[:4_000]
 
 
+_HERMES_WATCHER_STARTED = False
+_HERMES_WATCHER_LOCK = threading.Lock()
+_HERMES_RECENT_FAILURE_HOURS = 24
+_HERMES_WEBHOOK_TIMEOUT_MINUTES = 45
+_HERMES_VIDEO_TIMEOUT_MINUTES = 60
+
+
+def _hermes_parse_dt(value) -> datetime | None:
+    if not value:
+        return None
+    try:
+        text = str(value).replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(text)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def _hermes_minutes_old(value, now: datetime) -> float | None:
+    parsed = _hermes_parse_dt(value)
+    if not parsed:
+        return None
+    return (now - parsed).total_seconds() / 60
+
+
+def _hermes_is_paid_row(row: sqlite3.Row) -> bool:
+    status = (row["subscription_status"] or "").lower()
+    plan = (row["subscription_plan"] or "").lower()
+    return status == "active" or (plan and plan != "free") or bool(row["has_paid"])
+
+
+def _hermes_variant_summary(row: sqlite3.Row) -> dict:
+    return {
+        "variant_id": row["id"],
+        "status": row["status"],
+        "genre": row["genre_tag"],
+        "title": _hermes_safe_value("title", row["title"]),
+        "user_email": _hermes_safe_value("email", row["email"]),
+        "has_audio": bool(row["mp3_url"]),
+        "has_cover": bool(row["image_url"]),
+        "has_music_video": bool(row["music_video_url"]),
+        "has_kling_request": bool(row["kling_request_id"]),
+        "created_at": row["created_at"],
+        "completed_at": row["completed_at"],
+    }
+
+
+def _hermes_issue(code: str, severity: str, title: str, summary: str, rows: list[sqlite3.Row], action: str) -> dict:
+    return {
+        "code": code,
+        "severity": severity,
+        "title": title,
+        "summary": summary,
+        "count": len(rows),
+        "variants": [_hermes_variant_summary(row) for row in rows[:10]],
+        "recommended_action": action,
+    }
+
+
+def _hermes_fetch_watch_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conn.execute(
+        """SELECT sv.id, sv.lyric_id, sv.user_id, sv.genre_tag, sv.status,
+                  sv.provider_job_id, sv.mp3_url, sv.image_url, sv.music_video_url,
+                  sv.kling_request_id, sv.animate_cover, sv.created_at, sv.completed_at,
+                  l.title,
+                  u.email, u.subscription_status, u.subscription_plan, u.has_paid
+           FROM song_variants sv
+           LEFT JOIN lyrics l ON l.id = sv.lyric_id
+           LEFT JOIN users u ON u.id = sv.user_id
+           ORDER BY sv.id DESC
+           LIMIT 250"""
+    ).fetchall()
+
+
+def _hermes_detect_issues(db_path: pathlib.Path, now: datetime | None = None) -> list[dict]:
+    now = now or datetime.now(timezone.utc)
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA query_only = ON")
+    try:
+        rows = _hermes_fetch_watch_rows(conn)
+    finally:
+        conn.close()
+
+    recent_failures = []
+    missing_webhooks = []
+    missing_covers = []
+    paid_missing_video = []
+    kling_stalled = []
+    fal_submission_risk = []
+
+    for row in rows:
+        created_age = _hermes_minutes_old(row["created_at"], now)
+        completed_age = _hermes_minutes_old(row["completed_at"] or row["created_at"], now)
+        is_paid = _hermes_is_paid_row(row)
+        animate_cover = bool(row["animate_cover"]) if row["animate_cover"] is not None else True
+
+        if row["status"] == "failed" and (created_age is None or created_age <= _HERMES_RECENT_FAILURE_HOURS * 60):
+            recent_failures.append(row)
+
+        if row["status"] in {"pending", "generating"} and row["provider_job_id"] and created_age is not None and created_age >= _HERMES_WEBHOOK_TIMEOUT_MINUTES:
+            missing_webhooks.append(row)
+
+        if row["status"] == "complete" and row["mp3_url"] and not row["image_url"]:
+            missing_covers.append(row)
+
+        if (
+            row["status"] == "complete"
+            and is_paid
+            and animate_cover
+            and row["mp3_url"]
+            and row["image_url"]
+            and not row["music_video_url"]
+            and completed_age is not None
+            and completed_age >= _HERMES_VIDEO_TIMEOUT_MINUTES
+        ):
+            paid_missing_video.append(row)
+            if row["kling_request_id"]:
+                kling_stalled.append(row)
+            else:
+                fal_submission_risk.append(row)
+
+    issues = []
+    if recent_failures:
+        issues.append(_hermes_issue(
+            "recent_song_generation_failures",
+            "high",
+            "Recent song generation failures",
+            "One or more song variants are marked failed in the recent monitoring window.",
+            recent_failures,
+            "Review Apiframe/Suno response logs and user prompts. Do not retry or refund automatically.",
+        ))
+    if missing_webhooks:
+        issues.append(_hermes_issue(
+            "missing_apiframe_webhook",
+            "high",
+            "Possible missing Apiframe webhook",
+            "Accepted song jobs are still pending/generating after the webhook timeout window.",
+            missing_webhooks,
+            "Check Apiframe job status and webhook delivery for these variant IDs.",
+        ))
+    if missing_covers:
+        issues.append(_hermes_issue(
+            "missing_cover_art",
+            "medium",
+            "Songs missing cover art",
+            "Complete songs have audio but no stored cover art, which can indicate Apiframe image download or Flux fallback failure.",
+            missing_covers,
+            "Check Flux/FAL cover generation logs and static cover fallback behavior.",
+        ))
+    if kling_stalled:
+        issues.append(_hermes_issue(
+            "kling_pipeline_stalled",
+            "medium",
+            "Kling pipeline appears stalled",
+            "Paid-user songs have audio and cover art, a Kling request ID, but no animated cover after the timeout window.",
+            kling_stalled,
+            "Check Kling polling logs for final status, response URL fetch, or FFmpeg mux failures.",
+        ))
+    if fal_submission_risk:
+        issues.append(_hermes_issue(
+            "fal_ai_submission_missing",
+            "medium",
+            "Possible fal.ai balance or Kling submission issue",
+            "Paid-user songs have audio and cover art but no Kling request ID or animated cover after the timeout window.",
+            fal_submission_risk,
+            "Check Railway logs for fal.ai 403 exhausted balance errors or missing FAL_API_KEY.",
+        ))
+    if paid_missing_video:
+        issues.append(_hermes_issue(
+            "paid_missing_music_video",
+            "medium",
+            "Paid-user songs missing animated cover",
+            "Paid-user songs have cover art but no music video after the reasonable wait window.",
+            paid_missing_video,
+            "Confirm eligibility, FAL balance, Kling polling, and music_video_url persistence.",
+        ))
+    return issues
+
+
+def _hermes_format_alert(issues: list[dict]) -> str:
+    if not issues:
+        return "Hermes watcher check complete: no current issues detected."
+    lines = [f"Hermes watcher found {len(issues)} issue type(s):"]
+    for issue in issues[:8]:
+        lines.append(f"- {issue['severity'].upper()}: {issue['title']} ({issue['count']})")
+        variant_ids = [str(v["variant_id"]) for v in issue.get("variants", [])[:5]]
+        if variant_ids:
+            lines.append(f"  variants: {', '.join(variant_ids)}")
+    return "\n".join(lines)
+
+
+def _hermes_notify_admin(issues: list[dict]) -> bool:
+    message = _hermes_sanitize_reply(_hermes_format_alert(issues))
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("ADMIN_TELEGRAM_CHAT_ID", "").strip()
+    if not issues:
+        log.info("Hermes watcher: no issues detected")
+        return False
+    if not token or not chat_id:
+        log.warning("Hermes watcher alert (Telegram not configured): %s", message)
+        return False
+    try:
+        resp = httpx.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": message},
+            timeout=10,
+        )
+        if resp.status_code >= 300:
+            log.warning("Hermes watcher Telegram alert failed: status=%d body=%r", resp.status_code, resp.text[:200])
+            return False
+        log.info("Hermes watcher Telegram alert sent for %d issue type(s)", len(issues))
+        return True
+    except Exception:
+        log.exception("Hermes watcher Telegram alert failed")
+        return False
+
+
+def _hermes_run_health_check(db_path: pathlib.Path, notify: bool = True, now: datetime | None = None) -> list[dict]:
+    issues = _hermes_detect_issues(db_path, now=now)
+    if notify:
+        _hermes_notify_admin(issues)
+    return issues
+
+
+def _hermes_watcher_loop(db_path: pathlib.Path, interval_seconds: int) -> None:
+    time.sleep(min(60, max(1, interval_seconds)))
+    while True:
+        try:
+            _hermes_run_health_check(db_path, notify=True)
+        except Exception:
+            log.exception("Hermes watcher check failed")
+        time.sleep(interval_seconds)
+
+
+def _hermes_start_watcher_background(db_path: pathlib.Path) -> None:
+    global _HERMES_WATCHER_STARTED
+    if os.environ.get("HERMES_WATCHER_DISABLED", "").strip().lower() in {"1", "true", "yes"}:
+        log.info("Hermes watcher disabled by HERMES_WATCHER_DISABLED")
+        return
+    with _HERMES_WATCHER_LOCK:
+        if _HERMES_WATCHER_STARTED:
+            return
+        interval = int(os.environ.get("HERMES_WATCHER_INTERVAL_SECONDS", "900"))
+        interval = max(600, min(interval, 1800))
+        threading.Thread(target=_hermes_watcher_loop, args=(db_path, interval), daemon=True).start()
+        _HERMES_WATCHER_STARTED = True
+        log.info("Hermes watcher started interval=%ss", interval)
+
+
 @app.post("/api/admin/hermes/chat")
 async def admin_hermes_chat(
     body: HermesChatRequest,
@@ -1587,6 +1840,18 @@ async def admin_hermes_chat(
 
     reply = _hermes_sanitize_reply(_hermes_extract_reply(msg))
     return {"reply": reply}
+
+
+@app.post("/api/admin/hermes/check")
+async def admin_hermes_check(current_user: dict = Depends(auth.get_current_user)):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    try:
+        issues = _hermes_run_health_check(db.get_db_path(), notify=True)
+    except Exception:
+        log.exception("admin_hermes_check: health check failed")
+        raise HTTPException(status_code=500, detail="Hermes health check unavailable")
+    return {"ok": True, "issue_count": len(issues), "issues": issues}
 
 
 @app.patch("/admin/users/{user_id}")

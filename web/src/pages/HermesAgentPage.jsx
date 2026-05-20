@@ -22,6 +22,8 @@ export default function HermesAgentPage() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [issues, setIssues] = useState(null);
   const [error, setError] = useState('');
 
   const sendMessage = async (text) => {
@@ -51,6 +53,32 @@ export default function HermesAgentPage() {
     }
   };
 
+  const runHealthCheck = async () => {
+    if (checking) return;
+    setChecking(true);
+    setError('');
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/hermes/check`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Health check failed');
+      setIssues(data.issues || []);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          text: `Health check complete. ${data.issue_count || 0} issue type${data.issue_count === 1 ? '' : 's'} found.`,
+        },
+      ]);
+    } catch (err) {
+      setError(err.message || 'Health check failed');
+    } finally {
+      setChecking(false);
+    }
+  };
+
   if (!user?.is_admin) {
     return (
       <div className="admin-page">
@@ -74,8 +102,11 @@ export default function HermesAgentPage() {
           Read-only admin assistant for Zeus platform diagnostics.
         </p>
 
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginBottom: '1.25rem' }}>
           <Link className="tasks-tab-btn" to="/admin">Back to Admin</Link>
+          <button className="tasks-tab-btn" type="button" onClick={runHealthCheck} disabled={checking}>
+            {checking ? 'Checking...' : 'Run Health Check'}
+          </button>
         </div>
 
         <div style={{
@@ -88,6 +119,33 @@ export default function HermesAgentPage() {
           overflow: 'hidden',
         }}>
           <div style={{ minHeight: 420, maxHeight: 560, overflowY: 'auto', padding: 20 }}>
+            {issues && (
+              <div style={{
+                marginBottom: 18,
+                border: '1px solid rgba(167,139,250,0.22)',
+                borderRadius: 10,
+                background: 'rgba(139,92,246,0.08)',
+                padding: 14,
+              }}>
+                <div style={{ color: '#c4b5fd', fontWeight: 800, marginBottom: 10 }}>
+                  Watcher issues: {issues.length}
+                </div>
+                {issues.length === 0 ? (
+                  <p style={{ color: 'var(--text-dim)', margin: 0 }}>No current issues detected.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {issues.map((issue) => (
+                      <div key={issue.code} style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10 }}>
+                        <div style={{ color: '#fff', fontWeight: 800 }}>{issue.title}</div>
+                        <div style={{ color: '#a78bfa', fontSize: 12, marginTop: 2 }}>{issue.severity} · {issue.count} item{issue.count === 1 ? '' : 's'}</div>
+                        <div style={{ color: '#d1d5db', fontSize: 13, marginTop: 6 }}>{issue.summary}</div>
+                        <div style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 6 }}>{issue.recommended_action}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {messages.map((msg, idx) => (
               <div
                 key={`${msg.role}-${idx}`}
