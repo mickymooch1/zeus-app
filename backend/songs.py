@@ -59,6 +59,8 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "rastadub":      "rasta dub musician performing spiritually, slow rhythmic movement, warm golden lighting, dreadlocks moving gently, peaceful powerful energy",
     "deeprotbassline": "UK bassline DJ mixing, hands on decks, intense focused energy, dark club lighting, heavy bass atmosphere",
     "jazz":            "jazz saxophonist playing expressively, swaying with the music, warm amber club lighting, smooth sophisticated movement, fingers moving on keys",
+    "electronicfunk":  "electronic funk performer dancing groovily, robotic funky movement, warm purple neon lighting, infectious rhythm energy",
+    "syntheticpop":    "synthetic pop performer dancing energetically, precise choreographed movement, bright pink and blue neon lights, glamorous high energy performance",
 }
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]

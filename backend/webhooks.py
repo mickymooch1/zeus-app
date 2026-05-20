@@ -58,6 +58,8 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "rastadub":       "cinematic album cover, Black Rastafarian musician with long dreadlocks in foreground, massive speakers either side, vibrant tropical Jamaican landscape behind, Rastafarian colours red gold green, cannabis leaves, palm trees, dramatic golden sunset, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
     "deeprotbassline": "cinematic album cover, UK bassline DJ at decks in foreground, dark Northern rave warehouse behind, purple and blue neon lights, heavy bass atmosphere, ultra detailed professional music artwork, correct ethnicity",
     "jazz":            "cinematic album cover, Black jazz musician playing saxophone in foreground, smoky intimate jazz club behind, warm amber and gold lighting, vintage microphone, brick walls, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
+    "electronicfunk":  "cinematic album cover, smooth Black musician with vocoder/talk box in foreground, 80s retro cityscape at night behind, warm amber and purple neon lights, classic electro funk aesthetic, vintage synth equipment, ultra detailed professional music artwork",
+    "syntheticpop":    "cinematic album cover, glamorous pop artist in foreground, bright neon pink and blue futuristic cityscape behind, glossy synthetic aesthetic, 80s inspired colour palette, ultra detailed professional music artwork",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"
