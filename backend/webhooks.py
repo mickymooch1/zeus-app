@@ -440,6 +440,19 @@ async def apiframe_webhook(request: Request):
             conn.commit()
         finally:
             conn.close()
+        try:
+            import alerts as _alerts
+            _ec = sqlite3.connect(DB_PATH)
+            try:
+                _row = _ec.execute(
+                    "SELECT u.email FROM song_variants sv JOIN users u ON u.id = sv.user_id WHERE sv.id = ?",
+                    (variant_id,),
+                ).fetchone()
+                _alerts.alert_song_failed(_row[0] if _row else "unknown", variant_id)
+            finally:
+                _ec.close()
+        except Exception:
+            pass
         return {"ok": True, "status": "failed"}
 
     # Progress: ignore for now (we only subscribed to completed + failed)

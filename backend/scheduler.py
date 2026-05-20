@@ -53,6 +53,26 @@ def init_scheduler(history_store) -> None:
         add_job(task)
     log.info("Scheduler loaded %d active job(s) from DB", len(tasks))
 
+    from apscheduler.triggers.interval import IntervalTrigger
+    from apscheduler.triggers.cron import CronTrigger as _CronTrigger
+    import alerts as _alerts
+
+    _scheduler.add_job(
+        _alerts.run_health_check,
+        trigger=IntervalTrigger(minutes=30),
+        id="__health_check__",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
+    _scheduler.add_job(
+        _alerts.send_daily_summary,
+        trigger=_CronTrigger(hour=9, minute=0, timezone="UTC"),
+        id="__daily_summary__",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+    log.info("Scheduler: built-in health check (30 min) and daily summary (9am UTC) registered")
+
 
 def shutdown_scheduler() -> None:
     """Stop the scheduler gracefully."""

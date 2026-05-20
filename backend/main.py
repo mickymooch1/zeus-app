@@ -703,6 +703,9 @@ async def register(request: Request, body: RegisterRequest):
     # Send verification email
     _send_verification_email(user, body.app)
 
+    import alerts as _alerts
+    _alerts.alert_new_user(user["email"])
+
     return {"token": token, "user": safe_user}
 
 

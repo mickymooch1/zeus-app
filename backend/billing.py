@@ -7,6 +7,7 @@ import os
 from datetime import datetime, timezone
 
 import db
+import alerts as _alerts
 
 log = logging.getLogger("zeus.billing")
 
@@ -509,6 +510,13 @@ def _handle_checkout_completed(db_path, session) -> None:
     db.update_user(db_path, user["id"], **updates)
     log.info("Activated %s plan for user %s — marked has_paid=1", plan, user["id"])
 
+    amount_pence = session.get("amount_total") or 0
+    _alerts.alert_payment(
+        user.get("email") or customer_email or "",
+        plan or "",
+        f"£{amount_pence / 100:.2f}",
+    )
+
     allowance = _PLAN_SONG_CREDITS.get(plan, FREE_SONG_CREDITS)
     db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
     log.info("Granted %d song credits (%s plan) to user %s", allowance, plan, user["id"])
@@ -591,6 +599,7 @@ def _handle_subscription_deleted(db_path, subscription) -> None:
         log.warning("subscription.deleted: no user found for customer %s", customer_id)
         return
 
+    old_plan = user.get("subscription_plan") or ""
     db.update_user(db_path, user["id"],
                    subscription_status="free",
                    subscription_plan=None,
@@ -598,6 +607,7 @@ def _handle_subscription_deleted(db_path, subscription) -> None:
                    cancel_at=None)
     db.reset_monthly_usage(db_path, user["id"])
     log.info("Subscription cancelled for user %s — reverted to free, usage reset", user["id"])
+    _alerts.alert_subscription_cancelled(user.get("email") or "", old_plan)
 
 
 def _find_user_by_customer(db_path, customer_id: str) -> dict | None:
