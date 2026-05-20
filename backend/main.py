@@ -443,6 +443,40 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("tinayarowle email verify patch failed (non-fatal)")
 
+    # One-time: manually activate Music Starter for laky120@yahoo.com (paid £9, localhost redirect bug)
+    try:
+        import sqlite3 as _sqlite3
+        _lk = _sqlite3.connect(str(_db_path))
+        try:
+            _lk.execute(
+                """UPDATE users SET subscription_plan = 'music_starter',
+                                    subscription_status = 'active',
+                                    has_paid = 1
+                   WHERE lower(email) = 'laky120@yahoo.com'"""
+            )
+            _lk.execute(
+                """UPDATE song_credits SET balance = 25, monthly_allowance = 25
+                   WHERE user_id = (SELECT id FROM users WHERE lower(email) = 'laky120@yahoo.com')"""
+            )
+            _lk.commit()
+            _lkrow = _lk.execute(
+                """SELECT u.email, u.subscription_plan, u.subscription_status, u.has_paid,
+                          sc.balance, sc.monthly_allowance
+                   FROM users u LEFT JOIN song_credits sc ON sc.user_id = u.id
+                   WHERE lower(u.email) = 'laky120@yahoo.com'"""
+            ).fetchone()
+            if _lkrow:
+                log.info(
+                    "laky120@yahoo.com — plan=%r status=%r has_paid=%r balance=%r allowance=%r",
+                    _lkrow[1], _lkrow[2], _lkrow[3], _lkrow[4], _lkrow[5],
+                )
+            else:
+                log.info("laky120@yahoo.com — not found in DB")
+        finally:
+            _lk.close()
+    except Exception:
+        log.exception("laky120 subscription patch failed (non-fatal)")
+
     try:
         _scheduler_mod.init_scheduler(history)
         log.info("Scheduler initialised")
