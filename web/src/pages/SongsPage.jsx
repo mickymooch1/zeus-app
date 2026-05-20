@@ -1497,7 +1497,7 @@ export default function SongsPage() {
                   className="songs-textarea"
                   value={brief}
                   onChange={(e) => setBrief(e.target.value)}
-                  placeholder="Optional — describe your song or leave blank and Zeus will decide"
+                  placeholder="Optional — leave blank and Zeus will create something for you"
                   rows={3}
                   style={{
                     width: '100%',

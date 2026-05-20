@@ -2077,9 +2077,6 @@ async def songs_generate(
         current_user.get("email"),
     )
 
-    if not body.custom_lyrics and not body.brief:
-        raise HTTPException(status_code=400, detail="Provide a song description or custom lyrics")
-
     try:
         if body.custom_lyrics:
             lyric_result = _lyrics_mod.store_custom_lyrics(
