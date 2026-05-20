@@ -358,10 +358,6 @@ async def lifespan(app: FastAPI):
         _tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
         if not _tg_token:
             return
-        log.info(
-            "Hermes Telegram chat setup: set Telegram webhook to "
-            "https://zeusaidesign.com/webhooks/telegram/hermes for admin chat."
-        )
         _webhook_url = "https://zeusaidesign.com/webhooks/telegram"
         try:
             r = _req.post(
@@ -1565,18 +1561,6 @@ def _hermes_sanitize_reply(reply: str) -> str:
     return reply[:4_000]
 
 
-def _hermes_telegram_config() -> tuple[str, str]:
-    token = (
-        os.environ.get("TELEGRAM_BOT_TOKEN2", "").strip()
-        or os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    )
-    chat_id = (
-        os.environ.get("ADMIN_TELEGRAM_CHAT_ID2", "").strip()
-        or os.environ.get("ADMIN_TELEGRAM_CHAT_ID", "").strip()
-    )
-    return token, chat_id
-
-
 async def _hermes_generate_reply(question: str, max_tokens: int = 800, telegram: bool = False) -> str:
     question = question.strip()
     if not question:
@@ -1827,7 +1811,8 @@ def _hermes_format_alert(issues: list[dict]) -> str:
 
 def _hermes_notify_admin(issues: list[dict]) -> bool:
     message = _hermes_sanitize_reply(_hermes_format_alert(issues))
-    token, chat_id = _hermes_telegram_config()
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("ADMIN_TELEGRAM_CHAT_ID", "").strip()
     if not issues:
         log.info("Hermes watcher: no issues detected")
         return False
@@ -3626,45 +3611,6 @@ async def telegram_webhook(request: Request):
     await _telegram_reply(token, chat_id, reply)
     return {"ok": True}
 
-
-@app.post("/webhooks/telegram/hermes")
-async def telegram_hermes_webhook(request: Request):
-    """Admin-only Hermes Telegram chat webhook.
-
-    Telegram setup note: set the bot webhook to
-    https://zeusaidesign.com/webhooks/telegram/hermes
-    """
-    try:
-        body = await request.json()
-    except Exception:
-        return {"ok": True, "handled": False}
-
-    token, admin_chat_id = _hermes_telegram_config()
-    if not token or not admin_chat_id:
-        log.warning("telegram_hermes_webhook: Telegram Hermes chat not configured")
-        return {"ok": True, "handled": False}
-
-    message = body.get("message") or body.get("edited_message") or {}
-    chat = message.get("chat") or {}
-    chat_id = chat.get("id")
-    text = (message.get("text") or "").strip()
-    if not chat_id or not text:
-        return {"ok": True, "handled": False}
-
-    if str(chat_id) != admin_chat_id:
-        log.warning("telegram_hermes_webhook: blocked unauthorized chat_id=%s", chat_id)
-        return {"ok": True, "handled": False}
-
-    log.info("telegram_hermes_webhook: received authorized admin message chat_id=%s length=%d", chat_id, len(text))
-
-    try:
-        reply = await _hermes_generate_reply(text, max_tokens=500, telegram=True)
-    except Exception:
-        log.exception("telegram_hermes_webhook: Hermes reply failed")
-        reply = "Hermes is temporarily unavailable. Check Railway backend logs."
-
-    await _telegram_reply(token, int(chat_id), reply, parse_mode=None)
-    return {"ok": True, "handled": True}
 
 
 # ── Scheduled Tasks ─────────────────────────────────────────────────────────
