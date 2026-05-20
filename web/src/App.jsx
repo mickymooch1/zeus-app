@@ -13,6 +13,7 @@ import WebsitesPage from './pages/WebsitesPage';
 import SongsPage from './pages/SongsPage';
 import SongSharePage from './pages/SongSharePage';
 import AdminPage from './pages/AdminPage';
+import HermesAgentPage from './pages/HermesAgentPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import ContactPage from './pages/ContactPage';
@@ -87,6 +88,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AdminPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/hermes"
+            element={
+              <ProtectedRoute>
+                <HermesAgentPage />
               </ProtectedRoute>
             }
           />

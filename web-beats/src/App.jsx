@@ -19,6 +19,7 @@ import RefundPolicyPage from './pages/RefundPolicyPage';
 import DataDeletionPage from './pages/DataDeletionPage';
 import SearchPage from './pages/SearchPage';
 import AdminBeats from './pages/AdminBeats';
+import HermesAgentPage from './pages/HermesAgentPage';
 import MixerPage from './pages/MixerPage';
 import './index.css';
 
@@ -78,6 +79,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AdminBeats />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/hermes"
+            element={
+              <ProtectedRoute>
+                <HermesAgentPage />
               </ProtectedRoute>
             }
           />

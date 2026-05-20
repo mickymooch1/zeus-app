@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -223,6 +224,10 @@ export default function AdminPage() {
         <h1 className="section-title" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
           Admin Dashboard
         </h1>
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+          <Link className="btn btn-primary" to="/admin/hermes">Hermes</Link>
+        </div>
 
         <div className="tasks-tab-bar" role="tablist" aria-label="Admin views" style={{ marginBottom: '1.5rem' }}>
           <button

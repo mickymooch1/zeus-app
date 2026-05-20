@@ -6,6 +6,7 @@ import os
 import pathlib
 import secrets
 import smtplib
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -550,6 +551,10 @@ class SetEnterpriseRequest(BaseModel):
 class AdminUserPatchRequest(BaseModel):
     field: str   # "subscription_plan" or "subscription_status"
     value: str
+
+
+class HermesChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2_000)
 
 
 class ExportRequest(BaseModel):
@@ -1357,6 +1362,231 @@ _ALLOWED_ADMIN_FIELDS = {
     "subscription_plan": {"free", "pro", "agency", "enterprise"},
     "subscription_status": {"free", "active", "cancelled"},
 }
+
+
+_HERMES_SECRET_RE = _re.compile(
+    r"(api[_-]?key|secret|token|password|authorization|signature|webhook_secret|refresh_token)",
+    _re.IGNORECASE,
+)
+_HERMES_EMAIL_RE = _re.compile(r"([A-Z0-9._%+-])([A-Z0-9._%+-]*)(@[A-Z0-9.-]+\.[A-Z]{2,})", _re.IGNORECASE)
+
+
+def _hermes_mask_email(value: str | None) -> str | None:
+    if not value:
+        return value
+
+    def _mask(match: _re.Match) -> str:
+        first = match.group(1)
+        rest = match.group(2)
+        domain = match.group(3)
+        masked_local = first + ("*" * min(max(len(rest), 2), 8))
+        return f"{masked_local}{domain}"
+
+    return _HERMES_EMAIL_RE.sub(_mask, str(value))
+
+
+def _hermes_safe_value(key: str, value):
+    if value is None:
+        return None
+    if _HERMES_SECRET_RE.search(key):
+        return "[masked]"
+    if isinstance(value, str):
+        masked = _hermes_mask_email(value)
+        return masked[:500] if masked else masked
+    return value
+
+
+def _hermes_row_dict(row: sqlite3.Row, allowed_keys: set[str] | None = None) -> dict:
+    keys = allowed_keys or set(row.keys())
+    return {key: _hermes_safe_value(key, row[key]) for key in row.keys() if key in keys}
+
+
+def _hermes_table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    try:
+        return {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    except Exception:
+        return set()
+
+
+def _hermes_count(conn: sqlite3.Connection, sql: str, params: tuple = ()) -> int:
+    try:
+        row = conn.execute(sql, params).fetchone()
+        return int(row[0] or 0) if row else 0
+    except Exception:
+        return 0
+
+
+def _hermes_build_context(db_path: pathlib.Path) -> dict:
+    """Build a bounded, read-only admin snapshot for Hermes."""
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA query_only = ON")
+    try:
+        user_columns = _hermes_table_columns(conn, "users")
+        variant_columns = _hermes_table_columns(conn, "song_variants")
+        credit_columns = _hermes_table_columns(conn, "song_credits")
+
+        context = {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "users": {
+                "total": _hermes_count(conn, "SELECT COUNT(*) FROM users"),
+                "admins": _hermes_count(conn, "SELECT COUNT(*) FROM users WHERE is_admin = 1"),
+            },
+            "song_variants": {
+                "total": _hermes_count(conn, "SELECT COUNT(*) FROM song_variants"),
+                "failed": _hermes_count(conn, "SELECT COUNT(*) FROM song_variants WHERE status = ?", ("failed",)),
+                "generating": _hermes_count(conn, "SELECT COUNT(*) FROM song_variants WHERE status = ?", ("generating",)),
+                "complete": _hermes_count(conn, "SELECT COUNT(*) FROM song_variants WHERE status = ?", ("complete",)),
+            },
+            "credits": {},
+            "recent_variants": [],
+            "recent_failed_variants": [],
+            "plan_summary": [],
+        }
+
+        if "subscription_status" in user_columns or "subscription_plan" in user_columns:
+            plan_rows = conn.execute(
+                """SELECT COALESCE(subscription_status, 'free') AS status,
+                          COALESCE(subscription_plan, 'free') AS plan,
+                          COUNT(*) AS count
+                   FROM users
+                   GROUP BY COALESCE(subscription_status, 'free'), COALESCE(subscription_plan, 'free')
+                   ORDER BY count DESC
+                   LIMIT 12"""
+            ).fetchall()
+            context["plan_summary"] = [_hermes_row_dict(row) for row in plan_rows]
+
+        if credit_columns:
+            credit_row = conn.execute(
+                """SELECT COUNT(*) AS users_with_credits,
+                          COALESCE(SUM(balance), 0) AS total_song_credit_balance,
+                          COALESCE(SUM(monthly_allowance), 0) AS total_monthly_song_allowance
+                   FROM song_credits"""
+            ).fetchone()
+            context["credits"] = _hermes_row_dict(credit_row) if credit_row else {}
+            if "animation_balance" in credit_columns:
+                animation_row = conn.execute(
+                    """SELECT COALESCE(SUM(animation_balance), 0) AS total_animation_balance,
+                              COALESCE(SUM(animation_monthly_allowance), 0) AS total_animation_monthly_allowance
+                       FROM song_credits"""
+                ).fetchone()
+                if animation_row:
+                    context["credits"].update(_hermes_row_dict(animation_row))
+
+        variant_select = [
+            "sv.id", "sv.lyric_id", "sv.status", "sv.genre_tag", "sv.take_number",
+            "sv.created_at", "sv.completed_at", "sv.mp3_url", "sv.image_url",
+        ]
+        for optional in ("music_video_url", "kling_request_id", "video_url", "youtube_url", "animate_cover"):
+            if optional in variant_columns:
+                variant_select.append(f"sv.{optional}")
+        if "title" in _hermes_table_columns(conn, "lyrics"):
+            variant_select.append("l.title")
+        if "email" in user_columns:
+            variant_select.append("u.email")
+        recent_sql = (
+            f"SELECT {', '.join(variant_select)} "
+            "FROM song_variants sv "
+            "LEFT JOIN lyrics l ON l.id = sv.lyric_id "
+            "LEFT JOIN users u ON u.id = sv.user_id "
+            "ORDER BY sv.id DESC LIMIT 12"
+        )
+        context["recent_variants"] = [
+            _hermes_row_dict(row, {
+                "id", "lyric_id", "status", "genre_tag", "take_number", "created_at",
+                "completed_at", "mp3_url", "image_url", "music_video_url",
+                "kling_request_id", "video_url", "youtube_url", "animate_cover",
+                "title", "email",
+            })
+            for row in conn.execute(recent_sql).fetchall()
+        ]
+
+        failed_sql = recent_sql.replace("ORDER BY sv.id DESC LIMIT 12", "WHERE sv.status = 'failed' ORDER BY sv.id DESC LIMIT 8")
+        context["recent_failed_variants"] = [
+            _hermes_row_dict(row, {
+                "id", "lyric_id", "status", "genre_tag", "take_number", "created_at",
+                "completed_at", "mp3_url", "image_url", "music_video_url",
+                "kling_request_id", "video_url", "youtube_url", "animate_cover",
+                "title", "email",
+            })
+            for row in conn.execute(failed_sql).fetchall()
+        ]
+        return context
+    finally:
+        conn.close()
+
+
+def _hermes_extract_reply(message) -> str:
+    parts = []
+    for block in getattr(message, "content", []) or []:
+        text = getattr(block, "text", None)
+        if text:
+            parts.append(text)
+        elif isinstance(block, dict) and block.get("text"):
+            parts.append(block["text"])
+    return "\n".join(parts).strip() or "Hermes could not produce a response."
+
+
+def _hermes_sanitize_reply(reply: str) -> str:
+    reply = _hermes_mask_email(reply) or ""
+    reply = _re.sub(
+        r"(?i)(api[_-]?key|secret|token|authorization|signature|password)(\s*[:=]\s*)(\S+)",
+        r"\1\2[masked]",
+        reply,
+    )
+    reply = _re.sub(r"\b(sk-ant-[A-Za-z0-9_-]{12,}|sk-[A-Za-z0-9_-]{16,})\b", "[masked-key]", reply)
+    reply = _re.sub(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b", "[masked-token]", reply)
+    return reply[:4_000]
+
+
+@app.post("/api/admin/hermes/chat")
+async def admin_hermes_chat(
+    body: HermesChatRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    question = body.message.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    try:
+        context = _hermes_build_context(db.get_db_path())
+    except Exception:
+        log.exception("admin_hermes_chat: failed to build safe context")
+        raise HTTPException(status_code=500, detail="Hermes context unavailable")
+
+    system_prompt = (
+        "You are Hermes, the read-only Zeus admin assistant. Use only the supplied safe "
+        "admin context and the admin's question. You can summarise platform health, song "
+        "generation failures, webhook/Kling/Flux status clues, user counts, credits, and "
+        "variant media fields. You must not claim to run commands, write to the database, "
+        "change credits, process refunds, delete users, alter subscriptions, retry jobs, or "
+        "make automated decisions that affect users. Recommend next manual checks or actions "
+        "only. Never reveal API keys, tokens, webhook signatures, auth headers, passwords, or "
+        "secrets. Mask personal data unless essential. Keep the response concise and practical."
+    )
+    user_prompt = (
+        "Admin question:\n"
+        f"{question}\n\n"
+        "Safe internal context JSON:\n"
+        f"{json.dumps(context, ensure_ascii=True, default=str)}"
+    )
+
+    try:
+        msg = await get_anthropic_client().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=800,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+    except Exception:
+        log.exception("admin_hermes_chat: Claude call failed")
+        raise HTTPException(status_code=503, detail="Hermes is temporarily unavailable")
+
+    reply = _hermes_sanitize_reply(_hermes_extract_reply(msg))
+    return {"reply": reply}
 
 
 @app.patch("/admin/users/{user_id}")
