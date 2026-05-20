@@ -33,6 +33,7 @@ HELP_TEXT = """🤖 <b>Zeus Admin Commands</b>
 <code>stripe list</code>
 
 <b>Database</b>
+<code>db user EMAIL</code> — full user details
 <code>db query "SELECT ..."</code> — read-only
 <code>db exec "UPDATE/INSERT/DELETE ..."</code> — write SQL
 <code>db verify EMAIL</code> — mark email as verified
@@ -265,6 +266,43 @@ def _cmd_db_unverify_email(email: str) -> str:
         return f"❌ DB error: {exc}"
 
 
+def _cmd_db_user(email: str) -> str:
+    """Show full details for a user by email."""
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        try:
+            row = conn.execute(
+                """SELECT u.email, u.subscription_status, u.subscription_plan, u.has_paid,
+                          u.email_verified, u.created_at,
+                          sc.balance, sc.monthly_allowance,
+                          sc.animation_balance, sc.animation_monthly_allowance
+                   FROM users u
+                   LEFT JOIN song_credits sc ON sc.user_id = u.id
+                   WHERE lower(u.email) = lower(?)""",
+                (email,),
+            ).fetchone()
+        finally:
+            conn.close()
+        if not row:
+            return f"❓ No user found: <code>{email}</code>"
+        verified = "✅" if row["email_verified"] else "❌"
+        return (
+            f"📧 <b>{row['email']}</b>\n"
+            f"💳 Plan: <b>{row['subscription_plan'] or 'free'}</b>\n"
+            f"✅ Status: {row['subscription_status'] or 'none'}\n"
+            f"💰 Has paid: {bool(row['has_paid'])}\n"
+            f"📨 Email verified: {verified}\n"
+            f"🎵 Song credits: {row['balance']} (allowance: {row['monthly_allowance']})\n"
+            f"🎬 Animation credits: {row['animation_balance']} (allowance: {row['animation_monthly_allowance']})\n"
+            f"📅 Created: {(row['created_at'] or '')[:10]}"
+        )
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
 def _cmd_db_fix_youtube(email: str) -> str:
     try:
         import db as _db
@@ -379,6 +417,11 @@ def parse_and_run(text: str) -> str:
     m = re.match(r'^db\s+exec\s+"(.+)"$', t, re.IGNORECASE | re.DOTALL)
     if m:
         return _cmd_db_exec(m.group(1))
+
+    # db user EMAIL
+    m = re.match(r'^db\s+user\s+(\S+)$', t, re.IGNORECASE)
+    if m:
+        return _cmd_db_user(m.group(1))
 
     # db verify EMAIL
     m = re.match(r'^db\s+verify\s+(\S+)$', t, re.IGNORECASE)
