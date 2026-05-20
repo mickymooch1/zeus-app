@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,13 +13,33 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const { t } = useTranslation();
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const menuRef = useRef(null);
 
-  const NAV_LINKS = [
-    { to: '/songs',   label: t('nav.songs') },
-    { to: '/search',  label: t('nav.search') },
-    { to: '/mixer',   label: t('nav.mixer') },
-    { to: '/billing', label: t('nav.billing') },
+  useEffect(() => {
+    if (!overflowOpen) return;
+    function handleOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOverflowOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [overflowOpen]);
+
+  const PRIMARY_LINKS = [
+    { to: '/songs',  label: t('nav.songs') },
+    { to: '/search', label: t('nav.search') },
+    { to: '/mixer',  label: t('nav.mixer') },
+  ];
+
+  const OVERFLOW_LINKS = [
     { to: '/contact', label: t('nav.contact') },
+    { to: '/billing', label: t('nav.billing') },
   ];
 
   return (
@@ -33,15 +54,28 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
         <span className="zeus-title">{BRAND.name}</span>
       </Link>
       <nav className="dashboard-header-right">
-        {NAV_LINKS.map(({ to, label }) => (
+        {/* Primary links — always visible on all screen sizes */}
+        {PRIMARY_LINKS.map(({ to, label }) => (
           <Link
             key={to}
             to={to}
-            className={`dashboard-header-link${isActive(pathname, to) ? ' dashboard-header-link--active' : ''}`}
+            className={`dashboard-header-link nav-primary-link${isActive(pathname, to) ? ' dashboard-header-link--active' : ''}`}
           >
             {label}
           </Link>
         ))}
+
+        {/* Overflow links — desktop: visible in nav, mobile: hidden here (shown in hamburger) */}
+        {OVERFLOW_LINKS.map(({ to, label }) => (
+          <Link
+            key={to}
+            to={to}
+            className={`dashboard-header-link nav-overflow-desktop${isActive(pathname, to) ? ' dashboard-header-link--active' : ''}`}
+          >
+            {label}
+          </Link>
+        ))}
+
         {user?.is_admin && (
           <Link
             to="/admin"
@@ -61,6 +95,32 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
           </svg>
         </Link>
         <LanguageSelector />
+
+        {/* Mobile-only overflow hamburger (☰) */}
+        <div className="nav-hamburger-wrap" ref={menuRef}>
+          <button
+            className="nav-hamburger-btn"
+            onClick={() => setOverflowOpen(o => !o)}
+            aria-label="More navigation options"
+            aria-expanded={overflowOpen}
+          >
+            ☰
+          </button>
+          {overflowOpen && (
+            <div className="nav-overflow-menu">
+              {OVERFLOW_LINKS.map(({ to, label }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className={`nav-overflow-link${isActive(pathname, to) ? ' nav-overflow-link--active' : ''}`}
+                  onClick={() => setOverflowOpen(false)}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </nav>
     </header>
   );

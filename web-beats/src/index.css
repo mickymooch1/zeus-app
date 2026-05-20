@@ -612,3 +612,75 @@ body {
   .dashboard-header-right { gap: 0; }
   .dashboard-header-link { font-size: 10px; padding: 0 3px; }
 }
+
+/* ── Nav overflow hamburger (desktop: hidden) ────────────── */
+.nav-hamburger-wrap {
+  display: none;
+  position: relative;
+  flex-shrink: 0;
+}
+.nav-hamburger-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 22px;
+  color: var(--text);
+  padding: 0 6px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.nav-overflow-menu {
+  position: fixed;
+  top: 52px;
+  left: 0;
+  right: 0;
+  z-index: 300;
+  background: #0a0a0a;
+  border: 1px solid #00f0ff;
+  border-top: none;
+  display: flex;
+  flex-direction: column;
+}
+.nav-overflow-link {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  min-height: 44px;
+  color: rgba(255,255,255,0.75);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
+  border-bottom: 1px solid rgba(0,240,255,0.08);
+}
+.nav-overflow-link:last-child { border-bottom: none; }
+.nav-overflow-link:hover { color: #00f0ff; background: rgba(0,240,255,0.08); }
+.nav-overflow-link--active { color: #00f0ff; }
+
+/* ── Mobile nav: show hamburger, hide overflow links, bigger primary ── */
+@media (max-width: 767px) {
+  .nav-hamburger-wrap { display: flex; align-items: center; }
+  .nav-overflow-desktop { display: none !important; }
+
+  /* Bigger, bolder primary links (Songs / Search / Mixer) */
+  .dashboard-header-right .nav-primary-link {
+    font-size: 15px;
+    padding: 8px 16px;
+    font-weight: 600;
+  }
+  .dashboard-header-right .nav-primary-link.dashboard-header-link--active {
+    border-bottom: 2px solid #00f0ff;
+    color: #00f0ff;
+  }
+}
+
+/* Tighten horizontal padding on very small phones so links still fit */
+@media (max-width: 480px) {
+  .dashboard-header-right .nav-primary-link {
+    padding: 8px 10px;
+  }
+}
