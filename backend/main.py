@@ -358,6 +358,10 @@ async def lifespan(app: FastAPI):
         _tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
         if not _tg_token:
             return
+        log.info(
+            "Hermes Telegram chat setup: set Telegram webhook to "
+            "https://zeusaidesign.com/webhooks/telegram/hermes for admin chat."
+        )
         _webhook_url = "https://zeusaidesign.com/webhooks/telegram"
         try:
             r = _req.post(
@@ -1540,6 +1544,54 @@ def _hermes_sanitize_reply(reply: str) -> str:
     return reply[:4_000]
 
 
+async def _hermes_generate_reply(question: str, max_tokens: int = 800, telegram: bool = False) -> str:
+    question = question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    try:
+        context = _hermes_build_context(db.get_db_path())
+    except Exception:
+        log.exception("hermes_generate_reply: failed to build safe context")
+        raise HTTPException(status_code=500, detail="Hermes context unavailable")
+
+    system_prompt = (
+        "You are Hermes, the read-only Zeus admin assistant. Use only the supplied safe "
+        "admin context and the admin's question. You can summarise platform health, song "
+        "generation failures, webhook/Kling/Flux status clues, user counts, credits, and "
+        "variant media fields. You must not claim to run commands, write to the database, "
+        "change credits, process refunds, delete users, alter subscriptions, retry jobs, or "
+        "make automated decisions that affect users. Recommend next manual checks or actions "
+        "only. Never reveal API keys, tokens, webhook signatures, auth headers, passwords, or "
+        "secrets. Mask personal data unless essential. Keep the response concise and practical."
+    )
+    if telegram:
+        system_prompt += " This response is for Telegram, so keep it very short and plain-text friendly."
+
+    user_prompt = (
+        "Admin question:\n"
+        f"{question}\n\n"
+        "Safe internal context JSON:\n"
+        f"{json.dumps(context, ensure_ascii=True, default=str)}"
+    )
+
+    try:
+        msg = await get_anthropic_client().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=max_tokens,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+    except Exception:
+        log.exception("hermes_generate_reply: Claude call failed")
+        raise HTTPException(status_code=503, detail="Hermes is temporarily unavailable")
+
+    reply = _hermes_sanitize_reply(_hermes_extract_reply(msg))
+    if telegram:
+        return reply[:3500]
+    return reply
+
+
 _HERMES_WATCHER_STARTED = False
 _HERMES_WATCHER_LOCK = threading.Lock()
 _HERMES_RECENT_FAILURE_HOURS = 24
@@ -1816,46 +1868,7 @@ async def admin_hermes_chat(
     if not current_user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    question = body.message.strip()
-    if not question:
-        raise HTTPException(status_code=400, detail="Message cannot be empty")
-
-    try:
-        context = _hermes_build_context(db.get_db_path())
-    except Exception:
-        log.exception("admin_hermes_chat: failed to build safe context")
-        raise HTTPException(status_code=500, detail="Hermes context unavailable")
-
-    system_prompt = (
-        "You are Hermes, the read-only Zeus admin assistant. Use only the supplied safe "
-        "admin context and the admin's question. You can summarise platform health, song "
-        "generation failures, webhook/Kling/Flux status clues, user counts, credits, and "
-        "variant media fields. You must not claim to run commands, write to the database, "
-        "change credits, process refunds, delete users, alter subscriptions, retry jobs, or "
-        "make automated decisions that affect users. Recommend next manual checks or actions "
-        "only. Never reveal API keys, tokens, webhook signatures, auth headers, passwords, or "
-        "secrets. Mask personal data unless essential. Keep the response concise and practical."
-    )
-    user_prompt = (
-        "Admin question:\n"
-        f"{question}\n\n"
-        "Safe internal context JSON:\n"
-        f"{json.dumps(context, ensure_ascii=True, default=str)}"
-    )
-
-    try:
-        msg = await get_anthropic_client().messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=800,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-    except Exception:
-        log.exception("admin_hermes_chat: Claude call failed")
-        raise HTTPException(status_code=503, detail="Hermes is temporarily unavailable")
-
-    reply = _hermes_sanitize_reply(_hermes_extract_reply(msg))
-    return {"reply": reply}
+    return {"reply": await _hermes_generate_reply(body.message, max_tokens=800)}
 
 
 @app.post("/api/admin/hermes/check")
@@ -3501,12 +3514,15 @@ async def post_to_telegram(message: str, image_url: str = None):
             log.warning("post_to_telegram: Telegram API returned %d: %s", resp.status_code, resp.text)
 
 
-async def _telegram_reply(token: str, chat_id: int, text: str) -> None:
+async def _telegram_reply(token: str, chat_id: int, text: str, parse_mode: str | None = "HTML") -> None:
     """Send a message to a specific Telegram chat_id (user reply)."""
+    payload = {"chat_id": chat_id, "text": text}
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
             f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+            json=payload,
         )
         if resp.status_code >= 300:
             log.warning("_telegram_reply: Telegram API %d: %s", resp.status_code, resp.text)
@@ -3580,6 +3596,47 @@ async def telegram_webhook(request: Request):
 
     await _telegram_reply(token, chat_id, reply)
     return {"ok": True}
+
+
+@app.post("/webhooks/telegram/hermes")
+async def telegram_hermes_webhook(request: Request):
+    """Admin-only Hermes Telegram chat webhook.
+
+    Telegram setup note: set the bot webhook to
+    https://zeusaidesign.com/webhooks/telegram/hermes
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        return {"ok": True, "handled": False}
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    admin_chat_id = os.getenv("ADMIN_TELEGRAM_CHAT_ID", "").strip()
+    if not token or not admin_chat_id:
+        log.warning("telegram_hermes_webhook: Telegram Hermes chat not configured")
+        return {"ok": True, "handled": False}
+
+    message = body.get("message") or body.get("edited_message") or {}
+    chat = message.get("chat") or {}
+    chat_id = chat.get("id")
+    text = (message.get("text") or "").strip()
+    if not chat_id or not text:
+        return {"ok": True, "handled": False}
+
+    if str(chat_id) != admin_chat_id:
+        log.warning("telegram_hermes_webhook: blocked unauthorized chat_id=%s", chat_id)
+        return {"ok": True, "handled": False}
+
+    log.info("telegram_hermes_webhook: received authorized admin message chat_id=%s length=%d", chat_id, len(text))
+
+    try:
+        reply = await _hermes_generate_reply(text, max_tokens=500, telegram=True)
+    except Exception:
+        log.exception("telegram_hermes_webhook: Hermes reply failed")
+        reply = "Hermes is temporarily unavailable. Check Railway backend logs."
+
+    await _telegram_reply(token, int(chat_id), reply, parse_mode=None)
+    return {"ok": True, "handled": True}
 
 
 # ── Scheduled Tasks ─────────────────────────────────────────────────────────
