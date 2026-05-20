@@ -36,6 +36,7 @@ HELP_TEXT = """🤖 <b>Zeus Admin Commands</b>
 <code>db query "SELECT ..."</code> — read-only
 <code>db exec "UPDATE/INSERT/DELETE ..."</code> — write SQL
 <code>db verify EMAIL</code> — mark email as verified
+<code>db unverify EMAIL</code> — revoke email verification
 <code>db fix youtube EMAIL</code>
 <code>db credits EMAIL +10</code>
 
@@ -242,6 +243,28 @@ def _cmd_db_verify_email(email: str) -> str:
         return f"❌ DB error: {exc}"
 
 
+def _cmd_db_unverify_email(email: str) -> str:
+    """Set email_verified=0 for a user by email."""
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        try:
+            conn.execute(
+                "UPDATE users SET email_verified = 0 WHERE lower(email) = lower(?)", (email,)
+            )
+            rows_changed = conn.execute("SELECT changes()").fetchone()[0]
+            conn.commit()
+        finally:
+            conn.close()
+        if rows_changed:
+            log.info("db unverify email: unverified %s", email)
+            return f"✅ Email unverified for <code>{email}</code>"
+        return f"❓ No user found with email <code>{email}</code>"
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
 def _cmd_db_fix_youtube(email: str) -> str:
     try:
         import db as _db
@@ -361,6 +384,11 @@ def parse_and_run(text: str) -> str:
     m = re.match(r'^db\s+verify\s+(\S+)$', t, re.IGNORECASE)
     if m:
         return _cmd_db_verify_email(m.group(1))
+
+    # db unverify EMAIL
+    m = re.match(r'^db\s+unverify\s+(\S+)$', t, re.IGNORECASE)
+    if m:
+        return _cmd_db_unverify_email(m.group(1))
 
     # db fix youtube EMAIL
     m = re.match(r'^db\s+fix\s+youtube\s+(\S+)$', t, re.IGNORECASE)
