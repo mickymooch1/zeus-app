@@ -1125,7 +1125,7 @@ async def create_checkout(
     if not billing.stripe_enabled():
         raise HTTPException(status_code=503, detail="Billing is not configured")
 
-    origin = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    origin = os.environ.get("FRONTEND_URL", "https://zeusbeats.com")
     success_url = f"{origin}/billing?success=true"
     cancel_url = f"{origin}/pricing"
 
@@ -1151,7 +1151,7 @@ async def billing_portal(current_user: dict = Depends(auth.get_current_user)):
     if not customer_id:
         raise HTTPException(status_code=400, detail="No billing account found. Please subscribe first.")
 
-    origin = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    origin = os.environ.get("FRONTEND_URL", "https://zeusbeats.com")
     return_url = f"{origin}/billing"
 
     try:
@@ -2286,7 +2286,7 @@ async def songs_topup(
 ):
     if not billing.stripe_enabled():
         raise HTTPException(status_code=503, detail="Billing is not configured")
-    origin = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    origin = os.environ.get("FRONTEND_URL", "https://zeusbeats.com")
     success_url = f"{origin}/songs?topup=success"
     cancel_url = f"{origin}/songs"
     try:
@@ -2308,7 +2308,7 @@ async def songs_payg(
 ):
     if not billing.stripe_enabled():
         raise HTTPException(status_code=503, detail="Billing is not configured")
-    origin = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    origin = os.environ.get("FRONTEND_URL", "https://zeusbeats.com")
     success_url = f"{origin}/songs?topup=success"
     cancel_url = f"{origin}/songs"
     try:
@@ -2330,7 +2330,7 @@ async def songs_animation_topup(
 ):
     if not billing.stripe_enabled():
         raise HTTPException(status_code=503, detail="Billing is not configured")
-    origin = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    origin = os.environ.get("FRONTEND_URL", "https://zeusbeats.com")
     success_url = f"{origin}/songs?topup=success"
     cancel_url = f"{origin}/songs"
     try:
