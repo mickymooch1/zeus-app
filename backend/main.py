@@ -1544,6 +1544,18 @@ def _hermes_sanitize_reply(reply: str) -> str:
     return reply[:4_000]
 
 
+def _hermes_telegram_config() -> tuple[str, str]:
+    token = (
+        os.environ.get("TELEGRAM_BOT_TOKEN2", "").strip()
+        or os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    )
+    chat_id = (
+        os.environ.get("ADMIN_TELEGRAM_CHAT_ID2", "").strip()
+        or os.environ.get("ADMIN_TELEGRAM_CHAT_ID", "").strip()
+    )
+    return token, chat_id
+
+
 async def _hermes_generate_reply(question: str, max_tokens: int = 800, telegram: bool = False) -> str:
     question = question.strip()
     if not question:
@@ -1794,8 +1806,7 @@ def _hermes_format_alert(issues: list[dict]) -> str:
 
 def _hermes_notify_admin(issues: list[dict]) -> bool:
     message = _hermes_sanitize_reply(_hermes_format_alert(issues))
-    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.environ.get("ADMIN_TELEGRAM_CHAT_ID", "").strip()
+    token, chat_id = _hermes_telegram_config()
     if not issues:
         log.info("Hermes watcher: no issues detected")
         return False
@@ -3610,8 +3621,7 @@ async def telegram_hermes_webhook(request: Request):
     except Exception:
         return {"ok": True, "handled": False}
 
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-    admin_chat_id = os.getenv("ADMIN_TELEGRAM_CHAT_ID", "").strip()
+    token, admin_chat_id = _hermes_telegram_config()
     if not token or not admin_chat_id:
         log.warning("telegram_hermes_webhook: Telegram Hermes chat not configured")
         return {"ok": True, "handled": False}

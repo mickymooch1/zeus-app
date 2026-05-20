@@ -311,6 +311,8 @@ def test_telegram_alert_sends_only_when_configured(monkeypatch):
 
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("ADMIN_TELEGRAM_CHAT_ID", raising=False)
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN2", raising=False)
+    monkeypatch.delenv("ADMIN_TELEGRAM_CHAT_ID2", raising=False)
     assert _main._hermes_notify_admin(issues) is False
 
     calls = []
@@ -335,6 +337,20 @@ def test_telegram_alert_sends_only_when_configured(monkeypatch):
     assert "secret-token" not in calls[0][1]["text"]
 
 
+def test_hermes_telegram_config_prefers_new_env_names(monkeypatch):
+    import main as _main
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "old-token")
+    monkeypatch.setenv("ADMIN_TELEGRAM_CHAT_ID", "111")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN2", "new-token")
+    monkeypatch.setenv("ADMIN_TELEGRAM_CHAT_ID2", "222")
+
+    token, chat_id = _main._hermes_telegram_config()
+
+    assert token == "new-token"
+    assert chat_id == "222"
+
+
 def test_hermes_telegram_webhook_replies_to_authorized_admin(monkeypatch, caplog):
     import main as _main
 
@@ -345,8 +361,10 @@ def test_hermes_telegram_webhook_replies_to_authorized_admin(monkeypatch, caplog
     async def _fake_reply(token, chat_id, text, parse_mode=None):
         replies.append({"token": token, "chat_id": chat_id, "text": text})
 
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "telegram-secret")
-    monkeypatch.setenv("ADMIN_TELEGRAM_CHAT_ID", "12345")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "old-telegram-secret")
+    monkeypatch.setenv("ADMIN_TELEGRAM_CHAT_ID", "99999")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN2", "telegram-secret")
+    monkeypatch.setenv("ADMIN_TELEGRAM_CHAT_ID2", "12345")
 
     with patch("main.db.get_db_path", return_value=db_path):
         with patch("main.get_anthropic_client", return_value=_FakeClaude()):
@@ -377,8 +395,8 @@ def test_hermes_telegram_webhook_replies_to_authorized_admin(monkeypatch, caplog
 def test_hermes_telegram_webhook_blocks_unknown_chat(monkeypatch):
     import main as _main
 
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "telegram-secret")
-    monkeypatch.setenv("ADMIN_TELEGRAM_CHAT_ID", "12345")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN2", "telegram-secret")
+    monkeypatch.setenv("ADMIN_TELEGRAM_CHAT_ID2", "12345")
 
     with patch("main.get_anthropic_client") as mock_client:
         with patch("main._telegram_reply", new=AsyncMock()) as mock_reply:
