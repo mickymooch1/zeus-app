@@ -33,7 +33,9 @@ HELP_TEXT = """🤖 <b>Zeus Admin Commands</b>
 <code>stripe list</code>
 
 <b>Database</b>
-<code>db query "SELECT ..."</code>
+<code>db query "SELECT ..."</code> — read-only
+<code>db exec "UPDATE/INSERT/DELETE ..."</code> — write SQL
+<code>db verify EMAIL</code> — mark email as verified
 <code>db fix youtube EMAIL</code>
 <code>db credits EMAIL +10</code>
 
@@ -176,8 +178,9 @@ def _cmd_stripe_list() -> str:
 # ── Database helpers ─────────────────────────────────────────────────────────
 
 def _cmd_db_query(sql: str) -> str:
+    """Read-only SELECT queries."""
     if not sql.strip().upper().startswith("SELECT"):
-        return "❌ Only SELECT queries allowed"
+        return "❌ Only SELECT queries allowed via <code>db query</code>. Use <code>db exec</code> for writes."
     try:
         import db as _db
         db_path = _db.get_db_path()
@@ -194,6 +197,47 @@ def _cmd_db_query(sql: str) -> str:
             return f"<pre>{result[:3500]}</pre>"
         finally:
             conn.close()
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
+def _cmd_db_exec(sql: str) -> str:
+    """Execute any write SQL statement (UPDATE, INSERT, DELETE, etc.)."""
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        try:
+            conn.execute(sql)
+            rows_changed = conn.execute("SELECT changes()").fetchone()[0]
+            conn.commit()
+            log.info("db exec by admin: %r — rows affected: %d", sql[:200], rows_changed)
+            return f"✅ Executed. Rows affected: <b>{rows_changed}</b>"
+        finally:
+            conn.close()
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
+def _cmd_db_verify_email(email: str) -> str:
+    """Set email_verified=1 for a user by email."""
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        try:
+            conn.execute(
+                "UPDATE users SET email_verified = 1 WHERE lower(email) = lower(?)", (email,)
+            )
+            rows_changed = conn.execute("SELECT changes()").fetchone()[0]
+            conn.commit()
+        finally:
+            conn.close()
+        if rows_changed:
+            log.info("db verify email: verified %s", email)
+            return f"✅ Email verified for <code>{email}</code>"
+        return f"❓ No user found with email <code>{email}</code>"
     except Exception as exc:
         return f"❌ DB error: {exc}"
 
@@ -303,10 +347,20 @@ def parse_and_run(text: str) -> str:
     if re.match(r'^stripe\s+list$', t, re.IGNORECASE):
         return _cmd_stripe_list()
 
-    # db query "SQL" (allow multi-word SQL inside quotes)
+    # db query "SQL" — read-only SELECT
     m = re.match(r'^db\s+query\s+"(.+)"$', t, re.IGNORECASE | re.DOTALL)
     if m:
         return _cmd_db_query(m.group(1))
+
+    # db exec "SQL" — any write SQL
+    m = re.match(r'^db\s+exec\s+"(.+)"$', t, re.IGNORECASE | re.DOTALL)
+    if m:
+        return _cmd_db_exec(m.group(1))
+
+    # db verify EMAIL
+    m = re.match(r'^db\s+verify\s+(\S+)$', t, re.IGNORECASE)
+    if m:
+        return _cmd_db_verify_email(m.group(1))
 
     # db fix youtube EMAIL
     m = re.match(r'^db\s+fix\s+youtube\s+(\S+)$', t, re.IGNORECASE)
@@ -332,8 +386,9 @@ def parse_and_run(text: str) -> str:
     if m:
         return f"__POST_SONG__:{m.group(1)}"
 
-    # No admin command matched — hand off to Claude AI fallback
-    return f"__AI__:{t}"
+    # Unknown admin command — do NOT fall through to Claude AI
+    log.warning("telegram_admin: unrecognised command: %r", t[:100])
+    return f"❓ Unknown command: <code>{t[:80]}</code>\n\nType <code>help</code> for available commands."
 
 
 # ── Log buffer setup ─────────────────────────────────────────────────────────

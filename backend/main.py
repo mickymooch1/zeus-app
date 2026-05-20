@@ -426,6 +426,27 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("Free-user credit fix failed (non-fatal)")
 
+    # One-time: verify tinayarowle@icloud.com
+    try:
+        import sqlite3 as _sqlite3
+        _vc = _sqlite3.connect(str(_db_path))
+        try:
+            _vc.execute(
+                "UPDATE users SET email_verified = 1 WHERE lower(email) = 'tinayarowle@icloud.com'"
+            )
+            _vc.commit()
+            _vrow = _vc.execute(
+                "SELECT email, email_verified FROM users WHERE lower(email) = 'tinayarowle@icloud.com'"
+            ).fetchone()
+            if _vrow:
+                log.info("tinayarowle@icloud.com — email_verified=%r", _vrow[1])
+            else:
+                log.info("tinayarowle@icloud.com — not found in DB")
+        finally:
+            _vc.close()
+    except Exception:
+        log.exception("tinayarowle email verify patch failed (non-fatal)")
+
     try:
         _scheduler_mod.init_scheduler(history)
         log.info("Scheduler initialised")
