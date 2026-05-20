@@ -7,6 +7,19 @@ export default defineConfig({
     outDir: '../web-beats-dist',
     assetsDir: 'assets-beats',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router-dom|scheduler)[\\/]/.test(id)) {
+            return 'vendor'
+          }
+          if (/[\\/]node_modules[\\/](i18next|react-i18next|i18next-browser-languagedetector)[\\/]/.test(id)) {
+            return 'i18n'
+          }
+        },
+      },
+    },
   },
   server: {
     proxy: {
