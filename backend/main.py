@@ -455,7 +455,9 @@ async def lifespan(app: FastAPI):
                    WHERE lower(email) = 'laky120@yahoo.com'"""
             )
             _lk.execute(
-                """UPDATE song_credits SET balance = 25, monthly_allowance = 25
+                """UPDATE song_credits
+                   SET balance = CASE WHEN balance < 23 THEN 23 ELSE balance END,
+                       monthly_allowance = 25
                    WHERE user_id = (SELECT id FROM users WHERE lower(email) = 'laky120@yahoo.com')"""
             )
             _lk.commit()

@@ -407,6 +407,25 @@ async def apiframe_webhook(request: Request):
         variant_id, job_status, event, list(body.keys()),
     )
 
+    # Early check: Apiframe may include a job ID in the body (task_id / jobId).
+    # If we've already processed or claimed this job, return immediately.
+    _body_job_id = body.get("task_id") or body.get("jobId") or body.get("job_id")
+    if _body_job_id:
+        _bj_conn = sqlite3.connect(DB_PATH)
+        try:
+            _bj_done = _bj_conn.execute(
+                "SELECT id FROM song_variants WHERE provider_job_id = ? AND status IN ('complete', 'processing')",
+                (_body_job_id,),
+            ).fetchone()
+        finally:
+            _bj_conn.close()
+        if _bj_done:
+            logger.warning(
+                "Duplicate webhook ignored early: job_id=%s already %s (variant_id=%d)",
+                _body_job_id, "processed/processing", _bj_done[0],
+            )
+            return {"ok": True, "status": "already_processed"}
+
     # Failed: mark variant failed, do NOT refund (Apiframe credits are non-refundable
     # once the job is accepted — the credit was already deducted from the user's balance,
     # so we leave that as-is and just record the failure)
@@ -453,6 +472,30 @@ async def apiframe_webhook(request: Request):
         finally:
             conn.close()
         return {"ok": True, "status": "no_tracks"}
+
+    # Atomic claim: take a SQLite write-reservation lock so only ONE concurrent
+    # webhook delivery can proceed past this point.  The losing delivery sees
+    # status='processing' and exits before downloading anything — preventing
+    # duplicate variants AND duplicate animation-credit deductions.
+    _claim_conn = sqlite3.connect(DB_PATH)
+    try:
+        _claim_conn.execute("BEGIN IMMEDIATE")
+        _claim_row = _claim_conn.execute(
+            "SELECT status FROM song_variants WHERE id = ?", (variant_id,)
+        ).fetchone()
+        if _claim_row and _claim_row[0] in ("complete", "processing"):
+            _claim_conn.execute("ROLLBACK")
+            logger.info(
+                "Webhook variant_id=%d already %s — concurrent duplicate ignored",
+                variant_id, _claim_row[0],
+            )
+            return {"ok": True, "status": "already_" + _claim_row[0]}
+        _claim_conn.execute(
+            "UPDATE song_variants SET status = 'processing' WHERE id = ?", (variant_id,)
+        )
+        _claim_conn.execute("COMMIT")
+    finally:
+        _claim_conn.close()
 
     # Look up the original variant row now — needed for take 2 insertion
     conn = sqlite3.connect(DB_PATH)
