@@ -150,9 +150,19 @@ android {
 
         
     }
+    signingConfigs {
+        release {
+            storeFile file("${rootProject.projectDir}/android.keystore")
+            storePassword System.getenv("KEYSTORE_PASS") ?: project.findProperty("android.injected.signing.store.password") ?: ""
+            keyAlias "android"
+            keyPassword System.getenv("KEY_PASS") ?: project.findProperty("android.injected.signing.key.password") ?: ""
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled true
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {
