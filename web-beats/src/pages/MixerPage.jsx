@@ -39,20 +39,6 @@ export default function MixerPage() {
   const [deckB, setDeckB] = useState(initialDeck);
   const [crossfader, setCrossfader] = useState(0.5);
 
-  // Orientation detection
-  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
-  const isMobile = window.innerWidth < 768;
-  useEffect(() => {
-    function handleResize() {
-      setIsPortrait(window.innerHeight > window.innerWidth);
-    }
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
-    };
-  }, []);
 
   // Recording state
   const [recording, setRecording]     = useState(false);
@@ -382,7 +368,7 @@ export default function MixerPage() {
 
   function Deck({ id, deck, accent }) {
     return (
-      <div style={{
+      <div className="mixer-deck" style={{
         background: 'rgba(255,255,255,0.03)', border: `1px solid ${accent}33`,
         borderRadius: 12, padding: 20,
       }}>
@@ -489,21 +475,29 @@ export default function MixerPage() {
         .mixer-player::-webkit-media-controls-timeline {
           filter: invert(1) sepia(1) saturate(5) hue-rotate(150deg);
         }
+        .mixer-decks {
+          display: grid;
+          grid-template-columns: 1fr 120px 1fr;
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+        @media (orientation: portrait) and (max-width: 768px) {
+          .mixer-decks {
+            display: flex;
+            flex-direction: column;
+          }
+          .mixer-deck {
+            width: 100%;
+          }
+          .mixer-crossfader {
+            width: 100%;
+            margin-top: 16px;
+          }
+        }
       `}</style>
 
       <BeatsDashboardHeader />
 
-      {isMobile && isPortrait ? (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', height: '80vh', textAlign: 'center',
-          color: '#00f0ff', padding: '20px',
-        }}>
-          <div style={{ fontSize: '48px' }}>🔄</div>
-          <h2 style={{ fontFamily: 'Orbitron, sans-serif', margin: '16px 0 8px' }}>Rotate Your Phone</h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0 }}>The DJ Mixer works best in landscape mode</p>
-        </div>
-      ) : (
       <main style={{ padding: '28px 16px 60px', maxWidth: 1080, margin: '0 auto' }}>
 
         <h1 style={{
@@ -525,7 +519,7 @@ export default function MixerPage() {
         )}
 
         {/* Decks + centre record column */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 12, marginBottom: 20 }}>
+        <div className="mixer-decks">
           <Deck id="A" deck={deckA} accent={CYAN} />
 
           {/* Centre channel — record controls */}
@@ -656,7 +650,7 @@ export default function MixerPage() {
         )}
 
         {/* Crossfader */}
-        <div style={{
+        <div className="mixer-crossfader" style={{
           background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
           borderRadius: 12, padding: '18px 24px',
         }}>
@@ -686,7 +680,6 @@ export default function MixerPage() {
         </div>
 
       </main>
-      )}
     </div>
   );
 }
