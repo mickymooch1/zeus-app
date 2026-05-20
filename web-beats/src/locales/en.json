@@ -65,7 +65,7 @@
     "subtitleOwn": "Write your lyrics below, then choose a style.",
     "modeAI": "Zeus writes lyrics",
     "modeOwn": "Write my own lyrics",
-    "briefPlaceholder": "e.g. A dark hip-hop track about late night hustle and chasing dreams…",
+    "briefPlaceholder": "Optional — describe your song or leave blank and Zeus will decide",
     "listeningLabel": "🎤 Listening…",
     "listenStart": "Speak your description",
     "listenStop": "Listening… (click to stop)",

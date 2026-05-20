@@ -83,6 +83,7 @@ Rules:
 - Never use filler lines — every line must earn its place
 - Aim to write something that could genuinely be a hit
 - Give the song a genuine narrative arc — something should change or be revealed by the end
+- If no song concept is provided, invent a compelling original concept for this genre yourself — be creative and surprising, pick a specific story, character, or situation that nobody would expect
 - 200-400 words total.
 - No markdown, no commentary. JSON only."""
 
@@ -121,7 +122,11 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         system += _EXPLICIT_ADDENDUM
 
     # Build enriched user message with randomised creative directives
-    user_message = brief
+    if brief.strip():
+        user_message = brief
+    else:
+        genre_hint = f"Genre: {', '.join(genres)}. " if genres else ""
+        user_message = f"{genre_hint}No concept specified — invent a compelling original song concept yourself."
     user_message += (
         f"\n\nTheme: {theme}. Song structure: {structure}. Mood: {mood}. "
         "Make this song completely unique and unlike anything generated before."

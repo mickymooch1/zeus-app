@@ -694,7 +694,7 @@ export default function SongsPage() {
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
   const cost           = selGenres.size;
   const canAfford      = isAdmin || (credits.balance >= cost && cost > 0);
-  const briefReady     = useCustomLyrics ? customLyrics.trim().length > 0 : brief.trim().length > 0;
+  const briefReady     = useCustomLyrics ? customLyrics.trim().length > 0 : true;
   const canGenerate    = briefReady && cost > 0 && canAfford && !generating;
   const creditExceeded = !isAdmin && cost > 0 && cost > credits.balance;
 
@@ -1497,7 +1497,7 @@ export default function SongsPage() {
                   className="songs-textarea"
                   value={brief}
                   onChange={(e) => setBrief(e.target.value)}
-                  placeholder="e.g. An upbeat jingle for a Manchester coffee shop with Friday-morning energy…"
+                  placeholder="Optional — describe your song or leave blank and Zeus will decide"
                   rows={3}
                   style={{
                     width: '100%',

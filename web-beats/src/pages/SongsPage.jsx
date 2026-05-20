@@ -718,7 +718,7 @@ export default function SongsPage() {
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
   const cost           = selGenres.size;
   const canAfford      = isAdmin || (credits.balance >= cost && cost > 0);
-  const canGenerate    = (useCustomLyrics ? customLyricsText.trim().length > 0 : brief.trim().length > 0) && cost > 0 && canAfford && !generating;
+  const canGenerate    = (useCustomLyrics ? customLyricsText.trim().length > 0 : true) && cost > 0 && canAfford && !generating;
   const creditExceeded = !isAdmin && cost > 0 && cost > credits.balance;
 
   const fetchCredits = useCallback(async () => {
