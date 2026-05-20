@@ -482,10 +482,44 @@ async def apiframe_webhook(request: Request):
         logger.info("Apiframe webhook: variant_id=%d already complete — duplicate delivery skipped", variant_id)
         return {"ok": True, "status": "already_complete"}
 
+    # Guard: skip if this Apiframe job ID was already fully processed (catches
+    # race conditions where the status hasn't been written yet on first delivery)
+    if orig and orig[4]:
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            _job_done = conn.execute(
+                "SELECT id FROM song_variants WHERE provider_job_id = ? AND status = 'complete' AND mp3_url IS NOT NULL",
+                (orig[4],),
+            ).fetchone()
+        finally:
+            conn.close()
+        if _job_done:
+            logger.warning(
+                "Duplicate webhook ignored: Apiframe job_id=%s already processed as variant_id=%d",
+                orig[4], _job_done[0],
+            )
+            return {"ok": True, "status": "already_processed"}
+
     # ── Take 1: update existing variant row ──────────────────────────────────
     track1 = tracks[0]
     temp_url1 = track1["audioUrl"]
     duration1 = round(track1.get("duration", 0))
+
+    # Guard: audio_url dedup — skip if this permanent URL was already stored
+    audio_url1 = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        _audio_exists = conn.execute(
+            "SELECT id FROM song_variants WHERE mp3_url = ?", (audio_url1,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if _audio_exists:
+        logger.warning(
+            "Duplicate webhook ignored for audio_url=%s (variant_id=%d)",
+            audio_url1, variant_id,
+        )
+        return {"ok": True, "status": "already_processed"}
 
     logger.info("Apiframe webhook: downloading take 1 from %s", temp_url1)
     dl1 = requests.get(temp_url1, timeout=120)
@@ -610,77 +644,89 @@ async def apiframe_webhook(request: Request):
             conn = sqlite3.connect(DB_PATH)
             try:
                 cur = conn.cursor()
+                # Atomic check-and-insert: SQLite serialises writes so WHERE NOT EXISTS
+                # prevents a concurrent duplicate webhook from inserting a second take-2 row.
                 cur.execute(
                     """INSERT INTO song_variants
                        (lyric_id, user_id, style_prompt, genre_tag, provider_job_id,
                         take_number, status, duration_seconds, completed_at)
-                       VALUES (?, ?, ?, ?, ?, 2, 'complete', ?, CURRENT_TIMESTAMP)""",
-                    (orig[0], orig[1], orig[2], orig[3], orig[4], duration2),
+                       SELECT ?, ?, ?, ?, ?, 2, 'complete', ?, CURRENT_TIMESTAMP
+                       WHERE NOT EXISTS (
+                           SELECT 1 FROM song_variants
+                           WHERE provider_job_id = ? AND take_number = 2
+                       )""",
+                    (orig[0], orig[1], orig[2], orig[3], orig[4], duration2, orig[4]),
                 )
-                take2_variant_id = cur.lastrowid
+                take2_variant_id = cur.lastrowid if cur.rowcount > 0 else None
                 conn.commit()
             finally:
                 conn.close()
 
-            logger.info("Apiframe webhook: downloading take 2 from %s", temp_url2)
-            dl2 = requests.get(temp_url2, timeout=120)
-            dl2.raise_for_status()
-            local_path2 = os.path.join(STORAGE_PATH, f"{take2_variant_id}.mp3")
-            with open(local_path2, "wb") as fh:
-                fh.write(dl2.content)
-            permanent_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.mp3"
+            if not take2_variant_id:
+                logger.warning(
+                    "Apiframe webhook: take 2 already exists (atomic check) for job=%s — duplicate skipped",
+                    orig[4],
+                )
+            else:
+                logger.info("Apiframe webhook: downloading take 2 from %s", temp_url2)
+                dl2 = requests.get(temp_url2, timeout=120)
+                dl2.raise_for_status()
+                local_path2 = os.path.join(STORAGE_PATH, f"{take2_variant_id}.mp3")
+                with open(local_path2, "wb") as fh:
+                    fh.write(dl2.content)
+                permanent_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.mp3"
 
-            permanent_image_url2 = None
-            temp_image_url2 = track2.get("imageUrl")
-            if temp_image_url2:
-                logger.info("Apiframe webhook: downloading take 2 cover art from %s", temp_image_url2)
+                permanent_image_url2 = None
+                temp_image_url2 = track2.get("imageUrl")
+                if temp_image_url2:
+                    logger.info("Apiframe webhook: downloading take 2 cover art from %s", temp_image_url2)
+                    try:
+                        img2 = requests.get(temp_image_url2, timeout=60)
+                        img2.raise_for_status()
+                        with open(os.path.join(STORAGE_PATH, f"{take2_variant_id}.jpg"), "wb") as fh:
+                            fh.write(img2.content)
+                        permanent_image_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.jpg"
+                    except Exception as exc:
+                        logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
+
+                logger.info("Starting Flux cover art for variant_id=%d (take2) genre=%s", take2_variant_id, genre_tag)
+                flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name)
+                if flux_cover2:
+                    logger.info("Cover art complete for variant_id=%d url=%s", take2_variant_id, flux_cover2)
+                    permanent_image_url2 = flux_cover2
+                else:
+                    logger.warning("Cover art FAILED for variant_id=%d (take2) — Flux returned None", take2_variant_id)
+
+                conn = sqlite3.connect(DB_PATH)
                 try:
-                    img2 = requests.get(temp_image_url2, timeout=60)
-                    img2.raise_for_status()
-                    with open(os.path.join(STORAGE_PATH, f"{take2_variant_id}.jpg"), "wb") as fh:
-                        fh.write(img2.content)
-                    permanent_image_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.jpg"
-                except Exception as exc:
-                    logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
+                    conn.execute(
+                        "UPDATE song_variants SET mp3_url = ?, image_url = ? WHERE id = ?",
+                        (permanent_url2, permanent_image_url2, take2_variant_id),
+                    )
+                    conn.commit()
+                finally:
+                    conn.close()
+                logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
 
-            logger.info("Starting Flux cover art for variant_id=%d (take2) genre=%s", take2_variant_id, genre_tag)
-            flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name)
-            if flux_cover2:
-                logger.info("Cover art complete for variant_id=%d url=%s", take2_variant_id, flux_cover2)
-                permanent_image_url2 = flux_cover2
-            else:
-                logger.warning("Cover art FAILED for variant_id=%d (take2) — Flux returned None", take2_variant_id)
-
-            conn = sqlite3.connect(DB_PATH)
-            try:
-                conn.execute(
-                    "UPDATE song_variants SET mp3_url = ?, image_url = ? WHERE id = ?",
-                    (permanent_url2, permanent_image_url2, take2_variant_id),
+                logger.info(
+                    "Kling check (take2): has_cover=%s has_fal_key=%s duration=%s is_paid=%s animate_cover=%s",
+                    bool(flux_cover2), bool(FAL_API_KEY), duration2, _kling_is_paid1, orig_animate_cover,
                 )
-                conn.commit()
-            finally:
-                conn.close()
-            logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
-
-            logger.info(
-                "Kling check (take2): has_cover=%s has_fal_key=%s duration=%s is_paid=%s animate_cover=%s",
-                bool(flux_cover2), bool(FAL_API_KEY), duration2, _kling_is_paid1, orig_animate_cover,
-            )
-            if not orig_animate_cover:
-                logger.info("Kling skipped (take2): user turned off animated cover art for variant_id=%d", take2_variant_id)
-            elif not flux_cover2:
-                logger.warning("Kling skipped (take2): no cover art (Flux failed for variant_id=%d)", take2_variant_id)
-            elif not duration2:
-                logger.warning("Kling skipped (take2): duration is 0 for variant_id=%d", take2_variant_id)
-            elif not FAL_API_KEY:
-                logger.warning("Kling skipped (take2): FAL_API_KEY not set")
-            else:
-                logger.info("Kling thread STARTING for variant_id=%d (take2)", take2_variant_id)
-                threading.Thread(
-                    target=_kling_pipeline,
-                    args=(take2_variant_id, flux_cover2, local_path2, duration2, genre_tag),
-                    daemon=True,
-                ).start()
+                if not orig_animate_cover:
+                    logger.info("Kling skipped (take2): user turned off animated cover art for variant_id=%d", take2_variant_id)
+                elif not flux_cover2:
+                    logger.warning("Kling skipped (take2): no cover art (Flux failed for variant_id=%d)", take2_variant_id)
+                elif not duration2:
+                    logger.warning("Kling skipped (take2): duration is 0 for variant_id=%d", take2_variant_id)
+                elif not FAL_API_KEY:
+                    logger.warning("Kling skipped (take2): FAL_API_KEY not set")
+                else:
+                    logger.info("Kling thread STARTING for variant_id=%d (take2)", take2_variant_id)
+                    threading.Thread(
+                        target=_kling_pipeline,
+                        args=(take2_variant_id, flux_cover2, local_path2, duration2, genre_tag),
+                        daemon=True,
+                    ).start()
 
     payload = {"ok": True, "status": "complete", "take1_url": permanent_url1}
     if take2_variant_id:
