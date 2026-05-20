@@ -678,9 +678,16 @@ body {
   }
 }
 
-/* Tighten horizontal padding on very small phones so links still fit */
+/* Tighten on small phones so links still fit */
 @media (max-width: 480px) {
   .dashboard-header-right .nav-primary-link {
-    padding: 8px 10px;
+    font-size: 13px;
+    padding: 6px 10px;
+  }
+}
+@media (max-width: 360px) {
+  .dashboard-header-right .nav-primary-link {
+    font-size: 13px;
+    padding: 6px 8px;
   }
 }

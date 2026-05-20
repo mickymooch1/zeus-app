@@ -39,6 +39,17 @@ export default function MixerPage() {
   const [deckB, setDeckB] = useState(initialDeck);
   const [crossfader, setCrossfader] = useState(0.5);
 
+  // Orientation detection
+  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+  const isMobile = window.innerWidth < 768;
+  useEffect(() => {
+    function handleResize() {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Recording state
   const [recording, setRecording]     = useState(false);
   const [recDuration, setRecDuration] = useState(0);
@@ -477,6 +488,18 @@ export default function MixerPage() {
       `}</style>
 
       <BeatsDashboardHeader />
+
+      {isMobile && isPortrait ? (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', height: '80vh', textAlign: 'center',
+          color: '#00f0ff', padding: '20px',
+        }}>
+          <div style={{ fontSize: '48px' }}>🔄</div>
+          <h2 style={{ fontFamily: 'Orbitron, sans-serif', margin: '16px 0 8px' }}>Rotate Your Phone</h2>
+          <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0 }}>The DJ Mixer works best in landscape mode</p>
+        </div>
+      ) : (
       <main style={{ padding: '28px 16px 60px', maxWidth: 1080, margin: '0 auto' }}>
 
         <h1 style={{
@@ -659,6 +682,7 @@ export default function MixerPage() {
         </div>
 
       </main>
+      )}
     </div>
   );
 }
