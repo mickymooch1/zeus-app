@@ -24,6 +24,7 @@ export default function HermesAgentPage() {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [issues, setIssues] = useState(null);
+  const [telegramAlertSent, setTelegramAlertSent] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -71,11 +72,12 @@ export default function HermesAgentPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || 'Health check failed');
       setIssues(data.issues || []);
+      setTelegramAlertSent(Boolean(data.telegram_alert_sent));
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          text: `Health check complete. ${data.issue_count || 0} issue type${data.issue_count === 1 ? '' : 's'} found.`,
+          text: `Health check complete. ${data.issue_count || 0} issue type${data.issue_count === 1 ? '' : 's'} found. Telegram alert ${data.telegram_alert_sent ? 'sent' : 'not sent'}.`,
         },
       ]);
     } catch (err) {
@@ -158,6 +160,9 @@ export default function HermesAgentPage() {
               }}>
                 <div style={{ color: '#00f0ff', fontWeight: 900, marginBottom: 10 }}>
                   Watcher issues: {issues.length}
+                </div>
+                <div style={{ color: telegramAlertSent ? '#4ade80' : '#64748b', fontSize: 12, marginBottom: 10 }}>
+                  Telegram alert: {telegramAlertSent ? 'sent' : 'not sent'}
                 </div>
                 {issues.length === 0 ? (
                   <p style={{ color: '#555', margin: 0, fontSize: 13 }}>No current issues detected.</p>

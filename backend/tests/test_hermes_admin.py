@@ -264,5 +264,70 @@ def test_manual_health_check_returns_issues_for_admin():
         assert data["ok"] is True
         assert isinstance(data["issues"], list)
         assert data["issue_count"] == len(data["issues"])
+        assert data["telegram_alert_sent"] is False
     finally:
         app.dependency_overrides.pop(auth.get_current_user, None)
+
+
+def test_telegram_alert_format_is_safe_and_actionable():
+    import main as _main
+
+    issues = [
+        {
+            "code": "kling_pipeline_stalled",
+            "severity": "medium",
+            "title": "Kling pipeline appears stalled",
+            "summary": "Paid-user songs have cover art but no animated cover.",
+            "count": 2,
+            "variants": [{"variant_id": 321}, {"variant_id": 322}],
+            "recommended_action": "Check Kling polling logs and fal.ai balance.",
+        }
+    ]
+    message = _main._hermes_format_alert(issues)
+    assert "Zeus Hermes Alert" in message
+    assert "Issue:" in message
+    assert "Details:" in message
+    assert "Suggested action:" in message
+    assert "321" in message
+    assert "TELEGRAM_BOT_TOKEN" not in message
+
+
+def test_telegram_alert_sends_only_when_configured(monkeypatch):
+    import main as _main
+
+    issues = [
+        {
+            "code": "recent_song_generation_failures",
+            "severity": "high",
+            "title": "Recent song generation failures",
+            "summary": "One song failed.",
+            "count": 1,
+            "variants": [{"variant_id": 102}],
+            "recommended_action": "Check Apiframe logs.",
+        }
+    ]
+
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("ADMIN_TELEGRAM_CHAT_ID", raising=False)
+    assert _main._hermes_notify_admin(issues) is False
+
+    calls = []
+
+    class _Resp:
+        status_code = 200
+        text = "ok"
+
+    def _fake_post(url, json, timeout):
+        calls.append((url, json, timeout))
+        return _Resp()
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "secret-token")
+    monkeypatch.setenv("ADMIN_TELEGRAM_CHAT_ID", "12345")
+    monkeypatch.setattr(_main.httpx, "post", _fake_post)
+
+    assert _main._hermes_notify_admin(issues) is True
+    assert len(calls) == 1
+    assert "secret-token" in calls[0][0]
+    assert calls[0][1]["chat_id"] == "12345"
+    assert "Zeus Hermes Alert" in calls[0][1]["text"]
+    assert "secret-token" not in calls[0][1]["text"]

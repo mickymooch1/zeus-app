@@ -1725,13 +1725,19 @@ def _hermes_detect_issues(db_path: pathlib.Path, now: datetime | None = None) ->
 def _hermes_format_alert(issues: list[dict]) -> str:
     if not issues:
         return "Hermes watcher check complete: no current issues detected."
-    lines = [f"Hermes watcher found {len(issues)} issue type(s):"]
-    for issue in issues[:8]:
-        lines.append(f"- {issue['severity'].upper()}: {issue['title']} ({issue['count']})")
-        variant_ids = [str(v["variant_id"]) for v in issue.get("variants", [])[:5]]
-        if variant_ids:
-            lines.append(f"  variants: {', '.join(variant_ids)}")
-    return "\n".join(lines)
+    issue = issues[0]
+    variant_ids = [str(v["variant_id"]) for v in issue.get("variants", [])[:5]]
+    details = issue["summary"]
+    if variant_ids:
+        details = f"{details} Variant IDs: {', '.join(variant_ids)}."
+    if len(issues) > 1:
+        details = f"{details} Also detected {len(issues) - 1} other issue type(s)."
+    return "\n\n".join([
+        "⚠️ Zeus Hermes Alert",
+        f"Issue:\n{issue['title']} ({issue['severity']}, {issue['count']} item{'s' if issue['count'] != 1 else ''})",
+        f"Details:\n{details}",
+        f"Suggested action:\n{issue['recommended_action']}",
+    ])
 
 
 def _hermes_notify_admin(issues: list[dict]) -> bool:
@@ -1765,6 +1771,16 @@ def _hermes_run_health_check(db_path: pathlib.Path, notify: bool = True, now: da
     if notify:
         _hermes_notify_admin(issues)
     return issues
+
+
+def _hermes_run_health_check_result(db_path: pathlib.Path, notify: bool = True, now: datetime | None = None) -> dict:
+    issues = _hermes_detect_issues(db_path, now=now)
+    telegram_alert_sent = False
+    if notify and issues:
+        serious = [issue for issue in issues if issue.get("severity") in {"high", "medium"}]
+        if serious:
+            telegram_alert_sent = _hermes_notify_admin(serious)
+    return {"ok": True, "issue_count": len(issues), "issues": issues, "telegram_alert_sent": telegram_alert_sent}
 
 
 def _hermes_watcher_loop(db_path: pathlib.Path, interval_seconds: int) -> None:
@@ -1847,11 +1863,11 @@ async def admin_hermes_check(current_user: dict = Depends(auth.get_current_user)
     if not current_user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Admin access required")
     try:
-        issues = _hermes_run_health_check(db.get_db_path(), notify=True)
+        result = _hermes_run_health_check_result(db.get_db_path(), notify=True)
     except Exception:
         log.exception("admin_hermes_check: health check failed")
         raise HTTPException(status_code=500, detail="Hermes health check unavailable")
-    return {"ok": True, "issue_count": len(issues), "issues": issues}
+    return result
 
 
 @app.patch("/admin/users/{user_id}")
