@@ -238,7 +238,7 @@ const SONG_TEMPLATES = [
 
 const SongCard = memo(function SongCard({
   variant, title, artistName, activeWsRef,
-  canYouTube, ytConnected, ytStatus: ytSt, ytUrl, onYouTubeClick,
+  canYouTube, ytConnected, ytStatus: ytSt, ytUrl, ytError, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
   onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick, onRegenerate,
   isFavourite, onToggleFavourite, isFreeTier, animateCover,
@@ -579,6 +579,9 @@ const SongCard = memo(function SongCard({
               {ytBtn}
               {avatarBtn}
             </div>
+            {ytSt === 'error' && ytError && (
+              <p style={{ color: '#f87171', fontSize: 11, marginTop: 4, marginBottom: 0, wordBreak: 'break-word' }}>{ytError}</p>
+            )}
             {/* Row 4: Remake + Regen */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, flex: 1, color: '#f59e0b', borderColor: 'rgba(245,158,11,0.5)' }}>
@@ -662,6 +665,7 @@ export default function SongsPage() {
 
   const [ytStatus, setYtStatus]   = useState({});
   const [ytUrls, setYtUrls]       = useState({});
+  const [ytErrors, setYtErrors]   = useState({});
   const [ytModal, setYtModal]     = useState(null);
   const [ytPrivacy, setYtPrivacy] = useState('unlisted');
 
@@ -1066,7 +1070,7 @@ export default function SongsPage() {
     const vTitle = ytModal.title;
     setYtModal(null);
     setYtStatus((prev) => ({ ...prev, [vId]: 'uploading' }));
-    setError('');
+    setYtErrors((prev) => { const n = { ...prev }; delete n[vId]; return n; });
     try {
       const r = await fetch(`${BACKEND_URL}/api/songs/variants/${vId}/upload-youtube`, {
         method: 'POST',
@@ -1082,7 +1086,7 @@ export default function SongsPage() {
     } catch (err) {
       const msg = err?.message || 'Upload failed — network or server error';
       console.error('YouTube upload failed:', err);
-      setError(`YouTube upload failed: ${msg}`);
+      setYtErrors((prev) => ({ ...prev, [vId]: msg }));
       setYtStatus((prev) => ({ ...prev, [vId]: 'error' }));
     }
   };
@@ -1995,6 +1999,7 @@ export default function SongsPage() {
                       ytConnected={youtubeConnected}
                       ytStatus={ytStatus[v.variant_id]}
                       ytUrl={ytUrls[v.variant_id]}
+                      ytError={ytErrors[v.variant_id]}
                       onYouTubeClick={handleYouTubeClick}
                       canDid={canDid}
                       didSt={didStatus[v.variant_id]}
@@ -2066,6 +2071,7 @@ export default function SongsPage() {
                     ytConnected={youtubeConnected}
                     ytStatus={ytStatus[v.variant_id]}
                     ytUrl={ytUrls[v.variant_id]}
+                    ytError={ytErrors[v.variant_id]}
                     onYouTubeClick={handleYouTubeClick}
                     canDid={canDid}
                     didSt={didStatus[v.variant_id]}
