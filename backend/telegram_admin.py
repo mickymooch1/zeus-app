@@ -342,26 +342,62 @@ def _cmd_db_credits(email: str, delta: int) -> str:
 
 _EMAIL_HTML_TEMPLATE = """\
 <!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0a0a12;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a12;padding:40px 20px;">
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>{subject}</title>
+</head>
+<body style="margin:0;padding:0;background:#0a0a12;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a12;padding:40px 16px;">
     <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;">
+
+        <!-- Logo -->
         <tr>
-          <td style="background:linear-gradient(135deg,#0d0d1a 0%,#12122a 100%);border:1px solid rgba(0,240,255,0.15);border-radius:16px;padding:40px 36px;">
-            <div style="text-align:center;margin-bottom:32px;">
-              <span style="font-size:28px;font-weight:800;letter-spacing:-0.5px;">
-                <span style="color:#00f0ff;">Zeus</span><span style="color:#a78bfa;"> Beats</span>
-              </span>
-            </div>
-            <div style="color:#e2d9f3;font-size:16px;line-height:1.7;white-space:pre-wrap;">{body}</div>
-            <hr style="border:none;border-top:1px solid rgba(255,255,255,0.07);margin:32px 0;">
-            <p style="color:#555;font-size:12px;text-align:center;margin:0;">
-              Zeus Beats · <a href="https://zeusbeats.com" style="color:#00f0ff;text-decoration:none;">zeusbeats.com</a>
+          <td style="text-align:center;padding-bottom:28px;">
+            <span style="font-size:26px;font-weight:800;letter-spacing:-0.5px;line-height:1;">
+              <span style="color:#00f0ff;">Zeus</span><span style="color:#a78bfa;"> Beats</span>
+            </span>
+          </td>
+        </tr>
+
+        <!-- Card -->
+        <tr>
+          <td style="background:#0f0f1e;border:1px solid rgba(0,240,255,0.12);border-radius:14px;padding:36px 32px;">
+
+            <!-- Greeting -->
+            <p style="margin:0 0 20px;font-size:16px;color:#e2d9f3;line-height:1.6;">Hi there,</p>
+
+            <!-- Body -->
+            <div style="font-size:16px;color:#c4b5fd;line-height:1.75;white-space:pre-wrap;">{body}</div>
+
+            <!-- Signature -->
+            <p style="margin:28px 0 0;font-size:15px;color:#e2d9f3;line-height:1.6;">
+              Talk soon,<br>
+              <strong style="color:#00f0ff;">Michael</strong><br>
+              <span style="color:#666;font-size:13px;">Zeus Beats</span>
+            </p>
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:24px 0 8px;text-align:center;">
+            <p style="margin:0 0 8px;font-size:12px;color:#444;">
+              Zeus Beats &middot;
+              <a href="https://zeusbeats.com" style="color:#555;text-decoration:none;">zeusbeats.com</a>
+            </p>
+            <p style="margin:0;font-size:11px;color:#333;">
+              You're receiving this because you signed up for Zeus Beats.
+              If you'd rather not hear from us,
+              <a href="mailto:hello@zeusbeats.com?subject=Unsubscribe" style="color:#444;text-decoration:underline;">unsubscribe here</a>.
             </p>
           </td>
         </tr>
+
       </table>
     </td></tr>
   </table>
@@ -369,8 +405,22 @@ _EMAIL_HTML_TEMPLATE = """\
 </html>"""
 
 
+def _build_plain_text(body: str) -> str:
+    return (
+        "Hi there,\n\n"
+        f"{body}\n\n"
+        "Talk soon,\n"
+        "Michael\n"
+        "Zeus Beats\n\n"
+        "---\n"
+        "You're receiving this because you signed up for Zeus Beats.\n"
+        "To unsubscribe, reply with 'unsubscribe' or email hello@zeusbeats.com"
+    )
+
+
 def _send_one_email(to: str, subject: str, body: str, api_key: str) -> bool:
-    html = _EMAIL_HTML_TEMPLATE.format(body=body)
+    html = _EMAIL_HTML_TEMPLATE.format(subject=subject, body=body)
+    text = _build_plain_text(body)
     try:
         resp = requests.post(
             "https://api.resend.com/emails",
@@ -380,7 +430,7 @@ def _send_one_email(to: str, subject: str, body: str, api_key: str) -> bool:
                 "to": [to],
                 "subject": subject,
                 "html": html,
-                "text": body,
+                "text": text,
                 "reply_to": "hello@zeusbeats.com",
             },
             timeout=15,
