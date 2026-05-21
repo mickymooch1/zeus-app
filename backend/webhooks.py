@@ -583,6 +583,18 @@ async def apiframe_webhook(request: Request):
     local_path1 = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
     with open(local_path1, "wb") as fh:
         fh.write(dl1.content)
+    if os.path.getsize(local_path1) < 100_000:
+        logger.warning(
+            "Apiframe webhook: take 1 MP3 suspiciously small (%d bytes) for variant_id=%d — marking failed",
+            os.path.getsize(local_path1), variant_id,
+        )
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "status": "failed", "reason": "mp3_too_small"}
     permanent_url1 = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
 
     permanent_image_url1 = None
@@ -730,59 +742,72 @@ async def apiframe_webhook(request: Request):
                 local_path2 = os.path.join(STORAGE_PATH, f"{take2_variant_id}.mp3")
                 with open(local_path2, "wb") as fh:
                     fh.write(dl2.content)
-                permanent_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.mp3"
-
-                permanent_image_url2 = None
-                temp_image_url2 = track2.get("imageUrl")
-                if temp_image_url2:
-                    logger.info("Apiframe webhook: downloading take 2 cover art from %s", temp_image_url2)
-                    try:
-                        img2 = requests.get(temp_image_url2, timeout=60)
-                        img2.raise_for_status()
-                        with open(os.path.join(STORAGE_PATH, f"{take2_variant_id}.jpg"), "wb") as fh:
-                            fh.write(img2.content)
-                        permanent_image_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.jpg"
-                    except Exception as exc:
-                        logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
-
-                logger.info("Starting Flux cover art for variant_id=%d (take2) genre=%s", take2_variant_id, genre_tag)
-                flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name)
-                if flux_cover2:
-                    logger.info("Cover art complete for variant_id=%d url=%s", take2_variant_id, flux_cover2)
-                    permanent_image_url2 = flux_cover2
-                else:
-                    logger.warning("Cover art FAILED for variant_id=%d (take2) — Flux returned None", take2_variant_id)
-
-                conn = sqlite3.connect(DB_PATH)
-                try:
-                    conn.execute(
-                        "UPDATE song_variants SET mp3_url = ?, image_url = ? WHERE id = ?",
-                        (permanent_url2, permanent_image_url2, take2_variant_id),
+                if os.path.getsize(local_path2) < 100_000:
+                    logger.warning(
+                        "Apiframe webhook: take 2 MP3 suspiciously small (%d bytes) for variant_id=%d — marking failed",
+                        os.path.getsize(local_path2), take2_variant_id,
                     )
-                    conn.commit()
-                finally:
-                    conn.close()
-                logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
-
-                logger.info(
-                    "Kling check (take2): has_cover=%s has_fal_key=%s duration=%s is_paid=%s animate_cover=%s",
-                    bool(flux_cover2), bool(FAL_API_KEY), duration2, _kling_is_paid1, orig_animate_cover,
-                )
-                if not orig_animate_cover:
-                    logger.info("Kling skipped (take2): user turned off animated cover art for variant_id=%d", take2_variant_id)
-                elif not flux_cover2:
-                    logger.warning("Kling skipped (take2): no cover art (Flux failed for variant_id=%d)", take2_variant_id)
-                elif not duration2:
-                    logger.warning("Kling skipped (take2): duration is 0 for variant_id=%d", take2_variant_id)
-                elif not FAL_API_KEY:
-                    logger.warning("Kling skipped (take2): FAL_API_KEY not set")
+                    conn = sqlite3.connect(DB_PATH)
+                    try:
+                        conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (take2_variant_id,))
+                        conn.commit()
+                    finally:
+                        conn.close()
+                    take2_variant_id = None
                 else:
-                    logger.info("Kling thread STARTING for variant_id=%d (take2)", take2_variant_id)
-                    threading.Thread(
-                        target=_kling_pipeline,
-                        args=(take2_variant_id, flux_cover2, local_path2, duration2, genre_tag),
-                        daemon=True,
-                    ).start()
+                    permanent_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.mp3"
+
+                    permanent_image_url2 = None
+                    temp_image_url2 = track2.get("imageUrl")
+                    if temp_image_url2:
+                        logger.info("Apiframe webhook: downloading take 2 cover art from %s", temp_image_url2)
+                        try:
+                            img2 = requests.get(temp_image_url2, timeout=60)
+                            img2.raise_for_status()
+                            with open(os.path.join(STORAGE_PATH, f"{take2_variant_id}.jpg"), "wb") as fh:
+                                fh.write(img2.content)
+                            permanent_image_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.jpg"
+                        except Exception as exc:
+                            logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
+
+                    logger.info("Starting Flux cover art for variant_id=%d (take2) genre=%s", take2_variant_id, genre_tag)
+                    flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name)
+                    if flux_cover2:
+                        logger.info("Cover art complete for variant_id=%d url=%s", take2_variant_id, flux_cover2)
+                        permanent_image_url2 = flux_cover2
+                    else:
+                        logger.warning("Cover art FAILED for variant_id=%d (take2) — Flux returned None", take2_variant_id)
+
+                    conn = sqlite3.connect(DB_PATH)
+                    try:
+                        conn.execute(
+                            "UPDATE song_variants SET mp3_url = ?, image_url = ? WHERE id = ?",
+                            (permanent_url2, permanent_image_url2, take2_variant_id),
+                        )
+                        conn.commit()
+                    finally:
+                        conn.close()
+                    logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
+
+                    logger.info(
+                        "Kling check (take2): has_cover=%s has_fal_key=%s duration=%s is_paid=%s animate_cover=%s",
+                        bool(flux_cover2), bool(FAL_API_KEY), duration2, _kling_is_paid1, orig_animate_cover,
+                    )
+                    if not orig_animate_cover:
+                        logger.info("Kling skipped (take2): user turned off animated cover art for variant_id=%d", take2_variant_id)
+                    elif not flux_cover2:
+                        logger.warning("Kling skipped (take2): no cover art (Flux failed for variant_id=%d)", take2_variant_id)
+                    elif not duration2:
+                        logger.warning("Kling skipped (take2): duration is 0 for variant_id=%d", take2_variant_id)
+                    elif not FAL_API_KEY:
+                        logger.warning("Kling skipped (take2): FAL_API_KEY not set")
+                    else:
+                        logger.info("Kling thread STARTING for variant_id=%d (take2)", take2_variant_id)
+                        threading.Thread(
+                            target=_kling_pipeline,
+                            args=(take2_variant_id, flux_cover2, local_path2, duration2, genre_tag),
+                            daemon=True,
+                        ).start()
 
     payload = {"ok": True, "status": "complete", "take1_url": permanent_url1}
     if take2_variant_id:
