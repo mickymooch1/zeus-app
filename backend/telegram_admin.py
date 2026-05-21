@@ -41,6 +41,12 @@ HELP_TEXT = """🤖 <b>Zeus Admin Commands</b>
 <code>db fix youtube EMAIL</code>
 <code>db credits EMAIL +10</code>
 
+<b>Email</b>
+<code>email USER@EMAIL.COM Subject line | Body text</code>
+<code>email all Subject line | Body text</code> — all users
+<code>email free Subject line | Body text</code> — free plan
+<code>email paid Subject line | Body text</code> — paying subscribers
+
 <b>Telegram</b>
 <code>post "message"</code>
 <code>post song VARIANT_ID</code>
@@ -332,6 +338,126 @@ def _cmd_db_credits(email: str, delta: int) -> str:
         return f"❌ Error: {exc}"
 
 
+# ── Email helpers ────────────────────────────────────────────────────────────
+
+_EMAIL_HTML_TEMPLATE = """\
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0a12;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a12;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+        <tr>
+          <td style="background:linear-gradient(135deg,#0d0d1a 0%,#12122a 100%);border:1px solid rgba(0,240,255,0.15);border-radius:16px;padding:40px 36px;">
+            <div style="text-align:center;margin-bottom:32px;">
+              <span style="font-size:28px;font-weight:800;letter-spacing:-0.5px;">
+                <span style="color:#00f0ff;">Zeus</span><span style="color:#a78bfa;"> Beats</span>
+              </span>
+            </div>
+            <div style="color:#e2d9f3;font-size:16px;line-height:1.7;white-space:pre-wrap;">{body}</div>
+            <hr style="border:none;border-top:1px solid rgba(255,255,255,0.07);margin:32px 0;">
+            <p style="color:#555;font-size:12px;text-align:center;margin:0;">
+              Zeus Beats · <a href="https://zeusbeats.com" style="color:#00f0ff;text-decoration:none;">zeusbeats.com</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+def _send_one_email(to: str, subject: str, body: str, api_key: str) -> bool:
+    html = _EMAIL_HTML_TEMPLATE.format(body=body)
+    try:
+        resp = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": "Zeus Beats <hello@zeusbeats.com>",
+                "to": [to],
+                "subject": subject,
+                "html": html,
+                "text": body,
+                "reply_to": "hello@zeusbeats.com",
+            },
+            timeout=15,
+        )
+        if resp.status_code < 300:
+            return True
+        log.error("_send_one_email: FAIL to=%s status=%d body=%r", to, resp.status_code, resp.text[:200])
+        return False
+    except Exception as exc:
+        log.exception("_send_one_email: exception to=%s: %s", to, exc)
+        return False
+
+
+def _cmd_email_single(to: str, subject: str, body: str) -> str:
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if not api_key:
+        return "❌ RESEND_API_KEY not set in Railway variables"
+    ok = _send_one_email(to, subject, body, api_key)
+    if ok:
+        return f"✅ Email sent to <code>{to}</code>"
+    return f"❌ Failed to send email to <code>{to}</code> — check Railway logs"
+
+
+def _cmd_email_bulk(audience: str, subject: str, body: str) -> str:
+    """audience: 'all' | 'free' | 'paid'"""
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if not api_key:
+        return "❌ RESEND_API_KEY not set in Railway variables"
+
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        try:
+            if audience == "all":
+                rows = conn.execute(
+                    "SELECT email FROM users WHERE email_verified = 1 AND email IS NOT NULL"
+                ).fetchall()
+            elif audience == "free":
+                rows = conn.execute(
+                    """SELECT email FROM users
+                       WHERE email_verified = 1 AND email IS NOT NULL
+                         AND (subscription_status IS NULL OR subscription_status != 'active')"""
+                ).fetchall()
+            elif audience == "paid":
+                rows = conn.execute(
+                    """SELECT email FROM users
+                       WHERE email_verified = 1 AND email IS NOT NULL
+                         AND subscription_status = 'active'"""
+                ).fetchall()
+            else:
+                return f"❌ Unknown audience: {audience}"
+        finally:
+            conn.close()
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+    emails = [r[0] for r in rows if r[0]]
+    if not emails:
+        return f"❌ No verified users found for audience: {audience}"
+
+    sent = 0
+    failed = 0
+    for addr in emails:
+        if _send_one_email(addr, subject, body, api_key):
+            sent += 1
+        else:
+            failed += 1
+        time.sleep(0.05)  # stay within Resend rate limits
+
+    log.info("email bulk: audience=%s sent=%d failed=%d subject=%r", audience, sent, failed, subject[:60])
+    result = f"✅ Bulk email sent\nAudience: <b>{audience}</b> ({len(emails)} recipients)\nSent: {sent}"
+    if failed:
+        result += f"\n❌ Failed: {failed}"
+    return result
+
+
 # ── Status ───────────────────────────────────────────────────────────────────
 
 def _cmd_status() -> str:
@@ -446,6 +572,24 @@ def parse_and_run(text: str) -> str:
         except ValueError:
             return "❌ Invalid credit amount"
         return _cmd_db_credits(m.group(1), delta)
+
+    # email USER@EMAIL.COM Subject | Body
+    # email all/free/paid Subject | Body
+    m = re.match(r'^email\s+(\S+)\s+(.+)$', t, re.IGNORECASE | re.DOTALL)
+    if m:
+        target = m.group(1).strip()
+        message = m.group(2).strip()
+        # Split on first " | " to get subject and body
+        if " | " in message:
+            subject_part, body_part = message.split(" | ", 1)
+        else:
+            subject_part = "A message from Zeus Beats"
+            body_part = message
+        subject_part = subject_part.strip()
+        body_part = body_part.strip()
+        if target.lower() in ("all", "free", "paid"):
+            return _cmd_email_bulk(target.lower(), subject_part, body_part)
+        return _cmd_email_single(target, subject_part, body_part)
 
     # post "message" — caller handles the async Telegram send
     m = re.match(r'^post\s+"(.+)"$', t, re.IGNORECASE | re.DOTALL)
