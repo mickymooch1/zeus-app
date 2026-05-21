@@ -125,6 +125,9 @@ def upload_song_to_youtube(
     privacy = privacy or "unlisted"
 
     def _upload(mp4_path: Path) -> str:
+        from google.auth.exceptions import RefreshError, TransportError
+        from googleapiclient.errors import HttpError as YTHttpError
+
         creds = Credentials(
             token=None,
             refresh_token=refresh_token,
@@ -133,7 +136,11 @@ def upload_song_to_youtube(
             client_secret=_client_secret,
             scopes=YOUTUBE_SCOPES,
         )
-        yt = build("youtube", "v3", credentials=creds)
+        try:
+            yt = build("youtube", "v3", credentials=creds, cache_discovery=False)
+        except Exception as exc:
+            raise ValueError(f"YouTube API init failed: {exc}") from exc
+
         video_title = (title or f"Song #{variant_id}")[:100]
         body = {
             "snippet": {
@@ -146,9 +153,21 @@ def upload_song_to_youtube(
         }
         media = MediaFileUpload(str(mp4_path), mimetype="video/mp4", resumable=True)
         insert_request = yt.videos().insert(part="snippet,status", body=body, media_body=media)
-        response = None
-        while response is None:
-            _, response = insert_request.next_chunk()
+        try:
+            response = None
+            while response is None:
+                _, response = insert_request.next_chunk()
+        except RefreshError as exc:
+            raise ValueError(f"invalid_grant: YouTube token refresh failed: {exc}") from exc
+        except TransportError as exc:
+            raise ValueError(f"YouTube network error during upload: {exc}") from exc
+        except YTHttpError as exc:
+            status = exc.resp.status if exc.resp else "?"
+            raise ValueError(f"YouTube API HTTP {status}: {exc.reason}") from exc
+
+        if not response or "id" not in response:
+            raise ValueError(f"YouTube upload complete but response missing video ID: {response!r}")
+
         video_id = response["id"]
         log.info("YouTube upload complete: video_id=%s variant_id=%s user=%s",
                  video_id, variant_id, user["id"])
@@ -160,19 +179,20 @@ def upload_song_to_youtube(
         return _upload(Path(prebuilt_mp4))
 
     # Standard path — mux still image + MP3 into MP4 with ffmpeg.
-    storage_path = os.environ["SONG_STORAGE_PATH"]  # e.g. /data/songs
+    storage_path = os.environ.get("SONG_STORAGE_PATH", "/data/songs")
     mp3_src = Path(storage_path) / f"{variant_id}.mp3"
-    img_src = Path(storage_path) / f"{variant_id}.jpg"
+    img_src = Path(storage_path) / f"{variant_id}_cover.jpg"
 
     if not mp3_src.exists():
         raise ValueError(f"MP3 not found on volume: {mp3_src}")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
-        img_path = img_src if img_src.exists() else tmp / f"{variant_id}.jpg"
+        img_path = img_src if img_src.exists() else tmp / f"{variant_id}_cover.jpg"
         mp4_path = tmp / f"{variant_id}.mp4"
 
         if not img_src.exists():
+            log.info("upload_song_to_youtube: cover art not found at %s — using black fallback", img_src)
             subprocess.run(
                 ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=1280x720:r=1",
                  "-frames:v", "1", str(img_path)],
