@@ -1066,18 +1066,23 @@ export default function SongsPage() {
     const vTitle = ytModal.title;
     setYtModal(null);
     setYtStatus((prev) => ({ ...prev, [vId]: 'uploading' }));
+    setError('');
     try {
       const r = await fetch(`${BACKEND_URL}/api/songs/variants/${vId}/upload-youtube`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ privacy: ytPrivacy, title: vTitle }),
       });
-      const d = await r.json();
-      if (r.status === 401) { fetchCredits(); throw new Error('youtube_reconnect_required'); }
-      if (!r.ok) throw new Error(d.detail || 'Upload failed');
+      let d = {};
+      try { d = await r.json(); } catch (_) {}
+      if (r.status === 401) { fetchCredits(); throw new Error('YouTube session expired — please reconnect your account'); }
+      if (!r.ok) throw new Error(d.detail || `Upload failed (HTTP ${r.status})`);
       setYtStatus((prev) => ({ ...prev, [vId]: 'done' }));
       setYtUrls((prev) => ({ ...prev, [vId]: d.youtube_url }));
-    } catch (_) {
+    } catch (err) {
+      const msg = err?.message || 'Upload failed — network or server error';
+      console.error('YouTube upload failed:', err);
+      setError(`YouTube upload failed: ${msg}`);
       setYtStatus((prev) => ({ ...prev, [vId]: 'error' }));
     }
   };
