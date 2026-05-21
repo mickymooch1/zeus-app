@@ -417,18 +417,18 @@ def _cmd_email_bulk(audience: str, subject: str, body: str) -> str:
         try:
             if audience == "all":
                 rows = conn.execute(
-                    "SELECT email FROM users WHERE email_verified = 1 AND email IS NOT NULL"
+                    "SELECT email FROM users WHERE email IS NOT NULL AND email != ''"
                 ).fetchall()
             elif audience == "free":
                 rows = conn.execute(
                     """SELECT email FROM users
-                       WHERE email_verified = 1 AND email IS NOT NULL
+                       WHERE email IS NOT NULL AND email != ''
                          AND (subscription_status IS NULL OR subscription_status != 'active')"""
                 ).fetchall()
             elif audience == "paid":
                 rows = conn.execute(
                     """SELECT email FROM users
-                       WHERE email_verified = 1 AND email IS NOT NULL
+                       WHERE email IS NOT NULL AND email != ''
                          AND subscription_status = 'active'"""
                 ).fetchall()
             else:
@@ -440,21 +440,23 @@ def _cmd_email_bulk(audience: str, subject: str, body: str) -> str:
 
     emails = [r[0] for r in rows if r[0]]
     if not emails:
-        return f"❌ No verified users found for audience: {audience}"
+        return f"❌ No users found for audience: {audience}"
 
     sent = 0
     failed = 0
-    for addr in emails:
+    for i, addr in enumerate(emails):
         if _send_one_email(addr, subject, body, api_key):
             sent += 1
         else:
             failed += 1
-        time.sleep(0.05)  # stay within Resend rate limits
+            log.warning("email bulk: failed to send to %s", addr)
+        if i % 10 == 9:
+            time.sleep(1)
 
     log.info("email bulk: audience=%s sent=%d failed=%d subject=%r", audience, sent, failed, subject[:60])
-    result = f"✅ Bulk email sent\nAudience: <b>{audience}</b> ({len(emails)} recipients)\nSent: {sent}"
+    result = f"✅ Email sent to {sent} users"
     if failed:
-        result += f"\n❌ Failed: {failed}"
+        result += f"\n❌ Failed: {failed} (logged)"
     return result
 
 
