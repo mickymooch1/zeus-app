@@ -430,6 +430,8 @@ async def apiframe_webhook(request: Request):
     # once the job is accepted — the credit was already deducted from the user's balance,
     # so we leave that as-is and just record the failure)
     if event == "failed" or job_status == "FAILED":
+        error_msg = body.get("error") or body.get("message") or body.get("error_message") or "unknown error"
+        logger.error("Apiframe FAILED variant_id=%d error=%s", variant_id, error_msg)
         conn = sqlite3.connect(DB_PATH)
         try:
             cur = conn.cursor()
