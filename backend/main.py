@@ -479,6 +479,38 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("laky120 subscription patch failed (non-fatal)")
 
+    # One-time: mark variant 389 as failed and refund 1 credit to its owner
+    try:
+        import sqlite3 as _sqlite3
+        _v389 = _sqlite3.connect(str(_db_path))
+        _v389.row_factory = _sqlite3.Row
+        try:
+            _sv = _v389.execute(
+                "SELECT id, status, user_id FROM song_variants WHERE id = 389"
+            ).fetchone()
+            if _sv and _sv["status"] == "pending":
+                _v389.execute("UPDATE song_variants SET status = 'failed' WHERE id = 389")
+                _v389.execute(
+                    "UPDATE song_credits SET balance = balance + 1 WHERE user_id = ?",
+                    (_sv["user_id"],),
+                )
+                _v389.commit()
+                _owner = _v389.execute(
+                    "SELECT email FROM users WHERE id = ?", (_sv["user_id"],)
+                ).fetchone()
+                log.info(
+                    "variant 389 fix: marked failed + refunded 1 credit to user_id=%s email=%s",
+                    _sv["user_id"], _owner["email"] if _owner else "unknown",
+                )
+            elif _sv:
+                log.info("variant 389 fix: already status=%r — no action taken", _sv["status"])
+            else:
+                log.info("variant 389 fix: variant not found")
+        finally:
+            _v389.close()
+    except Exception:
+        log.exception("variant 389 fix failed (non-fatal)")
+
     try:
         _scheduler_mod.init_scheduler(history)
         log.info("Scheduler initialised")
@@ -1851,7 +1883,10 @@ def _hermes_format_alert(issues: list[dict]) -> str:
 def _hermes_notify_admin(issues: list[dict]) -> bool:
     message = _hermes_sanitize_reply(_hermes_format_alert(issues))
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.environ.get("ADMIN_TELEGRAM_CHAT_ID", "").strip()
+    chat_id = (
+        os.environ.get("TELEGRAM_ADMIN_USER_ID", "").strip()
+        or os.environ.get("ADMIN_TELEGRAM_CHAT_ID", "").strip()
+    )
     if not issues:
         log.info("Hermes watcher: no issues detected")
         return False
