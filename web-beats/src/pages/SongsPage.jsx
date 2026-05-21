@@ -1760,6 +1760,7 @@ export default function SongsPage() {
                       ['UK D&B MC', 'energetic UK drum and bass MC delivery, rapid fire hype, crowd control shouts, classic jungle MC style, rewind calls'],
                       ['UK Jungle MC', 'old school jungle MC flow, ragga influenced delivery, rewind calls, authentic 90s rave MC energy'],
                       ['Bashment MC', 'Jamaican bashment MC delivery, dancehall ragga style, riddim riding vocals, Caribbean MC energy'],
+                      ['Vocoder / Talk Box', 'vocoder effect on vocals, robotic talk box voice, synthesized voice processing, Zapp and Roger style, computerised speech melody, electro funk vocoder, Roger Troutman talk box technique, robotic singing voice, pitch shifted electronic vocal effect'],
                     ].map(([label, value]) => (
                       <option key={label} value={value}>{label}</option>
                     ))}
