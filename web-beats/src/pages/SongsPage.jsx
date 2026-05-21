@@ -648,8 +648,8 @@ export default function SongsPage() {
   const [showAdvanced, setShowAdvanced]   = useState(() => window.innerWidth >= 600 || !!(location.state?.prefillStyle || location.state?.prefillGenre));
   const [vocalGender, setVocalGender]     = useState('');
   const [accent, setAccent]               = useState('');
-  const [creativity, setCreativity]       = useState(50);
-  const [styleWeight, setStyleWeight]     = useState(70);
+  const [creativity, setCreativity]       = useState(60);
+  const [styleWeight, setStyleWeight]     = useState(60);
   const [tempo, setTempo]                 = useState(() => _matchTempo(location.state?.prefillTempo));
   const [tempoBpm, setTempoBpm]           = useState(120);
   const [modelVersion, setModelVersion]   = useState('V5');
