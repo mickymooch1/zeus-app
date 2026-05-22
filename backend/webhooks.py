@@ -127,25 +127,52 @@ def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = ""
 
 
 def _telegram_post_sync(message: str, image_url: str | None = None) -> None:
-    """Sync Telegram post for use inside background threads."""
+    """Sync Telegram post for use inside background threads.
+
+    Automatically splits messages longer than 4096 chars into multiple sends
+    so the admin can post lengthy content without truncation.
+    """
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     channel = os.environ.get("TELEGRAM_CHANNEL_ID", "").strip()
     if not token or not channel:
         return
+
+    _TG_LIMIT = 4096
+    _CAPTION_LIMIT = 1024  # Telegram caption limit for photos
+
+    def _send(url: str, payload: dict) -> None:
+        try:
+            resp = requests.post(url, json=payload, timeout=15)
+            if resp.status_code >= 300:
+                logger.warning("_telegram_post_sync: Telegram API %d: %s", resp.status_code, resp.text)
+            else:
+                logger.info("_telegram_post_sync: posted to Telegram channel")
+        except Exception as exc:
+            logger.warning("_telegram_post_sync: failed — %s", exc)
+
+    def _chunks(text: str, size: int) -> list[str]:
+        parts = []
+        while text:
+            parts.append(text[:size])
+            text = text[size:]
+        return parts
+
     if image_url:
-        url = f"https://api.telegram.org/bot{token}/sendPhoto"
-        payload = {"chat_id": channel, "photo": image_url, "caption": message, "parse_mode": "HTML"}
+        # Send photo with first chunk as caption, remaining chunks as plain messages
+        caption = message[:_CAPTION_LIMIT]
+        _send(
+            f"https://api.telegram.org/bot{token}/sendPhoto",
+            {"chat_id": channel, "photo": image_url, "caption": caption, "parse_mode": "HTML"},
+        )
+        remainder = message[_CAPTION_LIMIT:]
     else:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = {"chat_id": channel, "text": message, "parse_mode": "HTML"}
-    try:
-        resp = requests.post(url, json=payload, timeout=15)
-        if resp.status_code >= 300:
-            logger.warning("_telegram_post_sync: Telegram API %d: %s", resp.status_code, resp.text)
-        else:
-            logger.info("_telegram_post_sync: posted to Telegram channel")
-    except Exception as exc:
-        logger.warning("_telegram_post_sync: failed — %s", exc)
+        remainder = message
+
+    for chunk in _chunks(remainder, _TG_LIMIT):
+        _send(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            {"chat_id": channel, "text": chunk, "parse_mode": "HTML"},
+        )
 
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]
