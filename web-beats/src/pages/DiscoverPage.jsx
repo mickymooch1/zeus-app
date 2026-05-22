@@ -46,7 +46,8 @@ const SongSlide = memo(function SongSlide({
       {music_video_url ? (
         <video
           ref={onVideoRef}
-          src={`${BACKEND_URL}${music_video_url}`}
+          src={music_video_url}
+          autoPlay
           loop
           muted
           playsInline
