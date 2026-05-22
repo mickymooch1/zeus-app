@@ -2337,6 +2337,7 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
                 "youtube_url": v.get("youtube_url"),
                 "music_video_url": v.get("music_video_url"),
                 "is_favourite": bool(v.get("is_favourite", 0)),
+                "is_public": bool(v.get("is_public", 0)),
             }
             for v in (variants or [])
         ],
@@ -3259,9 +3260,12 @@ async def toggle_variant_share(variant_id: int, current_user=Depends(auth.get_cu
     db_path = db.get_db_path()
     variant = db.get_song_variant_by_id(db_path, variant_id)
     if not variant or variant["user_id"] != user_id:
+        log.warning("toggle_variant_share: variant %s not found or not owned by user %s", variant_id, user_id)
         raise HTTPException(status_code=404, detail="Variant not found")
-    new_val = 0 if variant.get("is_public") else 1
+    old_val = variant.get("is_public") or 0
+    new_val = 0 if old_val else 1
     db.update_song_variant(db_path, variant_id, is_public=new_val)
+    log.info("toggle_variant_share: variant=%s user=%s old_is_public=%s new_is_public=%s", variant_id, user_id, old_val, new_val)
     return {"variant_id": variant_id, "is_public": bool(new_val)}
 
 

@@ -1136,10 +1136,11 @@ export default function SongsPage() {
       return next;
     });
     try {
-      await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/share`, {
+      const res = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/share`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) throw new Error('share toggle failed');
     } catch (_) {
       setPublicVariants(prev => {
         const next = new Set(prev);
