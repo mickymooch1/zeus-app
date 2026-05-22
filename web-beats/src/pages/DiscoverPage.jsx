@@ -169,7 +169,7 @@ const SongSlide = memo(function SongSlide({
         <ActionBtn
           onClick={onShare}
           icon={isCopied ? '✓' : '🔗'}
-          label={isCopied ? 'Copied' : 'Share'}
+          label={isCopied ? 'Copied! 🎵' : 'Share'}
           active={isCopied}
           activeColor={CYAN}
         />
@@ -334,7 +334,7 @@ export default function DiscoverPage() {
 
   /* ── Share ──────────────────────────────────────────────────────────────── */
   const handleShare = useCallback(async (variantId) => {
-    const url = `${window.location.origin}/songs/share/${variantId}`;
+    const url = `${window.location.origin}/discover/${variantId}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Zeus Beats', url });

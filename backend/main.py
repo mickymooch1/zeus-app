@@ -3292,6 +3292,36 @@ async def discover_feed(page: int = 0):
     return {"songs": songs, "page": page, "count": len(songs)}
 
 
+@app.get("/api/discover/{variant_id}")
+async def discover_song(variant_id: int):
+    """Return a single public song by variant_id — no auth required."""
+    db_path = db.get_db_path()
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            """SELECT sv.id AS variant_id,
+                      sv.genre_tag,
+                      sv.mp3_url,
+                      sv.image_url  AS cover_url,
+                      sv.music_video_url,
+                      sv.duration_seconds,
+                      l.title,
+                      u.artist_name,
+                      (SELECT COUNT(*) FROM song_variant_likes lk WHERE lk.variant_id = sv.id) AS like_count
+               FROM song_variants sv
+               JOIN lyrics l  ON l.id = sv.lyric_id
+               JOIN users  u  ON u.id = sv.user_id
+               WHERE sv.id = ? AND sv.is_public = 1 AND sv.status = 'complete'""",
+            (variant_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Song not found")
+    return dict(row)
+
+
 @app.post("/api/discover/{variant_id}/like")
 async def like_song(variant_id: int, current_user=Depends(auth.get_current_user)):
     """Add a like to a public song. Idempotent — silently ignores duplicate likes."""

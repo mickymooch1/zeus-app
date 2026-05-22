@@ -25,6 +25,7 @@ const AdminBeats         = lazy(() => import('./pages/AdminBeats'));
 const HermesAgentPage    = lazy(() => import('./pages/HermesAgentPage'));
 const MixerPage          = lazy(() => import('./pages/MixerPage'));
 const DiscoverPage       = lazy(() => import('./pages/DiscoverPage'));
+const DiscoverSongPage   = lazy(() => import('./pages/DiscoverSongPage'));
 
 const fallback = (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0b0b14', color: '#94a3b8', fontSize: '1rem' }}>
@@ -61,6 +62,7 @@ export default function App() {
             />
             <Route path="/songs/share/:variantId" element={<SongSharePage />} />
             <Route path="/discover" element={<DiscoverPage />} />
+            <Route path="/discover/:variantId" element={<DiscoverSongPage />} />
             <Route
               path="/billing"
               element={
