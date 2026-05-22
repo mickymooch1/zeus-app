@@ -271,19 +271,6 @@ const SongCard = memo(function SongCard({
     lockedTimer.current = setTimeout(() => setLockedMsg(null), 3500);
   };
 
-  const [tiktokToast, setTiktokToast] = useState(false);
-  const tiktokToastTimer = useRef(null);
-  const handleTikTok = () => {
-    if (!variant.mp3_url) return;
-    const a = document.createElement('a');
-    a.href = variant.mp3_url;
-    a.download = `${title || 'zeus-beats'}.mp3`;
-    a.click();
-    window.open('https://www.tiktok.com/upload', '_blank');
-    setTiktokToast(true);
-    clearTimeout(tiktokToastTimer.current);
-    tiktokToastTimer.current = setTimeout(() => setTiktokToast(false), 5000);
-  };
 
   const handleRegen = async () => {
     if (regenLoading || !onRegenerate) return;
@@ -595,22 +582,6 @@ const SongCard = memo(function SongCard({
             </div>
             {ytSt === 'error' && ytError && (
               <p style={{ color: '#f87171', fontSize: 11, marginTop: 4, marginBottom: 0, wordBreak: 'break-word' }}>{ytError}</p>
-            )}
-            {/* Row 3b: TikTok */}
-            {variant.mp3_url && (
-              <div style={{ marginTop: 8 }}>
-                <button
-                  onClick={handleTikTok}
-                  style={{ ...actionBtnStyle, width: '100%', background: 'rgba(0,0,0,0.6)', color: '#fff', borderColor: 'rgba(255,255,255,0.2)' }}
-                >
-                  ♪ Share on TikTok
-                </button>
-                {tiktokToast && (
-                  <p style={{ color: '#a78bfa', fontSize: 11, marginTop: 6, marginBottom: 0, textAlign: 'center', lineHeight: 1.5 }}>
-                    Song downloaded! Open TikTok and upload it as a video with your song playing 🎵
-                  </p>
-                )}
-              </div>
             )}
             {/* Row 4: Remake + Regen */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
