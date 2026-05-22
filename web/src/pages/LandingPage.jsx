@@ -75,6 +75,13 @@ export default function LandingPage() {
             <a href="#features" className="btn-ghost btn-lg">See what it can do</a>
           </div>
 
+          <p style={{ marginTop: 16, fontSize: 14, color: 'rgba(255,255,255,0.55)' }}>
+            🎵 Just want music?{' '}
+            <a href="https://zeusbeats.com" style={{ color: '#00f0ff', fontWeight: 600, textDecoration: 'none' }}>
+              Try Zeus Beats
+            </a>
+          </p>
+
           {/* Chat mockup */}
           <div className="hero-mockup">
             <div className="mockup-bar">
@@ -416,6 +423,7 @@ export default function LandingPage() {
             <Link to="/refund-policy">Refund Policy</Link>
             <Link to="/data-deletion">Data Deletion</Link>
             <Link to="/contact">Contact</Link>
+            <a href="https://zeusbeats.com" style={{ color: '#00f0ff', fontWeight: 600 }}>🎵 Zeus Beats</a>
           </div>
         </div>
       </footer>
