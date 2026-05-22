@@ -144,13 +144,15 @@ def sanitize_inspired_by_descriptors(raw: str | None) -> str | None:
 
 
 def _dj_transition_style(style_a: str, style_b: str) -> str:
-    """Build a DJ-transition style string that alternates between two genre styles."""
+    """Build a Suno section-tag style string that switches genre per section."""
     return (
-        f"starts as {style_a}, "
-        f"transitions DJ mix style into {style_b}, "
-        f"switches back to {style_a}, "
-        f"finishes with {style_b}, "
-        "seamless DJ transitions between sections, genre switching mix"
+        f"[intro: {style_a}] "
+        f"[verse: {style_a}] "
+        f"[chorus: {style_b}] "
+        f"[verse: {style_a}] "
+        f"[bridge: {style_b}] "
+        f"[outro: {style_b}] "
+        "genre switch DJ mix, section by section genre change, not blended, alternating genres per section"
     )[:1000]
 
 

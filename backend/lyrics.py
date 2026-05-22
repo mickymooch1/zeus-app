@@ -136,10 +136,14 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             f"[Outro - {genre_b} finish]"
         )
         fusion_prefix = (
-            f"Structure this like a DJ mix — start fully in {genre_a} style, build energy, "
-            f"then transition into {genre_b} like a DJ dropping a new track, then mix back to {genre_a}, "
-            f"finish with {genre_b}. Each section should sound distinctly like its genre — not blended, "
-            f"but SWITCHING like a DJ. Use genre-specific vocabulary, flow and energy for each section.\n\n"
+            f"Write each section in a COMPLETELY DIFFERENT genre — "
+            f"verse 1 must sound like pure {genre_a}, "
+            f"chorus must sound like pure {genre_b}. "
+            f"Do NOT mix them — SWITCH between them. "
+            f"Like a DJ playing one track then cutting to another. "
+            f"Verse sections: pure {genre_a} vocabulary, flow, slang and energy. "
+            f"Chorus and bridge sections: pure {genre_b} vocabulary, flow, slang and energy. "
+            "Hard cuts between sections — no crossfading, no blending.\n\n"
         )
 
     # Override structure when doing a DJ transition
