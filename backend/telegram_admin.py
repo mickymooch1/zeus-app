@@ -48,7 +48,7 @@ HELP_TEXT = """🤖 <b>Zeus Admin Commands</b>
 <code>email paid Subject line | Body text</code> — paying subscribers
 
 <b>Telegram</b>
-<code>post "message"</code>
+<code>post Your message here</code>
 <code>post song VARIANT_ID</code>
 
 <b>Other</b>
@@ -643,15 +643,16 @@ def parse_and_run(text: str) -> str:
             return _cmd_email_bulk(target.lower(), subject_part, body_part)
         return _cmd_email_single(target, subject_part, body_part)
 
-    # post "message" — caller handles the async Telegram send
-    m = re.match(r'^post\s+"(.+)"$', t, re.IGNORECASE | re.DOTALL)
-    if m:
-        return f"__POST__:{m.group(1)}"
-
-    # post song VARIANT_ID
+    # post song VARIANT_ID  (must be checked before generic post)
     m = re.match(r'^post\s+song\s+(\d+)$', t, re.IGNORECASE)
     if m:
         return f"__POST_SONG__:{m.group(1)}"
+
+    # post <message> — everything after "post ", no quotes required, max 4096 chars
+    m = re.match(r'^post\s+(.+)$', t, re.IGNORECASE | re.DOTALL)
+    if m:
+        msg = m.group(1).strip()[:4096]
+        return f"__POST__:{msg}"
 
     # Unknown admin command — do NOT fall through to Claude AI
     log.warning("telegram_admin: unrecognised command: %r", t[:100])
