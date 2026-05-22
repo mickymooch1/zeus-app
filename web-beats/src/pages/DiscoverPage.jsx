@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 
@@ -89,7 +89,7 @@ const SongSlide = memo(function SongSlide({
       {/* Bottom gradient overlay */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 40%, transparent 65%)',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.3) 45%, transparent 70%)',
         pointerEvents: 'none',
       }} />
 
@@ -137,9 +137,18 @@ const SongSlide = memo(function SongSlide({
         }}>
           {title || `Song #${variant_id}`}
         </p>
-        <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+        <p style={{ margin: '0 0 10px', fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
           {artist_name || 'Zeus Beats Artist'}
         </p>
+        {/* Made with Zeus Beats branding */}
+        <span style={{
+          fontSize: 11,
+          color: `${CYAN}99`,
+          fontWeight: 600,
+          letterSpacing: '0.04em',
+        }}>
+          ⚡ Made with Zeus Beats
+        </span>
       </div>
 
       {/* Action buttons — bottom right column */}
@@ -164,27 +173,6 @@ const SongSlide = memo(function SongSlide({
           active={isCopied}
           activeColor={CYAN}
         />
-        {/* Make your own */}
-        <Link
-          to="/register"
-          style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-            textDecoration: 'none',
-          }}
-        >
-          <div style={{
-            width: 44, height: 44,
-            borderRadius: '50%',
-            background: `linear-gradient(135deg, ${CYAN}22, ${PINK}22)`,
-            border: `1.5px solid ${CYAN}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 20,
-            boxShadow: `0 0 12px ${CYAN}44`,
-          }}>⚡</div>
-          <span style={{ color: CYAN, fontSize: 10, fontWeight: 700, textAlign: 'center', lineHeight: 1.2 }}>
-            Make<br/>yours
-          </span>
-        </Link>
       </div>
     </div>
   );
@@ -224,13 +212,15 @@ function ActionBtn({ onClick, icon, label, active, activeColor }) {
 /* ── Main page ──────────────────────────────────────────────────────────── */
 export default function DiscoverPage() {
   const { token } = useAuth();
-  const [songs, setSongs]       = useState([]);
-  const [muted, setMuted]       = useState(true);
-  const [liked, setLiked]       = useState(new Set());
-  const [counts, setCounts]     = useState({});
-  const [copied, setCopied]     = useState(null);
-  const [loading, setLoading]   = useState(false);
-  const [hasMore, setHasMore]   = useState(true);
+  const navigate = useNavigate();
+  const [songs, setSongs]           = useState([]);
+  const [muted, setMuted]           = useState(true);
+  const [liked, setLiked]           = useState(new Set());
+  const [counts, setCounts]         = useState({});
+  const [copied, setCopied]         = useState(null);
+  const [loading, setLoading]       = useState(false);
+  const [hasMore, setHasMore]       = useState(true);
+  const [signupPrompt, setSignupPrompt] = useState(false);
 
   // Refs that don't trigger re-renders
   const pageRef      = useRef(0);
@@ -324,9 +314,11 @@ export default function DiscoverPage() {
 
   /* ── Like / unlike ──────────────────────────────────────────────────────── */
   const handleLike = useCallback(async (variantId) => {
-    if (!token) return;
+    if (!token) {
+      setSignupPrompt(true);
+      return;
+    }
     const wasLiked = liked.has(variantId);
-    // Optimistic update
     setLiked(prev => { const n = new Set(prev); wasLiked ? n.delete(variantId) : n.add(variantId); return n; });
     setCounts(prev => ({ ...prev, [variantId]: Math.max(0, (prev[variantId] || 0) + (wasLiked ? -1 : 1)) }));
     try {
@@ -335,7 +327,6 @@ export default function DiscoverPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
     } catch (_) {
-      // Revert
       setLiked(prev => { const n = new Set(prev); wasLiked ? n.add(variantId) : n.delete(variantId); return n; });
       setCounts(prev => ({ ...prev, [variantId]: Math.max(0, (prev[variantId] || 0) + (wasLiked ? 1 : -1)) }));
     }
@@ -366,15 +357,17 @@ export default function DiscoverPage() {
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%)',
         pointerEvents: 'none',
       }}>
-        <Link to="/songs" style={{
+        {/* Logo — taps to landing page */}
+        <Link to="/" style={{
           color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800,
           letterSpacing: '-0.02em', pointerEvents: 'auto',
           textShadow: `0 0 16px ${CYAN}88`,
         }}>
           ⚡ Zeus Beats
         </Link>
+
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', pointerEvents: 'auto' }}>
-          <span style={{ color: '#fff', fontSize: 14, fontWeight: 700, opacity: 0.9 }}>Discover</span>
+          {/* Mute toggle */}
           <button
             onClick={toggleMute}
             style={{
@@ -388,6 +381,27 @@ export default function DiscoverPage() {
             }}
           >
             {muted ? '🔇 Tap to hear' : '🔊 On'}
+          </button>
+
+          {/* Make Your Own CTA */}
+          <button
+            onClick={() => navigate('/register')}
+            style={{
+              background: CYAN,
+              color: '#000',
+              fontFamily: 'Orbitron, sans-serif',
+              fontSize: '12px',
+              fontWeight: '700',
+              padding: '10px 16px',
+              borderRadius: '20px',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: `0 0 16px ${CYAN}66`,
+              letterSpacing: '0.02em',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ⚡ Make Your Own
           </button>
         </div>
       </div>
@@ -443,14 +457,17 @@ export default function DiscoverPage() {
             <p style={{ color: '#555', fontSize: 16, textAlign: 'center' }}>
               Nothing shared yet — be the first to drop a track 🎵
             </p>
-            <Link to="/register" style={{
-              padding: '12px 28px', borderRadius: 8,
-              background: `linear-gradient(90deg, ${CYAN}, ${PINK})`,
-              color: '#000', fontWeight: 800, fontSize: 15,
-              textDecoration: 'none',
-            }}>
+            <button
+              onClick={() => navigate('/register')}
+              style={{
+                padding: '12px 28px', borderRadius: 8,
+                background: `linear-gradient(90deg, ${CYAN}, ${PINK})`,
+                color: '#000', fontWeight: 800, fontSize: 15,
+                border: 'none', cursor: 'pointer',
+              }}
+            >
               Make your own ⚡
-            </Link>
+            </button>
           </div>
         )}
 
@@ -462,18 +479,90 @@ export default function DiscoverPage() {
             background: BG,
           }}>
             <p style={{ color: '#555', fontSize: 16 }}>You've heard them all 🎵</p>
-            <Link to="/register" style={{
-              padding: '12px 28px', borderRadius: 8,
-              background: `linear-gradient(90deg, ${CYAN}, ${PINK})`,
-              color: '#000', fontWeight: 800, fontSize: 15,
-              textDecoration: 'none',
-              boxShadow: `0 0 20px ${CYAN}44`,
-            }}>
+            <button
+              onClick={() => navigate('/register')}
+              style={{
+                padding: '12px 28px', borderRadius: 8,
+                background: `linear-gradient(90deg, ${CYAN}, ${PINK})`,
+                color: '#000', fontWeight: 800, fontSize: 15,
+                border: 'none', cursor: 'pointer',
+                boxShadow: `0 0 20px ${CYAN}44`,
+              }}
+            >
               Make your own ⚡
-            </Link>
+            </button>
           </div>
         )}
       </div>
+
+      {/* Sign-up prompt modal — shown when non-logged-in user taps like */}
+      {signupPrompt && (
+        <div
+          onClick={() => setSignupPrompt(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 500,
+            background: 'rgba(0,0,0,0.75)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#0f0f1e',
+              border: `1px solid ${CYAN}44`,
+              borderRadius: 16,
+              padding: '32px 28px',
+              maxWidth: 340,
+              width: '100%',
+              textAlign: 'center',
+              boxShadow: `0 0 40px ${CYAN}22`,
+            }}
+          >
+            <div style={{ fontSize: 36, marginBottom: 12 }}>❤️</div>
+            <p style={{
+              color: '#fff', fontSize: 18, fontWeight: 800,
+              margin: '0 0 8px', lineHeight: 1.3,
+            }}>
+              Sign up free to like songs
+            </p>
+            <p style={{
+              color: 'rgba(255,255,255,0.55)', fontSize: 14,
+              margin: '0 0 24px', lineHeight: 1.5,
+            }}>
+              Sign up free to like songs and make your own! 🎵
+            </p>
+            <button
+              onClick={() => navigate('/register')}
+              style={{
+                width: '100%',
+                padding: '14px 0',
+                borderRadius: 10,
+                background: `linear-gradient(90deg, ${CYAN}, ${PINK})`,
+                color: '#000',
+                fontWeight: 800,
+                fontSize: 15,
+                border: 'none',
+                cursor: 'pointer',
+                marginBottom: 12,
+                boxShadow: `0 0 20px ${CYAN}44`,
+              }}
+            >
+              ⚡ Sign Up Free
+            </button>
+            <button
+              onClick={() => setSignupPrompt(false)}
+              style={{
+                background: 'none', border: 'none',
+                color: 'rgba(255,255,255,0.4)',
+                fontSize: 13, cursor: 'pointer',
+              }}
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
