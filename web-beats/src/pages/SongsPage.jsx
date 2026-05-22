@@ -242,6 +242,7 @@ const SongCard = memo(function SongCard({
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
   onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick, onRegenerate,
   isFavourite, onToggleFavourite, isFreeTier, animateCover,
+  isPublic, onShareToggle,
 }) {
   const { t } = useTranslation();
   const waveRef = useRef(null);
@@ -255,7 +256,9 @@ const SongCard = memo(function SongCard({
   const [downloaded, setDownloaded] = useState(false);
   const [videoErr, setVideoErr] = useState(false);
   const [favToast, setFavToast] = useState(null); // null | 'added' | 'removed'
-  const [igToast, setIgToast]   = useState(false);
+  const [igToast, setIgToast]         = useState(false);
+  const [shareToast, setShareToast]   = useState(null); // null | 'public' | 'private'
+  const shareToastTimer = useRef(null);
   const favToastTimer = useRef(null);
   const handleFavToggle = () => {
     const adding = !isFavourite;
@@ -351,6 +354,15 @@ const SongCard = memo(function SongCard({
         setTimeout(() => setCopied(false), 2000);
       } catch (_) {}
     }
+  };
+
+  const handleSharePublicToggle = () => {
+    if (!onShareToggle) return;
+    const makingPublic = !isPublic;
+    onShareToggle(variant.variant_id);
+    setShareToast(makingPublic ? 'public' : 'private');
+    clearTimeout(shareToastTimer.current);
+    shareToastTimer.current = setTimeout(() => setShareToast(null), 3000);
   };
 
   const handleInstagram = () => {
@@ -609,6 +621,26 @@ const SongCard = memo(function SongCard({
                 </p>
               )}
             </div>
+            {/* Row 2.6: Discover share toggle */}
+            <div style={{ marginTop: 8 }}>
+              <button
+                onClick={handleSharePublicToggle}
+                style={{
+                  ...actionBtnStyle,
+                  width: '100%',
+                  color: isPublic ? '#00f0ff' : '#6b7280',
+                  borderColor: isPublic ? 'rgba(0,240,255,0.55)' : 'rgba(107,114,128,0.4)',
+                  background: isPublic ? 'rgba(0,240,255,0.07)' : 'transparent',
+                }}
+              >
+                {isPublic ? '🌐 Shared on Discover' : '🌐 Share on Discover'}
+              </button>
+              {shareToast && (
+                <p style={{ color: shareToast === 'public' ? '#00f0ff' : '#9ca3af', fontSize: 11, marginTop: 4, marginBottom: 0, textAlign: 'center' }}>
+                  {shareToast === 'public' ? 'Now visible on the Discover feed ✓' : 'Removed from Discover feed'}
+                </p>
+              )}
+            </div>
             {/* Row 3: YouTube + Avatar */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               {ytBtn}
@@ -730,7 +762,8 @@ export default function SongsPage() {
 
   const [deletingVariants, setDeletingVariants]     = useState(new Set());
 
-  const [favourites, setFavourites] = useState(new Set());
+  const [favourites, setFavourites]       = useState(new Set());
+  const [publicVariants, setPublicVariants] = useState(new Set());
   const [activeTab, setActiveTab] = useState('all');
 
   // Custom lyrics
@@ -789,6 +822,7 @@ export default function SongsPage() {
       const flat = groups.flat().sort((a, b) => b.variant_id - a.variant_id);
       setLibrary(flat);
       setFavourites(new Set(flat.filter(v => v.is_favourite).map(v => v.variant_id)));
+      setPublicVariants(new Set(flat.filter(v => v.is_public).map(v => v.variant_id)));
 
       const newDidSt = {};
       const newVidUrls = {};
@@ -1089,6 +1123,27 @@ export default function SongsPage() {
       });
     }
   }, [token]);
+
+  const handleShareToggle = useCallback(async (variantId) => {
+    const wasPublic = publicVariants.has(variantId);
+    setPublicVariants(prev => {
+      const next = new Set(prev);
+      if (next.has(variantId)) next.delete(variantId); else next.add(variantId);
+      return next;
+    });
+    try {
+      await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/share`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (_) {
+      setPublicVariants(prev => {
+        const next = new Set(prev);
+        if (wasPublic) next.add(variantId); else next.delete(variantId);
+        return next;
+      });
+    }
+  }, [token, publicVariants]);
 
   const handleYouTubeClick = useCallback((variant, titleArg) => {
     if (!canYouTube) return;
@@ -2055,6 +2110,8 @@ export default function SongsPage() {
                       onToggleFavourite={handleToggleFavourite}
                       isFreeTier={isFreeTier}
                       animateCover={animateCover}
+                      isPublic={publicVariants.has(v.variant_id)}
+                      onShareToggle={handleShareToggle}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -2127,6 +2184,8 @@ export default function SongsPage() {
                     onToggleFavourite={handleToggleFavourite}
                     isFreeTier={isFreeTier}
                     animateCover={animateCover}
+                    isPublic={publicVariants.has(v.variant_id)}
+                    onShareToggle={handleShareToggle}
                   />
                 ))}
               </div>

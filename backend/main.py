@@ -3247,6 +3247,91 @@ async def toggle_variant_favourite(variant_id: int, current_user=Depends(auth.ge
     return {"variant_id": variant_id, "is_favourite": bool(new_val)}
 
 
+@app.patch("/api/songs/variants/{variant_id}/share")
+async def toggle_variant_share(variant_id: int, current_user=Depends(auth.get_current_user)):
+    """Toggle is_public on a song variant owned by the current user."""
+    user_id = current_user["id"]
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != user_id:
+        raise HTTPException(status_code=404, detail="Variant not found")
+    new_val = 0 if variant.get("is_public") else 1
+    db.update_song_variant(db_path, variant_id, is_public=new_val)
+    return {"variant_id": variant_id, "is_public": bool(new_val)}
+
+
+@app.get("/api/discover")
+async def discover_feed(page: int = 0):
+    """Public discovery feed — all songs where is_public=1, newest first, 20 per page."""
+    db_path = db.get_db_path()
+    offset = page * 20
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """SELECT sv.id AS variant_id,
+                      sv.genre_tag,
+                      sv.mp3_url,
+                      sv.image_url  AS cover_url,
+                      sv.music_video_url,
+                      sv.duration_seconds,
+                      l.title,
+                      u.artist_name,
+                      (SELECT COUNT(*) FROM song_variant_likes lk WHERE lk.variant_id = sv.id) AS like_count
+               FROM song_variants sv
+               JOIN lyrics l  ON l.id = sv.lyric_id
+               JOIN users  u  ON u.id = sv.user_id
+               WHERE sv.is_public = 1 AND sv.status = 'complete' AND sv.mp3_url IS NOT NULL
+               ORDER BY sv.completed_at DESC
+               LIMIT 20 OFFSET ?""",
+            (offset,),
+        ).fetchall()
+        songs = [dict(r) for r in rows]
+    finally:
+        conn.close()
+    return {"songs": songs, "page": page, "count": len(songs)}
+
+
+@app.post("/api/discover/{variant_id}/like")
+async def like_song(variant_id: int, current_user=Depends(auth.get_current_user)):
+    """Add a like to a public song. Idempotent — silently ignores duplicate likes."""
+    user_id = current_user["id"]
+    db_path = db.get_db_path()
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO song_variant_likes (variant_id, user_id) VALUES (?, ?)",
+            (variant_id, user_id),
+        )
+        conn.commit()
+        count = conn.execute(
+            "SELECT COUNT(*) FROM song_variant_likes WHERE variant_id = ?", (variant_id,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    return {"variant_id": variant_id, "like_count": count}
+
+
+@app.delete("/api/discover/{variant_id}/like")
+async def unlike_song(variant_id: int, current_user=Depends(auth.get_current_user)):
+    """Remove a like from a song."""
+    user_id = current_user["id"]
+    db_path = db.get_db_path()
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute(
+            "DELETE FROM song_variant_likes WHERE variant_id = ? AND user_id = ?",
+            (variant_id, user_id),
+        )
+        conn.commit()
+        count = conn.execute(
+            "SELECT COUNT(*) FROM song_variant_likes WHERE variant_id = ?", (variant_id,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    return {"variant_id": variant_id, "like_count": count}
+
+
 class RemakeRequest(BaseModel):
     genre: str
     style_override: str | None = None

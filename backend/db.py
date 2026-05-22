@@ -241,6 +241,13 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_variants ADD COLUMN animate_cover INTEGER NOT NULL DEFAULT 1",
             "ALTER TABLE song_credits ADD COLUMN animation_balance INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE song_credits ADD COLUMN animation_monthly_allowance INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE song_variants ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0",
+            """CREATE TABLE IF NOT EXISTS song_variant_likes (
+                variant_id INTEGER NOT NULL,
+                user_id    TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (variant_id, user_id)
+            )""",
         ]:
             try:
                 conn.execute(_migration)
