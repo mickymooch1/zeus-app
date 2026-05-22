@@ -4,13 +4,42 @@ alerts.py — Proactive Telegram DM alerts for Zeus Beats admin monitoring.
 Sends messages to TELEGRAM_ADMIN_USER_ID (falls back to ADMIN_TELEGRAM_CHAT_ID).
 All public functions are fire-and-forget: they log warnings on failure but never raise.
 """
+import hashlib
 import logging
 import os
 import sqlite3
+import time
 
 import requests
 
 log = logging.getLogger("zeus.alerts")
+
+# ── Deduplication ─────────────────────────────────────────────────────────────
+# Tracks recently sent alert hashes to suppress repeats within 30 minutes.
+# Keyed by MD5(message) → timestamp of last send.
+
+_DEDUP_WINDOW = 1800   # 30 minutes: suppress identical messages
+_DEDUP_TTL    = 3600   # 1 hour: evict stale entries to prevent memory growth
+
+_sent_alerts: dict[str, float] = {}
+
+
+def _should_send_alert(message: str) -> bool:
+    """Return True if this message has not been sent in the last 30 minutes."""
+    key = hashlib.md5(message.encode()).hexdigest()
+    now = time.time()
+
+    # Evict entries older than 1 hour
+    stale = [k for k, ts in _sent_alerts.items() if now - ts > _DEDUP_TTL]
+    for k in stale:
+        del _sent_alerts[k]
+
+    if key in _sent_alerts and now - _sent_alerts[key] < _DEDUP_WINDOW:
+        log.debug("Alert suppressed (duplicate within 30 min): %s", message[:80])
+        return False
+
+    _sent_alerts[key] = now
+    return True
 
 _PLAN_DISPLAY = {
     "music_starter": "Music Starter £9",
@@ -32,7 +61,12 @@ def _admin_chat_id() -> str:
 
 
 def send_admin_alert(message: str) -> bool:
-    """Send a plain-text DM to the admin. Returns True on success."""
+    """Send a plain-text DM to the admin. Returns True on success.
+
+    Identical messages are suppressed if already sent within the last 30 minutes.
+    """
+    if not _should_send_alert(message):
+        return False
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = _admin_chat_id()
     if not token or not chat_id:

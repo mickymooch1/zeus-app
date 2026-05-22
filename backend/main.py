@@ -1882,14 +1882,18 @@ def _hermes_format_alert(issues: list[dict]) -> str:
 
 def _hermes_notify_admin(issues: list[dict]) -> bool:
     message = _hermes_sanitize_reply(_hermes_format_alert(issues))
+    if not issues:
+        log.info("Hermes watcher: no issues detected")
+        return False
+    import alerts as _alerts_mod
+    if not _alerts_mod._should_send_alert(message):
+        log.info("Hermes watcher: alert suppressed (same issue sent within 30 min)")
+        return False
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = (
         os.environ.get("TELEGRAM_ADMIN_USER_ID", "").strip()
         or os.environ.get("ADMIN_TELEGRAM_CHAT_ID", "").strip()
     )
-    if not issues:
-        log.info("Hermes watcher: no issues detected")
-        return False
     if not token or not chat_id:
         log.warning("Hermes watcher alert (Telegram not configured): %s", message)
         return False
