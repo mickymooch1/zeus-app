@@ -55,23 +55,23 @@ def init_scheduler(history_store) -> None:
 
     from apscheduler.triggers.interval import IntervalTrigger
     from apscheduler.triggers.cron import CronTrigger as _CronTrigger
-    import alerts as _alerts
+    import zeus_ops_agent as _ops
 
     _scheduler.add_job(
-        _alerts.run_health_check,
+        _ops.health_check,
         trigger=IntervalTrigger(minutes=30),
         id="__health_check__",
         replace_existing=True,
         misfire_grace_time=600,
     )
     _scheduler.add_job(
-        _alerts.send_daily_summary,
+        _ops.daily_report,
         trigger=_CronTrigger(hour=9, minute=0, timezone="UTC"),
-        id="__daily_summary__",
+        id="__daily_report__",
         replace_existing=True,
         misfire_grace_time=3600,
     )
-    log.info("Scheduler: built-in health check (30 min) and daily summary (9am UTC) registered")
+    log.info("Scheduler: ops health check (30 min) and daily report (9am UTC) registered")
 
 
 def shutdown_scheduler() -> None:

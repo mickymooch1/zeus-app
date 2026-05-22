@@ -738,6 +738,9 @@ async def register(request: Request, body: RegisterRequest):
     import alerts as _alerts
     _alerts.alert_new_user(user["email"])
 
+    import zeus_ops_agent as _ops
+    _ops.on_new_signup(user["id"], user["email"])
+
     return {"token": token, "user": safe_user}
 
 

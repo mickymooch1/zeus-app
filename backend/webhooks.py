@@ -482,6 +482,11 @@ async def apiframe_webhook(request: Request):
                 _ec.close()
         except Exception:
             pass
+        try:
+            import zeus_ops_agent as _ops
+            _ops.on_song_failed(variant_id)
+        except Exception:
+            pass
         return {"ok": True, "status": "failed"}
 
     # Progress: ignore for now (we only subscribed to completed + failed)
@@ -623,6 +628,11 @@ async def apiframe_webhook(request: Request):
             conn.commit()
         finally:
             conn.close()
+        try:
+            import zeus_ops_agent as _ops
+            _ops.on_song_failed(variant_id)
+        except Exception:
+            pass
         return {"ok": True, "status": "failed", "reason": "mp3_too_small"}
     permanent_url1 = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
 
