@@ -3,7 +3,13 @@ telegram_admin.py — Admin command handler for @porickbot.
 
 Only responds to TELEGRAM_ADMIN_USER_ID. Commands are parsed synchronously;
 async actions (Telegram posts) return sentinel strings handled by main.py.
+
+Natural language messages are handled by Claude Haiku — Michael can just
+talk to Porick conversationally and it figures out the right action.
+Precision commands (raw SQL, Railway vars) still use exact-match parsing
+to avoid AI misinterpretation.
 """
+import json
 import logging
 import os
 import re
@@ -20,39 +26,23 @@ _log_buffer: deque = deque(maxlen=100)
 
 _RAILWAY_GQL = "https://backboard.railway.app/graphql/v2"
 
-HELP_TEXT = """🤖 <b>Zeus Admin Commands</b>
+HELP_TEXT = """🤖 <b>Porick — Zeus Beats Admin Bot</b>
 
-<b>Railway</b>
-<code>var set KEY=VALUE</code>
+Just talk to me naturally! Examples:
+• <i>"How many users do we have?"</i>
+• <i>"Post on the channel that we added new genres"</i>
+• <i>"Give user@email.com 10 credits"</i>
+• <i>"Send an email to all users about the new mixer"</i>
+• <i>"Show me the logs"</i>
+
+<b>Precision commands (exact syntax required)</b>
+<code>db query "SELECT ..."</code> — read-only SQL
+<code>db exec "UPDATE/INSERT ..."</code> — write SQL
+<code>var set KEY=VALUE</code> — Railway env var
 <code>var get KEY</code>
-<code>logs</code> — last 20 app log lines
-<code>redeploy</code> — trigger a redeploy
-
-<b>Stripe</b>
 <code>stripe product "Name" £9.99</code>
 <code>stripe list</code>
-
-<b>Database</b>
-<code>db user EMAIL</code> — full user details
-<code>db query "SELECT ..."</code> — read-only
-<code>db exec "UPDATE/INSERT/DELETE ..."</code> — write SQL
-<code>db verify EMAIL</code> — mark email as verified
-<code>db unverify EMAIL</code> — revoke email verification
-<code>db fix youtube EMAIL</code>
-<code>db credits EMAIL +10</code>
-
-<b>Email</b>
-<code>email USER@EMAIL.COM Subject line | Body text</code>
-<code>email all Subject line | Body text</code> — all users
-<code>email free Subject line | Body text</code> — free plan
-<code>email paid Subject line | Body text</code> — paying subscribers
-
-<b>Telegram</b>
-<code>post Your message here</code>
-<code>post song VARIANT_ID</code>
-
-<b>Other</b>
-<code>status</code>
+<code>post song VARIANT_ID</code> — post a specific song
 <code>help</code>"""
 
 
@@ -543,10 +533,162 @@ def _cmd_status() -> str:
         return f"❌ Status error: {exc}"
 
 
+# ── AI natural language layer ─────────────────────────────────────────────────
+
+ADMIN_SYSTEM_PROMPT = """\
+You are Porick, the admin assistant for Zeus Beats. Michael is the owner \
+and you help him manage the platform.
+
+You have these capabilities:
+- Check platform status (users, songs, pending jobs, credits)
+- Send emails to a single user or bulk (all / free / paid subscribers)
+- Post messages to the @zeusbeatsmusic Telegram channel
+- Give or remove song credits for a user
+- Verify or unverify a user's email address
+- Look up full details for a user by email
+- Check recent Railway app logs
+- Trigger a Railway redeploy
+
+When Michael messages you, respond with ONLY a JSON object — no extra text, \
+no markdown fences. Use one of these action schemas:
+
+{"action": "post_channel", "message": "..."}
+{"action": "email_user", "email": "user@example.com", "subject": "...", "body": "..."}
+{"action": "email_bulk", "audience": "all|free|paid", "subject": "...", "body": "..."}
+{"action": "add_credits", "email": "user@example.com", "amount": 10}
+{"action": "status"}
+{"action": "verify_email", "email": "user@example.com"}
+{"action": "unverify_email", "email": "user@example.com"}
+{"action": "user_details", "email": "user@example.com"}
+{"action": "logs"}
+{"action": "redeploy"}
+{"action": "chat", "message": "..."}
+
+Rules:
+- Use "chat" for general conversation, confirmations, or when you need more info \
+  (e.g. an email address Michael hasn't provided).
+- For post_channel, write the full ready-to-send Telegram message with emojis — \
+  don't just confirm intent.
+- For email actions, write a proper marketing subject and body if Michael hasn't \
+  specified them fully. Keep Zeus Beats brand voice (upbeat, creative).
+- Use negative amounts for add_credits to remove credits.
+- When Michael refers to a user by first name or nickname and you know their email \
+  from context, use it. If you don't know, use "chat" to ask.
+
+Examples:
+Michael: "post on the channel that we have new genres"
+→ {"action": "post_channel", "message": "🎵 New genres just dropped on Zeus Beats!\\n\\nFresh sounds added — go create your next hit now 🚀\\n\\nzeusbeats.com"}
+
+Michael: "how many users do we have"
+→ {"action": "status"}
+
+Michael: "give laky 10 songs"
+→ {"action": "chat", "message": "What's laky's email address?"}
+
+Michael: "send an email to all users about the new mixer feature"
+→ {"action": "email_bulk", "audience": "all", "subject": "New Mixer Feature on Zeus Beats 🎚️", "body": "We've just launched a brand new mixer — giving you even more control over your sound.\\n\\nLog in now and try it out!"}
+"""
+
+
+def _ai_parse(text: str) -> dict:
+    """Call Claude Haiku to interpret a natural language admin message.
+    Returns a parsed action dict; falls back to a chat error on failure.
+    """
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            system=ADMIN_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": text}],
+        )
+        raw = resp.content[0].text.strip()
+        # Strip any accidental markdown fences
+        raw = re.sub(r'^```[a-z]*\n?', '', raw)
+        raw = re.sub(r'\n?```$', '', raw).strip()
+        return json.loads(raw)
+    except Exception as exc:
+        log.warning("_ai_parse failed — %s", exc)
+        return {"action": "chat", "message": f"❌ AI error: {exc}"}
+
+
+def _execute_action(action: dict) -> str:
+    """Execute a parsed action dict and return a reply string (or sentinel)."""
+    act = action.get("action", "chat")
+
+    if act == "status":
+        return _cmd_status()
+
+    if act == "logs":
+        return _cmd_logs()
+
+    if act == "redeploy":
+        return _cmd_redeploy()
+
+    if act == "post_channel":
+        msg = action.get("message", "").strip()[:4096]
+        if not msg:
+            return "❌ No message to post"
+        return f"__POST__:{msg}"
+
+    if act == "email_user":
+        email = action.get("email", "").strip()
+        subject = action.get("subject", "A message from Zeus Beats").strip()
+        body = action.get("body", "").strip()
+        if not email:
+            return "❌ No email address — ask Michael for it"
+        return _cmd_email_single(email, subject, body)
+
+    if act == "email_bulk":
+        audience = action.get("audience", "all").lower()
+        subject = action.get("subject", "A message from Zeus Beats").strip()
+        body = action.get("body", "").strip()
+        return _cmd_email_bulk(audience, subject, body)
+
+    if act == "add_credits":
+        email = action.get("email", "").strip()
+        try:
+            delta = int(action.get("amount", 0))
+        except (ValueError, TypeError):
+            return "❌ Invalid credit amount"
+        if not email:
+            return "❌ No email address — ask Michael for it"
+        return _cmd_db_credits(email, delta)
+
+    if act == "verify_email":
+        email = action.get("email", "").strip()
+        if not email:
+            return "❌ No email address"
+        return _cmd_db_verify_email(email)
+
+    if act == "unverify_email":
+        email = action.get("email", "").strip()
+        if not email:
+            return "❌ No email address"
+        return _cmd_db_unverify_email(email)
+
+    if act == "user_details":
+        email = action.get("email", "").strip()
+        if not email:
+            return "❌ No email address"
+        return _cmd_db_user(email)
+
+    if act == "chat":
+        return action.get("message", "👋")
+
+    log.warning("_execute_action: unknown action %r", act)
+    return f"❓ Unknown action: {act}"
+
+
 # ── Public parse entrypoint ──────────────────────────────────────────────────
 
 def parse_and_run(text: str) -> str:
     """Parse admin command text, run it, return a reply string.
+
+    Precision / dangerous commands use exact-match parsing to avoid AI
+    misinterpretation (raw SQL, Railway vars, Stripe, post song N).
+    Everything else goes through Claude Haiku for natural language handling.
 
     Special sentinels returned for async actions the caller must handle:
       __POST__:<message>
@@ -558,105 +700,44 @@ def parse_and_run(text: str) -> str:
     if tl == "help":
         return HELP_TEXT
 
-    if tl == "status":
-        return _cmd_status()
+    # ── Precision commands — exact match, bypass AI ───────────────────────────
 
-    if tl == "logs":
-        return _cmd_logs()
-
-    if tl == "redeploy":
-        return _cmd_redeploy()
-
-    # var set KEY=VALUE
-    m = re.match(r'^var\s+set\s+(\S+)=(.+)$', t, re.IGNORECASE)
-    if m:
-        return _cmd_var_set(m.group(1).strip(), m.group(2).strip())
-
-    # var get KEY
-    m = re.match(r'^var\s+get\s+(\S+)$', t, re.IGNORECASE)
-    if m:
-        return _cmd_var_get(m.group(1).strip())
-
-    # stripe product "Name" £9.99 or $9.99 or 9.99
-    m = re.match(r'^stripe\s+product\s+"([^"]+)"\s+[£$]?(\d+(?:\.\d+)?)\s*$', t, re.IGNORECASE)
-    if m:
-        amount_pence = int(round(float(m.group(2)) * 100))
-        return _cmd_stripe_product(m.group(1), amount_pence)
-
-    if re.match(r'^stripe\s+list$', t, re.IGNORECASE):
-        return _cmd_stripe_list()
-
-    # db query "SQL" — read-only SELECT
-    m = re.match(r'^db\s+query\s+"(.+)"$', t, re.IGNORECASE | re.DOTALL)
-    if m:
-        return _cmd_db_query(m.group(1))
-
-    # db exec "SQL" — any write SQL
+    # db exec / db query — raw SQL (too dangerous to let AI interpret)
     m = re.match(r'^db\s+exec\s+"(.+)"$', t, re.IGNORECASE | re.DOTALL)
     if m:
         return _cmd_db_exec(m.group(1))
 
-    # db user EMAIL
-    m = re.match(r'^db\s+user\s+(\S+)$', t, re.IGNORECASE)
+    m = re.match(r'^db\s+query\s+"(.+)"$', t, re.IGNORECASE | re.DOTALL)
     if m:
-        return _cmd_db_user(m.group(1))
+        return _cmd_db_query(m.group(1))
 
-    # db verify EMAIL
-    m = re.match(r'^db\s+verify\s+(\S+)$', t, re.IGNORECASE)
+    # var set/get — Railway env vars (exact key=value required)
+    m = re.match(r'^var\s+set\s+(\S+)=(.+)$', t, re.IGNORECASE)
     if m:
-        return _cmd_db_verify_email(m.group(1))
+        return _cmd_var_set(m.group(1).strip(), m.group(2).strip())
 
-    # db unverify EMAIL
-    m = re.match(r'^db\s+unverify\s+(\S+)$', t, re.IGNORECASE)
+    m = re.match(r'^var\s+get\s+(\S+)$', t, re.IGNORECASE)
     if m:
-        return _cmd_db_unverify_email(m.group(1))
+        return _cmd_var_get(m.group(1).strip())
 
-    # db fix youtube EMAIL
-    m = re.match(r'^db\s+fix\s+youtube\s+(\S+)$', t, re.IGNORECASE)
+    # stripe — exact amount parsing
+    m = re.match(r'^stripe\s+product\s+"([^"]+)"\s+[£$]?(\d+(?:\.\d+)?)\s*$', t, re.IGNORECASE)
     if m:
-        return _cmd_db_fix_youtube(m.group(1))
+        return _cmd_stripe_product(m.group(1), int(round(float(m.group(2)) * 100)))
 
-    # db credits EMAIL +/-N  or  db credits EMAIL N
-    m = re.match(r'^db\s+credits\s+(\S+)\s+([+-]?\d+)$', t, re.IGNORECASE)
-    if m:
-        try:
-            delta = int(m.group(2))
-        except ValueError:
-            return "❌ Invalid credit amount"
-        return _cmd_db_credits(m.group(1), delta)
+    if re.match(r'^stripe\s+list$', t, re.IGNORECASE):
+        return _cmd_stripe_list()
 
-    # email USER@EMAIL.COM Subject | Body
-    # email all/free/paid Subject | Body
-    m = re.match(r'^email\s+(\S+)\s+(.+)$', t, re.IGNORECASE | re.DOTALL)
-    if m:
-        target = m.group(1).strip()
-        message = m.group(2).strip()
-        # Split on first " | " to get subject and body
-        if " | " in message:
-            subject_part, body_part = message.split(" | ", 1)
-        else:
-            subject_part = "A message from Zeus Beats"
-            body_part = message
-        subject_part = subject_part.strip()
-        body_part = body_part.strip()
-        if target.lower() in ("all", "free", "paid"):
-            return _cmd_email_bulk(target.lower(), subject_part, body_part)
-        return _cmd_email_single(target, subject_part, body_part)
-
-    # post song VARIANT_ID  (must be checked before generic post)
+    # post song VARIANT_ID — numeric ID must be exact
     m = re.match(r'^post\s+song\s+(\d+)$', t, re.IGNORECASE)
     if m:
         return f"__POST_SONG__:{m.group(1)}"
 
-    # post <message> — everything after "post ", no quotes required, max 4096 chars
-    m = re.match(r'^post\s+(.+)$', t, re.IGNORECASE | re.DOTALL)
-    if m:
-        msg = m.group(1).strip()[:4096]
-        return f"__POST__:{msg}"
-
-    # Unknown admin command — do NOT fall through to Claude AI
-    log.warning("telegram_admin: unrecognised command: %r", t[:100])
-    return f"❓ Unknown command: <code>{t[:80]}</code>\n\nType <code>help</code> for available commands."
+    # ── Everything else → Claude Haiku natural language ───────────────────────
+    log.info("telegram_admin: routing to AI — %r", t[:80])
+    action = _ai_parse(t)
+    log.info("telegram_admin: AI action=%r", action)
+    return _execute_action(action)
 
 
 # ── Log buffer setup ─────────────────────────────────────────────────────────
