@@ -143,6 +143,23 @@ def sanitize_inspired_by_descriptors(raw: str | None) -> str | None:
     return ", ".join(safe_parts)[:500] or None
 
 
+def _blend_genre_styles(style_a: str, style_b: str, ratio: int) -> str:
+    """Blend two genre style strings weighted by ratio (0=all A, 100=all B). Max 1000 chars."""
+    parts_a = [p.strip() for p in style_a.split(",") if p.strip()]
+    parts_b = [p.strip() for p in style_b.split(",") if p.strip()]
+    count_a = max(1, round(len(parts_a) * (100 - ratio) / 100))
+    count_b = max(1, round(len(parts_b) * ratio / 100))
+    combined = parts_a[:count_a] + parts_b[:count_b]
+    seen: set[str] = set()
+    result: list[str] = []
+    for part in combined:
+        key = part.lower()
+        if key not in seen:
+            seen.add(key)
+            result.append(part)
+    return ", ".join(result)[:1000]
+
+
 class InsufficientCreditsError(Exception):
     """Raised when a user does not have enough song credits."""
 
@@ -302,6 +319,8 @@ def generate_multiple_variants(
     is_admin: bool = False,
     inspired_by_descriptors: str | None = None,
     animate_cover: bool = True,
+    genre_b: str | None = None,
+    blend_ratio: int | None = None,
 ) -> dict:
     """Generate the same lyrics in multiple genres. Costs len(genres) credits.
     Admin users bypass credit checks entirely."""
@@ -331,22 +350,29 @@ def generate_multiple_variants(
     variants = []
     for genre in valid_genres:
         style = GENRE_PRESETS[genre]
+        # Apply genre blend if requested
+        if genre_b and genre_b in GENRE_PRESETS:
+            ratio = max(0, min(100, blend_ratio or 50))
+            style = _blend_genre_styles(style, GENRE_PRESETS[genre_b], ratio)
+            logger.info("genre_blend: %s × %s ratio=%d — blended style len=%d", genre, genre_b, ratio, len(style))
         if tempo_suffix:
             style = f"{style}, {tempo_suffix}"
         safe_inspired_by = sanitize_inspired_by_descriptors(inspired_by_descriptors)
         if safe_inspired_by:
             style = f"{style}, {safe_inspired_by}"
         style = f"{style}, {random.choice(RANDOM_PRODUCTION)}"
+        # Genre tag encodes the blend so the frontend can display "Soul × Grime"
+        genre_tag = f"{genre}__{genre_b}" if genre_b and genre_b in GENRE_PRESETS else genre
         result = generate_song_variant(
             user_id=user_id,
             lyric_id=lyric_id,
             style_prompt=style,
-            genre_tag=genre,
+            genre_tag=genre_tag,
             db_path=db_path,
             extra_suno_params=extra_suno_params,
             is_admin=is_admin,
             animate_cover=animate_cover,
         )
-        variants.append({"genre": genre, **result})
+        variants.append({"genre": genre_tag, **result})
 
     return {"variants": variants, "count": len(variants)}

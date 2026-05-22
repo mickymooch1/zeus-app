@@ -2124,6 +2124,8 @@ class SongsGenerateRequest(BaseModel):
     negative_tags: str | None = Field(default=None, max_length=500)  # → sunoParams.negative_tags
     song_title: str | None = None        # optional user-supplied title; overrides AI-generated title
     animate_cover: bool = True           # generate Kling animated video after song completes
+    genre_b: str | None = None           # second genre for fusion blend mode
+    blend_ratio: int | None = None       # 0–100: how much of genre_b vs genre_a (default 50)
 
 
 @app.post("/api/songs/generate")
@@ -2179,7 +2181,7 @@ async def songs_generate(
                 song_title=body.song_title or None,
             )
         else:
-            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres))
+            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio)
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
@@ -2274,6 +2276,8 @@ async def songs_generate(
             is_admin=is_admin,
             inspired_by_descriptors=safe_inspired_by,
             animate_cover=body.animate_cover,
+            genre_b=body.genre_b or None,
+            blend_ratio=body.blend_ratio,
         )
         log.info(
             "songs_generate: Apiframe submission ok user_id=%s lyric_id=%s variants=%r",

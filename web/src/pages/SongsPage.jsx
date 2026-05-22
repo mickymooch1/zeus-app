@@ -8,7 +8,16 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','electronicfunk','syntheticpop'];
 const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop' };
-const gLabel = (g) => GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
+const gLabel = (g) => {
+  if (!g) return '';
+  if (g.includes('__')) {
+    const [a, b] = g.split('__');
+    const la = GENRE_LABEL[a] || a.charAt(0).toUpperCase() + a.slice(1);
+    const lb = GENRE_LABEL[b] || b.charAt(0).toUpperCase() + b.slice(1);
+    return `${la} × ${lb}`;
+  }
+  return GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
+};
 
 const SONG_PACKS = [
   { pack: 'song_pack_099', label: '2 Songs',  price: '£0.99' },
@@ -689,6 +698,10 @@ export default function SongsPage() {
   const [showAdvanced, setShowAdvanced]   = useState(() => window.innerWidth >= 600);
   const [vocalGender, setVocalGender]     = useState('');
   const [accent, setAccent]               = useState('');
+  // Genre blend
+  const [genreBlend, setGenreBlend]       = useState(false);
+  const [genreB, setGenreB]               = useState('');
+  const [blendRatio, setBlendRatio]       = useState(50);
   const [creativity, setCreativity]       = useState(60);
   const [styleWeight, setStyleWeight]     = useState(60);
   const [tempo, setTempo]                 = useState('');
@@ -974,6 +987,8 @@ export default function SongsPage() {
             explicit: explicit || undefined,
             instrumental: !vocals || undefined,
             negative_tags: negativeTags.trim() || undefined,
+            genre_b: genreBlend && genreB ? genreB : undefined,
+            blend_ratio: genreBlend && genreB ? blendRatio : undefined,
           } : {}),
         });
       } else {
@@ -994,6 +1009,8 @@ export default function SongsPage() {
             explicit: explicit || undefined,
             instrumental: !vocals || undefined,
             negative_tags: negativeTags.trim() || undefined,
+            genre_b: genreBlend && genreB ? genreB : undefined,
+            blend_ratio: genreBlend && genreB ? blendRatio : undefined,
           } : {}),
         });
       }
@@ -1892,6 +1909,55 @@ export default function SongsPage() {
                     style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '7px 10px', color: '#c4b5fd', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
                   />
                   {negativeTags.length > 400 && <span style={{ fontSize: 10, color: '#f59e0b', float: 'right', marginTop: 3 }}>{500 - negativeTags.length} chars left</span>}
+                </div>
+
+                {/* Genre Blend */}
+                <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: genreBlend ? 14 : 0 }}>
+                    <div
+                      onClick={() => { setGenreBlend(v => !v); if (genreBlend) setGenreB(''); }}
+                      style={{ width: 36, height: 20, borderRadius: 10, background: genreBlend ? '#00f0ff' : 'rgba(255,255,255,0.08)', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}
+                    >
+                      <div style={{ position: 'absolute', top: 3, left: genreBlend ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: genreBlend ? '#000' : '#fff', transition: 'left 0.2s' }} />
+                    </div>
+                    <span style={{ fontSize: 12, color: genreBlend ? '#00f0ff' : '#555', fontWeight: 600 }}>Blend Genres</span>
+                    {genreBlend && genreB && selGenres.size > 0 && (
+                      <span style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 20, background: 'linear-gradient(90deg, rgba(0,240,255,0.15), rgba(244,114,182,0.15))', border: '1px solid rgba(0,240,255,0.3)', fontSize: 11, fontWeight: 700, color: '#e0f7ff' }}>
+                        {gLabel([...selGenres][0])} × {gLabel(genreB)}
+                      </span>
+                    )}
+                  </label>
+
+                  {genreBlend && (
+                    <div style={{ paddingLeft: 46 }}>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>Genre B</p>
+                      <select
+                        value={genreB}
+                        onChange={e => setGenreB(e.target.value)}
+                        style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: genreB ? '#00f0ff' : '#555', fontSize: 13, outline: 'none', marginBottom: genreB ? 14 : 0 }}
+                      >
+                        <option value="">Pick a second genre…</option>
+                        {GENRES.filter(g => !selGenres.has(g)).map(g => (
+                          <option key={g} value={g}>{gLabel(g)}</option>
+                        ))}
+                      </select>
+
+                      {genreB && (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <span style={{ fontSize: 12, color: '#00f0ff', fontWeight: 600 }}>{selGenres.size > 0 ? gLabel([...selGenres][0]) : 'Genre A'}</span>
+                            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{100 - blendRatio}% / {blendRatio}%</span>
+                            <span style={{ fontSize: 12, color: '#f472b6', fontWeight: 600 }}>{gLabel(genreB)}</span>
+                          </div>
+                          <input
+                            type="range" min={0} max={100} value={blendRatio}
+                            onChange={e => setBlendRatio(Number(e.target.value))}
+                            style={{ width: '100%', cursor: 'pointer', accentColor: '#f472b6' }}
+                          />
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Tempo */}

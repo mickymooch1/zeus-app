@@ -96,7 +96,7 @@ _EXPLICIT_ADDENDUM = (
 )
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None) -> dict:
     if instrumental:
         title = song_title or "Instrumental"
         conn = db._conn(db_path)
@@ -121,44 +121,60 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
     if explicit:
         system += _EXPLICIT_ADDENDUM
 
+    # Genre blend fusion prompt (prepend before brief)
+    fusion_prefix = ""
+    if genre_b and genres:
+        genre_a = genres[0]
+        ratio_a = 100 - (blend_ratio or 50)
+        ratio_b = blend_ratio or 50
+        fusion_prefix = (
+            f"Create a FUSION song that authentically blends {genre_a} ({ratio_a}%) and {genre_b} ({ratio_b}%). "
+            "The lyrics, flow, cultural references and vocal style should genuinely merge both worlds — "
+            "not just alternate between them. Think like a producer who lives in both scenes.\n\n"
+        )
+
     # Build enriched user message with randomised creative directives
     if brief.strip():
-        user_message = brief
+        user_message = fusion_prefix + brief
     else:
         genre_hint = f"Genre: {', '.join(genres)}. " if genres else ""
-        user_message = f"{genre_hint}No concept specified — invent a compelling original song concept yourself."
+        if genre_b:
+            genre_hint = f"Genre blend: {genres[0]} × {genre_b}. "
+        user_message = fusion_prefix + f"{genre_hint}No concept specified — invent a compelling original song concept yourself."
     user_message += (
         f"\n\nTheme: {theme}. Song structure: {structure}. Mood: {mood}. "
         "Make this song completely unique and unlike anything generated before."
     )
-    if genres:
+    all_genres = (genres or []) + ([genre_b] if genre_b else [])
+    if all_genres:
         vocab_lines = [
             f"Use authentic {g} vocabulary and slang: {GENRE_VOCABULARY[g]}"
-            for g in genres
+            for g in all_genres
             if g in GENRE_VOCABULARY
         ]
         if vocab_lines:
             user_message += "\n" + " | ".join(vocab_lines)
 
+    model = "claude-sonnet-4-6" if genre_b else "claude-haiku-4-5-20251001"
     logger.info(
-        "generate_lyrics: calling Haiku — user=%s explicit=%s theme=%r mood=%r brief=%r",
-        user_id, explicit, theme, mood, brief[:200],
+        "generate_lyrics: calling %s — user=%s explicit=%s genre_b=%r blend_ratio=%r theme=%r mood=%r brief=%r",
+        model, user_id, explicit, genre_b, blend_ratio, theme, mood, brief[:200],
     )
 
     try:
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=model,
             max_tokens=1500,
             temperature=1.0,
             system=system,
             messages=[{"role": "user", "content": user_message}],
         )
     except Exception:
-        logger.exception("generate_lyrics: Haiku API call failed — user=%s brief=%r", user_id, brief[:200])
+        logger.exception("generate_lyrics: %s API call failed — user=%s brief=%r", model, user_id, brief[:200])
         raise
 
     raw = response.content[0].text.strip()
-    logger.info("generate_lyrics: Haiku response received, length=%d, stop_reason=%s", len(raw), response.stop_reason)
+    logger.info("generate_lyrics: %s response received, length=%d, stop_reason=%s", model, len(raw), response.stop_reason)
     logger.debug("generate_lyrics: raw response: %s", raw[:500])
 
     if raw.startswith("```"):
