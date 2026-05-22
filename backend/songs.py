@@ -143,21 +143,15 @@ def sanitize_inspired_by_descriptors(raw: str | None) -> str | None:
     return ", ".join(safe_parts)[:500] or None
 
 
-def _blend_genre_styles(style_a: str, style_b: str, ratio: int) -> str:
-    """Blend two genre style strings weighted by ratio (0=all A, 100=all B). Max 1000 chars."""
-    parts_a = [p.strip() for p in style_a.split(",") if p.strip()]
-    parts_b = [p.strip() for p in style_b.split(",") if p.strip()]
-    count_a = max(1, round(len(parts_a) * (100 - ratio) / 100))
-    count_b = max(1, round(len(parts_b) * ratio / 100))
-    combined = parts_a[:count_a] + parts_b[:count_b]
-    seen: set[str] = set()
-    result: list[str] = []
-    for part in combined:
-        key = part.lower()
-        if key not in seen:
-            seen.add(key)
-            result.append(part)
-    return ", ".join(result)[:1000]
+def _dj_transition_style(style_a: str, style_b: str) -> str:
+    """Build a DJ-transition style string that alternates between two genre styles."""
+    return (
+        f"starts as {style_a}, "
+        f"transitions DJ mix style into {style_b}, "
+        f"switches back to {style_a}, "
+        f"finishes with {style_b}, "
+        "seamless DJ transitions between sections, genre switching mix"
+    )[:1000]
 
 
 class InsufficientCreditsError(Exception):
@@ -350,11 +344,10 @@ def generate_multiple_variants(
     variants = []
     for genre in valid_genres:
         style = GENRE_PRESETS[genre]
-        # Apply genre blend if requested
+        # Apply DJ-transition style for genre blend
         if genre_b and genre_b in GENRE_PRESETS:
-            ratio = max(0, min(100, blend_ratio or 50))
-            style = _blend_genre_styles(style, GENRE_PRESETS[genre_b], ratio)
-            logger.info("genre_blend: %s × %s ratio=%d — blended style len=%d", genre, genre_b, ratio, len(style))
+            style = _dj_transition_style(style, GENRE_PRESETS[genre_b])
+            logger.info("genre_blend: %s × %s DJ-transition style len=%d", genre, genre_b, len(style))
         if tempo_suffix:
             style = f"{style}, {tempo_suffix}"
         safe_inspired_by = sanitize_inspired_by_descriptors(inspired_by_descriptors)

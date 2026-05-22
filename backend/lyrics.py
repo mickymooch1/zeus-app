@@ -121,17 +121,30 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
     if explicit:
         system += _EXPLICIT_ADDENDUM
 
-    # Genre blend fusion prompt (prepend before brief)
+    # DJ-transition structure for genre blend songs
     fusion_prefix = ""
+    dj_structure_override = None
     if genre_b and genres:
         genre_a = genres[0]
-        ratio_a = 100 - (blend_ratio or 50)
-        ratio_b = blend_ratio or 50
-        fusion_prefix = (
-            f"Create a FUSION song that authentically blends {genre_a} ({ratio_a}%) and {genre_b} ({ratio_b}%). "
-            "The lyrics, flow, cultural references and vocal style should genuinely merge both worlds — "
-            "not just alternate between them. Think like a producer who lives in both scenes.\n\n"
+        dj_structure_override = (
+            f"[Intro - {genre_a} style]\n"
+            f"[Verse 1 - full {genre_a} energy]\n"
+            f"[Transition - mixing in {genre_b}]\n"
+            f"[Chorus - {genre_b} takes over]\n"
+            f"[Verse 2 - back to {genre_a}]\n"
+            f"[Bridge - genres collide]\n"
+            f"[Outro - {genre_b} finish]"
         )
+        fusion_prefix = (
+            f"Structure this like a DJ mix — start fully in {genre_a} style, build energy, "
+            f"then transition into {genre_b} like a DJ dropping a new track, then mix back to {genre_a}, "
+            f"finish with {genre_b}. Each section should sound distinctly like its genre — not blended, "
+            f"but SWITCHING like a DJ. Use genre-specific vocabulary, flow and energy for each section.\n\n"
+        )
+
+    # Override structure when doing a DJ transition
+    if dj_structure_override:
+        structure = dj_structure_override
 
     # Build enriched user message with randomised creative directives
     if brief.strip():
@@ -139,7 +152,7 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
     else:
         genre_hint = f"Genre: {', '.join(genres)}. " if genres else ""
         if genre_b:
-            genre_hint = f"Genre blend: {genres[0]} × {genre_b}. "
+            genre_hint = f"Genre mix: {genres[0]} × {genre_b} DJ transition. "
         user_message = fusion_prefix + f"{genre_hint}No concept specified — invent a compelling original song concept yourself."
     user_message += (
         f"\n\nTheme: {theme}. Song structure: {structure}. Mood: {mood}. "
