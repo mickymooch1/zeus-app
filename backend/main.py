@@ -242,6 +242,11 @@ def _send_task_email(
 _RAILWAY = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
 _REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "").strip() == "1"
 
+SOCIAL_CRAWLERS = [
+    "facebookexternalhit", "Twitterbot", "LinkedInBot",
+    "WhatsApp", "Instagram", "TelegramBot", "Slackbot",
+]
+
 print("zeus main.py: tunnel ok", file=sys.stderr, flush=True)
 
 logging.basicConfig(
@@ -4432,6 +4437,38 @@ if _beats_dist.exists():
         app.mount("/.well-known", StaticFiles(directory=str(_well_known_dir)), name="well-known")
 
 
+_OG_GENRE_LABELS = {
+    "hiphop": "Hip-Hop", "rnb": "R&B", "soul": "Soul", "pop": "Pop",
+    "rock": "Rock", "blues": "Blues", "jazz": "Jazz", "reggae": "Reggae",
+    "lofi": "Lo-Fi", "edm": "EDM", "drumandbass": "D&B", "grime": "Grime",
+    "ukgarage": "UK Garage", "jungle": "Jungle", "bassline": "Bassline",
+    "house": "House", "techno": "Techno", "loversrock": "Lovers Rock",
+    "ukdrill": "UK Drill", "kpop": "K-Pop", "classical": "Classical",
+    "indie": "Indie", "afrobeats": "Afrobeats", "amapiano": "Amapiano",
+    "afroswing": "Afroswing", "country": "Country", "acoustic": "Acoustic",
+    "hyperpop": "Hyperpop",
+}
+
+
+def _get_public_song_for_og(variant_id: int):
+    """Return minimal song dict for OG tag injection, or None if not found/public."""
+    db_path = db.get_db_path()
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            """SELECT sv.genre_tag, sv.image_url AS cover_url, sv.mp3_url, l.title, u.artist_name
+               FROM song_variants sv
+               JOIN lyrics l ON l.id = sv.lyric_id
+               JOIN users  u ON u.id = sv.user_id
+               WHERE sv.id = ? AND sv.is_public = 1 AND sv.status = 'complete'""",
+            (variant_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str, request: Request):
     import re as _re
@@ -4448,7 +4485,42 @@ async def serve_spa(full_path: str, request: Request):
 
     index_path = dist / "index.html"
     if is_beats and index_path.exists():
+        import html as _html_mod
         html = index_path.read_text(encoding="utf-8")
+
+        # ── Social crawler OG injection for /discover/<id> ───────────────────
+        ua = request.headers.get("user-agent", "")
+        discover_match = _re.match(r"^discover/(\d+)$", full_path)
+        if discover_match and any(bot in ua for bot in SOCIAL_CRAWLERS):
+            vid = int(discover_match.group(1))
+            song = _get_public_song_for_og(vid)
+            if song:
+                genre_display = _OG_GENRE_LABELS.get(song["genre_tag"], song["genre_tag"] or "")
+                safe_title  = _html_mod.escape(f"{song['title'] or 'Untitled'} — Zeus Beats")
+                safe_desc   = _html_mod.escape(
+                    f"AI generated {genre_display} song. Make your own free at zeusbeats.com"
+                )
+                page_url  = f"https://zeusbeats.com/discover/{vid}"
+                cover_url = song.get("cover_url") or ""
+                mp3_url   = song.get("mp3_url") or ""
+                og_block  = (
+                    f"<title>{safe_title}</title>\n"
+                    f'    <meta property="og:title" content="{safe_title}">\n'
+                    f'    <meta property="og:description" content="{safe_desc}">\n'
+                    f'    <meta property="og:url" content="{page_url}">\n'
+                    f'    <meta property="og:type" content="music.song">\n'
+                    f'    <meta property="og:site_name" content="Zeus Beats">\n'
+                    + (f'    <meta property="og:image" content="{cover_url}">\n' if cover_url else "")
+                    + (f'    <meta property="og:audio" content="{mp3_url}">\n' if mp3_url else "")
+                    + f'    <meta name="twitter:card" content="summary_large_image">\n'
+                    f'    <meta name="twitter:title" content="{safe_title}">\n'
+                    f'    <meta name="twitter:description" content="{safe_desc}">\n'
+                    + (f'    <meta name="twitter:image" content="{cover_url}">' if cover_url else "")
+                )
+                html = _re.sub(r"<title>[^<]*</title>", og_block, html, count=1)
+                return HTMLResponse(html)
+
+        # ── Generic Zeus Beats meta tags ─────────────────────────────────────
         html = _re.sub(
             r"<title>[^<]*</title>",
             (
