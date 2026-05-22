@@ -2152,6 +2152,9 @@ async def songs_generate(
     db_path = db.get_db_path()
     user_id = current_user["id"]
 
+    if body.genre_b:
+        log.info("Genre blend request: genre_b=%s blend_ratio=%s user_id=%s", body.genre_b, body.blend_ratio, user_id)
+
     # Lazy-init free credits for users with no credits row yet
     # Free users get a one-time signup bonus only — monthly_allowance=0 prevents any periodic refill
     credits_row = db.get_song_credits(db_path, user_id)
@@ -2246,6 +2249,7 @@ async def songs_generate(
             "Jamaican Rasta":       "deep Rastafarian patois, heavy Jamaican roots accent, Jah pronunciation, conscious spiritual Rasta delivery, thick Caribbean brogue",
             "West Coast G-Funk":    "smooth Compton California accent, laid back West Coast drawl, G-funk delivery, Southern California pronunciation",
             "British Street Soul":  "smooth British urban soul accent, London R&B pronunciation, inner city British warmth, distinctly UK street soul delivery",
+            "Jamaican Dancehall":   "fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation",
         }
         style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
     if body.explicit:

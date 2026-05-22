@@ -54,6 +54,8 @@ GENRE_PORTRAIT_PROMPTS = {
     "jazz":            "professional portrait photo, jazz musician with saxophone, clear frontal face, warm amber club lighting, cool sophisticated expression, photorealistic",
     "electronicfunk":  "professional portrait photo, electronic funk artist, clear frontal face, warm purple and orange studio lighting, funky confident expression, photorealistic",
     "syntheticpop":    "professional portrait photo, synthetic pop artist, clear frontal face, bright neon pink and blue studio lighting, glamorous energetic expression, photorealistic",
+    "ragga":           "Black Jamaican musician, professional portrait photo, ragga artist, clear frontal face, warm tropical lighting, energetic aggressive expression, photorealistic",
+    "dubstep":         "professional portrait photo, dubstep producer, clear frontal face, dark blue and purple studio lighting, intense focused expression, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"

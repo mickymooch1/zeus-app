@@ -60,6 +60,8 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "jazz":            "cinematic album cover, Black jazz musician playing saxophone in foreground, smoky intimate jazz club behind, warm amber and gold lighting, vintage microphone, brick walls, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
     "electronicfunk":  "cinematic album cover, smooth Black musician with vocoder/talk box in foreground, 80s retro cityscape at night behind, warm amber and purple neon lights, classic electro funk aesthetic, vintage synth equipment, ultra detailed professional music artwork",
     "syntheticpop":    "cinematic album cover, glamorous pop artist in foreground, bright neon pink and blue futuristic cityscape behind, glossy synthetic aesthetic, 80s inspired colour palette, ultra detailed professional music artwork",
+    "ragga":           "cinematic album cover, Black Jamaican ragga MC in foreground, vibrant tropical Caribbean setting behind, bright colours, dancehall energy, palm trees, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
+    "dubstep":         "cinematic album cover, dubstep producer at decks in foreground, dark industrial warehouse behind, blue and purple neon lights, massive speakers, bass wave visual effects, ultra detailed professional music artwork",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"

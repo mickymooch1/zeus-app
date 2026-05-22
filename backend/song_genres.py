@@ -42,4 +42,6 @@ GENRE_PRESETS = {
     "jazz":            "jazz, smooth improvised saxophone, upright bass walking lines, brushed drums, jazz piano chords, bebop influence, warm intimate club sound, 120 BPM swing",
     "electronicfunk":  "electronic funk, talk box vocoder vocals, smooth slow funk groove, electronic synthesizer bassline, Roger Troutman style, 95 BPM, soulful R&B feeling, warm analogue synths, silky smooth production, 80s electro funk, vocoder robot voice effect, late night smooth groove",
     "syntheticpop":    "synthetic pop, bright catchy synthesizers, four on the floor beat, polished production, euphoric pop hooks, 128 BPM, 80s synth pop influence, glossy electronic sound, irresistible chorus",
+    "ragga":           "ragga, dancehall reggae, fast digital riddim, Jamaican ragga vocals, aggressive dancehall flow, 90 BPM, bashment energy, digital drum machine, Jamaican patois lyrics, ragga MC style",
+    "dubstep":         "dubstep, massive wobble bass, half time drum pattern, 140 BPM, dark electronic atmosphere, bass drop, heavy sub bass, UK dubstep sound, cinematic tension building, Skrillex Benga influenced",
 }

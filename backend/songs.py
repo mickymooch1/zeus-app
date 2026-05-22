@@ -61,6 +61,8 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "jazz":            "jazz saxophonist playing expressively, swaying with the music, warm amber club lighting, smooth sophisticated movement, fingers moving on keys",
     "electronicfunk":  "electronic funk performer dancing groovily, robotic funky movement, warm purple neon lighting, infectious rhythm energy",
     "syntheticpop":    "synthetic pop performer dancing energetically, precise choreographed movement, bright pink and blue neon lights, glamorous high energy performance",
+    "ragga":           "ragga MC performing energetically, aggressive dancehall movement, tropical warm lighting, high energy Caribbean performance",
+    "dubstep":         "dubstep DJ performing, intense head nodding, dark blue purple lighting, massive bass drop energy",
 }
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]
