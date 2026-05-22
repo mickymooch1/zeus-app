@@ -447,8 +447,27 @@ export default function LandingPage() {
             <Link to="/data-deletion">{t('landing.footerDataDeletion')}</Link>
             <Link to="/contact">{t('landing.footerContact')}</Link>
           </div>
+          <a
+            href="https://t.me/zeusbeatsmusic"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="footer-tg"
+          >
+            ✈️ Join our Telegram
+          </a>
         </div>
       </footer>
+
+      {/* Floating Telegram button — mobile only */}
+      <a
+        href="https://t.me/zeusbeatsmusic"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="tg-float"
+        aria-label="Join our Telegram"
+      >
+        ✈️ Telegram
+      </a>
     </div>
   );
 }

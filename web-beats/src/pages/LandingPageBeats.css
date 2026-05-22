@@ -819,3 +819,54 @@
   .lp .footer-inner { flex-direction: column; text-align: center; }
   .lp .footer-links { justify-content: center; }
 }
+
+/* ─── TELEGRAM ─── */
+.lp .footer-tg {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  border-radius: 20px;
+  background: rgba(41,182,246,0.12);
+  border: 1px solid rgba(41,182,246,0.35);
+  color: #29b6f6;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+}
+.lp .footer-tg:hover {
+  background: rgba(41,182,246,0.22);
+  box-shadow: 0 0 14px rgba(41,182,246,0.3);
+  color: #29b6f6;
+}
+
+/* Floating button — mobile only */
+.lp .tg-float {
+  display: none;
+}
+@media (max-width: 900px) {
+  .lp .tg-float {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: fixed;
+    bottom: 20px;
+    right: 16px;
+    z-index: 999;
+    padding: 12px 18px;
+    border-radius: 28px;
+    background: #29b6f6;
+    color: #000;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 4px 20px rgba(41,182,246,0.45);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .lp .tg-float:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 28px rgba(41,182,246,0.6);
+  }
+}
