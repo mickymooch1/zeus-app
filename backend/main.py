@@ -4472,6 +4472,14 @@ def _get_public_song_for_og(variant_id: int):
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str, request: Request):
     import re as _re
+    import html as _html_mod
+
+    # Safety guard: registered API routes already take precedence, but an explicit
+    # check ensures a misconfigured or future route never serves SPA HTML for API calls.
+    _API_PREFIXES = ("api/", "auth/", "webhooks/", "files/", "billing/", "ws", "socket")
+    if any(full_path.startswith(p) for p in _API_PREFIXES):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+
     host = request.headers.get("host", "")
     is_beats = "zeusbeats" in host
 
@@ -4485,43 +4493,52 @@ async def serve_spa(full_path: str, request: Request):
 
     index_path = dist / "index.html"
     if is_beats and index_path.exists():
-        import html as _html_mod
-        html = index_path.read_text(encoding="utf-8")
+        page_html = index_path.read_text(encoding="utf-8")
 
         # ── Social crawler OG injection for /discover/<id> ───────────────────
         ua = request.headers.get("user-agent", "")
         discover_match = _re.match(r"^discover/(\d+)$", full_path)
         if discover_match and any(bot in ua for bot in SOCIAL_CRAWLERS):
-            vid = int(discover_match.group(1))
-            song = _get_public_song_for_og(vid)
-            if song:
-                genre_display = _OG_GENRE_LABELS.get(song["genre_tag"], song["genre_tag"] or "")
-                safe_title  = _html_mod.escape(f"{song['title'] or 'Untitled'} — Zeus Beats")
-                safe_desc   = _html_mod.escape(
-                    f"AI generated {genre_display} song. Make your own free at zeusbeats.com"
-                )
-                page_url  = f"https://zeusbeats.com/discover/{vid}"
-                cover_url = song.get("cover_url") or ""
-                mp3_url   = song.get("mp3_url") or ""
-                og_block  = (
-                    f"<title>{safe_title}</title>\n"
-                    f'    <meta property="og:title" content="{safe_title}">\n'
-                    f'    <meta property="og:description" content="{safe_desc}">\n'
-                    f'    <meta property="og:url" content="{page_url}">\n'
-                    f'    <meta property="og:type" content="music.song">\n'
-                    f'    <meta property="og:site_name" content="Zeus Beats">\n'
-                    + (f'    <meta property="og:image" content="{cover_url}">\n' if cover_url else "")
-                    + (f'    <meta property="og:audio" content="{mp3_url}">\n' if mp3_url else "")
-                    + f'    <meta name="twitter:card" content="summary_large_image">\n'
-                    f'    <meta name="twitter:title" content="{safe_title}">\n'
-                    f'    <meta name="twitter:description" content="{safe_desc}">\n'
-                    + (f'    <meta name="twitter:image" content="{cover_url}">' if cover_url else "")
-                )
-                html = _re.sub(r"<title>[^<]*</title>", og_block, html, count=1)
-                return HTMLResponse(html)
+            try:
+                vid  = int(discover_match.group(1))
+                song = _get_public_song_for_og(vid)
+                if song:
+                    genre_display = _OG_GENRE_LABELS.get(song["genre_tag"], song["genre_tag"] or "")
+                    safe_title = _html_mod.escape(f"{song['title'] or 'Untitled'} — Zeus Beats")
+                    safe_desc  = _html_mod.escape(
+                        f"AI generated {genre_display} song. Make your own free at zeusbeats.com"
+                    )
+                    page_url  = f"https://zeusbeats.com/discover/{vid}"
+                    cover_url = song.get("cover_url") or ""
+                    mp3_url   = song.get("mp3_url") or ""
+                    parts = [
+                        f"<title>{safe_title}</title>",
+                        f'<meta property="og:title" content="{safe_title}">',
+                        f'<meta property="og:description" content="{safe_desc}">',
+                        f'<meta property="og:url" content="{page_url}">',
+                        f'<meta property="og:type" content="music.song">',
+                        f'<meta property="og:site_name" content="Zeus Beats">',
+                    ]
+                    if cover_url:
+                        parts.append(f'<meta property="og:image" content="{cover_url}">')
+                    if mp3_url:
+                        parts.append(f'<meta property="og:audio" content="{mp3_url}">')
+                    parts += [
+                        f'<meta name="twitter:card" content="summary_large_image">',
+                        f'<meta name="twitter:title" content="{safe_title}">',
+                        f'<meta name="twitter:description" content="{safe_desc}">',
+                    ]
+                    if cover_url:
+                        parts.append(f'<meta name="twitter:image" content="{cover_url}">')
+                    og_block = "\n    ".join(parts)
+                    page_html = _re.sub(r"<title>[^<]*</title>", og_block, page_html, count=1)
+                    return HTMLResponse(page_html)
+            except Exception:
+                log.exception("serve_spa: OG injection failed for /discover/%s — falling through", full_path)
+            # Fall through to generic tags if injection failed
 
         # ── Generic Zeus Beats meta tags ─────────────────────────────────────
-        html = _re.sub(
+        page_html = _re.sub(
             r"<title>[^<]*</title>",
             (
                 '<title>Zeus Beats — Create AI Music in Seconds | 30+ Genres</title>\n'
@@ -4532,10 +4549,10 @@ async def serve_spa(full_path: str, request: Request):
                 '    <meta property="og:url" content="https://zeusbeats.com">\n'
                 '    <meta property="og:type" content="website">'
             ),
-            html,
+            page_html,
             count=1,
         )
-        return HTMLResponse(html)
+        return HTMLResponse(page_html)
     return FileResponse(str(index_path))
 
 

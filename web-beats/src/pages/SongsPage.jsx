@@ -628,12 +628,16 @@ const SongCard = memo(function SongCard({
                 style={{
                   ...actionBtnStyle,
                   width: '100%',
-                  color: isPublic ? '#00f0ff' : '#6b7280',
-                  borderColor: isPublic ? 'rgba(0,240,255,0.55)' : 'rgba(107,114,128,0.4)',
-                  background: isPublic ? 'rgba(0,240,255,0.07)' : 'transparent',
+                  minHeight: 48,
+                  background: 'linear-gradient(135deg, #00f0ff, #ff0099)',
+                  color: '#000',
+                  border: 'none',
+                  fontWeight: 700,
+                  boxShadow: '0 0 15px rgba(0,240,255,0.5)',
+                  opacity: isPublic ? 1 : 0.82,
                 }}
               >
-                {isPublic ? '🌐 Shared on Discover' : '🌐 Share on Discover'}
+                {isPublic ? '🌐 Shared on Discover ✓' : '🌐 Share on Discover'}
               </button>
               {shareToast && (
                 <p style={{ color: shareToast === 'public' ? '#00f0ff' : '#9ca3af', fontSize: 11, marginTop: 4, marginBottom: 0, textAlign: 'center' }}>
