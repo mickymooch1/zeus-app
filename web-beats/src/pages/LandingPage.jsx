@@ -278,6 +278,44 @@ export default function LandingPage() {
 
       <div className="section-divider" />
 
+      {/* DISCOVER */}
+      <section style={{ padding: '80px 24px', textAlign: 'center', background: 'rgba(0,240,255,0.02)' }}>
+        <div className="container" style={{ maxWidth: 640, margin: '0 auto' }}>
+          <div style={{ display: 'inline-block', padding: '4px 14px', borderRadius: 20, background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.25)', fontSize: 12, fontWeight: 700, color: '#00f0ff', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 20 }}>
+            Discover
+          </div>
+          <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 'clamp(24px, 5vw, 40px)', fontWeight: 900, color: '#fff', marginBottom: 14, letterSpacing: '-0.3px' }}>
+            Discover AI Music
+          </h2>
+          <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.6)', marginBottom: 36, lineHeight: 1.6 }}>
+            Listen to songs created by Zeus Beats users from around the world
+          </p>
+          <a
+            href="/discover"
+            style={{
+              display: 'inline-block',
+              padding: '16px 36px',
+              borderRadius: 50,
+              background: 'linear-gradient(135deg, #00f0ff, #ff0099)',
+              color: '#000',
+              fontWeight: 800,
+              fontSize: 16,
+              textDecoration: 'none',
+              fontFamily: "'Orbitron', sans-serif",
+              letterSpacing: '0.02em',
+              boxShadow: '0 0 32px rgba(0,240,255,0.4)',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 0 48px rgba(0,240,255,0.6)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 0 32px rgba(0,240,255,0.4)'; }}
+          >
+            🎵 Browse the Discover Feed
+          </a>
+        </div>
+      </section>
+
+      <div className="section-divider" />
+
       {/* PRICING */}
       <section className="pricing" id="pricing">
         <div className="container">

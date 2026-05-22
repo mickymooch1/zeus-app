@@ -2387,6 +2387,21 @@ export default function SongsPage() {
           </div>
         </div>
       )}
+
+      {/* Floating Discover button */}
+      <a
+        href="/discover"
+        style={{
+          position: 'fixed', bottom: 20, right: 20,
+          background: 'linear-gradient(135deg, #00f0ff, #ff0099)',
+          color: '#000', borderRadius: 50, padding: '12px 20px',
+          fontWeight: 700, fontSize: 14, textDecoration: 'none',
+          zIndex: 100, boxShadow: '0 0 20px rgba(0,240,255,0.5)',
+          fontFamily: "'Orbitron', sans-serif",
+        }}
+      >
+        🎵 Discover
+      </a>
     </>
   );
 }
