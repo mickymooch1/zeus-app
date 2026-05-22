@@ -226,6 +226,7 @@ const SongCard = memo(function SongCard({
   const [downloaded, setDownloaded] = useState(false);
   const [videoErr, setVideoErr] = useState(false);
   const [favToast, setFavToast] = useState(null); // null | 'added' | 'removed'
+  const [igToast, setIgToast]   = useState(false);
   const favToastTimer = useRef(null);
   const handleFavToggle = () => {
     const adding = !isFavourite;
@@ -321,6 +322,18 @@ const SongCard = memo(function SongCard({
         setTimeout(() => setCopied(false), 2000);
       } catch (_) {}
     }
+  };
+
+  const handleInstagram = () => {
+    const a = document.createElement('a');
+    a.href = variant.mp3_url;
+    a.download = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
+    a.click();
+    setIgToast(true);
+    setTimeout(() => setIgToast(false), 6000);
+    setTimeout(() => {
+      if (!window.open('instagram://app')) window.open('https://www.instagram.com');
+    }, 1000);
   };
 
   const dur = variant.duration_seconds;
@@ -546,6 +559,27 @@ const SongCard = memo(function SongCard({
               >
                 {tgPosting ? '…' : tgPosted ? '✓ Sent!' : '✈ Telegram'}
               </button>
+            </div>
+            {/* Row 2.5: Instagram */}
+            <div style={{ marginTop: 8 }}>
+              <button
+                onClick={handleInstagram}
+                style={{
+                  ...actionBtnStyle,
+                  width: '100%',
+                  background: 'linear-gradient(90deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)',
+                  border: 'none',
+                  color: '#fff',
+                  fontWeight: 600,
+                }}
+              >
+                📸 Share to Instagram
+              </button>
+              {igToast && (
+                <p style={{ color: '#fcb045', fontSize: 11, marginTop: 4, marginBottom: 0, textAlign: 'center', lineHeight: 1.4 }}>
+                  Song downloaded! Open Instagram → Create Reel → add your song as audio 🎵
+                </p>
+              )}
             </div>
             {/* Row 3: YouTube + Avatar */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
