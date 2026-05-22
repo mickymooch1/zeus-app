@@ -462,7 +462,7 @@ const SongCard = memo(function SongCard({
   }
 
   return (
-    <div className="song-card-anim" style={S.card}>
+    <div className="song-card-anim" style={isFailed ? { ...S.card, border: '1px solid rgba(248,113,113,0.25)', background: '#180e0e' } : S.card}>
       <div style={{ position: 'relative' }}>
         {displayMusicVideoUrl && !videoErr ? (
           <video
@@ -562,8 +562,8 @@ const SongCard = memo(function SongCard({
 
       <div style={S.cardBody}>
         {isFailed ? (
-          <div style={{ height: 40, display: 'flex', alignItems: 'center' }}>
-            <span style={{ color: '#f87171', fontSize: 12 }}>Generation failed</span>
+          <div style={{ padding: '8px 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: '#f87171', fontSize: 13, fontWeight: 600 }}>Generation failed ❌</span>
           </div>
         ) : (
           <div ref={waveRef} style={{ flex: 1, height: 32, opacity: wsReady ? 1 : 0.15, transition: 'opacity 0.4s', minWidth: 0, marginBottom: 8 }} />
@@ -574,6 +574,25 @@ const SongCard = memo(function SongCard({
           <span style={S.pill}>{gLabel(variant.genre_tag)}</span>
           {durStr && <span style={{ color: '#999', fontSize: 12 }}>{durStr}</span>}
         </div>
+        {isFailed && (
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={() => onDelete(variant.variant_id)}
+              disabled={deleting}
+              style={{
+                width: '100%', padding: '8px 0', borderRadius: 6,
+                border: '1px solid rgba(248,113,113,0.5)',
+                background: deleting ? 'rgba(0,0,0,0.2)' : 'rgba(248,113,113,0.06)',
+                color: deleting ? '#888' : '#f87171',
+                fontSize: 12, fontWeight: 600,
+                cursor: deleting ? 'default' : 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {deleting ? 'Deleting…' : '🗑 Delete'}
+            </button>
+          </div>
+        )}
         {!isFailed && variant.mp3_url && (
           <>
             {/* Row 1: Download — full width primary */}
