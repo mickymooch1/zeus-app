@@ -2905,6 +2905,14 @@ async def upload_to_youtube(
             log.warning("upload_to_youtube: invalid_grant — clearing expired YT token for user %s", current_user["id"])
             db.update_user(db_path, current_user["id"], youtube_refresh_token=None)
             raise HTTPException(status_code=401, detail="youtube_reconnect_required")
+        if "exceeded" in exc_str.lower() and "video" in exc_str.lower():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "YouTube daily upload limit reached. Please try again tomorrow or verify "
+                    "your YouTube channel at youtube.com/verify to increase your limit."
+                ),
+            )
         raise HTTPException(status_code=400, detail=exc_str)
     except subprocess.CalledProcessError as exc:
         log.error("upload_to_youtube: ffmpeg failed: %s", exc.stderr)
