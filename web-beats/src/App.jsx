@@ -24,7 +24,6 @@ const RefundPolicyPage   = lazy(() => import('./pages/RefundPolicyPage'));
 const DataDeletionPage   = lazy(() => import('./pages/DataDeletionPage'));
 const SearchPage         = lazy(() => import('./pages/SearchPage'));
 const AdminBeats         = lazy(() => import('./pages/AdminBeats'));
-const HermesAgentPage    = lazy(() => import('./pages/HermesAgentPage'));
 const MixerPage          = lazy(() => import('./pages/MixerPage'));
 const DiscoverPage       = lazy(() => import('./pages/DiscoverPage'));
 const DiscoverSongPage   = lazy(() => import('./pages/DiscoverSongPage'));
@@ -97,14 +96,6 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <AdminBeats />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/hermes"
-              element={
-                <ProtectedRoute>
-                  <HermesAgentPage />
                 </ProtectedRoute>
               }
             />

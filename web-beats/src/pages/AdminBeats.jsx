@@ -74,23 +74,6 @@ export default function AdminBeats() {
           {users.length} registered user{users.length !== 1 ? 's' : ''}
         </p>
 
-        <button
-          type="button"
-          onClick={() => navigate('/admin/hermes')}
-          style={{
-            border: '1px solid rgba(0,240,255,0.28)',
-            background: 'rgba(0,240,255,0.08)',
-            color: '#00f0ff',
-            borderRadius: 8,
-            padding: '10px 14px',
-            fontWeight: 800,
-            cursor: 'pointer',
-            marginBottom: 22,
-          }}
-        >
-          Hermes
-        </button>
-
         {overview && (
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>
             {[
