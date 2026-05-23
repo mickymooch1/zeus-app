@@ -47,4 +47,6 @@ GENRE_PRESETS = {
     "bhangra":         "bhangra, dhol drum, tumbi, energetic Punjabi vocals, traditional Indian folk meets modern beat, 140 BPM, wedding celebration energy, Punjabi lyrics, bhangra dance rhythm",
     "rockney":         "rockney, Cockney London rock music, East End London spirit, pub rock energy, British working class rock, catchy singalong choruses, 130 BPM, Chas and Dave influenced, knees up pub atmosphere, London street rock",
     "metal":           "heavy metal, distorted electric guitar, double kick drum, powerful screaming vocals, 160 BPM, dark aggressive atmosphere, guitar solo, massive wall of sound, Black Sabbath Metallica influenced, thunderous production",
+    "reggaeton":       "reggaeton, dembow rhythm, 95 BPM, urban Latin beat, heavy 808 bass, perreo energy, Spanish lyrics, reggaeton flow, Caribbean Latin fusion, Bad Bunny J Balvin influenced, trap infused Latin production",
+    "latintrap":       "Latin trap, dark 808 bass, trap hi-hats, Spanish rap flow, 140 BPM, moody atmospheric production, Latin street sound, melodic Spanish vocals, dark trap beats, Anuel AA Bad Bunny influenced, urban Latin darkness",
 }

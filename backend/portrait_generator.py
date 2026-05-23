@@ -59,6 +59,8 @@ GENRE_PORTRAIT_PROMPTS = {
     "bhangra":         "South Asian Punjabi musician, professional portrait photo, bhangra artist, clear frontal face, vibrant colourful lighting, joyful energetic expression, photorealistic",
     "rockney":         "White British musician, professional portrait photo, rockney artist, clear frontal face, warm pub lighting, cheeky grinning expression, photorealistic",
     "metal":           "professional portrait photo, heavy metal musician with long hair, clear frontal face, dark dramatic red and black lighting, intense fierce expression, photorealistic",
+    "reggaeton":       "Latin artist professional portrait, clear frontal face, urban street lighting, confident charismatic expression, photorealistic",
+    "latintrap":       "Latin trap artist professional portrait, clear frontal face, dark moody blue and purple lighting, intense brooding expression, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"

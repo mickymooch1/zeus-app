@@ -65,6 +65,8 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "bhangra":         "cinematic album cover, Punjabi bhangra dancer in traditional colourful outfit in foreground, vibrant Indian celebration behind, bright yellows and oranges, dhol drums, ultra detailed professional music artwork",
     "rockney":         "cinematic album cover, cheeky Cockney musician in foreground, traditional East London pub behind, warm amber lighting, dartboard and beer, British working class aesthetic, ultra detailed professional music artwork",
     "metal":           "cinematic album cover, heavy metal guitarist in foreground, dark dramatic stage with fire and lightning behind, dark red and black colour scheme, massive amplifiers, ultra detailed professional music artwork",
+    "reggaeton":       "cinematic album cover, Latin reggaeton artist in foreground, vibrant urban Latin cityscape behind, warm tropical neon lights, street art, energetic Caribbean atmosphere, ultra detailed professional music artwork",
+    "latintrap":       "cinematic album cover, Latin trap artist in foreground, dark moody Latin city at night behind, blue and purple neon lights, rain slicked streets, urban darkness, ultra detailed professional music artwork",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"

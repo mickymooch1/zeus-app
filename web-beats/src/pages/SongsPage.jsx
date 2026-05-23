@@ -9,13 +9,13 @@ import { BACKEND_URL } from '../brand';
 import OnboardingTour from '../components/OnboardingTour';
 import { audioManager } from '../utils/audioManager';
 
-const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal'];
-const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal' };
+const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap'];
+const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', reggaeton:'Reggaeton', latintrap:'Latin Trap' };
 const GENRE_CATEGORIES = [
   { id: 'uk_street',  label: 'UK STREET',          color: '#00f0ff',
     genres: ['grime','ukdrill','ukgarage','jungle','drumandbass','niche','deeprotbassline','bassline','ukstreetsoul'] },
   { id: 'caribbean',  label: 'CARIBBEAN & AFRICAN', color: '#f472b6',
-    genres: ['reggae','loversrock','rastadub','ragga','afrobeats','afroswing','amapiano'] },
+    genres: ['reggae','loversrock','rastadub','ragga','afrobeats','afroswing','amapiano','reggaeton','latintrap'] },
   { id: 'soul',       label: 'SOUL & BLUES',        color: '#fb923c',
     genres: ['soul','rnb','blues','bluessoul','deepsoulblues','jazz'] },
   { id: 'electronic', label: 'ELECTRONIC & DANCE',  color: '#4ade80',
@@ -2140,7 +2140,10 @@ export default function SongsPage() {
                       ['Jamaican Dancehall', 'fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation'],
                       ['Vocoder / Talk Box', 'vocoder effect on vocals, robotic talk box voice, synthesized voice processing, Zapp and Roger style, computerised speech melody, electro funk vocoder, Roger Troutman talk box technique, robotic singing voice, pitch shifted electronic vocal effect'],
                       ['Cyborg / Synthesised', 'fully computerised robot voice, extreme digital voice synthesis, heavy pitch shifting, glitchy electronic vocal processing, distorted synthetic speech, computer generated vocal, 8-bit voice effect, maximum digital processing, inhuman robotic delivery, sci-fi cyborg voice, not human sounding at all'],
-                      ['Punjabi', 'Punjabi vocal delivery, North Indian Punjabi accent, bhangra influenced pronunciation, warm Punjabi tone, authentic Punjabi English inflection, desi delivery style'],
+                      ['Punjabi', 'authentic Punjabi vocal delivery, Punjabi mother tongue singer, strong Punjabi pronunciation, Gurmukhī influenced phonetics, traditional Punjabi singing style, bhangra vocal technique, nasal Punjabi tones, desi authentic delivery, not English accent'],
+                      ['Spanish Latin', 'authentic Spanish Latin accent, native Spanish speaker singing in Spanish, Cuban or Puerto Rican Caribbean pronunciation, warm Latin vowels, rolling R sounds, natural Spanish flow, not English accent at all'],
+                      ['Colombian', 'authentic Colombian accent, Medellin or Bogota pronunciation, warm Colombian Spanish delivery, melodic Colombian vowel sounds, natural Latin warmth, native Colombian Spanish speaker'],
+                      ['Puerto Rican', 'authentic Puerto Rican accent, Boricua Spanish pronunciation, Caribbean Puerto Rican delivery, urban San Juan flow, authentic PR Spanish vowels, native Puerto Rican speaker'],
                     ].map(([label, value]) => (
                       <option key={label} value={value}>{label}</option>
                     ))}
