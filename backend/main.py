@@ -4043,6 +4043,30 @@ async def delete_playlist(playlist_id: int, current_user=Depends(auth.get_curren
     return {"deleted": True}
 
 
+@app.get("/.well-known/assetlinks.json", include_in_schema=False)
+async def serve_assetlinks():
+    content = [
+        {
+            "relation": ["delegate_permission/common.handle_all_urls"],
+            "target": {
+                "namespace": "android_app",
+                "package_name": "com.zeusbeats.app",
+                "sha256_cert_fingerprints": [
+                    "E2:E7:72:14:09:6A:DE:08:FD:8D:FE:88:CA:FC:16:56:D9:3B:60:BE:CA:50:2D:FC:B0:8E:B0:5A:2F:24:27:8A"
+                ],
+            },
+        }
+    ]
+    return JSONResponse(
+        content=content,
+        headers={
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-cache",
+        },
+    )
+
+
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str, request: Request):
     import re as _re
