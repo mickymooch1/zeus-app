@@ -4,6 +4,7 @@ import random
 import sqlite3
 import logging
 import re
+import time
 import requests
 
 GENRE_MODEL_OVERRIDES: dict[str, str] = {
@@ -255,31 +256,60 @@ def generate_song_variant(
     logger.info("APIFRAME_V2_WEBHOOK_URL variant_id=%d url=%r", variant_id, f"{WEBHOOK_URL}?variant_id={variant_id}")
 
     try:
-        response = requests.post(
-            f"{APIFRAME_BASE}/v2/music/generate",
-            headers={
-                "X-API-Key": APIFRAME_API_KEY,           # v2 uses X-API-Key, NOT Authorization
-                "Content-Type": "application/json",
+        _apiframe_payload = {
+            "prompt": lyrics,
+            "model": "suno",
+            "webhookUrl": f"{WEBHOOK_URL}?variant_id={variant_id}",
+            "webhookEvents": ["completed", "failed"],
+            "sunoParams": {
+                "custom_mode": True,
+                "instrumental": False,
+                "model_version": suno_model,
+                "style": style_prompt[:1000],
+                **(extra_suno_params or {}),
             },
-            json={
-                "prompt": lyrics,
-                "model": "suno",
-                "webhookUrl": f"{WEBHOOK_URL}?variant_id={variant_id}",
-                "webhookEvents": ["completed", "failed"],
-                "sunoParams": {
-                    "custom_mode": True,
-                    "instrumental": False,
-                    "model_version": suno_model,
-                    "style": style_prompt[:1000],
-                    **(extra_suno_params or {}),
-                },
-            },
-            timeout=30,
-        )
+        }
+        _apiframe_headers = {
+            "X-API-Key": APIFRAME_API_KEY,  # v2 uses X-API-Key, NOT Authorization
+            "Content-Type": "application/json",
+        }
+
+        # Retry once on 504 or connection error
+        for attempt in range(2):
+            try:
+                response = requests.post(
+                    f"{APIFRAME_BASE}/v2/music/generate",
+                    headers=_apiframe_headers,
+                    json=_apiframe_payload,
+                    timeout=30,
+                )
+                if response.status_code == 504 and attempt == 0:
+                    logger.warning(
+                        "Apiframe 504 timeout, retrying in 5s for variant_id=%d", variant_id
+                    )
+                    time.sleep(5)
+                    continue
+                break
+            except Exception as conn_err:
+                if attempt == 0:
+                    logger.warning(
+                        "Apiframe connection error (attempt 0), retrying in 5s for variant_id=%d: %s",
+                        variant_id, conn_err,
+                    )
+                    time.sleep(5)
+                    continue
+                raise
+
         logger.info(
             "APIFRAME_V2_RESPONSE variant_id=%d status=%d body=%r",
             variant_id, response.status_code, response.text[:500],
         )
+
+        if response.status_code == 504:
+            raise ValueError(
+                "Music generation is taking longer than usual — please try again in a moment"
+            )
+
         response.raise_for_status()
         try:
             body = response.json()
@@ -307,7 +337,7 @@ def generate_song_variant(
             conn.close()
 
     except Exception as exc:
-        # Submission failed before Apiframe accepted the job — refund credit (unless admin), mark variant failed
+        # Submission failed — refund credit (unless admin) and mark variant failed
         conn = sqlite3.connect(db_path)
         try:
             cur = conn.cursor()
@@ -320,6 +350,8 @@ def generate_song_variant(
             conn.commit()
         finally:
             conn.close()
+        if isinstance(exc, ValueError):
+            raise  # propagate user-friendly message directly to the API layer
         raise RuntimeError(f"Music API submission failed: {exc}") from exc
 
     return {"variant_id": variant_id, "job_id": job_id, "status": "generating"}
