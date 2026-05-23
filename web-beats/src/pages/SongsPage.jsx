@@ -2140,6 +2140,7 @@ export default function SongsPage() {
                       ['Jamaican Dancehall', 'fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation'],
                       ['Vocoder / Talk Box', 'vocoder effect on vocals, robotic talk box voice, synthesized voice processing, Zapp and Roger style, computerised speech melody, electro funk vocoder, Roger Troutman talk box technique, robotic singing voice, pitch shifted electronic vocal effect'],
                       ['Cyborg / Synthesised', 'fully computerised robot voice, extreme digital voice synthesis, heavy pitch shifting, glitchy electronic vocal processing, distorted synthetic speech, computer generated vocal, 8-bit voice effect, maximum digital processing, inhuman robotic delivery, sci-fi cyborg voice, not human sounding at all'],
+                      ['Punjabi', 'Punjabi vocal delivery, North Indian Punjabi accent, bhangra influenced pronunciation, warm Punjabi tone, authentic Punjabi English inflection, desi delivery style'],
                     ].map(([label, value]) => (
                       <option key={label} value={value}>{label}</option>
                     ))}
