@@ -1498,9 +1498,10 @@ def get_playlist_songs(db_path: pathlib.Path, playlist_id: int) -> list:
     conn = _conn(db_path)
     try:
         rows = conn.execute(
-            """SELECT sv.*, ps.position
+            """SELECT sv.*, sv.id AS variant_id, l.title, ps.position
                FROM playlist_songs ps
-               JOIN song_variants sv ON sv.variant_id = ps.variant_id
+               JOIN song_variants sv ON sv.id = ps.variant_id
+               LEFT JOIN lyrics l ON l.id = sv.lyric_id
                WHERE ps.playlist_id = ?
                ORDER BY ps.position ASC""",
             (playlist_id,),
