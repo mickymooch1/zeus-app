@@ -4047,12 +4047,16 @@ async def delete_playlist(playlist_id: int, current_user=Depends(auth.get_curren
 async def serve_assetlinks():
     content = [
         {
-            "relation": ["delegate_permission/common.handle_all_urls"],
+            "relation": [
+                "delegate_permission/common.handle_all_urls",
+                "delegate_permission/common.get_login_creds",
+            ],
             "target": {
                 "namespace": "android_app",
                 "package_name": "com.zeusbeats.app",
                 "sha256_cert_fingerprints": [
-                    "E2:E7:72:14:09:6A:DE:08:FD:8D:FE:88:CA:FC:16:56:D9:3B:60:BE:CA:50:2D:FC:B0:8E:B0:5A:2F:24:27:8A"
+                    "E2:E7:72:14:09:6A:DE:08:FD:8D:FE:88:CA:FC:16:56:D9:3B:60:BE:CA:50:2D:FC:B0:8E:B0:5A:2F:24:27:8A",
+                    "02:05:FD:AF:82:94:FD:D1:11:E8:86:5E:18:34:BA:A8:E1:FE:06:34:60:9A:C5:7C:F5:04:89:CC:D9:1E:D6:D3",
                 ],
             },
         }
