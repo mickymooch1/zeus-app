@@ -1471,12 +1471,12 @@ def add_song_to_playlist(db_path: pathlib.Path, playlist_id: int, variant_id: in
             (playlist_id,),
         ).fetchone()
         next_pos = row["next_pos"] if row else 0
-        conn.execute(
+        cur = conn.execute(
             "INSERT OR IGNORE INTO playlist_songs (playlist_id, variant_id, position) VALUES (?, ?, ?)",
             (playlist_id, variant_id, next_pos),
         )
         conn.commit()
-        return True
+        return cur.rowcount > 0
     finally:
         conn.close()
 

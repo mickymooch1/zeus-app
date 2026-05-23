@@ -294,6 +294,8 @@ const SongCard = memo(function SongCard({
   const [igToast, setIgToast]         = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const addMenuRef = useRef(null);
+  const [addToast, setAddToast]       = useState(null);
+  const addToastTimer = useRef(null);
   const [shareToast, setShareToast]   = useState(null); // null | 'public' | 'private'
   const shareToastTimer = useRef(null);
   const favToastTimer = useRef(null);
@@ -321,6 +323,18 @@ const SongCard = memo(function SongCard({
     return () => document.removeEventListener('mousedown', handler);
   }, [addMenuOpen]);
 
+  const handleAddToList = async (playlistId) => {
+    const pl = playlists?.find(p => p.id === playlistId);
+    setAddMenuOpen(false);
+    const result = await onAddToPlaylist(variant.variant_id, playlistId);
+    clearTimeout(addToastTimer.current);
+    if (result?.added) {
+      setAddToast(`Added to ${pl?.name || 'playlist'} ✅`);
+    } else {
+      setAddToast('Already in playlist');
+    }
+    addToastTimer.current = setTimeout(() => setAddToast(null), 2500);
+  };
 
   const handleRegen = async () => {
     if (regenLoading || !onRegenerate) return;
@@ -745,6 +759,15 @@ const SongCard = memo(function SongCard({
               </div>
             )}
             {/* Row 5: Add to Playlist + Delete */}
+            {addToast && (
+              <div style={{
+                marginTop: 8, padding: '6px 12px', borderRadius: 6,
+                background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.25)',
+                fontSize: 11, color: '#00f0ff', textAlign: 'center',
+              }}>
+                {addToast}
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
               {/* Add to Playlist */}
               <div style={{ position: 'relative' }} ref={addMenuRef}>
@@ -762,26 +785,54 @@ const SongCard = memo(function SongCard({
                   <div style={{
                     position: 'absolute', bottom: '110%', left: 0, zIndex: 200,
                     background: '#18182a', border: '1px solid rgba(0,240,255,0.2)', borderRadius: 8,
-                    minWidth: 160, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                    minWidth: 180, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                     overflow: 'hidden',
                   }}>
                     {(!playlists || playlists.length === 0) ? (
-                      <div style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>No playlists yet</div>
-                    ) : playlists.map(pl => (
-                      <button
-                        key={pl.id}
-                        onClick={() => { onAddToPlaylist(variant.variant_id, pl.id); setAddMenuOpen(false); }}
+                      <Link
+                        to="/playlists"
+                        onClick={() => setAddMenuOpen(false)}
                         style={{
-                          display: 'block', width: '100%', textAlign: 'left',
-                          background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
-                          color: '#e2e8f0', fontSize: 12, padding: '9px 14px', cursor: 'pointer',
+                          display: 'block', padding: '10px 14px', fontSize: 12,
+                          color: '#00f0ff', textDecoration: 'none',
+                          background: 'none',
                         }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.06)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                       >
-                        {pl.name}
-                      </button>
-                    ))}
+                        + Create your first playlist
+                      </Link>
+                    ) : (
+                      <>
+                        {playlists.map(pl => (
+                          <button
+                            key={pl.id}
+                            onClick={() => handleAddToList(pl.id)}
+                            style={{
+                              display: 'block', width: '100%', textAlign: 'left',
+                              background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                              color: '#e2e8f0', fontSize: 12, padding: '9px 14px', cursor: 'pointer',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.06)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                          >
+                            {pl.name}
+                          </button>
+                        ))}
+                        <Link
+                          to="/playlists"
+                          onClick={() => setAddMenuOpen(false)}
+                          style={{
+                            display: 'block', padding: '8px 14px', fontSize: 11,
+                            color: '#00f0ff', textDecoration: 'none', borderTop: '1px solid rgba(0,240,255,0.1)',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.06)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                        >
+                          Manage playlists →
+                        </Link>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -879,6 +930,9 @@ export default function SongsPage() {
   const [deletingVariants, setDeletingVariants]     = useState(new Set());
 
   const [playlists, setPlaylists]         = useState([]);
+  const [newPlModal, setNewPlModal]       = useState(false);
+  const [newPlName, setNewPlName]         = useState('');
+  const [newPlLoading, setNewPlLoading]   = useState(false);
 
   const [favourites, setFavourites]       = useState(new Set());
   const [publicVariants, setPublicVariants] = useState(new Set());
@@ -985,13 +1039,36 @@ export default function SongsPage() {
 
   const handleAddToPlaylist = useCallback(async (variantId, playlistId) => {
     try {
-      await fetch(`${BACKEND_URL}/api/playlists/${playlistId}/songs`, {
+      const r = await fetch(`${BACKEND_URL}/api/playlists/${playlistId}/songs`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ variant_id: variantId }),
       });
-    } catch (_) {}
+      if (r.ok) return await r.json();
+      return null;
+    } catch (_) { return null; }
   }, [token]);
+
+  const handleCreatePlaylist = async (e) => {
+    e.preventDefault();
+    const name = newPlName.trim();
+    if (!name) return;
+    setNewPlLoading(true);
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/playlists`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (r.ok) {
+        const pl = await r.json();
+        setPlaylists(prev => [...prev, pl]);
+        setNewPlModal(false);
+        setNewPlName('');
+      }
+    } catch (_) {}
+    setNewPlLoading(false);
+  };
 
   useEffect(() => {
     fetchCredits();
@@ -2407,7 +2484,19 @@ export default function SongsPage() {
 
           {filteredLibrary.length > 0 && (
             <section>
-              <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', marginBottom: 20 }}>{t('songs.yourSongs')}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', margin: 0 }}>{t('songs.yourSongs')}</h2>
+                <button
+                  onClick={() => setNewPlModal(true)}
+                  style={{
+                    background: 'none', border: '1px solid rgba(0,240,255,0.35)', borderRadius: 5,
+                    color: '#00f0ff', fontSize: 11, cursor: 'pointer', padding: '4px 12px',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  + New Playlist
+                </button>
+              </div>
               {activeTab === 'favourites' && tabFilteredLibrary.length === 0 && (
                 <p style={{ color: '#444', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>
                   {t('songs.tabs.noFavourites')}
@@ -2687,6 +2776,73 @@ export default function SongsPage() {
       >
         🎵 Discover
       </a>
+
+      {/* New Playlist modal */}
+      {newPlModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9000,
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => setNewPlModal(false)}
+        >
+          <div
+            style={{
+              background: '#12121e', border: '1px solid rgba(0,240,255,0.25)',
+              borderRadius: 12, padding: 28, width: '90%', maxWidth: 360,
+              boxShadow: '0 0 40px rgba(0,240,255,0.15)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 style={{ color: '#e2d9f3', fontSize: 16, fontWeight: 700, margin: '0 0 18px' }}>
+              New Playlist
+            </h3>
+            <form onSubmit={handleCreatePlaylist}>
+              <input
+                autoFocus
+                type="text"
+                placeholder="Playlist name"
+                value={newPlName}
+                onChange={e => setNewPlName(e.target.value)}
+                maxLength={80}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,240,255,0.25)',
+                  borderRadius: 7, color: '#e2d9f3', fontSize: 14, padding: '10px 12px',
+                  outline: 'none', marginBottom: 16,
+                }}
+              />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setNewPlModal(false)}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 7,
+                    border: '1px solid rgba(255,255,255,0.1)', background: 'none',
+                    color: '#888', fontSize: 14, cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newPlName.trim() || newPlLoading}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 7, border: 'none',
+                    background: newPlName.trim() ? 'linear-gradient(135deg, rgba(0,240,255,0.2), rgba(0,191,255,0.2))' : 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(0,240,255,0.35)',
+                    color: newPlName.trim() ? '#00f0ff' : '#444',
+                    fontSize: 14, fontWeight: 600, cursor: newPlName.trim() ? 'pointer' : 'default',
+                  }}
+                >
+                  {newPlLoading ? 'Creating…' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

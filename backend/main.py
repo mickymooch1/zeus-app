@@ -4533,8 +4533,8 @@ async def add_song_to_playlist(
     variant = db.get_song_variant_by_id(db_path, body.variant_id)
     if not variant or variant["user_id"] != current_user["id"]:
         raise HTTPException(status_code=404, detail="Song not found")
-    db.add_song_to_playlist(db_path, playlist_id, body.variant_id)
-    return {"added": True}
+    was_added = db.add_song_to_playlist(db_path, playlist_id, body.variant_id)
+    return {"added": was_added}
 
 
 @app.delete("/api/playlists/{playlist_id}/songs/{variant_id}")
