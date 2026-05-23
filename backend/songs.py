@@ -6,6 +6,13 @@ import logging
 import re
 import requests
 
+GENRE_MODEL_OVERRIDES: dict[str, str] = {
+    'ragga':    'V5_5',
+    'bhangra':  'V5_5',
+    'rastadub': 'V5_5',
+    'deeproots': 'V5_5',
+}
+
 RANDOM_PRODUCTION = [
     "with unexpected key change",
     "with a dramatic breakdown",
@@ -194,6 +201,7 @@ def generate_song_variant(
     extra_suno_params: dict | None = None,
     is_admin: bool = False,
     animate_cover: bool = True,
+    suno_model: str = "V5",
 ) -> dict:
     """
     Submit a song generation job to Apiframe v2.
@@ -261,7 +269,7 @@ def generate_song_variant(
                 "sunoParams": {
                     "custom_mode": True,
                     "instrumental": False,
-                    "model_version": "V5",
+                    "model_version": suno_model,
                     "style": style_prompt[:1000],
                     **(extra_suno_params or {}),
                 },
@@ -363,6 +371,7 @@ def generate_multiple_variants(
         style = f"{style}, {random.choice(RANDOM_PRODUCTION)}"
         # Genre tag encodes the blend so the frontend can display "Soul × Grime"
         genre_tag = f"{genre}__{genre_b}" if genre_b and genre_b in GENRE_PRESETS else genre
+        suno_model = GENRE_MODEL_OVERRIDES.get(genre, GENRE_MODEL_OVERRIDES.get(genre_b or '', 'V5'))
         result = generate_song_variant(
             user_id=user_id,
             lyric_id=lyric_id,
@@ -372,6 +381,7 @@ def generate_multiple_variants(
             extra_suno_params=extra_suno_params,
             is_admin=is_admin,
             animate_cover=animate_cover,
+            suno_model=suno_model,
         )
         variants.append({"genre": genre_tag, **result})
 

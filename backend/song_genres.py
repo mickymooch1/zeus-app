@@ -42,7 +42,7 @@ GENRE_PRESETS = {
     "jazz":            "jazz, smooth improvised saxophone, upright bass walking lines, brushed drums, jazz piano chords, bebop influence, warm intimate club sound, 120 BPM swing",
     "electronicfunk":  "electronic funk, talk box vocoder vocals, smooth slow funk groove, electronic synthesizer bassline, Roger Troutman style, 95 BPM, soulful R&B feeling, warm analogue synths, silky smooth production, 80s electro funk, vocoder robot voice effect, late night smooth groove",
     "syntheticpop":    "synthetic pop, bright catchy synthesizers, four on the floor beat, polished production, euphoric pop hooks, 128 BPM, 80s synth pop influence, glossy electronic sound, irresistible chorus",
-    "ragga":           "ragga, dancehall reggae, fast digital riddim, Jamaican ragga vocals, aggressive dancehall flow, 90 BPM, bashment energy, digital drum machine, Jamaican patois lyrics, ragga MC style",
+    "ragga":           "ragga dancehall, digital riddim, Jamaican vocals, patois delivery, bashment energy, 90 BPM, dancehall beat, Caribbean flow",
     "dubstep":         "dubstep, massive wobble bass, half time drum pattern, 140 BPM, dark electronic atmosphere, bass drop, heavy sub bass, UK dubstep sound, cinematic tension building, Skrillex Benga influenced",
     "bhangra":         "bhangra, dhol drum, tumbi, energetic Punjabi vocals, traditional Indian folk meets modern beat, 140 BPM, wedding celebration energy, Punjabi lyrics, bhangra dance rhythm",
     "rockney":         "rockney, Cockney London rock music, East End London spirit, pub rock energy, British working class rock, catchy singalong choruses, 130 BPM, Chas and Dave influenced, knees up pub atmosphere, London street rock",
