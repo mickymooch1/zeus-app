@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
+import { audioManager } from '../utils/audioManager';
 
 /* ── Neon cyberpunk tokens ──────────────────────────────────────────────── */
 const CYAN  = '#00f0ff';
@@ -282,7 +283,7 @@ export default function DiscoverPage() {
 
           // Play current
           if (vid) { vid.muted = true; vid.play().catch(() => {}); }
-          if (aud && !mutedRef.current) aud.play().catch(() => {});
+          if (aud && !mutedRef.current) audioManager.play(aud, songs[idx]?.variant_id);
 
           // Load next page when approaching end
           if (idx >= songs.length - 3) fetchPage();
@@ -306,8 +307,8 @@ export default function DiscoverPage() {
     if (idx !== null) {
       const aud = audioRefs.current[idx];
       if (aud) {
-        if (nm) aud.pause();
-        else aud.play().catch(() => {});
+        if (nm) { aud.pause(); audioManager.stop(); }
+        else audioManager.play(aud, songs[idx]?.variant_id);
       }
     }
   };

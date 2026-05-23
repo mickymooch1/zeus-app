@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardHeader } from '../components/DashboardHeader';
+import { audioManager } from '../utils/audioManager';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -348,12 +349,14 @@ const SongCard = memo(function SongCard({
 
   const handlePlay = () => {
     if (!wsRef.current || !wsReady) return;
-    if (activeWsRef.current && activeWsRef.current !== wsRef.current) {
-      activeWsRef.current.pause();
-    }
     if (playing) {
       wsRef.current.pause();
+      audioManager.stop();
     } else {
+      audioManager.playWaveSurfer(wsRef.current, variant.variant_id);
+      if (activeWsRef.current && activeWsRef.current !== wsRef.current) {
+        activeWsRef.current.pause();
+      }
       wsRef.current.play();
       activeWsRef.current = wsRef.current;
     }

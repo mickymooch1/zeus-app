@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNowPlaying } from '../contexts/NowPlayingContext';
 
 const GENRE_LABEL = {
@@ -32,7 +33,15 @@ export default function NowPlayingBar() {
     shuffle, toggleShuffle, repeat, cycleRepeat,
   } = useNowPlaying();
 
-  if (!currentSong) return null;
+  const visible = !!(currentSong && isPlaying);
+
+  // Push page content up so the bar doesn't overlap bottom nav on mobile
+  useEffect(() => {
+    document.body.style.paddingBottom = visible ? '72px' : '';
+    return () => { document.body.style.paddingBottom = ''; };
+  }, [visible]);
+
+  if (!visible) return null;
 
   const progress = duration > 0 ? currentTime / duration : 0;
 

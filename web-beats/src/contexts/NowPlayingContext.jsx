@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
+import { audioManager } from '../utils/audioManager';
 
 const NowPlayingContext = createContext(null);
 
@@ -33,7 +34,7 @@ export function NowPlayingProvider({ children }) {
     if (!song?.mp3_url) return;
     const audio = getAudio();
     audio.src = song.mp3_url;
-    audio.play().catch(() => {});
+    audioManager.play(audio, song.variant_id); // stops WaveSurfer / Discover audio
     setQueueIndex(idx);
     indexRef.current = idx;
     setIsPlaying(true);
@@ -44,8 +45,10 @@ export function NowPlayingProvider({ children }) {
   useEffect(() => {
     const audio = getAudio();
 
-    const onTime = () => setCurrentTime(audio.currentTime);
-    const onMeta = () => setDuration(isFinite(audio.duration) ? audio.duration : 0);
+    const onTime  = () => setCurrentTime(audio.currentTime);
+    const onMeta  = () => setDuration(isFinite(audio.duration) ? audio.duration : 0);
+    const onPlay  = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
     const onEnded = () => {
       const q   = queueRef.current;
       const idx = indexRef.current;
@@ -69,13 +72,17 @@ export function NowPlayingProvider({ children }) {
       }
     };
 
-    audio.addEventListener('timeupdate', onTime);
+    audio.addEventListener('timeupdate',    onTime);
     audio.addEventListener('loadedmetadata', onMeta);
-    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('play',           onPlay);
+    audio.addEventListener('pause',          onPause);
+    audio.addEventListener('ended',          onEnded);
     return () => {
-      audio.removeEventListener('timeupdate', onTime);
+      audio.removeEventListener('timeupdate',    onTime);
       audio.removeEventListener('loadedmetadata', onMeta);
-      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('play',           onPlay);
+      audio.removeEventListener('pause',          onPause);
+      audio.removeEventListener('ended',          onEnded);
     };
   }, [getAudio, playAtIndex]);
 

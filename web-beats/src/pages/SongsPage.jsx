@@ -7,6 +7,7 @@ import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 import { EmailVerificationBanner } from '../components/EmailVerificationBanner';
 import { BACKEND_URL } from '../brand';
 import OnboardingTour from '../components/OnboardingTour';
+import { audioManager } from '../utils/audioManager';
 
 const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal'];
 const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal' };
@@ -376,12 +377,15 @@ const SongCard = memo(function SongCard({
 
   const handlePlay = () => {
     if (!wsRef.current || !wsReady) return;
-    if (activeWsRef.current && activeWsRef.current !== wsRef.current) {
-      activeWsRef.current.pause();
-    }
     if (playing) {
       wsRef.current.pause();
+      audioManager.stop();
     } else {
+      // Stops NowPlaying audio and any other WaveSurfer before starting this one
+      audioManager.playWaveSurfer(wsRef.current, variant.variant_id);
+      if (activeWsRef.current && activeWsRef.current !== wsRef.current) {
+        activeWsRef.current.pause();
+      }
       wsRef.current.play();
       activeWsRef.current = wsRef.current;
     }
