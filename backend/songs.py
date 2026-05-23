@@ -281,7 +281,14 @@ def generate_song_variant(
             variant_id, response.status_code, response.text[:500],
         )
         response.raise_for_status()
-        body = response.json()
+        try:
+            body = response.json()
+        except Exception:
+            logger.error(
+                "Apiframe returned non-JSON response: %d %s",
+                response.status_code, response.text[:200],
+            )
+            raise ValueError(f"Apiframe error: {response.status_code}")
         job_id = body.get("jobId")
         if not job_id:
             raise RuntimeError(f"Apiframe response missing jobId: {body!r}")
