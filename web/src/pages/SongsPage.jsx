@@ -8,6 +8,30 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal'];
 const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal' };
+const GENRE_CATEGORIES = [
+  { id: 'uk_street',  label: 'UK STREET',          color: '#00f0ff',
+    genres: ['grime','ukdrill','ukgarage','jungle','drumandbass','niche','deeprotbassline','bassline','ukstreetsoul'] },
+  { id: 'caribbean',  label: 'CARIBBEAN & AFRICAN', color: '#f472b6',
+    genres: ['reggae','loversrock','rastadub','ragga','afrobeats','afroswing','amapiano'] },
+  { id: 'soul',       label: 'SOUL & BLUES',        color: '#fb923c',
+    genres: ['soul','rnb','blues','bluessoul','deepsoulblues','jazz'] },
+  { id: 'electronic', label: 'ELECTRONIC & DANCE',  color: '#4ade80',
+    genres: ['house','technhouse','techno','edm','lofi','electronicfunk','dubstep','driftphonk','jerseyclub','hyperpop','syntheticpop'] },
+  { id: 'rock',       label: 'ROCK & METAL',        color: '#f87171',
+    genres: ['rock','metal','indie','acoustic','country','rockney'] },
+  { id: 'world',      label: 'WORLD & URBAN',       color: '#fbbf24',
+    genres: ['hiphop','kpop','bhangra'] },
+  { id: 'classic',    label: 'CLASSIC',             color: '#e2e8f0',
+    genres: ['classical','irishjig','irishfolk','pop'] },
+];
+const _genreColorMap = Object.fromEntries(
+  GENRE_CATEGORIES.flatMap(cat => cat.genres.map(g => [g, cat.color]))
+);
+const genreColor = (g) => {
+  if (!g) return '#94a3b8';
+  const base = g.includes('__') ? g.split('__')[0] : g;
+  return _genreColorMap[base] || '#94a3b8';
+};
 const gLabel = (g) => {
   if (!g) return '';
   if (g.includes('__')) {
@@ -42,8 +66,8 @@ const PAGE_CSS = `
 .song-card-anim { animation: fadeInUp 0.3s ease both; }
 .songs-textarea:focus { border-color: rgba(167,139,250,0.4) !important; }
 .avatar-thumb:hover { border-color: #a78bfa !important; opacity: 1 !important; }
-.genre-pill:hover { border-color: rgba(255,255,255,0.65) !important; background: rgba(255,255,255,0.13) !important; color: #fff !important; }
-.genre-pill--sel:hover { background: #6d28d9 !important; }
+.genre-pill:hover { background: var(--pill-hover-bg, rgba(255,255,255,0.13)) !important; border-color: var(--pill-color, rgba(255,255,255,0.65)) !important; color: var(--pill-color, #fff) !important; }
+.genre-pill--sel:hover { opacity: 0.85 !important; }
 @keyframes favToastFade { 0% { opacity:0 } 10% { opacity:1 } 70% { opacity:1 } 100% { opacity:0 } }
 .adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 28px; }
 @media (max-width: 599px) {
@@ -179,7 +203,7 @@ function SkeletonCard({ genre }) {
         <div style={{ height: 40, borderRadius: 4, background: 'rgba(255,255,255,0.04)', marginBottom: 10 }} />
         <div style={{ height: 13, borderRadius: 4, background: 'rgba(255,255,255,0.04)', width: '60%', marginBottom: 10 }} />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {genre && <span style={S.pill}>{gLabel(genre)}</span>}
+          {genre && <span style={{ ...S.pill, color: genreColor(genre), borderColor: genreColor(genre) + '55', background: genreColor(genre) + '14' }}>{gLabel(genre)}</span>}
           <span style={{ color: '#444', fontSize: 12 }}>~60s</span>
         </div>
       </div>
@@ -546,7 +570,7 @@ const SongCard = memo(function SongCard({
         <div style={{ ...S.cardTitle, fontSize: 15, fontWeight: 700 }}>{title || `Song #${variant.variant_id}`}</div>
         {artistName && <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{artistName}</div>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-          <span style={S.pill}>{gLabel(variant.genre_tag)}</span>
+          <span style={{ ...S.pill, color: genreColor(variant.genre_tag), borderColor: genreColor(variant.genre_tag) + '55', background: genreColor(variant.genre_tag) + '14' }}>{gLabel(variant.genre_tag)}</span>
           {durStr && <span style={{ color: '#999', fontSize: 12 }}>{durStr}</span>}
         </div>
         {isFailed && (
@@ -1710,30 +1734,41 @@ export default function SongsPage() {
             <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>
               Style
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
-              {GENRES.map((g) => {
-                const sel = selGenres.has(g);
-                return (
-                  <button
-                    key={g}
-                    onClick={() => toggleGenre(g)}
-                    className={sel ? 'genre-pill genre-pill--sel' : 'genre-pill'}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: 20,
-                      border: sel ? 'none' : '2px solid rgba(255,255,255,0.4)',
-                      background: sel ? '#7c3aed' : 'rgba(255,255,255,0.08)',
-                      color: sel ? '#fff' : 'rgba(255,255,255,0.85)',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {gLabel(g)}
-                  </button>
-                );
-              })}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 18 }}>
+              {GENRE_CATEGORIES.map(cat => (
+                <div key={cat.id}>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: cat.color, opacity: 0.65, letterSpacing: '0.8px', textTransform: 'uppercase', margin: '0 0 8px', fontFamily: 'inherit' }}>
+                    {cat.label}
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    {cat.genres.map(g => {
+                      const sel = selGenres.has(g);
+                      return (
+                        <button
+                          key={g}
+                          onClick={() => toggleGenre(g)}
+                          className={sel ? 'genre-pill genre-pill--sel' : 'genre-pill'}
+                          style={{
+                            '--pill-color': cat.color,
+                            '--pill-hover-bg': cat.color + '28',
+                            padding: '7px 15px',
+                            borderRadius: 20,
+                            border: `1.5px solid ${sel ? cat.color : cat.color + '55'}`,
+                            background: sel ? cat.color : cat.color + '14',
+                            color: sel ? '#0b0b14' : cat.color,
+                            fontSize: 13,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          {gLabel(g)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* ── Inspired by artist ─────────────────────────────────── */}
@@ -2513,19 +2548,41 @@ export default function SongsPage() {
             <h3 style={{ fontSize: 17, fontWeight: 800, color: '#f0eeff', marginBottom: 4 }}>🔄 Remake in a New Genre</h3>
             <p style={{ fontSize: 13, color: '#555', marginBottom: 22 }}>{remakeModal.title || `Song #${remakeModal.variantId}`}</p>
             <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>Pick a genre</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
-              {GENRES.map((g) => {
-                const sel = remakeGenre === g;
-                return (
-                  <button key={g} onClick={() => setRemakeGenre(g)} style={{
-                    padding: '6px 12px', borderRadius: 20,
-                    border: sel ? 'none' : '1px solid rgba(255,255,255,0.2)',
-                    background: sel ? '#7c3aed' : 'rgba(255,255,255,0.05)',
-                    color: sel ? '#fff' : 'rgba(255,255,255,0.7)',
-                    fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-                  }}>{gLabel(g)}</button>
-                );
-              })}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+              {GENRE_CATEGORIES.map(cat => (
+                <div key={cat.id}>
+                  <p style={{ fontSize: 9, fontWeight: 700, color: cat.color, opacity: 0.65, letterSpacing: '0.7px', textTransform: 'uppercase', margin: '0 0 6px', fontFamily: 'inherit' }}>
+                    {cat.label}
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {cat.genres.map(g => {
+                      const sel = remakeGenre === g;
+                      return (
+                        <button
+                          key={g}
+                          onClick={() => setRemakeGenre(g)}
+                          className={sel ? 'genre-pill genre-pill--sel' : 'genre-pill'}
+                          style={{
+                            '--pill-color': cat.color,
+                            '--pill-hover-bg': cat.color + '28',
+                            padding: '5px 11px',
+                            borderRadius: 20,
+                            border: `1.5px solid ${sel ? cat.color : cat.color + '55'}`,
+                            background: sel ? cat.color : cat.color + '14',
+                            color: sel ? '#0b0b14' : cat.color,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          {gLabel(g)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
             <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Style note (optional)</p>
             <input type="text" value={remakeStyle} onChange={(e) => setRemakeStyle(e.target.value)}
