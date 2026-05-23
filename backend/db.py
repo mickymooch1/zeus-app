@@ -248,6 +248,20 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (variant_id, user_id)
             )""",
+            """CREATE TABLE IF NOT EXISTS playlists (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    TEXT NOT NULL,
+                name       TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE TABLE IF NOT EXISTS playlist_songs (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                playlist_id INTEGER NOT NULL,
+                variant_id  INTEGER NOT NULL,
+                position    INTEGER NOT NULL DEFAULT 0,
+                added_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(playlist_id, variant_id)
+            )""",
         ]:
             try:
                 conn.execute(_migration)
@@ -1388,6 +1402,122 @@ def mark_verification_token_used(db_path: pathlib.Path, token: str) -> None:
     conn = _conn(db_path)
     try:
         conn.execute("UPDATE email_verification_tokens SET used = 1 WHERE token = ?", (token,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ── Playlists ─────────────────────────────────────────────────────────────────
+
+def create_playlist(db_path: pathlib.Path, user_id: str, name: str) -> dict:
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            "INSERT INTO playlists (user_id, name) VALUES (?, ?)", (user_id, name)
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM playlists WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def get_playlists(db_path: pathlib.Path, user_id: str) -> list:
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            """SELECT p.*, COUNT(ps.id) AS song_count
+               FROM playlists p
+               LEFT JOIN playlist_songs ps ON ps.playlist_id = p.id
+               WHERE p.user_id = ?
+               GROUP BY p.id
+               ORDER BY p.created_at DESC""",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_playlist_by_id(db_path: pathlib.Path, playlist_id: int, user_id: str) -> dict | None:
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM playlists WHERE id = ? AND user_id = ?", (playlist_id, user_id)
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def delete_playlist(db_path: pathlib.Path, playlist_id: int, user_id: str) -> bool:
+    conn = _conn(db_path)
+    try:
+        conn.execute("DELETE FROM playlist_songs WHERE playlist_id = ?", (playlist_id,))
+        cur = conn.execute(
+            "DELETE FROM playlists WHERE id = ? AND user_id = ?", (playlist_id, user_id)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def add_song_to_playlist(db_path: pathlib.Path, playlist_id: int, variant_id: int) -> bool:
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT COALESCE(MAX(position), -1) + 1 AS next_pos FROM playlist_songs WHERE playlist_id = ?",
+            (playlist_id,),
+        ).fetchone()
+        next_pos = row["next_pos"] if row else 0
+        conn.execute(
+            "INSERT OR IGNORE INTO playlist_songs (playlist_id, variant_id, position) VALUES (?, ?, ?)",
+            (playlist_id, variant_id, next_pos),
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def remove_song_from_playlist(db_path: pathlib.Path, playlist_id: int, variant_id: int) -> bool:
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            "DELETE FROM playlist_songs WHERE playlist_id = ? AND variant_id = ?",
+            (playlist_id, variant_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def get_playlist_songs(db_path: pathlib.Path, playlist_id: int) -> list:
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            """SELECT sv.*, ps.position
+               FROM playlist_songs ps
+               JOIN song_variants sv ON sv.variant_id = ps.variant_id
+               WHERE ps.playlist_id = ?
+               ORDER BY ps.position ASC""",
+            (playlist_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def reorder_playlist_songs(db_path: pathlib.Path, playlist_id: int, variant_ids: list) -> None:
+    conn = _conn(db_path)
+    try:
+        for pos, vid in enumerate(variant_ids):
+            conn.execute(
+                "UPDATE playlist_songs SET position = ? WHERE playlist_id = ? AND variant_id = ?",
+                (pos, playlist_id, vid),
+            )
         conn.commit()
     finally:
         conn.close()

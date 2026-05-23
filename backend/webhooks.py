@@ -62,6 +62,9 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "syntheticpop":    "cinematic album cover, glamorous pop artist in foreground, bright neon pink and blue futuristic cityscape behind, glossy synthetic aesthetic, 80s inspired colour palette, ultra detailed professional music artwork",
     "ragga":           "cinematic album cover, Black Jamaican ragga MC in foreground, vibrant tropical Caribbean setting behind, bright colours, dancehall energy, palm trees, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
     "dubstep":         "cinematic album cover, dubstep producer at decks in foreground, dark industrial warehouse behind, blue and purple neon lights, massive speakers, bass wave visual effects, ultra detailed professional music artwork",
+    "bhangra":         "cinematic album cover, Punjabi bhangra dancer in traditional colourful outfit in foreground, vibrant Indian celebration behind, bright yellows and oranges, dhol drums, ultra detailed professional music artwork",
+    "rockney":         "cinematic album cover, cheeky Cockney musician in foreground, traditional East London pub behind, warm amber lighting, dartboard and beer, British working class aesthetic, ultra detailed professional music artwork",
+    "metal":           "cinematic album cover, heavy metal guitarist in foreground, dark dramatic stage with fire and lightning behind, dark red and black colour scheme, massive amplifiers, ultra detailed professional music artwork",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"

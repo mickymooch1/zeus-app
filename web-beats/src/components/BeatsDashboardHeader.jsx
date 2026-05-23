@@ -32,10 +32,11 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
   }, [overflowOpen]);
 
   const PRIMARY_LINKS = [
-    { to: '/songs',    label: t('nav.songs') },
-    { to: '/discover', label: 'Discover' },
-    { to: '/search',   label: t('nav.search') },
-    { to: '/mixer',    label: t('nav.mixer') },
+    { to: '/songs',     label: t('nav.songs') },
+    { to: '/discover',  label: 'Discover' },
+    { to: '/playlists', label: '🎵 Playlists' },
+    { to: '/search',    label: t('nav.search') },
+    { to: '/mixer',     label: t('nav.mixer') },
   ];
 
   const OVERFLOW_LINKS = [

@@ -8,8 +8,8 @@ import { EmailVerificationBanner } from '../components/EmailVerificationBanner';
 import { BACKEND_URL } from '../brand';
 import OnboardingTour from '../components/OnboardingTour';
 
-const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','electronicfunk','syntheticpop','ragga','dubstep'];
-const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep' };
+const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal'];
+const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal' };
 const gLabel = (g) => {
   if (!g) return '';
   if (g.includes('__')) {
@@ -253,6 +253,7 @@ const SongCard = memo(function SongCard({
   onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick, onRegenerate,
   isFavourite, onToggleFavourite, isFreeTier, animateCover,
   isPublic, onShareToggle,
+  playlists, onAddToPlaylist,
 }) {
   const { t } = useTranslation();
   const waveRef = useRef(null);
@@ -267,6 +268,8 @@ const SongCard = memo(function SongCard({
   const [videoErr, setVideoErr] = useState(false);
   const [favToast, setFavToast] = useState(null); // null | 'added' | 'removed'
   const [igToast, setIgToast]         = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const addMenuRef = useRef(null);
   const [shareToast, setShareToast]   = useState(null); // null | 'public' | 'private'
   const shareToastTimer = useRef(null);
   const favToastTimer = useRef(null);
@@ -284,6 +287,15 @@ const SongCard = memo(function SongCard({
     clearTimeout(lockedTimer.current);
     lockedTimer.current = setTimeout(() => setLockedMsg(null), 3500);
   };
+
+  useEffect(() => {
+    if (!addMenuOpen) return;
+    const handler = (e) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target)) setAddMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [addMenuOpen]);
 
 
   const handleRegen = async () => {
@@ -708,8 +720,47 @@ const SongCard = memo(function SongCard({
                 {lockedMsg === 'no-avatar-credits' && <>{t('songs.locked.noAvatarCredits')} <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.topUpLink')}</Link></>}
               </div>
             )}
-            {/* Row 5: Delete */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+            {/* Row 5: Add to Playlist + Delete */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+              {/* Add to Playlist */}
+              <div style={{ position: 'relative' }} ref={addMenuRef}>
+                <button
+                  onClick={() => setAddMenuOpen(o => !o)}
+                  style={{
+                    background: 'none', border: '1px solid rgba(0,240,255,0.35)', borderRadius: 5,
+                    color: '#00f0ff', fontSize: 11, cursor: 'pointer', padding: '3px 10px',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  ➕ Playlist
+                </button>
+                {addMenuOpen && (
+                  <div style={{
+                    position: 'absolute', bottom: '110%', left: 0, zIndex: 200,
+                    background: '#18182a', border: '1px solid rgba(0,240,255,0.2)', borderRadius: 8,
+                    minWidth: 160, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                    overflow: 'hidden',
+                  }}>
+                    {(!playlists || playlists.length === 0) ? (
+                      <div style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>No playlists yet</div>
+                    ) : playlists.map(pl => (
+                      <button
+                        key={pl.id}
+                        onClick={() => { onAddToPlaylist(variant.variant_id, pl.id); setAddMenuOpen(false); }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          color: '#e2e8f0', fontSize: 12, padding: '9px 14px', cursor: 'pointer',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.06)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                      >
+                        {pl.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => onDelete(variant.variant_id)}
                 disabled={deleting}
@@ -802,6 +853,8 @@ export default function SongsPage() {
   const [portraitTimedOut, setPortraitTimedOut]     = useState(false);
 
   const [deletingVariants, setDeletingVariants]     = useState(new Set());
+
+  const [playlists, setPlaylists]         = useState([]);
 
   const [favourites, setFavourites]       = useState(new Set());
   const [publicVariants, setPublicVariants] = useState(new Set());
@@ -897,10 +950,30 @@ export default function SongsPage() {
     } catch (_) {}
   }, [token]);
 
+  const fetchPlaylists = useCallback(async () => {
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/playlists`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (r.ok) setPlaylists(await r.json());
+    } catch (_) {}
+  }, [token]);
+
+  const handleAddToPlaylist = useCallback(async (variantId, playlistId) => {
+    try {
+      await fetch(`${BACKEND_URL}/api/playlists/${playlistId}/songs`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ variant_id: variantId }),
+      });
+    } catch (_) {}
+  }, [token]);
+
   useEffect(() => {
     fetchCredits();
     fetchLibrary();
-  }, [fetchCredits, fetchLibrary]);
+    fetchPlaylists();
+  }, [fetchCredits, fetchLibrary, fetchPlaylists]);
 
   // First-visit timestamp + re-trigger banner
   useEffect(() => {
@@ -2267,6 +2340,8 @@ export default function SongsPage() {
                       animateCover={animateCover}
                       isPublic={publicVariants.has(v.variant_id)}
                       onShareToggle={handleShareToggle}
+                      playlists={playlists}
+                      onAddToPlaylist={handleAddToPlaylist}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -2341,6 +2416,8 @@ export default function SongsPage() {
                     animateCover={animateCover}
                     isPublic={publicVariants.has(v.variant_id)}
                     onShareToggle={handleShareToggle}
+                    playlists={playlists}
+                    onAddToPlaylist={handleAddToPlaylist}
                   />
                 ))}
               </div>

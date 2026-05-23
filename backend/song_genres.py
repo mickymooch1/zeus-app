@@ -44,4 +44,7 @@ GENRE_PRESETS = {
     "syntheticpop":    "synthetic pop, bright catchy synthesizers, four on the floor beat, polished production, euphoric pop hooks, 128 BPM, 80s synth pop influence, glossy electronic sound, irresistible chorus",
     "ragga":           "ragga, dancehall reggae, fast digital riddim, Jamaican ragga vocals, aggressive dancehall flow, 90 BPM, bashment energy, digital drum machine, Jamaican patois lyrics, ragga MC style",
     "dubstep":         "dubstep, massive wobble bass, half time drum pattern, 140 BPM, dark electronic atmosphere, bass drop, heavy sub bass, UK dubstep sound, cinematic tension building, Skrillex Benga influenced",
+    "bhangra":         "bhangra, dhol drum, tumbi, energetic Punjabi vocals, traditional Indian folk meets modern beat, 140 BPM, wedding celebration energy, Punjabi lyrics, bhangra dance rhythm",
+    "rockney":         "rockney, Cockney London rock music, East End London spirit, pub rock energy, British working class rock, catchy singalong choruses, 130 BPM, Chas and Dave influenced, knees up pub atmosphere, London street rock",
+    "metal":           "heavy metal, distorted electric guitar, double kick drum, powerful screaming vocals, 160 BPM, dark aggressive atmosphere, guitar solo, massive wall of sound, Black Sabbath Metallica influenced, thunderous production",
 }

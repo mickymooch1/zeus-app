@@ -1,8 +1,10 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { NowPlayingProvider } from './contexts/NowPlayingContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import CookieBanner from './components/CookieBanner';
+import NowPlayingBar from './components/NowPlayingBar';
 import LandingPage from './pages/LandingPage';
 import './index.css';
 
@@ -26,6 +28,7 @@ const HermesAgentPage    = lazy(() => import('./pages/HermesAgentPage'));
 const MixerPage          = lazy(() => import('./pages/MixerPage'));
 const DiscoverPage       = lazy(() => import('./pages/DiscoverPage'));
 const DiscoverSongPage   = lazy(() => import('./pages/DiscoverSongPage'));
+const PlaylistPage       = lazy(() => import('./pages/PlaylistPage'));
 
 const fallback = (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0b0b14', color: '#94a3b8', fontSize: '1rem' }}>
@@ -36,8 +39,10 @@ const fallback = (
 export default function App() {
   return (
     <AuthProvider>
+      <NowPlayingProvider>
       <BrowserRouter>
         <CookieBanner />
+        <NowPlayingBar />
         <Suspense fallback={fallback}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
@@ -103,9 +108,18 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/playlists"
+              element={
+                <ProtectedRoute>
+                  <PlaylistPage />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </Suspense>
       </BrowserRouter>
+      </NowPlayingProvider>
     </AuthProvider>
   );
 }

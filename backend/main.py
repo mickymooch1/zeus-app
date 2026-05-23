@@ -4481,6 +4481,94 @@ def _get_public_song_for_og(variant_id: int):
         conn.close()
 
 
+# ── Playlists ─────────────────────────────────────────────────────────────────
+
+class _CreatePlaylistRequest(BaseModel):
+    name: str
+
+class _AddSongRequest(BaseModel):
+    variant_id: int
+
+class _ReorderRequest(BaseModel):
+    variant_ids: list[int]
+
+
+@app.post("/api/playlists")
+async def create_playlist(body: _CreatePlaylistRequest, current_user=Depends(auth.get_current_user)):
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name required")
+    pl = db.create_playlist(db.get_db_path(), current_user["id"], name)
+    return pl
+
+
+@app.get("/api/playlists")
+async def list_playlists(current_user=Depends(auth.get_current_user)):
+    return db.get_playlists(db.get_db_path(), current_user["id"])
+
+
+@app.get("/api/playlists/{playlist_id}/songs")
+async def get_playlist_songs(playlist_id: int, current_user=Depends(auth.get_current_user)):
+    pl = db.get_playlist_by_id(db.get_db_path(), playlist_id, current_user["id"])
+    if not pl:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    songs = db.get_playlist_songs(db.get_db_path(), playlist_id)
+    backend_url = os.environ.get("BACKEND_URL", "")
+    for s in songs:
+        if s.get("mp3_url") and not s["mp3_url"].startswith("http"):
+            s["mp3_url"] = f"{backend_url}{s['mp3_url']}"
+        if s.get("image_url") and not s["image_url"].startswith("http"):
+            s["image_url"] = f"{backend_url}{s['image_url']}"
+    return {"playlist": pl, "songs": songs}
+
+
+@app.post("/api/playlists/{playlist_id}/songs")
+async def add_song_to_playlist(
+    playlist_id: int, body: _AddSongRequest, current_user=Depends(auth.get_current_user)
+):
+    db_path = db.get_db_path()
+    pl = db.get_playlist_by_id(db_path, playlist_id, current_user["id"])
+    if not pl:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    variant = db.get_song_variant_by_id(db_path, body.variant_id)
+    if not variant or variant["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Song not found")
+    db.add_song_to_playlist(db_path, playlist_id, body.variant_id)
+    return {"added": True}
+
+
+@app.delete("/api/playlists/{playlist_id}/songs/{variant_id}")
+async def remove_song_from_playlist(
+    playlist_id: int, variant_id: int, current_user=Depends(auth.get_current_user)
+):
+    db_path = db.get_db_path()
+    pl = db.get_playlist_by_id(db_path, playlist_id, current_user["id"])
+    if not pl:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    db.remove_song_from_playlist(db_path, playlist_id, variant_id)
+    return {"removed": True}
+
+
+@app.patch("/api/playlists/{playlist_id}/reorder")
+async def reorder_playlist(
+    playlist_id: int, body: _ReorderRequest, current_user=Depends(auth.get_current_user)
+):
+    db_path = db.get_db_path()
+    pl = db.get_playlist_by_id(db_path, playlist_id, current_user["id"])
+    if not pl:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    db.reorder_playlist_songs(db_path, playlist_id, body.variant_ids)
+    return {"reordered": True}
+
+
+@app.delete("/api/playlists/{playlist_id}")
+async def delete_playlist(playlist_id: int, current_user=Depends(auth.get_current_user)):
+    deleted = db.delete_playlist(db.get_db_path(), playlist_id, current_user["id"])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    return {"deleted": True}
+
+
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str, request: Request):
     import re as _re
