@@ -1219,6 +1219,7 @@ export default function SongsPage() {
   const handleGenerate = async () => {
     setError('');
     setGenerating(true);
+    console.log('animate_cover:', animateCover);
     if (genreBlend && genreB) {
       console.log('Genre blend:', genreB, 'ratio:', blendRatio);
     }
@@ -2139,7 +2140,7 @@ export default function SongsPage() {
                       ['Bashment MC', 'Jamaican bashment MC delivery, dancehall ragga style, riddim riding vocals, Caribbean MC energy'],
                       ['Jamaican Dancehall', 'fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation'],
                       ['Vocoder / Talk Box', 'vocoder effect on vocals, robotic talk box voice, synthesized voice processing, Zapp and Roger style, computerised speech melody, electro funk vocoder, Roger Troutman talk box technique, robotic singing voice, pitch shifted electronic vocal effect'],
-                      ['Cyborg / Synthesised', 'fully computerised robot voice, extreme digital voice synthesis, heavy pitch shifting, glitchy electronic vocal processing, distorted synthetic speech, computer generated vocal, 8-bit voice effect, maximum digital processing, inhuman robotic delivery, sci-fi cyborg voice, not human sounding at all'],
+                      ['Cyborg / Synthesised', 'vocoder processed vocals, robotic voice effect, synthesised speech, digital pitch correction, computerised vocal tone, sci-fi robot voice, electronic vocal processing'],
                       ['Punjabi', 'authentic Punjabi vocal delivery, Punjabi mother tongue singer, strong Punjabi pronunciation, Gurmukhī influenced phonetics, traditional Punjabi singing style, bhangra vocal technique, nasal Punjabi tones, desi authentic delivery, not English accent'],
                       ['Spanish Latin', 'authentic Spanish Latin accent, native Spanish speaker singing in Spanish, Cuban or Puerto Rican Caribbean pronunciation, warm Latin vowels, rolling R sounds, natural Spanish flow, not English accent at all'],
                       ['Colombian', 'authentic Colombian accent, Medellin or Bogota pronunciation, warm Colombian Spanish delivery, melodic Colombian vowel sounds, natural Latin warmth, native Colombian Spanish speaker'],

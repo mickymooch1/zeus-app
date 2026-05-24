@@ -1761,6 +1761,11 @@ async def songs_generate(
             "songs_generate: Apiframe submission ok user_id=%s lyric_id=%s variants=%r",
             user_id, lyric_id, [v.get("variant_id") for v in variant_result.get("variants", [])],
         )
+        log.info(
+            "songs_generate: animate_cover=%s for variant_ids=%r",
+            body.animate_cover,
+            [v.get("variant_id") for v in variant_result.get("variants", [])],
+        )
     except InsufficientCreditsError as exc:
         log.warning("songs_generate: insufficient credits user_id=%s detail=%s", user_id, exc)
         raise HTTPException(status_code=402, detail=str(exc))
