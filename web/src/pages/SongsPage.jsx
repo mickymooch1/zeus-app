@@ -7,13 +7,13 @@ import { audioManager } from '../utils/audioManager';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
-const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap'];
-const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', reggaeton:'Reggaeton', latintrap:'Latin Trap' };
+const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae'];
+const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae' };
 const GENRE_CATEGORIES = [
   { id: 'uk_street',  label: 'UK STREET',          color: '#00f0ff',
     genres: ['grime','ukdrill','ukgarage','jungle','drumandbass','niche','deeprotbassline','bassline','ukstreetsoul'] },
   { id: 'caribbean',  label: 'CARIBBEAN & AFRICAN', color: '#f472b6',
-    genres: ['reggae','loversrock','rastadub','ragga','afrobeats','afroswing','amapiano','reggaeton','latintrap'] },
+    genres: ['reggae','loversrock','rastadub','ragga','afrobeats','afroswing','amapiano','reggaeton','latintrap','rootsreggae'] },
   { id: 'soul',       label: 'SOUL & BLUES',        color: '#fb923c',
     genres: ['soul','rnb','blues','bluessoul','deepsoulblues','jazz'] },
   { id: 'electronic', label: 'ELECTRONIC & DANCE',  color: '#4ade80',
@@ -506,7 +506,7 @@ const SongCard = memo(function SongCard({
             playsInline
             className="cover-video"
             style={S.artBox}
-            onError={() => setVideoErr(true)}
+            onError={(e) => { console.error('[MusicVideo] load error for variant', variant.variant_id, displayMusicVideoUrl, e.nativeEvent); setVideoErr(true); }}
           />
         ) : variant.image_url ? (
           <img src={variant.image_url} alt={title} style={S.artBox} className="cover-art-live" />
@@ -985,6 +985,7 @@ export default function SongsPage() {
       for (const v of flat) {
         if (v.music_video_url) newMusicVideoUrls[v.variant_id] = v.music_video_url;
       }
+      console.log('[MusicVideo] variants with music_video_url:', Object.keys(newMusicVideoUrls).length, newMusicVideoUrls);
       setMusicVideoUrls((prev) => ({ ...prev, ...newMusicVideoUrls }));
     } catch (_) {}
   }, [token]);
@@ -2042,6 +2043,7 @@ export default function SongsPage() {
                       ['Spanish Latin', 'authentic Spanish Latin accent, native Spanish speaker singing in Spanish, Cuban or Puerto Rican Caribbean pronunciation, warm Latin vowels, rolling R sounds, natural Spanish flow, not English accent at all'],
                       ['Colombian', 'authentic Colombian accent, Medellin or Bogota pronunciation, warm Colombian Spanish delivery, melodic Colombian vowel sounds, natural Latin warmth, native Colombian Spanish speaker'],
                       ['Puerto Rican', 'authentic Puerto Rican accent, Boricua Spanish pronunciation, Caribbean Puerto Rican delivery, urban San Juan flow, authentic PR Spanish vowels, native Puerto Rican speaker'],
+                      ['Cockney Grime', 'thick East London Cockney grime delivery, working class London accent mixed with grime flow, Cockney rhyming slang inflection, hard London vowels, street grime MC style with Cockney twist, authentic East End London road man delivery, sharp clipped Cockney consonants with grime energy'],
                     ].map(([label, value]) => (
                       <option key={label} value={value}>{label}</option>
                     ))}

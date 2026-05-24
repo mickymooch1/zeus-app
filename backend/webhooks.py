@@ -67,6 +67,7 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "metal":           "cinematic album cover, heavy metal guitarist in foreground, dark dramatic stage with fire and lightning behind, dark red and black colour scheme, massive amplifiers, ultra detailed professional music artwork",
     "reggaeton":       "cinematic album cover, Latin reggaeton artist in foreground, vibrant urban Latin cityscape behind, warm tropical neon lights, street art, energetic Caribbean atmosphere, ultra detailed professional music artwork",
     "latintrap":       "cinematic album cover, Latin trap artist in foreground, dark moody Latin city at night behind, blue and purple neon lights, rain slicked streets, urban darkness, ultra detailed professional music artwork",
+    "rootsreggae":    "cinematic album cover, Jamaican roots reggae musician in foreground, lush tropical Jamaican countryside behind, warm golden sunset, red gold and green colours, natural organic aesthetic, peaceful spiritual atmosphere, ultra detailed professional music artwork",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"

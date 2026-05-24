@@ -76,6 +76,7 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "metal":           "metal guitarist shredding intensely, headbanging dramatic movement, dark red stage lighting, fierce powerful energy",
     "reggaeton":       "reggaeton performer dancing energetically, perreo movement, warm tropical neon lighting, confident Latin urban energy",
     "latintrap":       "Latin trap performer moving intensely, dark moody movement, blue purple neon lighting, brooding urban Latin energy",
+    "rootsreggae":    "roots reggae musician performing peacefully, gentle swaying movement, warm golden sunset lighting, spiritual conscious energy",
 }
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]

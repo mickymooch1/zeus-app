@@ -61,6 +61,7 @@ GENRE_PORTRAIT_PROMPTS = {
     "metal":           "professional portrait photo, heavy metal musician with long hair, clear frontal face, dark dramatic red and black lighting, intense fierce expression, photorealistic",
     "reggaeton":       "Latin artist professional portrait, clear frontal face, urban street lighting, confident charismatic expression, photorealistic",
     "latintrap":       "Latin trap artist professional portrait, clear frontal face, dark moody blue and purple lighting, intense brooding expression, photorealistic",
+    "rootsreggae":    "Black Jamaican roots reggae musician, professional portrait photo, clear frontal face, warm golden sunset lighting, peaceful spiritual expression, natural dreadlocks, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"
