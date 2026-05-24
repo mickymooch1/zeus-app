@@ -515,6 +515,34 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("variant 389 fix failed (non-fatal)")
 
+    # One-time: give owner account 50 animation credits
+    try:
+        import sqlite3 as _sqlite3
+        _ac = _sqlite3.connect(str(_db_path))
+        try:
+            _ac.execute(
+                """UPDATE song_credits
+                   SET animation_balance = 50, animation_monthly_allowance = 50
+                   WHERE user_id = (SELECT id FROM users WHERE lower(email) = 'dominic.rowle@yahoo.com')"""
+            )
+            _ac.commit()
+            _acrow = _ac.execute(
+                """SELECT u.email, sc.animation_balance, sc.animation_monthly_allowance
+                   FROM users u LEFT JOIN song_credits sc ON sc.user_id = u.id
+                   WHERE lower(u.email) = 'dominic.rowle@yahoo.com'"""
+            ).fetchone()
+            if _acrow:
+                log.info(
+                    "owner animation credits — email=%r balance=%r allowance=%r",
+                    _acrow[0], _acrow[1], _acrow[2],
+                )
+            else:
+                log.info("owner animation credits patch: user not found")
+        finally:
+            _ac.close()
+    except Exception:
+        log.exception("owner animation credits patch failed (non-fatal)")
+
     try:
         _scheduler_mod.init_scheduler(history)
         log.info("Scheduler initialised")
