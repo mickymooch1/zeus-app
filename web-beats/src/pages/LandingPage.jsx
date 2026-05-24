@@ -127,13 +127,13 @@ export default function LandingPage() {
                 <span className="feat-icon">🎵</span>
                 <h3>AI Song Generator</h3>
                 <p>Turn a text brief into a full original song — lyrics by Claude AI, audio by Suno. Full lyrics and vocals in 60 seconds.</p>
-                <div className="feat-tags"><span>35+ Genres</span><span>Custom Lyrics</span><span>AI Vocals</span><span>Instrumental Mode</span></div>
+                <div className="feat-tags"><span>38+ Genres</span><span>Custom Lyrics</span><span>AI Vocals</span><span>Instrumental Mode</span></div>
               </div>
-              <div className="feat-card"><span className="feat-icon">🎸</span><h3>35+ Genres</h3><p>Soul, Grime, D&amp;B, Afrobeats, Jungle, Jazz, Drill, Amapiano, Niche, UK Garage, Lo-Fi, Reggae, Bassline and more.</p></div>
-              <div className="feat-card"><span className="feat-icon">🎨</span><h3>Animated Cover Art</h3><p>AI generates and animates your artwork automatically — every song gets a unique, genre-matched cover image that moves.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎸</span><h3>38+ Genres</h3><p>Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&amp;B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline and 20+ more.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎨</span><h3>Animated Cover Art</h3><p>Powered by Kling AI — static or animated artwork, genre-matched to every song, generated automatically at creation time.</p></div>
               <div className="feat-card"><span className="feat-icon">🎬</span><h3>Avatar Lip-Sync Videos</h3><p>AI performer sings your track in HD video. Perfect for YouTube, Instagram Reels, and music promotion.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎚️</span><h3>Genre Blending</h3><p>Combine two genres for a unique hybrid sound — Grime-Trap, Afro-Soul, or any mix you imagine. DJ-style genre switching included.</p></div>
               <div className="feat-card"><span className="feat-icon">🎛️</span><h3>DJ Mixer</h3><p>Mix your songs together and record your set — a built-in DJ deck for blending your AI tracks.</p></div>
-              <div className="feat-card"><span className="feat-icon">🔄</span><h3>Song Remake</h3><p>Regenerate any song in a completely different genre — same lyrics, totally new sound.</p></div>
               <div className="feat-card"><span className="feat-icon">🎤</span><h3>Voice to Text</h3><p>Describe your song by speaking, not typing. Hit the mic and Zeus transcribes your idea instantly.</p></div>
               <div className="feat-card"><span className="feat-icon">📋</span><h3>Song Templates</h3><p>One-click starters: Club Banger, Emotional R&amp;B, Grime Bars and more — skip the blank page.</p></div>
             </div>
@@ -144,8 +144,9 @@ export default function LandingPage() {
             <div style={{ fontSize: 13, fontWeight: 700, color: '#00f0ff', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14, marginTop: 40 }}>🌐 Publishing &amp; Sharing</div>
             <div className="features-grid">
               <div className="feat-card"><span className="feat-icon">▶️</span><h3>YouTube Upload</h3><p>One click — song goes live on your channel. Zeus uploads the audio, sets the title, and handles everything.</p></div>
-              <div className="feat-card"><span className="feat-icon">📘</span><h3>Facebook Auto-posting</h3><p>Zeus writes the caption and posts directly to your Facebook page — no copying, no switching apps.</p></div>
-              <div className="feat-card"><span className="feat-icon">✈️</span><h3>Telegram Sharing</h3><p>Share directly to your Telegram channel with one tap. Your audience gets it instantly.</p></div>
+              <div className="feat-card"><span className="feat-icon">📱</span><h3>Facebook &amp; Instagram</h3><p>Post to Facebook or share to Instagram directly from Zeus Beats — caption written, image included, no switching apps.</p></div>
+              <div className="feat-card"><span className="feat-icon">🌐</span><h3>Discover Feed</h3><p>Browse and listen to songs from Zeus Beats users worldwide — a public music community built in to the app.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎶</span><h3>Playlist &amp; Auto-play</h3><p>Build playlists from your library and let them run on auto-play — curate your set and let Zeus Beats handle the queue.</p></div>
               <div className="feat-card"><span className="feat-icon">🔍</span><h3>Music Search</h3><p>Find any artist, copy their style, generate your version — search for inspiration and make it your own.</p></div>
             </div>
           </div>
@@ -156,7 +157,7 @@ export default function LandingPage() {
             <div className="features-grid">
               <div className="feat-card"><span className="feat-icon">🤖</span><h3>Model Selector</h3><p>Choose your Suno model — V4, V5, or V5.5 for the latest sound quality and features.</p></div>
               <div className="feat-card"><span className="feat-icon">🎤</span><h3>Vocal Gender</h3><p>Male, Female, or Duet — control who sings your track.</p></div>
-              <div className="feat-card"><span className="feat-icon">🗣️</span><h3>25+ Accents</h3><p>British, Jamaican, Grime MC, West African, American Hip-Hop, Irish, Scottish and more — pinpoint the vocal style.</p></div>
+              <div className="feat-card"><span className="feat-icon">🗣️</span><h3>27+ Accents</h3><p>Punjabi, Jamaican, Grime MC, West African, Colombian, Puerto Rican, British, American Hip-Hop, Irish, Scottish and more.</p></div>
               <div className="feat-card"><span className="feat-icon">🔞</span><h3>Explicit Toggle</h3><p>Enable explicit content for grime, drill, and street genres — authentic language where it fits.</p></div>
               <div className="feat-card"><span className="feat-icon">🌀</span><h3>Weirdness Control</h3><p>Slide from Safe to Experimental — control how conventional or boundary-pushing your track sounds.</p></div>
               <div className="feat-card"><span className="feat-icon">🚫</span><h3>Avoid Tags</h3><p>Tell Zeus what NOT to include — no piano, no trumpet, no slow sections. You're in control.</p></div>
@@ -371,6 +372,40 @@ export default function LandingPage() {
                 </Link>
               ))}
             </div>
+
+            {/* Animation top-ups */}
+            <div style={{ marginTop: 32, textAlign: 'center' }}>
+              <p style={{ fontSize: 12, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>Animation Top-ups</p>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {[
+                  { label: '5 Animations', price: '£2' },
+                  { label: '15 Animations', price: '£5' },
+                ].map(({ label, price }) => (
+                  <Link
+                    key={label}
+                    to="/register"
+                    style={{
+                      flex: '1 1 130px',
+                      maxWidth: 150,
+                      padding: '18px 12px',
+                      borderRadius: 14,
+                      border: '1px solid rgba(255,0,153,0.3)',
+                      background: 'rgba(255,0,153,0.05)',
+                      textDecoration: 'none',
+                      textAlign: 'center',
+                      boxShadow: '0 0 14px rgba(255,0,153,0.06)',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,0,153,0.10)'; e.currentTarget.style.boxShadow = '0 0 22px rgba(255,0,153,0.18)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,0,153,0.05)'; e.currentTarget.style.boxShadow = '0 0 14px rgba(255,0,153,0.06)'; }}
+                  >
+                    <div style={{ fontSize: 22, fontWeight: 900, color: '#ff0099', marginBottom: 6, fontFamily: "'Orbitron', sans-serif" }}>{price}</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{label}</div>
+                  </Link>
+                ))}
+              </div>
+              <p style={{ fontSize: 12, color: '#555', marginTop: 10 }}>Credits never expire · No subscription needed</p>
+            </div>
           </div>
 
           {/* Divider between PAYG and plans */}
@@ -403,48 +438,61 @@ export default function LandingPage() {
 
           <div className="pricing-grid pricing-grid--music">
             <div className="price-card">
-              <div className="plan-name">{t('landing.starterName')}</div>
-              <div className="plan-price">£9<span>/mo</span></div>
-              <p className="plan-desc">{t('landing.starterDesc')}</p>
+              <div className="plan-name">Free</div>
+              <div className="plan-price">£0<span>/mo</span></div>
+              <p className="plan-desc">Start creating with no commitment.</p>
               <ul className="plan-features">
-                <li>{t('billing.plans.features.songs15')}</li>
-                <li>{t('billing.plans.features.youtube')}</li>
-                <li>{t('billing.plans.features.download')}</li>
-                <li>{t('billing.plans.features.genres')}</li>
-                <li>{t('billing.plans.features.coverArt')}</li>
+                <li>✓ 5 songs on signup</li>
+                <li>✓ All 38+ genres</li>
+                <li>✓ Static cover art</li>
+                <li>✓ Discover feed access</li>
               </ul>
-              <Link to="/register" className="btn-plan-ghost">{t('landing.getStarter')}</Link>
-            </div>
-
-            <div className="price-card price-featured">
-              <div className="plan-name">{t('landing.proName')}</div>
-              <div className="plan-price">£19<span>/mo</span></div>
-              <p className="plan-desc">{t('landing.proDesc')}</p>
-              <ul className="plan-features">
-                <li>{t('billing.plans.features.songs40')}</li>
-                <li>{t('billing.plans.features.youtube')}</li>
-                <li>{t('billing.plans.features.avatar3')}</li>
-                <li>{t('billing.plans.features.download')}</li>
-                <li>{t('billing.plans.features.genres')}</li>
-                <li>{t('billing.plans.features.coverArt')}</li>
-              </ul>
-              <Link to="/register" className="btn-plan-primary">{t('landing.getPro')}</Link>
+              <Link to="/register" className="btn-plan-ghost">Get Started Free</Link>
             </div>
 
             <div className="price-card">
-              <div className="plan-name">{t('landing.agencyName')}</div>
-              <div className="plan-price">£39<span>/mo</span></div>
-              <p className="plan-desc">{t('landing.agencyDesc')}</p>
+              <div className="plan-name">Music Starter</div>
+              <div className="plan-price">£9<span>/mo</span></div>
+              <p className="plan-desc">For artists getting started with AI music creation.</p>
               <ul className="plan-features">
-                <li>{t('billing.plans.features.songs80')}</li>
-                <li>{t('billing.plans.features.youtube')}</li>
-                <li>{t('billing.plans.features.avatar10')}</li>
-                <li>{t('billing.plans.features.download')}</li>
-                <li>{t('billing.plans.features.genres')}</li>
-                <li>{t('billing.plans.features.coverArt')}</li>
-                <li>{t('billing.plans.features.facebook')}</li>
+                <li>✓ 25 songs/month</li>
+                <li>✓ 3 animated cover arts/month</li>
+                <li>✓ YouTube upload</li>
+                <li>✓ All 38+ genres</li>
+                <li>✓ All 27+ accents</li>
               </ul>
-              <Link to="/register" className="btn-plan-ghost">{t('landing.getAgency')}</Link>
+              <Link to="/register" className="btn-plan-ghost">Get Music Starter</Link>
+            </div>
+
+            <div className="price-card price-featured">
+              <div className="plan-name">Music Pro</div>
+              <div className="plan-price">£19<span>/mo</span></div>
+              <p className="plan-desc">For active creators who want avatar videos.</p>
+              <ul className="plan-features">
+                <li>✓ 55 songs/month</li>
+                <li>✓ 10 animated cover arts/month</li>
+                <li>✓ 3 avatar videos/month</li>
+                <li>✓ YouTube upload</li>
+                <li>✓ Genre blending</li>
+                <li>✓ DJ Mixer</li>
+              </ul>
+              <Link to="/register" className="btn-plan-primary">Get Music Pro</Link>
+            </div>
+
+            <div className="price-card">
+              <div className="plan-name">Music Agency</div>
+              <div className="plan-price">£39<span>/mo</span></div>
+              <p className="plan-desc">For prolific creators and label teams.</p>
+              <ul className="plan-features">
+                <li>✓ 110 songs/month</li>
+                <li>✓ 20 animated cover arts/month</li>
+                <li>✓ 10 avatar videos/month</li>
+                <li>✓ YouTube upload</li>
+                <li>✓ Genre blending</li>
+                <li>✓ DJ Mixer</li>
+                <li>✓ Priority support</li>
+              </ul>
+              <Link to="/register" className="btn-plan-ghost">Get Music Agency</Link>
             </div>
           </div>
         </div>

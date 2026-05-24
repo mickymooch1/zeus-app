@@ -123,9 +123,9 @@ export default function LandingPage() {
                 <span className="feat-icon">🎵</span>
                 <h3>AI Song Generator</h3>
                 <p>Turn a text brief into a full original song — lyrics by Claude AI, audio by Suno. Full lyrics and vocals in 60 seconds.</p>
-                <div className="feat-tags"><span>35+ Genres</span><span>Custom Lyrics</span><span>AI Vocals</span><span>Instrumental Mode</span></div>
+                <div className="feat-tags"><span>38+ Genres</span><span>Custom Lyrics</span><span>AI Vocals</span><span>Instrumental Mode</span></div>
               </div>
-              <div className="feat-card"><span className="feat-icon">🎸</span><h3>35+ Genres</h3><p>Soul, Grime, D&amp;B, Afrobeats, Jungle, Jazz, Drill, Amapiano, Niche, UK Garage, Lo-Fi, Reggae, Bassline and more.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎸</span><h3>38+ Genres</h3><p>Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&amp;B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline and more.</p></div>
               <div className="feat-card"><span className="feat-icon">🎨</span><h3>Animated Cover Art</h3><p>AI generates and animates your artwork automatically — every song gets a unique, genre-matched cover image that moves.</p></div>
               <div className="feat-card"><span className="feat-icon">🎬</span><h3>Avatar Lip-Sync Videos</h3><p>AI performer sings your track in HD video. Perfect for YouTube, Instagram Reels, and music promotion.</p></div>
               <div className="feat-card"><span className="feat-icon">🎛️</span><h3>DJ Mixer</h3><p>Mix your songs together and record your set — a built-in DJ deck for blending your AI tracks.</p></div>
@@ -167,7 +167,7 @@ export default function LandingPage() {
             <div className="features-grid">
               <div className="feat-card"><span className="feat-icon">🤖</span><h3>Model Selector</h3><p>Choose your Suno model — V4, V5, or V5.5 for the latest sound quality and features.</p></div>
               <div className="feat-card"><span className="feat-icon">🎤</span><h3>Vocal Gender</h3><p>Male, Female, or Duet — control who sings your track.</p></div>
-              <div className="feat-card"><span className="feat-icon">🗣️</span><h3>25+ Accents</h3><p>British, Jamaican, Grime MC, West African, American Hip-Hop, Irish, Scottish and more — pinpoint the vocal style.</p></div>
+              <div className="feat-card"><span className="feat-icon">🗣️</span><h3>27+ Accents</h3><p>Punjabi, Jamaican, Grime MC, West African, Colombian, Puerto Rican, British, American Hip-Hop, Irish, Scottish and more.</p></div>
               <div className="feat-card"><span className="feat-icon">🔞</span><h3>Explicit Toggle</h3><p>Enable explicit content for grime, drill, and street genres — authentic language where it fits.</p></div>
               <div className="feat-card"><span className="feat-icon">🌀</span><h3>Weirdness Control</h3><p>Slide from Safe to Experimental — control how conventional or boundary-pushing your track sounds.</p></div>
               <div className="feat-card"><span className="feat-icon">🚫</span><h3>Avoid Tags</h3><p>Tell Zeus what NOT to include — no piano, no trumpet, no slow sections. You're in control.</p></div>
@@ -288,6 +288,7 @@ export default function LandingPage() {
                 <li>✓ Client &amp; project CRM</li>
                 <li>✓ Priority support</li>
                 <li>✓ 20 AI songs/month</li>
+                <li>✓ 10 animations/month</li>
                 <li>✓ AI song download &amp; share</li>
               </ul>
               <Link to="/register" className="btn-plan-ghost">Start Pro</Link>
@@ -304,7 +305,8 @@ export default function LandingPage() {
                 <li>✓ Everything in Pro</li>
                 <li>✓ Team features</li>
                 <li>✓ Priority support</li>
-                <li>✓ 80 AI songs/month</li>
+                <li>✓ 70 AI songs/month</li>
+                <li>✓ 20 animations/month</li>
                 <li>✓ YouTube music upload</li>
                 <li>✓ Explicit content toggle</li>
                 <li>✓ Google indexing</li>
@@ -319,13 +321,14 @@ export default function LandingPage() {
               <p className="plan-desc">The full Zeus AI power stack. Autonomous agents build and deploy sites while you sleep.</p>
               <ul className="plan-features">
                 <li>✓ Unlimited messages</li>
-                <li>✓ 20 website builds/month</li>
+                <li>✓ Unlimited website builds</li>
                 <li>✓ Multi-agent website builder</li>
                 <li>✓ Background tasks</li>
                 <li>✓ Scheduled tasks</li>
                 <li>✓ Appointment booking</li>
                 <li>✓ Priority support</li>
-                <li>✓ 100 AI songs/month</li>
+                <li>✓ Unlimited AI songs</li>
+                <li>✓ 50 animations/month</li>
                 <li>✓ All Agency music features</li>
               </ul>
               <Link to="/register" className="btn-plan-primary">Start Enterprise</Link>
@@ -347,11 +350,12 @@ export default function LandingPage() {
                 <div className="plan-price">£9<span>/mo</span></div>
                 <p className="plan-desc">For artists getting started with AI music creation.</p>
                 <ul className="plan-features">
-                  <li>✓ 15 AI songs/month</li>
+                  <li>✓ 25 AI songs/month</li>
+                  <li>✓ 3 animated cover arts/month</li>
                   <li>✓ YouTube upload</li>
                   <li>✓ Song download &amp; share</li>
-                  <li>✓ All 20+ genres &amp; styles</li>
-                  <li>✓ AI cover art</li>
+                  <li>✓ All 38+ genres &amp; styles</li>
+                  <li>✓ All 27+ accents</li>
                 </ul>
                 <Link to="/register" className="btn-plan-ghost">Get Music Starter</Link>
               </div>
@@ -361,12 +365,12 @@ export default function LandingPage() {
                 <div className="plan-price">£19<span>/mo</span></div>
                 <p className="plan-desc">For active creators who want avatar videos.</p>
                 <ul className="plan-features">
-                  <li>✓ 40 AI songs/month</li>
-                  <li>✓ YouTube upload</li>
+                  <li>✓ 55 AI songs/month</li>
+                  <li>✓ 10 animated cover arts/month</li>
                   <li>✓ 3 avatar lip-sync videos/month</li>
-                  <li>✓ Song download &amp; share</li>
-                  <li>✓ All 20+ genres &amp; styles</li>
-                  <li>✓ AI cover art</li>
+                  <li>✓ YouTube upload</li>
+                  <li>✓ Genre blending</li>
+                  <li>✓ DJ Mixer</li>
                 </ul>
                 <Link to="/register" className="btn-plan-ghost">Get Music Pro</Link>
               </div>
@@ -376,13 +380,13 @@ export default function LandingPage() {
                 <div className="plan-price">£39<span>/mo</span></div>
                 <p className="plan-desc">For prolific creators and label teams.</p>
                 <ul className="plan-features">
-                  <li>✓ 80 AI songs/month</li>
-                  <li>✓ YouTube upload</li>
+                  <li>✓ 110 AI songs/month</li>
+                  <li>✓ 20 animated cover arts/month</li>
                   <li>✓ 10 avatar lip-sync videos/month</li>
-                  <li>✓ Song download &amp; share</li>
-                  <li>✓ All 20+ genres &amp; styles</li>
-                  <li>✓ AI cover art</li>
-                  <li>✓ Facebook posting</li>
+                  <li>✓ YouTube upload</li>
+                  <li>✓ Genre blending</li>
+                  <li>✓ DJ Mixer</li>
+                  <li>✓ Priority support</li>
                 </ul>
                 <Link to="/register" className="btn-plan-ghost">Get Music Agency</Link>
               </div>
