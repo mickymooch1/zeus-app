@@ -2868,7 +2868,9 @@ async def log_discover_play(
 @app.get("/api/discover/for-you")
 async def discover_for_you(current_user=Depends(auth.get_current_user)):
     """Personalised feed: public songs in genres the user has liked, ordered by popularity."""
-    songs = db.get_for_you_songs(db.get_db_path(), current_user["id"])
+    user_id = current_user["id"]
+    songs = db.get_for_you_songs(db.get_db_path(), user_id)
+    log.info("discover_for_you: user=%s returned=%d songs", user_id, len(songs))
     return {"songs": songs, "page": 0, "count": len(songs)}
 
 
