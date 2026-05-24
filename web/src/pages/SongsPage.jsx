@@ -2021,7 +2021,7 @@ export default function SongsPage() {
                     onChange={(e) => setAccent(e.target.value)}
                     style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: accent ? '#c4b5fd' : '#555', fontSize: 13, outline: 'none' }}
                   >
-                    <option value="">Default</option>
+                    <option value="">🎤 Auto (matches your genre)</option>
                     {[
                       'British', 'American (Southern)', 'Irish', 'Scottish', 'Australian',
                       'Caribbean', 'French', 'Spanish', 'American Soul', 'Jamaican',
@@ -2048,6 +2048,7 @@ export default function SongsPage() {
                       <option key={label} value={value}>{label}</option>
                     ))}
                   </select>
+                  <p style={{ fontSize: 11, color: '#555', marginTop: 5 }}>Leave on Auto to let Zeus match the accent to your genre</p>
                 </div>
 
                 {/* Model version */}

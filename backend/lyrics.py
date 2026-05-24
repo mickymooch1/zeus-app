@@ -53,6 +53,7 @@ GENRE_VOCABULARY: dict[str, str] = {
     "rnb":         "vibe, situationship, soft life, real love, body, drip, finesse",
     "ukgarage":    "rewind, two-step, selector, garage ting, bare, mandem, swerve",
     "bassline":    "banger, rave, proper, dark, filthy, Sheffield, bounce, wobble",
+    "rockney":     "Write in authentic Cockney style — use Cockney rhyming slang, reference East End London life, pubs, markets, football, family. Cheerful singalong verses with a big catchy pub chorus everyone can join in with. Think traditional London street culture.",
 }
 
 _LYRIC_SYSTEM_BASE = """You are the most creative songwriter alive. Your job is to write lyrics that genuinely surprise people.
