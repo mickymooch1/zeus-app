@@ -4117,9 +4117,24 @@ async def ai_generate_playlist(
 
     db_path = db.get_db_path()
     songs = db.get_user_songs_for_ai(db_path, current_user["id"])
+    song_count = len(songs)
 
-    if len(songs) < 3:
-        raise HTTPException(status_code=400, detail="Add more songs to use AI Playlist")
+    if song_count < 5:
+        raise HTTPException(
+            status_code=400,
+            detail="You need at least 5 songs in your library to use AI Playlists. Generate some songs first!",
+        )
+
+    log.info("AI Playlist: prompt=%r user_songs=%d", prompt, song_count)
+
+    # Small library — skip Claude and just use everything
+    if song_count < 10:
+        name = prompt[:60]
+        playlist = db.create_playlist(db_path, current_user["id"], name)
+        for s in songs:
+            db.add_song_to_playlist(db_path, playlist["id"], s["variant_id"])
+        log.info("AI Playlist: prompt=%r user_songs=%d selected=%d (small library shortcut)", prompt, song_count, song_count)
+        return {"playlist": playlist, "song_count": song_count}
 
     song_lines = "\n".join(
         f"{i + 1}. variant_id={s['variant_id']}, "
@@ -4134,17 +4149,18 @@ async def ai_generate_playlist(
             model="claude-haiku-4-5-20251001",
             max_tokens=512,
             system=(
-                "You are a music curator. Given a numbered list of songs, select 10 to 15 "
-                "that best match the user's mood or vibe. Return ONLY a valid JSON array of "
-                "variant_id integers from the list. No explanation, no markdown, just the array. "
-                "If fewer than 10 songs exist, return all of them."
+                "You are a music curator. Given a numbered list of songs, pick 10 to 15 "
+                "that fit the user's mood or vibe — be generous and inclusive, not strict. "
+                "If a song loosely fits the mood, include it. It is always better to include "
+                "more songs than fewer. Return ONLY a valid JSON array of variant_id integers. "
+                "No explanation, no markdown, just the array. If fewer than 10 songs exist, return all of them."
             ),
             messages=[{
                 "role": "user",
                 "content": (
                     f'Vibe: "{prompt}"\n\n'
                     f"Songs:\n{song_lines}\n\n"
-                    "Return matching variant_ids as a JSON array."
+                    "Return variant_ids as a JSON array. Be generous — include anything that loosely fits."
                 ),
             }],
         )
@@ -4153,18 +4169,21 @@ async def ai_generate_playlist(
         raise HTTPException(status_code=500, detail="AI service unavailable") from exc
 
     raw = response.content[0].text.strip()
+    chosen = []
+    valid_ids = {s["variant_id"] for s in songs}
     try:
         selected_ids = json.loads(raw)
-        if not isinstance(selected_ids, list):
-            raise ValueError("not a list")
+        if isinstance(selected_ids, list):
+            chosen = [vid for vid in selected_ids if isinstance(vid, int) and vid in valid_ids]
     except (json.JSONDecodeError, ValueError):
-        raise HTTPException(status_code=400, detail="No matching songs found for that vibe")
+        pass
 
-    valid_ids = {s["variant_id"] for s in songs}
-    chosen = [vid for vid in selected_ids if isinstance(vid, int) and vid in valid_ids]
-
+    # Fallback: if Claude returned nothing useful, use all songs
     if not chosen:
-        raise HTTPException(status_code=400, detail="No matching songs found for that vibe")
+        log.warning("AI Playlist: Claude returned no valid IDs for prompt=%r — using all songs as fallback", prompt)
+        chosen = [s["variant_id"] for s in songs]
+
+    log.info("AI Playlist: prompt=%r user_songs=%d selected=%d", prompt, song_count, len(chosen))
 
     name = prompt[:60]
     playlist = db.create_playlist(db_path, current_user["id"], name)
