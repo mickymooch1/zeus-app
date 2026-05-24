@@ -2847,6 +2847,10 @@ async def discover_song(variant_id: int):
     return dict(row)
 
 
+class _PlayEventRequest(BaseModel):
+    variant_id: int
+
+
 @app.post("/api/discover/play", status_code=204)
 async def log_discover_play(
     body: _PlayEventRequest,
@@ -4019,9 +4023,6 @@ class _AiPlaylistRequest(BaseModel):
     prompt: str
 
 class _AddSongRequest(BaseModel):
-    variant_id: int
-
-class _PlayEventRequest(BaseModel):
     variant_id: int
 
 class _ReorderRequest(BaseModel):
