@@ -262,6 +262,14 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 added_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(playlist_id, variant_id)
             )""",
+            """CREATE TABLE IF NOT EXISTS song_play_events (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                variant_id INTEGER NOT NULL,
+                user_id    TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE INDEX IF NOT EXISTS idx_play_events_user
+               ON song_play_events(user_id)""",
         ]:
             try:
                 conn.execute(_migration)
@@ -1520,5 +1528,99 @@ def reorder_playlist_songs(db_path: pathlib.Path, playlist_id: int, variant_ids:
                 (pos, playlist_id, vid),
             )
         conn.commit()
+    finally:
+        conn.close()
+
+
+def get_user_songs_for_ai(db_path: pathlib.Path, user_id: str) -> list[dict]:
+    """Return all completed songs for a user: variant_id, title, genre_tag, style_prompt."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            """SELECT sv.id AS variant_id,
+                      l.title,
+                      sv.genre_tag,
+                      sv.style_prompt
+               FROM song_variants sv
+               JOIN lyrics l ON l.id = sv.lyric_id
+               WHERE sv.user_id = ?
+                 AND sv.status = 'complete'
+                 AND sv.mp3_url IS NOT NULL
+               ORDER BY sv.created_at DESC""",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def log_play_event(db_path: pathlib.Path, variant_id: int, user_id: str | None) -> None:
+    """Record that a user started playing a discover song."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "INSERT INTO song_play_events (variant_id, user_id) VALUES (?, ?)",
+            (variant_id, user_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_for_you_songs(db_path: pathlib.Path, user_id: str, limit: int = 20) -> list[dict]:
+    """Return public songs in genres the user has liked, ordered by like_count.
+    Falls back to most-liked public songs if the user has no likes yet."""
+    conn = _conn(db_path)
+    try:
+        liked_genre_rows = conn.execute(
+            """SELECT DISTINCT sv.genre_tag
+               FROM song_variant_likes svl
+               JOIN song_variants sv ON sv.id = svl.variant_id
+               WHERE svl.user_id = ? AND sv.genre_tag IS NOT NULL""",
+            (user_id,),
+        ).fetchall()
+        liked_genres = [r[0] for r in liked_genre_rows]
+
+        liked_id_rows = conn.execute(
+            "SELECT variant_id FROM song_variant_likes WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+        liked_ids = [r[0] for r in liked_id_rows]
+
+        base_select = """SELECT sv.id AS variant_id,
+                                sv.genre_tag,
+                                sv.mp3_url,
+                                sv.image_url  AS cover_url,
+                                sv.music_video_url,
+                                sv.duration_seconds,
+                                l.title,
+                                u.artist_name,
+                                (SELECT COUNT(*) FROM song_variant_likes lk
+                                 WHERE lk.variant_id = sv.id) AS like_count
+                         FROM song_variants sv
+                         JOIN lyrics l ON l.id = sv.lyric_id
+                         JOIN users  u ON u.id = sv.user_id
+                         WHERE sv.is_public = 1
+                           AND sv.status = 'complete'
+                           AND sv.mp3_url IS NOT NULL"""
+
+        if liked_genres:
+            genre_ph = ",".join("?" * len(liked_genres))
+            if liked_ids:
+                excl_ph = ",".join("?" * len(liked_ids))
+                sql = (f"{base_select} AND sv.genre_tag IN ({genre_ph})"
+                       f" AND sv.id NOT IN ({excl_ph})"
+                       f" ORDER BY like_count DESC, sv.completed_at DESC LIMIT ?")
+                params: list = liked_genres + liked_ids + [limit]
+            else:
+                sql = (f"{base_select} AND sv.genre_tag IN ({genre_ph})"
+                       f" ORDER BY like_count DESC, sv.completed_at DESC LIMIT ?")
+                params = liked_genres + [limit]
+        else:
+            sql = f"{base_select} ORDER BY like_count DESC, sv.completed_at DESC LIMIT ?"
+            params = [limit]
+
+        rows = conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
     finally:
         conn.close()

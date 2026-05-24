@@ -21,6 +21,11 @@ function gLabel(g) {
   return GENRE_LABEL[g] || g.charAt(0).toUpperCase()+g.slice(1);
 }
 
+const AI_CHIPS = [
+  'Sunday morning chill', 'Hype workout', 'Late night drive',
+  'Friday night out', 'Focus mode', 'Heartbreak vibes',
+];
+
 // ── styles ────────────────────────────────────────────────────────────────────
 const S = {
   page:    { minHeight: '100vh', background: '#0b0b14', color: '#e2e8f0', paddingBottom: 100 },
@@ -213,6 +218,10 @@ export default function PlaylistPage() {
   const [loading, setLoading]       = useState(true);
   const [newName, setNewName]       = useState('');
   const [creating, setCreating]     = useState(false);
+  const [aiOpen, setAiOpen]         = useState(false);
+  const [aiPrompt, setAiPrompt]     = useState('');
+  const [aiLoading, setAiLoading]   = useState(false);
+  const [aiError, setAiError]       = useState('');
 
   const fetchPlaylists = useCallback(async () => {
     try {
@@ -249,6 +258,28 @@ export default function PlaylistPage() {
 
   const handleDeleted = (id) => setPlaylists(prev => prev.filter(p => p.id !== id));
 
+  const handleAiGenerate = async () => {
+    if (!aiPrompt.trim()) return;
+    setAiLoading(true);
+    setAiError('');
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/playlists/ai-generate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: aiPrompt.trim() }),
+      });
+      const data = await r.json();
+      if (!r.ok) { setAiError(data.detail || 'Something went wrong'); return; }
+      setPlaylists(prev => [data.playlist, ...prev]);
+      setAiOpen(false);
+      setAiPrompt('');
+    } catch (_) {
+      setAiError('Something went wrong. Try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   return (
     <div style={S.page}>
       <BeatsDashboardHeader />
@@ -277,6 +308,19 @@ export default function PlaylistPage() {
           </button>
         </form>
 
+        <button
+          type="button"
+          onClick={() => { setAiOpen(true); setAiError(''); }}
+          style={{
+            background: 'linear-gradient(135deg,rgba(0,240,255,0.08),rgba(168,85,247,0.08))',
+            border: '1px solid rgba(0,240,255,0.3)', borderRadius: 8,
+            color: '#00f0ff', fontWeight: 700, fontSize: 13,
+            padding: '8px 18px', cursor: 'pointer', marginBottom: 32, transition: 'all 0.15s',
+          }}
+        >
+          ✨ AI Playlist
+        </button>
+
         {loading ? (
           <div style={{ color:'#64748b', textAlign:'center', padding:40 }}>Loading playlists…</div>
         ) : playlists.length === 0 ? (
@@ -289,6 +333,76 @@ export default function PlaylistPage() {
           ))
         )}
       </div>
+
+      {/* AI Playlist modal */}
+      {aiOpen && (
+        <div
+          onClick={() => setAiOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#12121e', border: '1px solid rgba(0,240,255,0.25)',
+              borderRadius: 16, padding: '28px 24px', maxWidth: 440, width: '100%',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, background: 'linear-gradient(90deg,#00f0ff,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                ✨ AI Playlist Builder
+              </h2>
+              <button onClick={() => setAiOpen(false)} style={{ ...S.btn, padding: '4px 9px', fontSize: 15 }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 14 }}>
+              {AI_CHIPS.map(chip => (
+                <button
+                  key={chip}
+                  onClick={() => setAiPrompt(chip)}
+                  style={{
+                    background: aiPrompt === chip ? 'rgba(0,240,255,0.12)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${aiPrompt === chip ? 'rgba(0,240,255,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: 20, color: aiPrompt === chip ? '#00f0ff' : '#94a3b8',
+                    fontSize: 12, padding: '5px 12px', cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+
+            <input
+              value={aiPrompt}
+              onChange={e => setAiPrompt(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !aiLoading && handleAiGenerate()}
+              placeholder="Describe your mood or vibe..."
+              style={{ ...S.input, width: '100%', marginBottom: 12, boxSizing: 'border-box' }}
+              autoFocus
+              maxLength={120}
+            />
+
+            {aiError && (
+              <p style={{ color: '#f87171', fontSize: 13, margin: '0 0 10px' }}>{aiError}</p>
+            )}
+
+            <button
+              onClick={handleAiGenerate}
+              disabled={aiLoading || !aiPrompt.trim()}
+              style={{
+                width: '100%', padding: '11px 0', marginTop: 4,
+                background: 'linear-gradient(135deg,#7c3aed,#a855f7)', border: 'none',
+                borderRadius: 8, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                opacity: aiLoading || !aiPrompt.trim() ? 0.55 : 1, transition: 'opacity 0.2s',
+              }}
+            >
+              {aiLoading ? '✨ Claude is curating your playlist…' : '✨ Generate Playlist'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -34,6 +34,7 @@ from slowapi.util import get_remote_address
 
 print("zeus main.py: fastapi ok", file=sys.stderr, flush=True)
 
+from anthropic import Anthropic
 from zeus_agent import HistoryStore, get_anthropic_client, run_turn_stream
 
 print("zeus main.py: zeus_agent ok", file=sys.stderr, flush=True)
@@ -3993,6 +3994,9 @@ def _get_public_song_for_og(variant_id: int):
 class _CreatePlaylistRequest(BaseModel):
     name: str
 
+class _AiPlaylistRequest(BaseModel):
+    prompt: str
+
 class _AddSongRequest(BaseModel):
     variant_id: int
 
@@ -4074,6 +4078,75 @@ async def delete_playlist(playlist_id: int, current_user=Depends(auth.get_curren
     if not deleted:
         raise HTTPException(status_code=404, detail="Playlist not found")
     return {"deleted": True}
+
+
+@app.post("/api/playlists/ai-generate")
+async def ai_generate_playlist(
+    body: _AiPlaylistRequest,
+    current_user=Depends(auth.get_current_user),
+):
+    """Generate a playlist using Claude Haiku based on a mood/vibe prompt."""
+    prompt = body.prompt.strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt required")
+
+    db_path = db.get_db_path()
+    songs = db.get_user_songs_for_ai(db_path, current_user["id"])
+
+    if len(songs) < 3:
+        raise HTTPException(status_code=400, detail="Add more songs to use AI Playlist")
+
+    song_lines = "\n".join(
+        f"{i + 1}. variant_id={s['variant_id']}, "
+        f"title=\"{s['title']}\", "
+        f"genre={s['genre_tag'] or 'unknown'}"
+        for i, s in enumerate(songs)
+    )
+
+    client = Anthropic()
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            system=(
+                "You are a music curator. Given a numbered list of songs, select 10 to 15 "
+                "that best match the user's mood or vibe. Return ONLY a valid JSON array of "
+                "variant_id integers from the list. No explanation, no markdown, just the array. "
+                "If fewer than 10 songs exist, return all of them."
+            ),
+            messages=[{
+                "role": "user",
+                "content": (
+                    f'Vibe: "{prompt}"\n\n'
+                    f"Songs:\n{song_lines}\n\n"
+                    "Return matching variant_ids as a JSON array."
+                ),
+            }],
+        )
+    except Exception as exc:
+        log.exception("ai_generate_playlist: claude error")
+        raise HTTPException(status_code=500, detail="AI service unavailable") from exc
+
+    raw = response.content[0].text.strip()
+    try:
+        selected_ids = json.loads(raw)
+        if not isinstance(selected_ids, list):
+            raise ValueError("not a list")
+    except (json.JSONDecodeError, ValueError):
+        raise HTTPException(status_code=400, detail="No matching songs found for that vibe")
+
+    valid_ids = {s["variant_id"] for s in songs}
+    chosen = [vid for vid in selected_ids if isinstance(vid, int) and vid in valid_ids]
+
+    if not chosen:
+        raise HTTPException(status_code=400, detail="No matching songs found for that vibe")
+
+    name = prompt[:60]
+    playlist = db.create_playlist(db_path, current_user["id"], name)
+    for vid in chosen:
+        db.add_song_to_playlist(db_path, playlist["id"], vid)
+
+    return {"playlist": playlist, "song_count": len(chosen)}
 
 
 @app.get("/.well-known/assetlinks.json", include_in_schema=False)
