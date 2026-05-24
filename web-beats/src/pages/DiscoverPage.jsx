@@ -444,7 +444,7 @@ export default function DiscoverPage() {
               borderTopColor: CYAN,
               animation: 'spin 0.8s linear infinite',
             }} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes videoFade { 0% { opacity: 1; } 85% { opacity: 1; } 95% { opacity: 0.3; } 100% { opacity: 1; } } .discover-video { animation: videoFade 5s ease-in-out infinite; }`}</style>
           </div>
         )}
 

@@ -121,7 +121,13 @@ const PAGE_CSS = `
 .song-card-anim:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,240,255,0.12); }
 .dl-btn:hover { box-shadow: 0 0 16px rgba(124,58,237,0.5) !important; }
 .fav-star-btn:hover { transform: scale(1.2); }
-.cover-video { transition: filter 0.2s; }
+@keyframes videoFade {
+  0%   { opacity: 1; }
+  85%  { opacity: 1; }
+  95%  { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+.cover-video { transition: filter 0.2s; animation: videoFade 5s ease-in-out infinite; }
 .cover-video:hover { filter: brightness(1.12); }
 @keyframes cover-float {
   0%, 100% { transform: scale(1) translateY(0px); }
