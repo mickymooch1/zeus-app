@@ -1,7 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNowPlaying } from '../contexts/NowPlayingContext';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -13,7 +21,7 @@ const GENRE_LABEL = {
   driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub',
   deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk',
   syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep',
-  bhangra:'Bhangra', rockney:'Rockney', metal:'Metal',
+  bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', rootsreggae:'Roots Reggae',
 };
 function gLabel(g) {
   if (!g) return '';
@@ -34,7 +42,7 @@ const S = {
   card:    { background: '#12121e', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, marginBottom: 16, overflow: 'hidden' },
   cardHdr: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', cursor: 'pointer', userSelect: 'none' },
   pill:    { fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: 'rgba(168,85,247,0.18)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' },
-  songRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 18px', borderTop: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.15s' },
+  songRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 18px', borderTop: '1px solid rgba(255,255,255,0.05)' },
   btn:     { background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#94a3b8', fontSize: 13, cursor: 'pointer', padding: '5px 10px', transition: 'all 0.15s' },
   input:   { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0,240,255,0.25)', borderRadius: 8, color: '#e2e8f0', fontSize: 14, padding: '8px 14px', outline: 'none', width: 220 },
 };
@@ -53,22 +61,37 @@ function ConfirmDialog({ message, onConfirm, onCancel }) {
   );
 }
 
-function SongRow({ song, index, onPlay, onRemove, onDragStart, onDragOver, onDrop, dragging }) {
+function SortableSongRow({ song, index, onPlay, onRemove }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: song.variant_id,
+  });
+
   return (
     <div
-      draggable
-      onDragStart={(e) => onDragStart(e, index)}
-      onDragOver={(e) => { e.preventDefault(); onDragOver(index); }}
-      onDrop={(e) => onDrop(e, index)}
+      ref={setNodeRef}
       style={{
         ...S.songRow,
-        background: dragging ? 'rgba(0,240,255,0.04)' : 'transparent',
-        opacity: dragging ? 0.6 : 1,
-        cursor: 'grab',
+        transform: CSS.Transform.toString(transform),
+        transition,
+        background: isDragging ? 'rgba(0,240,255,0.06)' : 'transparent',
+        opacity: isDragging ? 0.55 : 1,
+        zIndex: isDragging ? 10 : 'auto',
+        position: 'relative',
+        boxShadow: isDragging ? '0 4px 20px rgba(0,0,0,0.5)' : 'none',
       }}
     >
       <span style={{ color:'#475569', fontSize:12, width:20, textAlign:'right', flexShrink:0 }}>{index+1}</span>
-      <span style={{ color:'#475569', fontSize:14, cursor:'grab', flexShrink:0 }}>⠿</span>
+      {/* drag handle — only this element is draggable */}
+      <span
+        {...attributes}
+        {...listeners}
+        style={{
+          color: '#475569', fontSize: 16, flexShrink: 0,
+          cursor: isDragging ? 'grabbing' : 'grab',
+          touchAction: 'none', padding: '0 2px', lineHeight: 1,
+        }}
+        title="Drag to reorder"
+      >⣿</span>
       {song.image_url
         ? <img src={song.image_url} alt="" style={{ width:36, height:36, borderRadius:5, objectFit:'cover', flexShrink:0, border:'1px solid rgba(255,255,255,0.08)' }} />
         : <div style={{ width:36, height:36, borderRadius:5, background:'rgba(124,58,237,0.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:16 }}>♫</div>
@@ -85,13 +108,15 @@ function SongRow({ song, index, onPlay, onRemove, onDragStart, onDragOver, onDro
 
 function PlaylistCard({ playlist, token, onDeleted }) {
   const { play } = useNowPlaying();
-  const [open, setOpen]     = useState(false);
-  const [songs, setSongs]   = useState([]);
+  const [open, setOpen]       = useState(false);
+  const [songs, setSongs]     = useState([]);
   const [loading, setLoading] = useState(false);
   const [confirm, setConfirm] = useState(false);
-  const [dragIdx, setDragIdx] = useState(null);
-  const [overIdx, setOverIdx] = useState(null);
-  const dragSrcRef = useRef(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const fetchSongs = useCallback(async () => {
     setLoading(true);
@@ -113,9 +138,7 @@ function PlaylistCard({ playlist, token, onDeleted }) {
     setOpen(o => !o);
   };
 
-  const handlePlay = (startIndex) => {
-    play(songs, startIndex);
-  };
+  const handlePlay = (startIndex) => play(songs, startIndex);
 
   const handleRemove = async (variantId) => {
     await fetch(`${BACKEND_URL}/api/playlists/${playlist.id}/songs/${variantId}`, {
@@ -134,23 +157,12 @@ function PlaylistCard({ playlist, token, onDeleted }) {
     setConfirm(false);
   };
 
-  // Drag-and-drop reorder
-  const onDragStart = (e, idx) => {
-    dragSrcRef.current = idx;
-    setDragIdx(idx);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-  const onDragOver = (idx) => setOverIdx(idx);
-  const onDrop = async (e, targetIdx) => {
-    e.preventDefault();
-    const srcIdx = dragSrcRef.current;
-    if (srcIdx === null || srcIdx === targetIdx) { setDragIdx(null); setOverIdx(null); return; }
-    const newSongs = [...songs];
-    const [moved] = newSongs.splice(srcIdx, 1);
-    newSongs.splice(targetIdx, 0, moved);
-    setSongs(newSongs);
-    setDragIdx(null);
-    setOverIdx(null);
+  const handleDragEnd = async ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const oldIndex = songs.findIndex(s => s.variant_id === active.id);
+    const newIndex = songs.findIndex(s => s.variant_id === over.id);
+    const newSongs = arrayMove(songs, oldIndex, newIndex);
+    setSongs(newSongs); // optimistic update
     await fetch(`${BACKEND_URL}/api/playlists/${playlist.id}/reorder`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -193,19 +205,19 @@ function PlaylistCard({ playlist, token, onDeleted }) {
         ) : songs.length === 0 ? (
           <div style={{ padding:'16px 18px', color:'#475569', fontSize:13 }}>No songs yet. Add songs from your library.</div>
         ) : (
-          songs.map((song, i) => (
-            <SongRow
-              key={song.variant_id}
-              song={song}
-              index={i}
-              onPlay={handlePlay}
-              onRemove={handleRemove}
-              onDragStart={onDragStart}
-              onDragOver={onDragOver}
-              onDrop={onDrop}
-              dragging={dragIdx === i || overIdx === i}
-            />
-          ))
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={songs.map(s => s.variant_id)} strategy={verticalListSortingStrategy}>
+              {songs.map((song, i) => (
+                <SortableSongRow
+                  key={song.variant_id}
+                  song={song}
+                  index={i}
+                  onPlay={handlePlay}
+                  onRemove={handleRemove}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         )
       )}
     </div>
@@ -248,7 +260,7 @@ export default function PlaylistPage() {
       });
       if (r.ok) {
         const pl = await r.json();
-        setPlaylists(prev => [pl, ...prev]);
+        setPlaylists(prev => [{ ...pl, song_count: 0 }, ...prev]);
         setNewName('');
       }
     } finally {
@@ -270,7 +282,8 @@ export default function PlaylistPage() {
       });
       const data = await r.json();
       if (!r.ok) { setAiError(data.detail || 'Something went wrong'); return; }
-      setPlaylists(prev => [data.playlist, ...prev]);
+      // Merge song_count from response into playlist object for immediate display
+      setPlaylists(prev => [{ ...data.playlist, song_count: data.song_count }, ...prev]);
       setAiOpen(false);
       setAiPrompt('');
     } catch (_) {
