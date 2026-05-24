@@ -222,16 +222,23 @@ export default function DiscoverPage() {
   const [loading, setLoading]       = useState(false);
   const [hasMore, setHasMore]       = useState(true);
   const [signupPrompt, setSignupPrompt] = useState(false);
+  const [activeTab, setActiveTab]         = useState('trending');
+  const [forYouSongs, setForYouSongs]     = useState([]);
+  const [forYouLoading, setForYouLoading] = useState(false);
+  const [forYouFetched, setForYouFetched] = useState(false);
 
   // Refs that don't trigger re-renders
-  const pageRef      = useRef(0);
-  const loadingRef   = useRef(false);
-  const hasMoreRef   = useRef(true);
-  const mutedRef     = useRef(true);
-  const activeRef    = useRef(null);
-  const slideRefs    = useRef({});
-  const videoRefs    = useRef({});
-  const audioRefs    = useRef({});
+  const pageRef            = useRef(0);
+  const loadingRef         = useRef(false);
+  const hasMoreRef         = useRef(true);
+  const mutedRef           = useRef(true);
+  const activeRef          = useRef(null);
+  const slideRefs          = useRef({});
+  const videoRefs          = useRef({});
+  const audioRefs          = useRef({});
+  const scrollContainerRef = useRef(null);
+
+  const activeSongs = activeTab === 'for_you' ? forYouSongs : songs;
 
   /* ── Fetch a page of songs ─────────────────────────────────────────────── */
   const fetchPage = useCallback(async () => {
@@ -261,9 +268,41 @@ export default function DiscoverPage() {
 
   useEffect(() => { fetchPage(); }, [fetchPage]);
 
+  const fetchForYou = useCallback(async () => {
+    if (!token || forYouFetched) return;
+    setForYouLoading(true);
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/discover/for-you`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) return;
+      const d = await r.json();
+      const s = d.songs || [];
+      setForYouSongs(s);
+      setCounts(prev => {
+        const n = { ...prev };
+        s.forEach(x => { n[x.variant_id] = x.like_count; });
+        return n;
+      });
+      setForYouFetched(true);
+    } catch (e) {
+      console.error('for-you:', e);
+    } finally {
+      setForYouLoading(false);
+    }
+  }, [token, forYouFetched]);
+
+  const handleTabChange = (tab) => {
+    if (tab === 'for_you' && !token) { setSignupPrompt(true); return; }
+    setActiveTab(tab);
+    activeRef.current = null;
+    if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+    if (tab === 'for_you' && !forYouFetched) fetchForYou();
+  };
+
   /* ── Intersection Observer — autoplay + infinite scroll trigger ─────────── */
   useEffect(() => {
-    if (!songs.length) return;
+    if (!activeSongs.length) return;
 
     const obs = new IntersectionObserver(entries => {
       entries.forEach(entry => {
@@ -272,7 +311,6 @@ export default function DiscoverPage() {
         const aud = audioRefs.current[idx];
 
         if (entry.isIntersecting) {
-          // Pause the previously active slide
           const prev = activeRef.current;
           if (prev !== null && prev !== idx) {
             videoRefs.current[prev]?.pause();
@@ -281,12 +319,24 @@ export default function DiscoverPage() {
           }
           activeRef.current = idx;
 
-          // Play current
           if (vid) { vid.muted = true; vid.play().catch(() => {}); }
-          if (aud && !mutedRef.current) audioManager.play(aud, songs[idx]?.variant_id);
+          if (aud && !mutedRef.current) audioManager.play(aud, activeSongs[idx]?.variant_id);
 
-          // Load next page when approaching end
-          if (idx >= songs.length - 3) fetchPage();
+          // Log play event (fire-and-forget)
+          const song = activeSongs[idx];
+          if (song) {
+            fetch(`${BACKEND_URL}/api/discover/play`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({ variant_id: song.variant_id }),
+            }).catch(() => {});
+          }
+
+          // Only infinite-scroll on trending tab
+          if (activeTab === 'trending' && idx >= activeSongs.length - 3) fetchPage();
         } else {
           if (vid) vid.pause();
           if (aud) { aud.pause(); aud.currentTime = 0; }
@@ -296,7 +346,7 @@ export default function DiscoverPage() {
 
     Object.values(slideRefs.current).forEach(el => { if (el) obs.observe(el); });
     return () => obs.disconnect();
-  }, [songs, fetchPage]);
+  }, [activeSongs, activeTab, fetchPage, token]);
 
   /* ── Mute toggle ──────────────────────────────────────────────────────── */
   const toggleMute = () => {
@@ -407,8 +457,33 @@ export default function DiscoverPage() {
         </div>
       </div>
 
+      {/* Tab bar */}
+      <div style={{
+        position: 'fixed', top: 54, left: 0, right: 0, zIndex: 199,
+        display: 'flex', justifyContent: 'center',
+        pointerEvents: 'auto',
+      }}>
+        {[['trending', '🔥 Trending'], ['for_you', '✨ For You']].map(([tab, label]) => (
+          <button
+            key={tab}
+            onClick={() => handleTabChange(tab)}
+            style={{
+              background: 'none', border: 'none',
+              borderBottom: `2px solid ${activeTab === tab ? CYAN : 'transparent'}`,
+              color: activeTab === tab ? CYAN : 'rgba(255,255,255,0.45)',
+              fontSize: 13, fontWeight: 700, padding: '6px 22px',
+              cursor: 'pointer', transition: 'all 0.18s',
+              textShadow: activeTab === tab ? `0 0 10px ${CYAN}88` : 'none',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Scroll feed */}
       <div
+        ref={scrollContainerRef}
         style={{
           height: '100svh',
           overflowY: 'scroll',
@@ -416,7 +491,34 @@ export default function DiscoverPage() {
           WebkitOverflowScrolling: 'touch',
         }}
       >
-        {songs.map((song, idx) => (
+        {/* For You loading state */}
+        {activeTab === 'for_you' && forYouLoading && (
+          <div style={{
+            height: '100svh', scrollSnapAlign: 'start',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%',
+              border: `3px solid ${CYAN}33`, borderTopColor: CYAN,
+              animation: 'spin 0.8s linear infinite',
+            }} />
+          </div>
+        )}
+
+        {/* For You empty state */}
+        {activeTab === 'for_you' && !forYouLoading && forYouFetched && forYouSongs.length === 0 && (
+          <div style={{
+            height: '100svh', scrollSnapAlign: 'start',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32,
+          }}>
+            <p style={{ color: '#555', fontSize: 16, textAlign: 'center' }}>
+              Like some songs on Trending to get personalised picks ❤️
+            </p>
+          </div>
+        )}
+
+        {activeSongs.map((song, idx) => (
           <SongSlide
             key={song.variant_id}
             song={song}
@@ -433,7 +535,9 @@ export default function DiscoverPage() {
           />
         ))}
 
-        {loading && (
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes videoFade { 0% { opacity: 1; } 85% { opacity: 1; } 95% { opacity: 0.3; } 100% { opacity: 1; } } .discover-video { animation: videoFade 5s ease-in-out infinite; }`}</style>
+
+        {activeTab === 'trending' && loading && (
           <div style={{
             height: '100svh', scrollSnapAlign: 'start',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -444,11 +548,10 @@ export default function DiscoverPage() {
               borderTopColor: CYAN,
               animation: 'spin 0.8s linear infinite',
             }} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes videoFade { 0% { opacity: 1; } 85% { opacity: 1; } 95% { opacity: 0.3; } 100% { opacity: 1; } } .discover-video { animation: videoFade 5s ease-in-out infinite; }`}</style>
           </div>
         )}
 
-        {!hasMore && !loading && songs.length === 0 && (
+        {activeTab === 'trending' && !hasMore && !loading && songs.length === 0 && (
           <div style={{
             height: '100svh', scrollSnapAlign: 'start',
             display: 'flex', flexDirection: 'column',
@@ -472,7 +575,7 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {!hasMore && !loading && songs.length > 0 && (
+        {activeTab === 'trending' && !hasMore && !loading && songs.length > 0 && (
           <div style={{
             height: '100svh', scrollSnapAlign: 'start',
             display: 'flex', flexDirection: 'column',

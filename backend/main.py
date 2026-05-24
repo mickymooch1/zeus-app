@@ -2847,6 +2847,27 @@ async def discover_song(variant_id: int):
     return dict(row)
 
 
+@app.post("/api/discover/play", status_code=204)
+async def log_discover_play(
+    body: _PlayEventRequest,
+    current_user=Depends(auth.get_optional_user),
+):
+    """Fire-and-forget play event logging for the Discover feed."""
+    user_id = current_user["id"] if current_user else None
+    try:
+        db.log_play_event(db.get_db_path(), body.variant_id, user_id)
+    except Exception:
+        pass
+    return Response(status_code=204)
+
+
+@app.get("/api/discover/for-you")
+async def discover_for_you(current_user=Depends(auth.get_current_user)):
+    """Personalised feed: public songs in genres the user has liked, ordered by popularity."""
+    songs = db.get_for_you_songs(db.get_db_path(), current_user["id"])
+    return {"songs": songs, "page": 0, "count": len(songs)}
+
+
 @app.post("/api/discover/{variant_id}/like")
 async def like_song(variant_id: int, current_user=Depends(auth.get_current_user)):
     """Add a like to a public song. Idempotent — silently ignores duplicate likes."""
@@ -3998,6 +4019,9 @@ class _AiPlaylistRequest(BaseModel):
     prompt: str
 
 class _AddSongRequest(BaseModel):
+    variant_id: int
+
+class _PlayEventRequest(BaseModel):
     variant_id: int
 
 class _ReorderRequest(BaseModel):

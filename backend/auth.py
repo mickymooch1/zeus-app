@@ -83,3 +83,25 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="User not found")
 
     return user
+
+
+async def get_optional_user(
+    token: str = Query(None),
+    authorization: str = Header(None),
+    db_path=Depends(get_db_path_dep),
+) -> dict | None:
+    """Like get_current_user but returns None instead of raising 401."""
+    raw_token: str | None = None
+    if token:
+        raw_token = token
+    elif authorization and authorization.lower().startswith("bearer "):
+        raw_token = authorization[7:].strip()
+    if not raw_token:
+        return None
+    payload = verify_token(raw_token)
+    if not payload:
+        return None
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    return get_user_by_id(db_path, user_id)
