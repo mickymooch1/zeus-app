@@ -51,8 +51,8 @@ const SONG_PACKS = [
 ];
 
 const ANIMATION_PACKS = [
-  { pack: 'animation_pack_5',  label: '5 animations',  price: '£2' },
-  { pack: 'animation_pack_15', label: '15 animations', price: '£5' },
+  { pack: 'animation_pack_5',  label: '5 premium credits',  price: '£2' },
+  { pack: 'animation_pack_15', label: '15 premium credits', price: '£5' },
 ];
 
 const PAGE_CSS = `
@@ -820,7 +820,7 @@ export default function SongsPage() {
   const location = useLocation();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
-  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, has_paid: false, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '', animation_credits: 0, animation_monthly_allowance: 0 });
+  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, has_paid: false, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '', premium_credits: 0, premium_monthly_allowance: 0 });
   const [brief, setBrief]               = useState('');
   const [selGenres, setSelGenres]       = useState(new Set());
   const [generating, setGenerating]     = useState(false);
@@ -1633,9 +1633,9 @@ export default function SongsPage() {
                 · {credits.video_credits} avatar video{credits.video_credits !== 1 ? 's' : ''} remaining
               </span>
             )}
-            {!isFreeTier && !isAdmin && credits.animation_monthly_allowance > 0 && (
-              <span style={{ fontSize: 13, color: credits.animation_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
-                · {credits.animation_credits} animation{credits.animation_credits !== 1 ? 's' : ''} remaining
+            {!isFreeTier && !isAdmin && credits.premium_monthly_allowance > 0 && (
+              <span style={{ fontSize: 13, color: credits.premium_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
+                · {credits.premium_credits} premium credit{credits.premium_credits !== 1 ? 's' : ''} remaining
               </span>
             )}
             {!isAdmin && balance <= 2 && (
@@ -2255,9 +2255,9 @@ export default function SongsPage() {
                         {animateCoverPref ? 'Animated Cover Art' : 'Animated Cover Art (off)'}
                       </span>
                     </label>
-                    {animateCoverPref && !isAdmin && credits.animation_credits === 0 && (
+                    {animateCoverPref && !isAdmin && credits.premium_credits === 0 && (
                       <p style={{ fontSize: 11, color: '#f87171', margin: '6px 0 0 46px' }}>
-                        No animation credits left this month.{' '}
+                        No premium credits left this month.{' '}
                         <button onClick={() => handleAnimationTopup('animation_pack_5')} disabled={topupLoading !== null} style={{ background: 'none', border: 'none', color: '#f87171', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: 11 }}>Buy more</button>
                         {' '}or <Link to="/billing" style={{ color: '#f87171' }}>upgrade</Link>.
                       </p>
@@ -2401,7 +2401,7 @@ export default function SongsPage() {
           </div>
 
           {/* ── Animation credits top-up ───────────────────────────────── */}
-          {!isAdmin && !isFreeTier && animateCoverPref && credits.animation_credits === 0 && (
+          {!isAdmin && !isFreeTier && animateCoverPref && credits.premium_credits === 0 && (
             <div style={{
               marginBottom: 44,
               padding: '20px 24px',
@@ -2416,7 +2416,7 @@ export default function SongsPage() {
                 color: '#c4b5fd',
                 marginBottom: 14,
                 letterSpacing: '0.5px',
-              }}>🎬 Buy Animation Credits</h3>
+              }}>🎬 Buy Premium Credits</h3>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {ANIMATION_PACKS.map(({ pack, label, price }) => (
                   <button
@@ -2441,7 +2441,7 @@ export default function SongsPage() {
                 ))}
               </div>
               <p style={{ fontSize: 11, color: '#7c3aed', marginTop: 12, marginBottom: 0 }}>
-                Credits never expire · Animated cover art for your songs
+                Credits never expire · Used for animated covers &amp; stem separation
               </p>
             </div>
           )}
