@@ -4062,7 +4062,7 @@ async def request_stems(variant_id: int, current_user=Depends(auth.get_current_u
         daemon=True,
     ).start()
     log.info("Stems requested: variant_id=%d user=%s", variant_id, user_id)
-    return {"status": "pending", "variant_id": variant_id}
+    return {"status": "pending", "variant_id": variant_id, "stems_status": "pending"}
 
 
 @app.get("/api/songs/variants/{variant_id}/stems")
