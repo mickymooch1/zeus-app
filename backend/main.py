@@ -4044,10 +4044,8 @@ async def request_stems(variant_id: int, current_user=Depends(auth.get_current_u
         conn.commit()
     finally:
         conn.close()
-    import threading as _threading
-    import webhooks as _wh
-    _threading.Thread(
-        target=_wh._stem_pipeline,
+    threading.Thread(
+        target=_webhooks_mod._stem_pipeline,
         args=(variant_id, user_id, variant["mp3_url"]),
         daemon=True,
     ).start()
@@ -4090,7 +4088,6 @@ async def cover_song(
         try:
             _check_and_deduct_credit(cur, user_id)
         except InsufficientCreditsError:
-            conn.close()
             raise HTTPException(status_code=402, detail="Insufficient song credits")
         cur.execute(
             "INSERT INTO lyrics (user_id, lyrics_text) VALUES (?, ?)",
@@ -4106,10 +4103,8 @@ async def cover_song(
         conn.commit()
     finally:
         conn.close()
-    import threading as _threading
-    import webhooks as _wh
-    _threading.Thread(
-        target=_wh._cover_pipeline,
+    threading.Thread(
+        target=_webhooks_mod._cover_pipeline,
         args=(new_variant_id, source["mp3_url"], lyrics_text),
         daemon=True,
     ).start()
