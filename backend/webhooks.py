@@ -248,7 +248,7 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
                     variant_id, _user_id,
                 )
                 return
-            logger.info("Kling animation credit deducted for user %s (variant_id=%d)", _user_id, variant_id)
+            logger.info("Kling premium credit deducted for user %s (variant_id=%d)", _user_id, variant_id)
         else:
             logger.warning("Kling pipeline: no user_id for variant_id=%d — skipping animation credit check", variant_id)
             return
@@ -429,10 +429,13 @@ def _stem_pipeline(variant_id: int, user_id: str, mp3_url: str) -> None:
         for attempt in range(1, 37):  # max 36 × 10s = 6 min
             _time.sleep(10)
             sr = requests.get(status_url, headers=poll_headers, timeout=15)
+            sr.raise_for_status()
             poll_status = sr.json().get("status", "")
             logger.info("Demucs poll: variant_id=%d attempt=%d status=%s", variant_id, attempt, poll_status)
             if poll_status == "COMPLETED":
-                result = requests.get(response_url, headers=poll_headers, timeout=15).json()
+                _result_resp = requests.get(response_url, headers=poll_headers, timeout=15)
+                _result_resp.raise_for_status()
+                result = _result_resp.json()
                 vocals_url = result.get("vocals", {}).get("url", "")
                 drums_url  = result.get("drums", {}).get("url", "")
                 bass_url   = result.get("bass", {}).get("url", "")
@@ -503,8 +506,7 @@ def _cover_pipeline(variant_id: int, source_mp3_url: str, lyrics_text: str) -> N
 
     except Exception as exc:
         logger.exception("Cover pipeline FAILED: variant_id=%d error=%s", variant_id, exc)
-        import sqlite3 as _sqlite3
-        conn = _sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH)
         try:
             conn.execute("UPDATE song_variants SET status='failed' WHERE id=?", (variant_id,))
             conn.commit()
