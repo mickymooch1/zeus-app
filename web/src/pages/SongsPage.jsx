@@ -406,16 +406,40 @@ const SongCard = memo(function SongCard({
     shareToastTimer.current = setTimeout(() => setShareToast(null), 3000);
   };
 
-  const handleInstagram = () => {
-    const a = document.createElement('a');
-    a.href = variant.mp3_url;
-    a.download = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
-    a.click();
-    setIgToast(true);
-    setTimeout(() => setIgToast(false), 6000);
-    setTimeout(() => {
-      if (!window.open('instagram://app')) window.open('https://www.instagram.com');
-    }, 1000);
+  const handleInstagram = async () => {
+    try {
+      // Fetch the MP3 as a blob so the browser actually saves it
+      // (a direct <a href=mp3_url download> often opens the file instead).
+      const response = await fetch(variant.mp3_url);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setIgToast(true);
+      setTimeout(() => setIgToast(false), 6000);
+
+      // Open Instagram: deep-link to camera on mobile (with web fallback),
+      // straight to instagram.com on desktop.
+      setTimeout(() => {
+        const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+        if (isMobile) {
+          window.location.href = 'instagram://camera';
+          setTimeout(() => {
+            window.open('https://www.instagram.com/', '_blank');
+          }, 2000);
+        } else {
+          window.open('https://www.instagram.com/', '_blank');
+        }
+      }, 500);
+    } catch (e) {
+      console.error('Instagram share failed', e);
+    }
   };
 
   const dur = variant.duration_seconds;
