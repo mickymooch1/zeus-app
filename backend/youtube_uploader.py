@@ -151,7 +151,14 @@ def upload_song_to_youtube(
         except Exception as exc:
             raise ValueError(f"YouTube API init failed: {exc}") from exc
 
-        video_title = (title or f"Song #{variant_id}")[:100]
+        raw_title = title or f"Song #{variant_id}"
+        if site == "beats" and "zeus beats" not in raw_title.lower():
+            suffix = " — Zeus Beats"
+            # Truncate the base so suffix always fits inside YouTube's 100-char cap.
+            base = raw_title[: 100 - len(suffix)]
+            video_title = f"{base}{suffix}"
+        else:
+            video_title = raw_title[:100]
         description = _DESCRIPTIONS.get(site, _DESCRIPTIONS["web"])
         tags = (
             ["ai music", "zeus beats", "zeusbeats", "ai generated"]
