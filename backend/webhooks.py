@@ -189,6 +189,8 @@ STORAGE_PATH = os.environ["SONG_STORAGE_PATH"]
 PUBLIC_BASE_URL = os.environ["SONG_PUBLIC_BASE_URL"]
 DB_PATH = os.environ.get("DB_PATH", "/data/zeus.db")
 FAL_API_KEY = os.environ.get("FAL_API_KEY", "")
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
+APIFRAME_BASE = "https://api.apiframe.ai"
 
 
 def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_seconds: int, genre_tag: str | None) -> None:
@@ -239,10 +241,10 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
 
         # Gate: deduct 1 animation credit; skip if user has none remaining
         if _user_id:
-            _has_anim_credit = _db.check_and_deduct_animation_credit(pathlib.Path(DB_PATH), _user_id)
+            _has_anim_credit = _db.check_and_deduct_premium_credit(pathlib.Path(DB_PATH), _user_id)
             if not _has_anim_credit:
                 logger.info(
-                    "Kling skipped for variant_id=%d: no animation credits remaining for user %s",
+                    "Kling skipped for variant_id=%d: no premium credits remaining for user %s",
                     variant_id, _user_id,
                 )
                 return
@@ -385,6 +387,129 @@ def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_sec
 
     except Exception as exc:
         logger.error("Kling pipeline failed for variant_id=%d: %s", variant_id, exc)
+
+
+def _stem_pipeline(variant_id: int, user_id: str, mp3_url: str) -> None:
+    """Background thread: submit song to fal.ai Demucs, poll for result, save stem URLs."""
+    import time as _time
+    logger.info("Stem pipeline START: variant_id=%d user=%s mp3_url=%s", variant_id, user_id, mp3_url)
+    db_path = pathlib.Path(DB_PATH)
+    try:
+        if not FAL_API_KEY:
+            logger.warning("Stem pipeline: FAL_API_KEY not set — skipping variant_id=%d", variant_id)
+            _db.fail_stems(db_path, variant_id)
+            _db.increment_premium_credits(db_path, user_id, 1)
+            return
+
+        fal_headers = {"Authorization": f"Key {FAL_API_KEY}", "Content-Type": "application/json"}
+        payload = {
+            "audio_url": mp3_url,
+            "model": "htdemucs",
+            "stems": ["vocals", "drums", "bass", "other"],
+            "output_format": "mp3",
+        }
+        resp = requests.post(
+            "https://queue.fal.run/fal-ai/demucs",
+            headers=fal_headers,
+            json=payload,
+            timeout=30,
+        )
+        logger.info("Demucs submit: variant_id=%d status=%d body=%r", variant_id, resp.status_code, resp.text[:400])
+        if resp.status_code == 403:
+            raise RuntimeError(f"Demucs: 403 Forbidden — fal.ai balance likely exhausted. Body: {resp.text[:200]}")
+        resp.raise_for_status()
+        body = resp.json()
+        status_url = body.get("status_url")
+        response_url = body.get("response_url")
+        if not status_url or not response_url:
+            raise RuntimeError(f"Demucs: missing status_url/response_url: {body!r}")
+
+        logger.info("Demucs submitted: variant_id=%d polling %s", variant_id, status_url)
+        poll_headers = {"Authorization": f"Key {FAL_API_KEY}"}
+        for attempt in range(1, 37):  # max 36 × 10s = 6 min
+            _time.sleep(10)
+            sr = requests.get(status_url, headers=poll_headers, timeout=15)
+            poll_status = sr.json().get("status", "")
+            logger.info("Demucs poll: variant_id=%d attempt=%d status=%s", variant_id, attempt, poll_status)
+            if poll_status == "COMPLETED":
+                result = requests.get(response_url, headers=poll_headers, timeout=15).json()
+                vocals_url = result.get("vocals", {}).get("url", "")
+                drums_url  = result.get("drums", {}).get("url", "")
+                bass_url   = result.get("bass", {}).get("url", "")
+                other_url  = result.get("other", {}).get("url", "")
+                logger.info(
+                    "Demucs COMPLETE: variant_id=%d vocals=%s drums=%s bass=%s other=%s",
+                    variant_id, vocals_url[:60], drums_url[:60], bass_url[:60], other_url[:60],
+                )
+                _db.save_stems(db_path, variant_id,
+                               vocals_url=vocals_url, drums_url=drums_url,
+                               bass_url=bass_url, other_url=other_url)
+                return
+            if poll_status in ("FAILED", "ERROR"):
+                raise RuntimeError(f"Demucs job failed: {sr.json()!r}")
+
+        raise RuntimeError(f"Demucs timeout after 6 min for variant_id={variant_id}")
+
+    except Exception as exc:
+        logger.exception("Stem pipeline FAILED: variant_id=%d error=%s", variant_id, exc)
+        _db.fail_stems(db_path, variant_id)
+        _db.increment_premium_credits(db_path, user_id, 1)  # refund
+
+
+def _cover_pipeline(variant_id: int, source_mp3_url: str, lyrics_text: str) -> None:
+    """Background thread: upload source song to Apiframe, EXTEND with user lyrics."""
+    import time as _time
+    logger.info("Cover pipeline START: variant_id=%d source=%s lyrics_len=%d", variant_id, source_mp3_url, len(lyrics_text))
+    db_path = pathlib.Path(DB_PATH)
+    apiframe_headers_json = {"X-API-Key": APIFRAME_API_KEY, "Content-Type": "application/json"}
+    webhook_url = f"{WEBHOOK_URL}?variant_id={variant_id}"
+    try:
+        # Step 1: Download source mp3
+        audio_resp = requests.get(source_mp3_url, timeout=30)
+        audio_resp.raise_for_status()
+        audio_data = audio_resp.content
+        logger.info("Cover pipeline: downloaded %d bytes for variant_id=%d", len(audio_data), variant_id)
+
+        # Step 2: Upload to Apiframe
+        upload_resp = requests.post(
+            f"{APIFRAME_BASE}/v2/music/upload",
+            headers={"X-API-Key": APIFRAME_API_KEY},
+            files={"audio": ("source.mp3", audio_data, "audio/mpeg")},
+            timeout=60,
+        )
+        logger.info("Cover upload: variant_id=%d status=%d body=%r", variant_id, upload_resp.status_code, upload_resp.text[:300])
+        upload_resp.raise_for_status()
+        parent_task_id = upload_resp.json().get("task_id")
+        if not parent_task_id:
+            raise RuntimeError(f"Cover upload: no task_id in response: {upload_resp.json()!r}")
+
+        # Step 3: Extend with user lyrics
+        extend_payload = {
+            "parent_task_id": parent_task_id,
+            "lyrics": lyrics_text,
+            "continue_at": 0,
+            "webhookUrl": webhook_url,
+            "webhookEvents": ["completed", "failed"],
+        }
+        extend_resp = requests.post(
+            f"{APIFRAME_BASE}/v2/music/extend",
+            headers=apiframe_headers_json,
+            json=extend_payload,
+            timeout=30,
+        )
+        logger.info("Cover extend: variant_id=%d status=%d body=%r", variant_id, extend_resp.status_code, extend_resp.text[:300])
+        extend_resp.raise_for_status()
+        logger.info("Cover pipeline: EXTEND submitted for variant_id=%d — awaiting webhook", variant_id)
+
+    except Exception as exc:
+        logger.exception("Cover pipeline FAILED: variant_id=%d error=%s", variant_id, exc)
+        import sqlite3 as _sqlite3
+        conn = _sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET status='failed' WHERE id=?", (variant_id,))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def _verify_signature(raw_body: bytes, signature_header: str) -> bool:
