@@ -516,33 +516,33 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("variant 389 fix failed (non-fatal)")
 
-    # One-time: give owner account 50 animation credits
+    # One-time: give owner account 50 premium credits
     try:
         import sqlite3 as _sqlite3
         _ac = _sqlite3.connect(str(_db_path))
         try:
             _ac.execute(
                 """UPDATE song_credits
-                   SET animation_balance = 50, animation_monthly_allowance = 50
+                   SET premium_balance = 50, premium_monthly_allowance = 50
                    WHERE user_id = (SELECT id FROM users WHERE lower(email) = 'dominic.rowle@yahoo.com')"""
             )
             _ac.commit()
             _acrow = _ac.execute(
-                """SELECT u.email, sc.animation_balance, sc.animation_monthly_allowance
+                """SELECT u.email, sc.premium_balance, sc.premium_monthly_allowance
                    FROM users u LEFT JOIN song_credits sc ON sc.user_id = u.id
                    WHERE lower(u.email) = 'dominic.rowle@yahoo.com'"""
             ).fetchone()
             if _acrow:
                 log.info(
-                    "owner animation credits — email=%r balance=%r allowance=%r",
+                    "owner premium credits — email=%r balance=%r allowance=%r",
                     _acrow[0], _acrow[1], _acrow[2],
                 )
             else:
-                log.info("owner animation credits patch: user not found")
+                log.info("owner premium credits patch: user not found")
         finally:
             _ac.close()
     except Exception:
-        log.exception("owner animation credits patch failed (non-fatal)")
+        log.exception("owner premium credits patch failed (non-fatal)")
 
     try:
         _scheduler_mod.init_scheduler(history)
@@ -1978,8 +1978,8 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
     row = db.ensure_free_song_credits(db_path, current_user["id"], balance=default_credits, monthly_allowance=default_credits if is_paid else 0)
 
     video_row = db.get_video_credits(db_path, current_user["id"])
-    anim_row = db.get_animation_credits(db_path, current_user["id"])
-    anim_allowance = billing._PLAN_ANIMATION_CREDITS.get(plan, 0)
+    anim_row = db.get_premium_credits(db_path, current_user["id"])
+    anim_allowance = billing._PLAN_PREMIUM_CREDITS.get(plan, 0)
     return {
         "balance": row["balance"],
         "monthly_allowance": allowance,
@@ -1990,8 +1990,8 @@ async def get_my_song_credits(current_user: dict = Depends(auth.get_current_user
         "video_credits": video_row["balance"] if video_row else 0,
         "video_monthly_allowance": video_allowance,
         "artist_name": current_user.get("artist_name") or "",
-        "animation_credits": anim_row["animation_balance"] if anim_row else 0,
-        "animation_monthly_allowance": anim_allowance,
+        "premium_credits": anim_row["premium_balance"] if anim_row else 0,
+        "premium_monthly_allowance": anim_allowance,
     }
 
 
@@ -4014,6 +4014,107 @@ def _get_public_song_for_og(variant_id: int):
         return dict(row) if row else None
     finally:
         conn.close()
+
+
+# ── Stems & Cover ────────────────────────────────────────────────────────────
+
+class _CoverSongRequest(BaseModel):
+    lyrics: str = Field(min_length=1, max_length=3000)
+
+
+@app.post("/api/songs/variants/{variant_id}/stems", status_code=202)
+async def request_stems(variant_id: int, current_user=Depends(auth.get_current_user)):
+    """Submit a stem separation job for a variant the user owns. Costs 1 premium credit."""
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Variant not found")
+    if not variant.get("mp3_url"):
+        raise HTTPException(status_code=400, detail="Song not ready yet")
+    status = variant.get("stems_status")
+    if status in ("pending", "complete"):
+        row = db.get_stems(db_path, variant_id)
+        return {"status": status, "variant_id": variant_id, **(row or {})}
+    user_id = current_user["id"]
+    if not db.check_and_deduct_premium_credit(db_path, user_id):
+        raise HTTPException(status_code=402, detail="You need at least 1 Premium Credit to separate stems. Buy credits from your dashboard.")
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute("UPDATE song_variants SET stems_status='pending' WHERE id=?", (variant_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    import threading as _threading
+    import webhooks as _wh
+    _threading.Thread(
+        target=_wh._stem_pipeline,
+        args=(variant_id, user_id, variant["mp3_url"]),
+        daemon=True,
+    ).start()
+    log.info("Stems requested: variant_id=%d user=%s", variant_id, user_id)
+    return {"status": "pending", "variant_id": variant_id}
+
+
+@app.get("/api/songs/variants/{variant_id}/stems")
+async def get_stems_status(variant_id: int, current_user=Depends(auth.get_current_user)):
+    """Poll stems status for a variant."""
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Variant not found")
+    row = db.get_stems(db_path, variant_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="No stems data")
+    return row
+
+
+@app.post("/api/songs/variants/{variant_id}/cover", status_code=202)
+async def cover_song(
+    variant_id: int,
+    body: _CoverSongRequest,
+    current_user=Depends(auth.get_current_user),
+):
+    """Create a new song variant using the source song's style with the user's custom lyrics."""
+    db_path = db.get_db_path()
+    source = db.get_song_variant_by_id(db_path, variant_id)
+    if not source or source["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Variant not found")
+    if not source.get("mp3_url"):
+        raise HTTPException(status_code=400, detail="Source song not ready")
+    user_id = current_user["id"]
+    lyrics_text = body.lyrics.strip()
+    conn = sqlite3.connect(str(db_path))
+    try:
+        cur = conn.cursor()
+        from songs import _check_and_deduct_credit, InsufficientCreditsError
+        try:
+            _check_and_deduct_credit(cur, user_id)
+        except InsufficientCreditsError:
+            conn.close()
+            raise HTTPException(status_code=402, detail="Insufficient song credits")
+        cur.execute(
+            "INSERT INTO lyrics (user_id, lyrics_text) VALUES (?, ?)",
+            (user_id, lyrics_text),
+        )
+        lyric_id = cur.lastrowid
+        cur.execute(
+            """INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status)
+               VALUES (?, ?, ?, ?, 'pending')""",
+            (lyric_id, user_id, source.get("style_prompt", ""), source.get("genre_tag", "")),
+        )
+        new_variant_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    import threading as _threading
+    import webhooks as _wh
+    _threading.Thread(
+        target=_wh._cover_pipeline,
+        args=(new_variant_id, source["mp3_url"], lyrics_text),
+        daemon=True,
+    ).start()
+    log.info("Cover song submitted: source_variant=%d new_variant=%d user=%s", variant_id, new_variant_id, user_id)
+    return {"variant_id": new_variant_id, "status": "pending"}
 
 
 # ── Playlists ─────────────────────────────────────────────────────────────────
