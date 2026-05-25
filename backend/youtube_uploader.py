@@ -94,12 +94,22 @@ def exchange_code(code: str, redirect_uri: str, code_verifier: str | None = None
     return refresh_token
 
 
+_DESCRIPTIONS = {
+    "beats": (
+        "AI-generated song created with Zeus Beats · zeusbeats.com\n"
+        "Make your own original songs at zeusbeats.com \U0001f3b5⚡"
+    ),
+    "web": "AI-generated song created with Zeus AI · zeusaidesign.com",
+}
+
+
 def upload_song_to_youtube(
     variant: dict,
     user: dict,
     privacy: str,
     title: str,
     prebuilt_mp4: Path | None = None,
+    site: str = "web",
 ) -> str:
     """
     Upload a song variant to YouTube.
@@ -142,11 +152,17 @@ def upload_song_to_youtube(
             raise ValueError(f"YouTube API init failed: {exc}") from exc
 
         video_title = (title or f"Song #{variant_id}")[:100]
+        description = _DESCRIPTIONS.get(site, _DESCRIPTIONS["web"])
+        tags = (
+            ["ai music", "zeus beats", "zeusbeats", "ai generated"]
+            if site == "beats"
+            else ["ai music", "zeus ai", "suno", "ai generated"]
+        )
         body = {
             "snippet": {
                 "title": video_title,
-                "description": "AI-generated song created with Zeus AI · zeusaidesign.com",
-                "tags": ["ai music", "zeus ai", "suno", "ai generated"],
+                "description": description,
+                "tags": tags,
                 "categoryId": "10",
             },
             "status": {"privacyStatus": privacy},
