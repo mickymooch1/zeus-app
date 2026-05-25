@@ -268,7 +268,7 @@ const SongCard = memo(function SongCard({
   const [downloaded, setDownloaded] = useState(false);
   const [videoErr, setVideoErr] = useState(false);
   const [favToast, setFavToast] = useState(null); // null | 'added' | 'removed'
-  const [igToast, setIgToast]         = useState(false);
+  const [igToast, setIgToast]         = useState('');
   const [shareToast, setShareToast]   = useState(null);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const addMenuRef = useRef(null);
@@ -406,16 +406,32 @@ const SongCard = memo(function SongCard({
     shareToastTimer.current = setTimeout(() => setShareToast(null), 3000);
   };
 
-  const handleInstagram = () => {
-    const a = document.createElement('a');
-    a.href = variant.mp3_url;
-    a.download = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
-    a.click();
-    setIgToast(true);
-    setTimeout(() => setIgToast(false), 6000);
-    setTimeout(() => {
-      if (!window.open('instagram://app')) window.open('https://www.instagram.com');
-    }, 1000);
+  const handleInstagram = async () => {
+    try {
+      const response = await fetch(variant.mp3_url);
+      const blob = await response.blob();
+      const safeTitle = (title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase();
+      const file = new File([blob], `${safeTitle}.mp3`, { type: 'audio/mpeg' });
+
+      // Web Share API on mobile opens the native share sheet (Instagram, etc).
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: title || 'My Zeus Beats track',
+          text: 'Made with Zeus Beats — zeusbeats.com 🎵⚡',
+        });
+      } else {
+        // Desktop / unsupported browsers — open Instagram in a new tab.
+        window.open('https://www.instagram.com/', '_blank');
+        setIgToast('Open Instagram and share manually');
+        setTimeout(() => setIgToast(''), 5000);
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        setIgToast('Error sharing');
+        setTimeout(() => setIgToast(''), 4000);
+      }
+    }
   };
 
   const dur = variant.duration_seconds;
@@ -682,7 +698,7 @@ const SongCard = memo(function SongCard({
               </button>
               {igToast && (
                 <p style={{ color: '#fcb045', fontSize: 11, marginTop: 4, marginBottom: 0, textAlign: 'center', lineHeight: 1.4 }}>
-                  Song downloaded! Open Instagram → Create Reel → add your song as audio 🎵
+                  {igToast}
                 </p>
               )}
             </div>

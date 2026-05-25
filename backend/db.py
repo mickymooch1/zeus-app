@@ -273,6 +273,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             )""",
             """CREATE INDEX IF NOT EXISTS idx_play_events_user
                ON song_play_events(user_id)""",
+            "ALTER TABLE song_variants ADD COLUMN refunded_at TIMESTAMP",
             # Premium Credits: rename animation columns (SQLite 3.25+ RENAME COLUMN)
             "ALTER TABLE song_credits RENAME COLUMN animation_balance TO premium_balance",
             "ALTER TABLE song_credits RENAME COLUMN animation_monthly_allowance TO premium_monthly_allowance",

@@ -34,6 +34,7 @@ Just talk to me naturally! Examples:
 • <i>"Give user@email.com 10 credits"</i>
 • <i>"Send an email to all users about the new mixer"</i>
 • <i>"Show me the logs"</i>
+• <i>"Refund people who had failures"</i>
 
 <b>Precision commands (exact syntax required)</b>
 <code>db query "SELECT ..."</code> — read-only SQL
@@ -43,6 +44,7 @@ Just talk to me naturally! Examples:
 <code>stripe product "Name" £9.99</code>
 <code>stripe list</code>
 <code>post song VARIANT_ID</code> — post a specific song
+<code>refund failures</code> — refund 1 credit per song failed in last 24h
 <code>help</code>"""
 
 
@@ -500,6 +502,80 @@ def _cmd_email_bulk(audience: str, subject: str, body: str) -> str:
     return result
 
 
+# ── Refund helpers ───────────────────────────────────────────────────────────
+
+def _cmd_refund_failures() -> str:
+    """Refund 1 song credit per song that failed in the last 24h.
+
+    Idempotent: variants with refunded_at set are skipped, so re-running
+    after a daily report won't double-refund.
+    """
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                """SELECT sv.id, sv.user_id, u.email
+                   FROM song_variants sv
+                   LEFT JOIN users u ON u.id = sv.user_id
+                   WHERE sv.status = 'failed'
+                     AND sv.created_at >= datetime('now', '-24 hours')
+                     AND sv.refunded_at IS NULL"""
+            ).fetchall()
+        finally:
+            conn.close()
+
+        if not rows:
+            return "✅ No unrefunded failures in the last 24h"
+
+        per_user: dict[str, int] = {}
+        per_user_email: dict[str, str] = {}
+        variant_ids: list[int] = []
+        for row in rows:
+            uid = row["user_id"]
+            per_user[uid] = per_user.get(uid, 0) + 1
+            per_user_email[uid] = row["email"] or uid
+            variant_ids.append(row["id"])
+
+        for uid, count in per_user.items():
+            _db.increment_song_credits(db_path, uid, count)
+
+        # Mark refunded so a re-run is a no-op
+        conn = sqlite3.connect(str(db_path))
+        try:
+            placeholders = ",".join("?" for _ in variant_ids)
+            conn.execute(
+                f"UPDATE song_variants SET refunded_at = datetime('now') "
+                f"WHERE id IN ({placeholders})",
+                variant_ids,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        total_failures = len(variant_ids)
+        n_users = len(per_user)
+        log.info(
+            "refund failures: refunded %d credits to %d users for %d failed songs",
+            total_failures, n_users, total_failures,
+        )
+
+        detail_lines = [
+            f"• <code>{per_user_email[uid]}</code>: +{count}"
+            for uid, count in sorted(per_user.items(), key=lambda kv: -kv[1])
+        ]
+        detail = "\n".join(detail_lines[:20])
+        more = f"\n…and {len(detail_lines) - 20} more" if len(detail_lines) > 20 else ""
+        return (
+            f"✅ Refunded credits to <b>{n_users}</b> user(s) "
+            f"for <b>{total_failures}</b> failed song(s)\n{detail}{more}"
+        )
+    except Exception as exc:
+        return f"❌ Refund error: {exc}"
+
+
 # ── Status ───────────────────────────────────────────────────────────────────
 
 def _cmd_status() -> str:
@@ -546,6 +622,7 @@ You have these capabilities:
 - Give or remove song credits for a user
 - Verify or unverify a user's email address
 - Look up full details for a user by email
+- Refund song credits to users whose songs failed in the last 24h
 - Check recent Railway app logs
 - Trigger a Railway redeploy
 
@@ -560,6 +637,7 @@ no markdown fences. Use one of these action schemas:
 {"action": "verify_email", "email": "user@example.com"}
 {"action": "unverify_email", "email": "user@example.com"}
 {"action": "user_details", "email": "user@example.com"}
+{"action": "refund_failures"}
 {"action": "logs"}
 {"action": "redeploy"}
 {"action": "chat", "message": "..."}
@@ -587,6 +665,15 @@ Michael: "give laky 10 songs"
 
 Michael: "send an email to all users about the new mixer feature"
 → {"action": "email_bulk", "audience": "all", "subject": "New Mixer Feature on Zeus Beats 🎚️", "body": "We've just launched a brand new mixer — giving you even more control over your sound.\\n\\nLog in now and try it out!"}
+
+Michael: "refund people who had failures"
+→ {"action": "refund_failures"}
+
+Michael: "add credits back to failed songs"
+→ {"action": "refund_failures"}
+
+Michael: "credit back yesterday's failures"
+→ {"action": "refund_failures"}
 """
 
 
@@ -674,6 +761,9 @@ def _execute_action(action: dict) -> str:
             return "❌ No email address"
         return _cmd_db_user(email)
 
+    if act == "refund_failures":
+        return _cmd_refund_failures()
+
     if act == "chat":
         return action.get("message", "👋")
 
@@ -727,6 +817,10 @@ def parse_and_run(text: str) -> str:
 
     if re.match(r'^stripe\s+list$', t, re.IGNORECASE):
         return _cmd_stripe_list()
+
+    # refund failures — exact command; NL variants go through the AI layer
+    if re.match(r'^refund\s+failures?$', t, re.IGNORECASE):
+        return _cmd_refund_failures()
 
     # post song VARIANT_ID — numeric ID must be exact
     m = re.match(r'^post\s+song\s+(\d+)$', t, re.IGNORECASE)

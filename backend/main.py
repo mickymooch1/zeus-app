@@ -2386,9 +2386,20 @@ class YouTubeUploadRequest(BaseModel):
 async def upload_to_youtube(
     variant_id: int,
     body: YouTubeUploadRequest,
+    request: Request,
     current_user: dict = Depends(auth.get_current_user),
 ):
     """Upload a completed song variant to the user's YouTube channel."""
+    # Site detection: Zeus Beats users get a zeusbeats.com-branded description.
+    # Prefer Origin (set by browsers on CORS requests), fall back to Referer
+    # then Host so server-to-server callers still get a sane default.
+    _site_source = (
+        request.headers.get("origin", "")
+        or request.headers.get("referer", "")
+        or request.headers.get("host", "")
+    ).lower()
+    site = "beats" if "zeusbeats" in _site_source else "web"
+
     is_admin = bool(current_user.get("is_admin", 0))
     plan = current_user.get("subscription_plan")
     if not is_admin and plan not in _YOUTUBE_PLANS:
@@ -2423,6 +2434,7 @@ async def upload_to_youtube(
             privacy=body.privacy,
             title=title,
             prebuilt_mp4=prebuilt_mp4,
+            site=site,
         )
     except ValueError as exc:
         exc_str = str(exc)
