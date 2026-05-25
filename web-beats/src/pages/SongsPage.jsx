@@ -99,8 +99,8 @@ const PAGE_CSS = `
 .song-card-anim { animation: fadeInUp 0.3s ease both; }
 .songs-textarea:focus { border-color: rgba(167,139,250,0.4) !important; }
 .avatar-thumb:hover { border-color: #a78bfa !important; opacity: 1 !important; }
-.genre-pill:hover { background: var(--pill-hover-bg, rgba(255,255,255,0.13)) !important; border-color: var(--pill-color, rgba(255,255,255,0.65)) !important; color: var(--pill-color, #fff) !important; }
-.genre-pill--sel:hover { opacity: 0.85 !important; }
+.genre-pill:not(.genre-pill--sel):hover { background: var(--pill-hover-bg, rgba(255,255,255,0.13)) !important; border-color: var(--pill-color, rgba(255,255,255,0.65)) !important; color: var(--pill-color, #fff) !important; }
+.genre-pill--sel:hover { opacity: 0.88 !important; }
 @keyframes favToastFade { 0% { opacity:0 } 10% { opacity:1 } 70% { opacity:1 } 100% { opacity:0 } }
 .adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 28px; }
 @media (max-width: 599px) {
@@ -2029,13 +2029,15 @@ export default function SongsPage() {
                             '--pill-hover-bg': cat.color + '28',
                             padding: '7px 15px',
                             borderRadius: 20,
-                            border: `1.5px solid ${sel ? cat.color : cat.color + '55'}`,
-                            background: sel ? cat.color : cat.color + '14',
-                            color: sel ? '#0b0b14' : cat.color,
+                            border: sel ? `2px solid ${cat.color}` : `1.5px solid ${cat.color}55`,
+                            background: sel ? cat.color : 'transparent',
+                            color: sel ? '#000' : cat.color,
                             fontSize: 13,
-                            fontWeight: 600,
+                            fontWeight: sel ? 700 : 500,
                             cursor: 'pointer',
-                            transition: 'all 0.15s',
+                            transition: 'all 0.2s ease',
+                            boxShadow: sel ? `0 0 16px ${cat.color}, 0 0 30px ${cat.color}60` : 'none',
+                            transform: sel ? 'scale(1.05)' : 'scale(1)',
                           }}
                         >
                           {gLabel(g)}
@@ -2642,13 +2644,15 @@ export default function SongsPage() {
                             '--pill-hover-bg': cat.color + '28',
                             padding: '5px 11px',
                             borderRadius: 20,
-                            border: `1.5px solid ${sel ? cat.color : cat.color + '55'}`,
-                            background: sel ? cat.color : cat.color + '14',
-                            color: sel ? '#0b0b14' : cat.color,
+                            border: sel ? `2px solid ${cat.color}` : `1.5px solid ${cat.color}55`,
+                            background: sel ? cat.color : 'transparent',
+                            color: sel ? '#000' : cat.color,
                             fontSize: 12,
-                            fontWeight: 600,
+                            fontWeight: sel ? 700 : 500,
                             cursor: 'pointer',
-                            transition: 'all 0.15s',
+                            transition: 'all 0.2s ease',
+                            boxShadow: sel ? `0 0 14px ${cat.color}, 0 0 26px ${cat.color}60` : 'none',
+                            transform: sel ? 'scale(1.05)' : 'scale(1)',
                           }}
                         >
                           {gLabel(g)}
