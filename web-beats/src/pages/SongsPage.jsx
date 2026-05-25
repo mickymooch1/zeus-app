@@ -83,8 +83,8 @@ const SONG_PACKS = [
 ];
 
 const ANIMATION_PACKS = [
-  { pack: 'animation_pack_5',  label: '5 animations',  price: '£2' },
-  { pack: 'animation_pack_15', label: '15 animations', price: '£5' },
+  { pack: 'animation_pack_5',  label: '5 premium credits',  price: '£2' },
+  { pack: 'animation_pack_15', label: '15 premium credits', price: '£5' },
 ];
 
 const PAGE_CSS = `
@@ -285,6 +285,7 @@ const SongCard = memo(function SongCard({
   isFavourite, onToggleFavourite, isFreeTier, animateCover,
   isPublic, onShareToggle,
   playlists, onAddToPlaylist,
+  premiumCredits, stemsData: stemsProp, onGetStems, onOpenCover,
 }) {
   const { t } = useTranslation();
   const waveRef = useRef(null);
@@ -306,6 +307,7 @@ const SongCard = memo(function SongCard({
   const [shareToast, setShareToast]   = useState(null); // null | 'public' | 'private'
   const shareToastTimer = useRef(null);
   const favToastTimer = useRef(null);
+  const [stemsOpen, setStemsOpen] = useState(false);
   const handleFavToggle = () => {
     const adding = !isFavourite;
     onToggleFavourite(variant.variant_id);
@@ -755,6 +757,85 @@ const SongCard = memo(function SongCard({
                 {regenLoading ? '…' : t('songs.buttons.regenerate')}
               </button>
             </div>
+            {/* Stems panel */}
+            {variant.mp3_url && (() => {
+              const st = stemsProp?.stems_status;
+              if (st === 'complete') {
+                return (
+                  <div style={{ marginTop: 8 }}>
+                    <button
+                      onClick={() => setStemsOpen(o => !o)}
+                      style={{ ...actionBtnStyle, width: '100%', color: '#a78bfa', borderColor: 'rgba(167,139,250,0.5)' }}
+                    >
+                      🎵 Stems {stemsOpen ? '▲' : '▼'}
+                    </button>
+                    {stemsOpen && (
+                      <div style={{ marginTop: 8, background: 'rgba(167,139,250,0.05)', borderRadius: 8, border: '1px solid rgba(167,139,250,0.15)', overflow: 'hidden' }}>
+                        {[
+                          { label: '🎤 Vocals',       url: stemsProp.stems_vocals_url },
+                          { label: '🥁 Drums',        url: stemsProp.stems_drums_url },
+                          { label: '🎸 Bass',         url: stemsProp.stems_bass_url },
+                          { label: '🎹 Melody/Other', url: stemsProp.stems_other_url },
+                        ].map(({ label, url }) => (
+                          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                            <span style={{ fontSize: 12, color: '#c4b5fd', width: 100, flexShrink: 0 }}>{label}</span>
+                            {url ? (
+                              <>
+                                <audio controls src={url} style={{ flex: 1, height: 28, minWidth: 0 }} />
+                                <a href={url} download style={{ color: '#a78bfa', fontSize: 18, textDecoration: 'none', flexShrink: 0 }} title="Download">⬇</a>
+                              </>
+                            ) : (
+                              <span style={{ color: '#555', fontSize: 12 }}>unavailable</span>
+                            )}
+                          </div>
+                        ))}
+                        <div style={{ padding: '10px 12px' }}>
+                          <button
+                            onClick={() => onOpenCover(variant.variant_id, title)}
+                            style={{ width: '100%', padding: '9px 0', borderRadius: 7, border: '1px solid rgba(0,240,255,0.4)', background: 'rgba(0,240,255,0.06)', color: '#00f0ff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            🎤 Cover This Song
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              if (st === 'pending') {
+                return (
+                  <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 7, background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.2)', color: '#a78bfa', fontSize: 12, textAlign: 'center' }}>
+                    ⏳ Separating stems… (check back in a minute)
+                  </div>
+                );
+              }
+              if (st === 'failed') {
+                return (
+                  <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 7, background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171', fontSize: 12, textAlign: 'center' }}>
+                    Stems failed — 1 premium credit refunded
+                  </div>
+                );
+              }
+              // No stems yet — show Get Stems button
+              return (
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    onClick={() => premiumCredits > 0 ? onGetStems(variant.variant_id) : null}
+                    disabled={premiumCredits === 0}
+                    title={premiumCredits === 0 ? 'Needs 1 Premium Credit' : 'Separate into vocals, drums, bass, melody (costs 1 premium credit)'}
+                    style={{
+                      ...actionBtnStyle, width: '100%',
+                      color: premiumCredits > 0 ? '#a78bfa' : '#555',
+                      borderColor: premiumCredits > 0 ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.08)',
+                      opacity: premiumCredits === 0 ? 0.5 : 1,
+                      cursor: premiumCredits === 0 ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    🎵 Get Stems {premiumCredits === 0 ? '(0 credits)' : '(1 credit)'}
+                  </button>
+                </div>
+              );
+            })()}
             {/* Locked feature message */}
             {lockedMsg && (
               <div style={{
@@ -872,7 +953,7 @@ export default function SongsPage() {
   const location = useLocation();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
-  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, has_paid: false, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '', animation_credits: 0, animation_monthly_allowance: 0 });
+  const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, has_paid: false, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '', premium_credits: 0, premium_monthly_allowance: 0 });
   const [brief, setBrief]               = useState('');
   const [selGenres, setSelGenres]       = useState(() => { const s = _matchGenreSlug(location.state?.prefillGenre); return s ? new Set([s]) : new Set(); });
   const [generating, setGenerating]     = useState(false);
@@ -947,6 +1028,14 @@ export default function SongsPage() {
   const [favourites, setFavourites]       = useState(new Set());
   const [publicVariants, setPublicVariants] = useState(new Set());
   const [activeTab, setActiveTab] = useState('all');
+
+  const [stemsData, setStemsData] = useState({});
+  const [stemsPoll, setStemsPoll] = useState({});
+  const [coverModal, setCoverModal] = useState(null);
+  const [coverLyrics, setCoverLyrics] = useState('');
+  const [coverLoading, setCoverLoading] = useState(false);
+  const [coverError, setCoverError] = useState('');
+  const [coverToast, setCoverToast] = useState(false);
 
   // Custom lyrics
   const [useCustomLyrics, setUseCustomLyrics]   = useState(false);
@@ -1410,6 +1499,57 @@ export default function SongsPage() {
     setYtModal({ ...variant, title: titleArg || variant.title });
   }, [canYouTube, youtubeConnected, token]);
 
+  const handleGetStems = async (variantId) => {
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/stems`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (!r.ok) { alert(data.detail || 'Could not start stem separation'); return; }
+      setStemsData(prev => ({ ...prev, [variantId]: data }));
+      if (data.stems_status === 'pending') {
+        const intervalId = setInterval(async () => {
+          const pr = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/stems`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!pr.ok) return;
+          const pd = await pr.json();
+          setStemsData(prev => ({ ...prev, [variantId]: pd }));
+          if (pd.stems_status !== 'pending') {
+            setStemsPoll(prev => { clearInterval(prev[variantId]); const n = {...prev}; delete n[variantId]; return n; });
+          }
+        }, 5000);
+        setStemsPoll(prev => ({ ...prev, [variantId]: intervalId }));
+      }
+    } catch {
+      alert('Network error starting stem separation');
+    }
+  };
+
+  const handleCoverSubmit = async () => {
+    if (!coverModal || !coverLyrics.trim()) return;
+    setCoverLoading(true);
+    setCoverError('');
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/songs/variants/${coverModal.variantId}/cover`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lyrics: coverLyrics.trim() }),
+      });
+      const data = await r.json();
+      if (!r.ok) { setCoverError(data.detail || 'Something went wrong'); return; }
+      setCoverModal(null);
+      setCoverLyrics('');
+      setCoverToast(true);
+      setTimeout(() => setCoverToast(false), 4000);
+    } catch {
+      setCoverError('Network error. Try again.');
+    } finally {
+      setCoverLoading(false);
+    }
+  };
+
   const handleYouTubeUpload = async () => {
     if (!ytModal) return;
     const vId = ytModal.variant_id;
@@ -1695,9 +1835,9 @@ export default function SongsPage() {
                 {t('songs.videoCredits', { count: credits.video_credits })}
               </span>
             )}
-            {!isFreeTier && !isAdmin && credits.animation_monthly_allowance > 0 && (
-              <span style={{ fontSize: 13, color: credits.animation_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
-                · {credits.animation_credits} animation{credits.animation_credits !== 1 ? 's' : ''} remaining
+            {!isFreeTier && !isAdmin && credits.premium_monthly_allowance > 0 && (
+              <span style={{ fontSize: 13, color: credits.premium_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
+                · {credits.premium_credits} premium credit{credits.premium_credits !== 1 ? 's' : ''} remaining
               </span>
             )}
             {!isAdmin && balance <= 2 && (
@@ -1743,11 +1883,11 @@ export default function SongsPage() {
           </div>
         )}
 
-        {!isAdmin && !isFreeTier && animateCoverPref && credits.animation_credits === 0 && (
+        {!isAdmin && !isFreeTier && animateCoverPref && credits.premium_credits === 0 && (
           <div style={{ borderBottom: '1px solid rgba(167,139,250,0.12)', padding: '16px 24px' }}>
             <div style={{ maxWidth: 880, margin: '0 auto', padding: '20px 24px', borderRadius: 14, border: '1px solid rgba(167,139,250,0.4)', background: 'rgba(124,58,237,0.04)' }}>
               <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 13, fontWeight: 700, color: '#c4b5fd', marginBottom: 14, letterSpacing: '0.5px' }}>
-                🎬 Buy Animation Credits
+                🎬 Buy Premium Credits
               </h3>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {ANIMATION_PACKS.map(({ pack, label, price }) => (
@@ -2317,9 +2457,9 @@ export default function SongsPage() {
                         {animateCoverPref ? t('songs.animatedCoverOn') : t('songs.animatedCoverOff')}
                       </span>
                     </label>
-                    {animateCoverPref && !isAdmin && credits.animation_credits === 0 && (
+                    {animateCoverPref && !isAdmin && credits.premium_credits === 0 && (
                       <p style={{ fontSize: 11, color: '#f87171', margin: '6px 0 0 46px' }}>
-                        No animation credits left this month. <button onClick={() => handleAnimationTopup('animation_pack_5')} disabled={topupLoading !== null} style={{ background: 'none', border: 'none', color: '#f87171', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: 11 }}>Buy more</button> or <Link to="/billing" style={{ color: '#f87171' }}>upgrade</Link>.
+                        No premium credits left this month. <button onClick={() => handleAnimationTopup('animation_pack_5')} disabled={topupLoading !== null} style={{ background: 'none', border: 'none', color: '#f87171', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: 11 }}>Buy more</button> or <Link to="/billing" style={{ color: '#f87171' }}>upgrade</Link>.
                       </p>
                     )}
                   </div>
@@ -2475,6 +2615,10 @@ export default function SongsPage() {
                       onShareToggle={handleShareToggle}
                       playlists={playlists}
                       onAddToPlaylist={handleAddToPlaylist}
+                      premiumCredits={credits.premium_credits}
+                      stemsData={stemsData[v.variant_id]}
+                      onGetStems={handleGetStems}
+                      onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -2563,6 +2707,10 @@ export default function SongsPage() {
                     onShareToggle={handleShareToggle}
                     playlists={playlists}
                     onAddToPlaylist={handleAddToPlaylist}
+                    premiumCredits={credits.premium_credits}
+                    stemsData={stemsData[v.variant_id]}
+                    onGetStems={handleGetStems}
+                    onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
                   />
                 ))}
               </div>
@@ -2782,6 +2930,57 @@ export default function SongsPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Cover This Song modal */}
+      {coverModal && (
+        <div
+          onClick={() => setCoverModal(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#12121e', border: '1px solid rgba(0,240,255,0.25)', borderRadius: 16, padding: '28px 24px', maxWidth: 480, width: '100%' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, background: 'linear-gradient(90deg,#00f0ff,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                🎤 Cover This Song
+              </h2>
+              <button onClick={() => setCoverModal(null)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#94a3b8', fontSize: 13, cursor: 'pointer', padding: '4px 9px' }}>✕</button>
+            </div>
+
+            <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#94a3b8', lineHeight: 1.5 }}>
+              Zeus will create a <strong style={{ color: '#e2e8f0' }}>new song</strong> in the same style as this one but with your lyrics. It won't be an exact overlay on the original beat — think of it like a <strong style={{ color: '#e2e8f0' }}>cover version</strong> inspired by this track.
+            </div>
+
+            <textarea
+              value={coverLyrics}
+              onChange={e => setCoverLyrics(e.target.value)}
+              placeholder={"[Verse 1]\nWrite your lyrics here...\n\n[Chorus]\nYour chorus here..."}
+              rows={8}
+              maxLength={3000}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e2e8f0', fontSize: 13, padding: '10px 12px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8 }}
+            />
+            <div style={{ fontSize: 11, color: '#475569', textAlign: 'right', marginBottom: 12 }}>{coverLyrics.length}/3000 · costs 1 song credit</div>
+
+            {coverError && <p style={{ color: '#f87171', fontSize: 13, margin: '0 0 10px' }}>{coverError}</p>}
+
+            <button
+              onClick={handleCoverSubmit}
+              disabled={coverLoading || !coverLyrics.trim()}
+              style={{ width: '100%', padding: '11px 0', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 700, fontSize: 14, cursor: coverLoading || !coverLyrics.trim() ? 'not-allowed' : 'pointer', opacity: coverLoading || !coverLyrics.trim() ? 0.55 : 1, transition: 'opacity 0.2s' }}
+            >
+              {coverLoading ? '🎵 Submitting…' : '🎤 Generate Cover'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cover success toast */}
+      {coverToast && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.4)', borderRadius: 10, padding: '12px 24px', color: '#00f0ff', fontWeight: 600, fontSize: 14, zIndex: 2000, whiteSpace: 'nowrap' }}>
+          🎤 Your cover is generating! Check your library soon.
         </div>
       )}
 
