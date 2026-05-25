@@ -1,10 +1,10 @@
-# Stem Separation + Premium Credits + Add My Lyrics — Design Spec
+# Stem Separation + Premium Credits + Cover This Song — Design Spec
 
 > **For agentic workers:** Use `superpowers:executing-plans` or `superpowers:subagent-driven-development` when implementing the plan derived from this spec.
 
-**Goal:** Add stem separation (split any song into vocals/drums/bass/other) and "Add My Lyrics" (generate a new version with the user's words in the same style), gated behind a unified Premium Credits system renamed from the existing Animation Credits.
+**Goal:** Add stem separation (split any song into vocals/drums/bass/other) and "Cover This Song" (generate a new version with the user's words in the same style), gated behind a unified Premium Credits system renamed from the existing Animation Credits.
 
-**Architecture:** Three sequential subsystems — (1) DB migration + rename throughout Python + UI, (2) fal.ai Demucs stem separation via background polling thread, (3) Add My Lyrics via Apiframe Suno EXTEND on the source song. Each subsystem is independently deployable; subsystem 3 depends on stems existing in DB.
+**Architecture:** Three sequential subsystems — (1) DB migration + rename throughout Python + UI, (2) fal.ai Demucs stem separation via background polling thread, (3) Cover This Song via Apiframe Suno EXTEND on the source song. Each subsystem is independently deployable; subsystem 3 depends on stems existing in DB.
 
 **Tech Stack:** FastAPI backend, SQLite via db.py, fal.ai Demucs (`fal-ai/demucs`, same `FAL_API_KEY` used for Kling), Apiframe v2 UPLOAD + EXTEND (`api.apiframe.ai`), React/Vite frontend (web-beats only).
 
@@ -196,7 +196,7 @@ Each complete song card gains a **"🎵 Stems"** action button (next to Play, Do
 │ 🎸 Bass        [▶ play]  [⬇ download]               │
 │ 🎹 Melody/Other [▶ play] [⬇ download]               │
 │                                                      │
-│              [✍️ Add My Lyrics →]                    │
+│              [✍️ Cover This Song →]                    │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -206,13 +206,13 @@ State additions per song card: `stemsOpen: bool`, `stemsData: {status, vocals_ur
 
 ---
 
-## Subsystem 3: Add My Lyrics
+## Subsystem 3: Cover This Song
 
 **What it does:** Takes the source song's MP3, uploads it to Apiframe's Suno UPLOAD endpoint to get a `parent_task_id`, then calls Suno EXTEND with the user's custom lyrics and `continue_at: 0`. Suno generates new music that continues from the harmonic/style context of the source song with the user's words sung over it. The result appears as a new song variant in the user's library.
 
 **Cost:** 1 song credit (same as regular song generation). No additional premium credits needed.
 
-**Important caveat:** Suno EXTEND with `continue_at: 0` does not overlay vocals onto the original audio — it generates **new** music starting from the style context of the uploaded track. The result will sound like the same genre and vibe with the user's lyrics. This is explained in the UI: "Generate a new track in this style with your words."
+**Important caveat:** Suno EXTEND with `continue_at: 0` does not overlay vocals onto the original audio — it generates **new** music starting from the style context of the uploaded track. The result will sound like the same genre and vibe with the user's lyrics. The feature is named **"Cover This Song"** to set the right expectation: you're creating a cover version inspired by this track, not an exact vocal overlay. A modal explanation is shown before generation.
 
 ### Backend: POST /api/songs/variants/{variant_id}/add-lyrics
 
@@ -270,11 +270,11 @@ The existing webhook handler at `/webhooks/apiframe` handles the EXTEND response
 
 ### Frontend — web-beats SongsPage.jsx
 
-The **"✍️ Add My Lyrics →"** button in the stems panel opens a modal:
+The **"✍️ Cover This Song →"** button in the stems panel opens a modal:
 
 ```
 ┌─────────────────────────────────────────────┐
-│  ✍️ Add My Lyrics                    [✕]   │
+│  ✍️ Cover This Song                    [✕]   │
 │                                             │
 │  Write your own lyrics below. Zeus will    │
 │  generate a new track in the style of this │
@@ -305,7 +305,7 @@ On success: modal closes, show toast "Your song is generating! Check your librar
 | Apiframe EXTEND fails | Webhook fires with `event=failed` → existing handler marks variant failed |
 | 0 premium credits when requesting stems | HTTP 402 "You need at least 1 Premium Credit" |
 | 0 song credits when adding lyrics | HTTP 402 "Insufficient credits" (existing error) |
-| Stems not yet complete when clicking Add My Lyrics | Button disabled (frontend guard) |
+| Stems not yet complete when clicking Cover This Song | Button disabled (frontend guard) |
 
 ---
 
@@ -317,7 +317,7 @@ On success: modal closes, show toast "Your song is generating! Check your librar
 | `backend/billing.py` | Rename `_PLAN_ANIMATION_CREDITS` + all db function calls |
 | `backend/webhooks.py` | Rename credit calls; add `_stem_pipeline`, `_add_lyrics_pipeline` |
 | `backend/main.py` | Rename credit endpoints/responses; add `POST .../stems`, `GET .../stems`, `POST .../add-lyrics` |
-| `web-beats/src/pages/SongsPage.jsx` | Rename `animation_credits` → `premium_credits` in state; stems UI on song cards; Add My Lyrics modal |
+| `web-beats/src/pages/SongsPage.jsx` | Rename `animation_credits` → `premium_credits` in state; stems UI on song cards; Cover This Song modal |
 | `web/src/pages/SongsPage.jsx` | Rename `animation_credits` → `premium_credits` in state + UI text only (no stems UI on this frontend) |
 
 ---
