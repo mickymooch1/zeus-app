@@ -1046,7 +1046,7 @@ export default function SongsPage() {
   const [activeTab, setActiveTab] = useState('all');
 
   const [stemsData, setStemsData] = useState({});
-  const [stemsPoll, setStemsPoll] = useState({});
+  const stemsPollRef = useRef({});
   const [coverModal, setCoverModal] = useState(null);
   const [coverLyrics, setCoverLyrics] = useState('');
   const [coverLoading, setCoverLoading] = useState(false);
@@ -1291,6 +1291,13 @@ export default function SongsPage() {
     return () => clearTimeout(t);
   }, [library, musicVideoUrls, fetchLibrary]);
 
+  // Cleanup all stems poll intervals on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(stemsPollRef.current).forEach(clearInterval);
+    };
+  }, []);
+
   useEffect(() => {
     if (!portraitJobId) return;
     let pollCount = 0;
@@ -1533,10 +1540,11 @@ export default function SongsPage() {
           const pd = await pr.json();
           setStemsData(prev => ({ ...prev, [variantId]: pd }));
           if (pd.stems_status !== 'pending') {
-            setStemsPoll(prev => { clearInterval(prev[variantId]); const n = {...prev}; delete n[variantId]; return n; });
+            clearInterval(stemsPollRef.current[variantId]);
+            delete stemsPollRef.current[variantId];
           }
         }, 5000);
-        setStemsPoll(prev => ({ ...prev, [variantId]: intervalId }));
+        stemsPollRef.current[variantId] = intervalId;
       }
     } catch {
       alert('Network error starting stem separation');
