@@ -273,6 +273,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             )""",
             """CREATE INDEX IF NOT EXISTS idx_play_events_user
                ON song_play_events(user_id)""",
+            "ALTER TABLE song_variants ADD COLUMN refunded_at TIMESTAMP",
         ]:
             try:
                 conn.execute(_migration)
