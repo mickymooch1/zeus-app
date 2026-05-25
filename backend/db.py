@@ -273,6 +273,15 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             )""",
             """CREATE INDEX IF NOT EXISTS idx_play_events_user
                ON song_play_events(user_id)""",
+            # Premium Credits: rename animation columns (SQLite 3.25+ RENAME COLUMN)
+            "ALTER TABLE song_credits RENAME COLUMN animation_balance TO premium_balance",
+            "ALTER TABLE song_credits RENAME COLUMN animation_monthly_allowance TO premium_monthly_allowance",
+            # Stems columns on song_variants
+            "ALTER TABLE song_variants ADD COLUMN stems_status TEXT",
+            "ALTER TABLE song_variants ADD COLUMN stems_vocals_url TEXT",
+            "ALTER TABLE song_variants ADD COLUMN stems_drums_url TEXT",
+            "ALTER TABLE song_variants ADD COLUMN stems_bass_url TEXT",
+            "ALTER TABLE song_variants ADD COLUMN stems_other_url TEXT",
         ]:
             try:
                 conn.execute(_migration)
@@ -1179,36 +1188,36 @@ def refund_video_credit(db_path: pathlib.Path, user_id: str) -> None:
         conn.close()
 
 
-# ── Animation credits CRUD ────────────────────────────────────────────────────
+# ── Premium credits CRUD ──────────────────────────────────────────────────────
 
-def get_animation_credits(db_path: pathlib.Path, user_id: str) -> dict | None:
-    """Return animation_balance and animation_monthly_allowance from song_credits."""
+def get_premium_credits(db_path: pathlib.Path, user_id: str) -> dict | None:
+    """Return premium_balance and premium_monthly_allowance from song_credits."""
     conn = _conn(db_path)
     try:
         row = conn.execute(
-            "SELECT animation_balance, animation_monthly_allowance FROM song_credits WHERE user_id = ?",
+            "SELECT premium_balance, premium_monthly_allowance FROM song_credits WHERE user_id = ?",
             (user_id,),
         ).fetchone()
-        return {"animation_balance": row["animation_balance"], "animation_monthly_allowance": row["animation_monthly_allowance"]} if row else None
+        return {"premium_balance": row["premium_balance"], "premium_monthly_allowance": row["premium_monthly_allowance"]} if row else None
     finally:
         conn.close()
 
 
-def upsert_animation_credits(
+def upsert_premium_credits(
     db_path: pathlib.Path,
     user_id: str,
     balance: int,
     monthly_allowance: int,
 ) -> None:
-    """Set animation credits columns on song_credits row, creating it if absent."""
+    """Set premium credit columns on song_credits row, creating it if absent."""
     conn = _conn(db_path)
     try:
         conn.execute(
-            """INSERT INTO song_credits (user_id, balance, monthly_allowance, animation_balance, animation_monthly_allowance, last_reset)
+            """INSERT INTO song_credits (user_id, balance, monthly_allowance, premium_balance, premium_monthly_allowance, last_reset)
                VALUES (?, 0, 0, ?, ?, CURRENT_TIMESTAMP)
                ON CONFLICT(user_id) DO UPDATE SET
-                   animation_balance = ?,
-                   animation_monthly_allowance = ?""",
+                   premium_balance = ?,
+                   premium_monthly_allowance = ?""",
             (user_id, balance, monthly_allowance, balance, monthly_allowance),
         )
         conn.commit()
@@ -1216,17 +1225,17 @@ def upsert_animation_credits(
         conn.close()
 
 
-def check_and_deduct_animation_credit(db_path: pathlib.Path, user_id: str) -> bool:
-    """Atomically deduct 1 animation credit. Returns True on success, False if balance is 0."""
+def check_and_deduct_premium_credit(db_path: pathlib.Path, user_id: str) -> bool:
+    """Atomically deduct 1 premium credit. Returns True on success, False if balance is 0."""
     conn = _conn(db_path)
     try:
         row = conn.execute(
-            "SELECT animation_balance FROM song_credits WHERE user_id = ?", (user_id,)
+            "SELECT premium_balance FROM song_credits WHERE user_id = ?", (user_id,)
         ).fetchone()
-        if not row or row["animation_balance"] < 1:
+        if not row or row["premium_balance"] < 1:
             return False
         conn.execute(
-            "UPDATE song_credits SET animation_balance = animation_balance - 1 WHERE user_id = ?",
+            "UPDATE song_credits SET premium_balance = premium_balance - 1 WHERE user_id = ?",
             (user_id,),
         )
         conn.commit()
@@ -1235,14 +1244,14 @@ def check_and_deduct_animation_credit(db_path: pathlib.Path, user_id: str) -> bo
         conn.close()
 
 
-def increment_animation_credits(db_path: pathlib.Path, user_id: str, amount: int) -> None:
-    """Add animation credits to song_credits row (for top-up pack purchases)."""
+def increment_premium_credits(db_path: pathlib.Path, user_id: str, amount: int) -> None:
+    """Add premium credits to song_credits row (for top-up pack purchases and refunds)."""
     conn = _conn(db_path)
     try:
         conn.execute(
-            """INSERT INTO song_credits (user_id, balance, monthly_allowance, animation_balance, animation_monthly_allowance)
+            """INSERT INTO song_credits (user_id, balance, monthly_allowance, premium_balance, premium_monthly_allowance)
                VALUES (?, 0, 0, ?, 0)
-               ON CONFLICT(user_id) DO UPDATE SET animation_balance = animation_balance + ?""",
+               ON CONFLICT(user_id) DO UPDATE SET premium_balance = premium_balance + ?""",
             (user_id, amount, amount),
         )
         conn.commit()
@@ -1250,17 +1259,68 @@ def increment_animation_credits(db_path: pathlib.Path, user_id: str, amount: int
         conn.close()
 
 
-def reset_animation_credits_balance(db_path: pathlib.Path, user_id: str) -> None:
-    """Reset animation_balance back to animation_monthly_allowance — called on Stripe monthly renewal."""
+def reset_premium_credits_balance(db_path: pathlib.Path, user_id: str) -> None:
+    """Reset premium_balance back to premium_monthly_allowance — called on Stripe monthly renewal."""
     conn = _conn(db_path)
     try:
         conn.execute(
             """UPDATE song_credits
-               SET animation_balance = animation_monthly_allowance
+               SET premium_balance = premium_monthly_allowance
                WHERE user_id = ?""",
             (user_id,),
         )
         conn.commit()
+    finally:
+        conn.close()
+
+
+def save_stems(
+    db_path: pathlib.Path,
+    variant_id: int,
+    *,
+    vocals_url: str,
+    drums_url: str,
+    bass_url: str,
+    other_url: str,
+) -> None:
+    """Save completed Demucs stem URLs and mark stems_status='complete'."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """UPDATE song_variants
+               SET stems_status='complete', stems_vocals_url=?, stems_drums_url=?,
+                   stems_bass_url=?, stems_other_url=?
+               WHERE id=?""",
+            (vocals_url, drums_url, bass_url, other_url, variant_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def fail_stems(db_path: pathlib.Path, variant_id: int) -> None:
+    """Mark stems_status='failed' on a variant."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE song_variants SET stems_status='failed' WHERE id=?", (variant_id,)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_stems(db_path: pathlib.Path, variant_id: int) -> dict | None:
+    """Return stems status and URLs for a variant."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            """SELECT stems_status, stems_vocals_url, stems_drums_url,
+                      stems_bass_url, stems_other_url
+               FROM song_variants WHERE id=?""",
+            (variant_id,),
+        ).fetchone()
+        return dict(row) if row else None
     finally:
         conn.close()
 
