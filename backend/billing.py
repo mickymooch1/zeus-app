@@ -102,7 +102,7 @@ _PLAN_VIDEO_CREDITS = {
     "music_agency": 10,
 }
 
-_PLAN_ANIMATION_CREDITS = {
+_PLAN_PREMIUM_CREDITS = {
     "pro":           10,
     "agency":        20,
     "enterprise":    50,
@@ -453,9 +453,9 @@ def _handle_checkout_completed(db_path, session) -> None:
         elif anim_pack and anim_pack in ANIMATION_PACKS:
             if user:
                 credits = ANIMATION_PACKS[anim_pack]["credits"]
-                db.increment_animation_credits(db_path, user["id"], credits)
+                db.increment_premium_credits(db_path, user["id"], credits)
                 db.update_user(db_path, user["id"], has_paid=1)
-                log.info("Animation top-up: added %d credits (%s) to user %s", credits, anim_pack, user["id"])
+                log.info("Premium credits top-up: added %d credits (%s) to user %s", credits, anim_pack, user["id"])
             else:
                 log.warning("Animation top-up: could not find user (email=%s customer=%s user_id=%s)",
                             customer_email, customer_id, user_id)
@@ -526,9 +526,9 @@ def _handle_checkout_completed(db_path, session) -> None:
         db.upsert_video_credits(db_path, user["id"], balance=video_allowance, monthly_allowance=video_allowance)
         log.info("Granted %d video credits (%s plan) to user %s", video_allowance, plan, user["id"])
 
-    anim_allowance = _PLAN_ANIMATION_CREDITS.get(plan, 0)
-    db.upsert_animation_credits(db_path, user["id"], balance=anim_allowance, monthly_allowance=anim_allowance)
-    log.info("Granted %d animation credits (%s plan) to user %s", anim_allowance, plan, user["id"])
+    anim_allowance = _PLAN_PREMIUM_CREDITS.get(plan, 0)
+    db.upsert_premium_credits(db_path, user["id"], balance=anim_allowance, monthly_allowance=anim_allowance)
+    log.info("Granted %d premium credits (%s plan) to user %s", anim_allowance, plan, user["id"])
 
 
 def _handle_invoice_paid(db_path, invoice) -> None:
@@ -556,9 +556,9 @@ def _handle_invoice_paid(db_path, invoice) -> None:
         db.upsert_video_credits(db_path, user["id"], balance=video_allowance, monthly_allowance=video_allowance)
         log.info("Monthly video credits reset for user %s: %d credits (%s plan)", user["id"], video_allowance, plan)
 
-    anim_allowance = _PLAN_ANIMATION_CREDITS.get(plan, 0)
-    db.upsert_animation_credits(db_path, user["id"], balance=anim_allowance, monthly_allowance=anim_allowance)
-    log.info("Monthly animation credits reset for user %s: %d credits (%s plan)", user["id"], anim_allowance, plan)
+    anim_allowance = _PLAN_PREMIUM_CREDITS.get(plan, 0)
+    db.upsert_premium_credits(db_path, user["id"], balance=anim_allowance, monthly_allowance=anim_allowance)
+    log.info("Monthly premium credits reset for user %s: %d credits (%s plan)", user["id"], anim_allowance, plan)
 
 
 def _handle_subscription_updated(db_path, subscription) -> None:
