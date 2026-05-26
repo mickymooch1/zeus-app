@@ -1775,8 +1775,7 @@ async def songs_generate(
     # ── CometAPI persona path ──────────────────────────────────────────────────
     # When the user has a sound persona set, route through CometAPI instead.
     # Generates exactly ONE variant using the first selected genre + their persona.
-    _user_row_for_persona = db.get_user_by_id(db_path, user_id)
-    _persona_id = _user_row_for_persona.get("sound_persona_id") if _user_row_for_persona else None
+    _persona_id = current_user.get("sound_persona_id")
 
     if _persona_id:
         from song_genres import GENRE_PRESETS as _GP
@@ -1814,14 +1813,14 @@ async def songs_generate(
                 extra_suno_params=extra_suno_params or None,
             )
         except Exception as exc:
-            if not is_admin:
-                _ref = sqlite3.connect(str(db_path))
-                try:
-                    _ref.execute("UPDATE song_credits SET balance = balance + 1 WHERE user_id = ?", (user_id,))
-                    _ref.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (_p_variant_id,))
-                    _ref.commit()
-                finally:
-                    _ref.close()
+            _fail_conn = sqlite3.connect(str(db_path))
+            try:
+                if not is_admin:
+                    _fail_conn.execute("UPDATE song_credits SET balance = balance + 1 WHERE user_id = ?", (user_id,))
+                _fail_conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (_p_variant_id,))
+                _fail_conn.commit()
+            finally:
+                _fail_conn.close()
             log.exception("songs_generate: CometAPI persona generation failed user_id=%s", user_id)
             raise HTTPException(status_code=502, detail=f"CometAPI generation failed: {exc}")
 
