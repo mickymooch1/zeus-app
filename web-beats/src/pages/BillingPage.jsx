@@ -59,6 +59,8 @@ export default function BillingPage() {
   const [anLoading, setAnLoading] = useState(false);
   const [anError, setAnError]     = useState('');
   const [anSuccess, setAnSuccess] = useState('');
+  const [soundPersona, setSoundPersona]     = useState(null);
+  const [soundResetLoading, setSoundResetLoading] = useState(false);
 
   const successParam = new URLSearchParams(location.search).get('success');
   const ytParam      = new URLSearchParams(location.search).get('youtube');
@@ -85,6 +87,33 @@ export default function BillingPage() {
       .then((data) => { if (data) { setCredits(data); setAnName(data.artist_name || ''); } })
       .catch(() => {});
   }, [token]);
+
+  useEffect(() => {
+    if (!user) return;
+    setSoundPersona(
+      user.sound_persona_id
+        ? {
+            sound_persona_id: user.sound_persona_id,
+            sound_persona_title: user.sound_persona_title,
+          }
+        : null
+    );
+  }, [user]);
+
+  const handleResetSound = async () => {
+    setSoundResetLoading(true);
+    try {
+      await fetch(`${BACKEND_URL}/api/user/sound`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSoundPersona(null);
+    } catch (err) {
+      console.error('Failed to reset sound:', err);
+    } finally {
+      setSoundResetLoading(false);
+    }
+  };
 
   const handleSaveArtistName = async (e) => {
     e.preventDefault();
@@ -274,6 +303,67 @@ export default function BillingPage() {
           <div className="form-error form-error--banner">{t('billing.ytError')}</div>
         )}
         {error && <div className="form-error form-error--banner">{error}</div>}
+
+        {/* ── Your Sound ─────────────────────────────────────────────────── */}
+        <div className="billing-card" style={{ marginBottom: 20 }}>
+          <div className="billing-card-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: '1.1rem' }}>🎧</span>
+            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#00f0ff' }}>Your Sound</h2>
+          </div>
+          {(() => {
+            const isPaid =
+              user?.is_admin ||
+              (user?.subscription_status === 'active' &&
+                ['music_starter', 'music_pro', 'music_agency'].includes(user?.subscription_plan));
+            if (!isPaid) {
+              return (
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, margin: '12px 0 0' }}>
+                  Upgrade to Music Starter to lock your sonic DNA — every future song will sound like you.
+                </p>
+              );
+            }
+            if (soundPersona) {
+              return (
+                <div style={{ marginTop: 14 }}>
+                  <p style={{ margin: '0 0 14px', fontSize: 14, color: 'rgba(255,255,255,0.75)' }}>
+                    🔒 Locked to: <strong style={{ color: '#fff' }}>{soundPersona.sound_persona_title}</strong>
+                  </p>
+                  <p style={{ margin: '0 0 16px', fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
+                    All future songs will carry your sonic DNA — even across different genres.
+                  </p>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <Link
+                      to="/songs"
+                      style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid rgba(0,240,255,0.4)', background: 'rgba(0,240,255,0.06)', color: '#00f0ff', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
+                    >
+                      Change Sound
+                    </Link>
+                    <button
+                      onClick={handleResetSound}
+                      disabled={soundResetLoading}
+                      style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600, cursor: soundResetLoading ? 'default' : 'pointer' }}
+                    >
+                      {soundResetLoading ? 'Resetting…' : 'Reset'}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div style={{ marginTop: 14 }}>
+                <p style={{ margin: '0 0 8px', fontSize: 14, color: 'rgba(255,255,255,0.45)' }}>
+                  Not set — go to a song you love and click "Lock My Sound" to save your sonic DNA.
+                </p>
+                <Link
+                  to="/songs"
+                  style={{ color: '#00f0ff', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
+                >
+                  → Go to My Songs
+                </Link>
+              </div>
+            );
+          })()}
+        </div>
 
         {/* Current plan card */}
         <div className="billing-card">
