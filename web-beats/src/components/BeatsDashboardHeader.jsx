@@ -31,17 +31,20 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
     };
   }, [overflowOpen]);
 
+  // Mobile visible: Songs, Search, Discover
+  // Mobile hamburger: Playlists, Mixer, Tutorial, Billing, Contact
   const PRIMARY_LINKS = [
-    { to: '/songs',     label: t('nav.songs') },
-    { to: '/discover',  label: 'Discover' },
-    { to: '/playlists', label: '🎵 Playlists' },
-    { to: '/search',    label: t('nav.search') },
-    { to: '/mixer',     label: t('nav.mixer') },
+    { to: '/songs',    label: t('nav.songs') },
+    { to: '/search',   label: t('nav.search') },
+    { to: '/discover', label: 'Discover' },
   ];
 
   const OVERFLOW_LINKS = [
-    { to: '/contact', label: t('nav.contact') },
-    { to: '/billing', label: t('nav.billing') },
+    { to: '/playlists', label: '🎵 Playlists' },
+    { to: '/mixer',     label: t('nav.mixer') },
+    { to: '/tutorial',  label: '📖 Tutorial' },
+    { to: '/billing',   label: t('nav.billing') },
+    { to: '/contact',   label: t('nav.contact') },
   ];
 
   return (

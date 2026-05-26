@@ -28,6 +28,7 @@ const MixerPage          = lazy(() => import('./pages/MixerPage'));
 const DiscoverPage       = lazy(() => import('./pages/DiscoverPage'));
 const DiscoverSongPage   = lazy(() => import('./pages/DiscoverSongPage'));
 const PlaylistPage       = lazy(() => import('./pages/PlaylistPage'));
+const TutorialPage       = lazy(() => import('./pages/TutorialPage'));
 
 const fallback = (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0b0b14', color: '#94a3b8', fontSize: '1rem' }}>
@@ -107,6 +108,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/tutorial" element={<TutorialPage />} />
           </Routes>
         </Suspense>
       </BrowserRouter>
