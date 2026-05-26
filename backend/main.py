@@ -1743,13 +1743,7 @@ async def songs_generate(
     if body.vocal_gender == "duet":
         style_suffix_parts.append("male and female vocal duet, call and response, harmonising together, two voices intertwining")
     if body.accent:
-        _KIDS_LANG_STYLE = {
-            "french":     "native French speaker singing in French, authentic French pronunciation, warm French vowels, natural French delivery, educational French language song for children",
-            "spanish":    "native Spanish speaker singing in Spanish, authentic Spanish pronunciation, warm Latin vowels, natural Spanish delivery, educational Spanish language song for children",
-            "german":     "native German speaker singing in German, authentic German pronunciation, clear German vowels, natural German delivery, educational German language song for children",
-            "italian":    "native Italian speaker singing in Italian, authentic Italian pronunciation, warm melodic Italian vowels, natural Italian delivery, educational Italian language song for children",
-            "portuguese": "native Portuguese speaker singing in Portuguese, authentic Portuguese pronunciation, warm Iberian vowels, natural Portuguese delivery, educational Portuguese language song for children",
-        }
+        # ── REGULAR MODE ACCENT — original working code, DO NOT MODIFY ──────────
         _ACCENT_DESCRIPTORS = {
             "British":              "strong British English accent, RP received pronunciation, clipped consonants, British vowel sounds, unmistakably English delivery",
             "American (Southern)":  "strong American accent, General American dialect, American vowel sounds, transatlantic delivery, clearly US pronunciation",
@@ -1777,20 +1771,21 @@ async def songs_generate(
             "British Street Soul":  "smooth British urban soul accent, London R&B pronunciation, inner city British warmth, distinctly UK street soul delivery",
             "Jamaican Dancehall":   "fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation",
         }
-        if body.kids_story and body.accent.lower() in _KIDS_LANG_STYLE:
-            accent_style = _KIDS_LANG_STYLE[body.accent.lower()]
-            style_suffix_parts.append(accent_style)
-            log.info("accent: kids_lang accent=%r → %r", body.accent, accent_style[:80])
-        elif body.kids_story:
-            # Kids non-language accents — use same strong descriptors as regular mode
-            accent_style = _ACCENT_DESCRIPTORS.get(body.accent) or body.accent
-            style_suffix_parts.append(accent_style)
-            log.info("accent: kids accent=%r → %r", body.accent, accent_style[:80])
+        # Kids language accents (french/spanish/etc.) — Suno sings in that language
+        # Regular mode and kids non-language accents both use _ACCENT_DESCRIPTORS unchanged
+        if body.kids_story and body.accent.lower() in {"french", "spanish", "german", "italian", "portuguese"}:
+            _KIDS_LANG_STYLE = {
+                "french":     "native French speaker singing in French, authentic French pronunciation, warm French vowels, natural French delivery, educational French language song for children",
+                "spanish":    "native Spanish speaker singing in Spanish, authentic Spanish pronunciation, warm Latin vowels, natural Spanish delivery, educational Spanish language song for children",
+                "german":     "native German speaker singing in German, authentic German pronunciation, clear German vowels, natural German delivery, educational German language song for children",
+                "italian":    "native Italian speaker singing in Italian, authentic Italian pronunciation, warm melodic Italian vowels, natural Italian delivery, educational Italian language song for children",
+                "portuguese": "native Portuguese speaker singing in Portuguese, authentic Portuguese pronunciation, warm Iberian vowels, natural Portuguese delivery, educational Portuguese language song for children",
+            }
+            style_suffix_parts.append(_KIDS_LANG_STYLE[body.accent.lower()])
+            log.info("accent: kids_lang accent=%r applied", body.accent)
         else:
-            # Regular mode — use accent descriptor; if not in dict the value IS the style string
-            accent_style = _ACCENT_DESCRIPTORS.get(body.accent) or body.accent
-            style_suffix_parts.append(accent_style)
-            log.info("accent: regular accent=%r → %r", body.accent, accent_style[:80])
+            style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
+            log.info("accent: %s accent=%r → %r", "kids" if body.kids_story else "regular", body.accent, _ACCENT_DESCRIPTORS.get(body.accent, body.accent)[:80])
     if body.explicit:
         style_suffix_parts.append("explicit lyrics allowed, no content restrictions")
     if body.instrumental:
