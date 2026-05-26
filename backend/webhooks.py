@@ -1141,6 +1141,12 @@ async def cometapi_webhook(request: Request):
     except ValueError:
         raise HTTPException(400, "variant_id must be an integer")
 
+    token = request.query_params.get("token", "")
+    import cometapi as _comet
+    if not _comet.verify_webhook_token(variant_id, token):
+        logger.warning("CometAPI webhook: invalid token for variant_id=%d — rejecting", variant_id)
+        raise HTTPException(401, "Invalid webhook token")
+
     status = body.get("status", "")
     data = body.get("data", [])
     logger.info("CometAPI webhook: variant_id=%d status=%s", variant_id, status)

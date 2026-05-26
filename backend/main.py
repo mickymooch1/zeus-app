@@ -1780,6 +1780,8 @@ async def songs_generate(
     if _persona_id:
         from song_genres import GENRE_PRESETS as _GP
         _p_genre = body.genres[0]
+        if _p_genre not in _GP:
+            raise HTTPException(status_code=400, detail=f"Invalid genre: {_p_genre!r}")
         _p_style = _GP.get(_p_genre, "")
         if tempo_suffix:
             _p_style = f"{_p_style}, {tempo_suffix}"
@@ -1802,7 +1804,12 @@ async def songs_generate(
         finally:
             _p_conn.close()
 
-        _p_webhook = f"{COMETAPI_WEBHOOK_URL}?variant_id={_p_variant_id}"
+        if not _cometapi_mod.COMETAPI_API_KEY:
+            raise HTTPException(status_code=503, detail="CometAPI not configured — contact support")
+        if not COMETAPI_WEBHOOK_URL:
+            raise HTTPException(status_code=503, detail="CometAPI webhook URL not configured — contact support")
+        _p_token = _cometapi_mod._make_webhook_token(_p_variant_id)
+        _p_webhook = f"{COMETAPI_WEBHOOK_URL}?variant_id={_p_variant_id}&token={_p_token}"
         try:
             _p_task_id = _cometapi_mod.generate_with_persona(
                 variant_id=_p_variant_id,

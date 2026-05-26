@@ -161,6 +161,7 @@ def test_cometapi_webhook_failed_status_marks_variant_failed():
     from fastapi.testclient import TestClient
     import main as _main
     import db as _db
+    import cometapi as _comet
 
     db_path = _db.get_db_path()
     conn = sqlite3.connect(str(db_path))
@@ -170,9 +171,10 @@ def test_cometapi_webhook_failed_status_marks_variant_failed():
     conn.commit()
     conn.close()
 
+    token = _comet._make_webhook_token(9901)
     with TestClient(_main.app) as client:
         resp = client.post(
-            "/webhooks/cometapi?variant_id=9901",
+            f"/webhooks/cometapi?variant_id=9901&token={token}",
             json={"status": "FAILED", "data": []},
         )
     assert resp.status_code == 200
@@ -185,9 +187,12 @@ def test_cometapi_webhook_failed_status_marks_variant_failed():
 def test_cometapi_webhook_unexpected_status_returns_ok():
     from fastapi.testclient import TestClient
     import main as _main
+    import cometapi as _comet
+
+    token = _comet._make_webhook_token(1)
     with TestClient(_main.app) as client:
         resp = client.post(
-            "/webhooks/cometapi?variant_id=1",
+            f"/webhooks/cometapi?variant_id=1&token={token}",
             json={"status": "PROCESSING", "data": []},
         )
     assert resp.status_code == 200

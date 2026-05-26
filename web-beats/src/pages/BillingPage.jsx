@@ -105,10 +105,13 @@ export default function BillingPage() {
     setSoundResetError('');
     setSoundResetLoading(true);
     try {
-      await fetch(`${BACKEND_URL}/api/user/sound`, {
+      const resp = await fetch(`${BACKEND_URL}/api/user/sound`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!resp.ok) {
+        throw new Error(`Server error ${resp.status}`);
+      }
       setSoundPersona(null);
     } catch (err) {
       console.error('Failed to reset sound:', err);

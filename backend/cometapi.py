@@ -7,6 +7,8 @@ Regular song generation continues to use Apiframe via songs.py.
 Environment variables:
     COMETAPI_API_KEY      — CometAPI bearer token (required for persona feature)
 """
+import hashlib
+import hmac as _hmac
 import logging
 import os
 
@@ -16,6 +18,19 @@ log = logging.getLogger("zeus.cometapi")
 
 COMETAPI_BASE = "https://api.cometapi.com"
 COMETAPI_API_KEY = os.environ.get("COMETAPI_API_KEY", "")
+COMETAPI_WEBHOOK_SECRET = os.environ.get("COMETAPI_WEBHOOK_SECRET", "")
+
+
+def _make_webhook_token(variant_id: int) -> str:
+    """Generate a per-variant HMAC token for webhook authentication."""
+    secret = (COMETAPI_WEBHOOK_SECRET or COMETAPI_API_KEY or "zeus-default-secret").encode()
+    return _hmac.new(secret, str(variant_id).encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def verify_webhook_token(variant_id: int, token: str) -> bool:
+    """Verify a webhook token for the given variant_id."""
+    expected = _make_webhook_token(variant_id)
+    return _hmac.compare_digest(expected, token)
 
 _MV_MAP = {
     "V4_5": "chirp-auk",
