@@ -44,6 +44,7 @@ from tunnel import get_tunnel_url, start_tunnel_background, stop_tunnel
 import db
 import auth
 import billing
+import cometapi as _cometapi_mod
 import did_uploader
 import scheduler as _scheduler_mod
 import telegram_admin as _tg_admin
@@ -242,6 +243,7 @@ def _send_task_email(
 
 _RAILWAY = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
 _REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "").strip() == "1"
+COMETAPI_WEBHOOK_URL = os.environ.get("COMETAPI_WEBHOOK_URL", "")
 
 SOCIAL_CRAWLERS = [
     "facebookexternalhit", "Twitterbot", "LinkedInBot",
@@ -2013,6 +2015,77 @@ async def update_artist_name(
 ):
     db_path = db.get_db_path()
     db.update_user(db_path, current_user["id"], artist_name=body.artist_name.strip() or None)
+    return {"ok": True}
+
+
+# ── Your Sound (sonic persona) ───────────────────────────────────────────────
+
+class _SoundPersonaRequest(BaseModel):
+    variant_id: int
+
+
+@app.post("/api/user/sound")
+async def set_sound_persona_endpoint(
+    body: _SoundPersonaRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    plan = current_user.get("subscription_plan")
+    status = current_user.get("subscription_status", "free")
+    is_admin = bool(current_user.get("is_admin", 0))
+    if not is_admin and not (status == "active" and plan in billing.MUSIC_PLAN_KEYS):
+        raise HTTPException(status_code=402, detail="upgrade_required")
+
+    db_path = db.get_db_path()
+    user_id = current_user["id"]
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        row = conn.execute(
+            "SELECT id, mp3_url FROM song_variants WHERE id = ? AND user_id = ?",
+            (body.variant_id, user_id),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Song not found")
+    mp3_url = row[1]
+    if not mp3_url:
+        raise HTTPException(status_code=400, detail="Song not yet complete — wait for generation to finish")
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        title_row = conn.execute(
+            "SELECT l.title FROM song_variants sv JOIN lyrics l ON l.id = sv.lyric_id WHERE sv.id = ?",
+            (body.variant_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+    song_title = title_row[0] if title_row and title_row[0] else f"Song #{body.variant_id}"
+
+    if not _cometapi_mod.COMETAPI_API_KEY:
+        raise HTTPException(status_code=503, detail="CometAPI not configured — contact support")
+
+    try:
+        persona_id = _cometapi_mod.create_persona(mp3_url, song_title)
+    except Exception as exc:
+        log.exception("set_sound_persona: CometAPI create_persona failed variant_id=%d", body.variant_id)
+        raise HTTPException(status_code=502, detail=f"Persona creation failed: {exc}")
+
+    db.set_sound_persona(db_path, user_id, persona_id=persona_id, variant_id=body.variant_id, title=song_title)
+    log.info("set_sound_persona: user_id=%s persona_id=%s variant_id=%d", user_id, persona_id, body.variant_id)
+    return {
+        "sound_persona_id": persona_id,
+        "sound_persona_title": song_title,
+        "sound_persona_variant_id": body.variant_id,
+    }
+
+
+@app.delete("/api/user/sound")
+async def clear_sound_persona_endpoint(current_user: dict = Depends(auth.get_current_user)):
+    db_path = db.get_db_path()
+    db.clear_sound_persona(db_path, current_user["id"])
+    log.info("clear_sound_persona: user_id=%s", current_user["id"])
     return {"ok": True}
 
 

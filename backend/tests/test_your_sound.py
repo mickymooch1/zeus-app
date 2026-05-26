@@ -110,3 +110,41 @@ def test_create_persona_handles_dict_data_shape():
     with patch("cometapi.requests.post", return_value=mock_resp):
         pid = cometapi.create_persona("https://example.com/song.mp3", "Test Song")
     assert pid == "persona-uuid-dict"
+
+
+def test_sound_persona_endpoints_require_auth():
+    from fastapi.testclient import TestClient
+    import main as _main
+    with TestClient(_main.app) as client:
+        resp = client.post("/api/user/sound", json={"variant_id": 1})
+        assert resp.status_code in {401, 403, 422}
+        resp2 = client.delete("/api/user/sound")
+        assert resp2.status_code in {401, 403}
+
+
+def test_sound_persona_free_user_gets_402():
+    import sqlite3, uuid, pathlib, db as _db
+    from fastapi.testclient import TestClient
+    import main as _main
+    import auth as _auth
+    from datetime import datetime, timezone
+
+    db_path = _db.get_db_path()
+    uid = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "INSERT OR IGNORE INTO users (id, email, password_hash, subscription_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (uid, f"{uid}@test.com", "hash", "free", now, now),
+    )
+    conn.commit()
+    conn.close()
+    token = _auth.create_token(uid, f"{uid}@test.com", is_admin=False)
+    with TestClient(_main.app) as client:
+        resp = client.post(
+            "/api/user/sound",
+            json={"variant_id": 999},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    assert resp.status_code == 402
+    assert resp.json()["detail"] == "upgrade_required"
