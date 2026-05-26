@@ -406,8 +406,11 @@ def generate_multiple_variants(
         if genre_b and genre_b in GENRE_PRESETS:
             style = _dj_transition_style(style, GENRE_PRESETS[genre_b])
             logger.info("genre_blend: %s × %s DJ-transition style len=%d", genre, genre_b, len(style))
+        # Accent/vocal modifiers go BEFORE the genre preset so Suno weights them first.
+        # Genre presets can contain strong location/vocal cues (e.g. "East London sound")
+        # that override an accent appended at the end.
         if tempo_suffix:
-            style = f"{style}, {tempo_suffix}"
+            style = f"{tempo_suffix}, {style}"
         safe_inspired_by = sanitize_inspired_by_descriptors(inspired_by_descriptors)
         if safe_inspired_by:
             style = f"{style}, {safe_inspired_by}"
