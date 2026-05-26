@@ -51,17 +51,12 @@ def create_persona(mp3_url: str, title: str) -> str:
     """
     Create a CometAPI style persona from a finished song MP3.
     Returns the persona_id UUID string.
-
-    ⚠️  VERIFY ENDPOINT BEFORE PRODUCTION USE:
-    CometAPI's persona creation endpoint is behind their authenticated docs.
-    Check https://apidoc.cometapi.com → search "persona" for the exact path.
-    If the endpoint below is wrong, update the URL. The response parsing handles
-    both {"data": "uuid"} and {"data": {"persona_id": "uuid"}} shapes.
+    Response parsing handles both {"data": "uuid"} and {"data": {"persona_id": "uuid"}} shapes.
     """
     if not COMETAPI_API_KEY:
         raise RuntimeError("COMETAPI_API_KEY not configured")
     resp = requests.post(
-        f"{COMETAPI_BASE}/suno/submit/persona",
+        f"{COMETAPI_BASE}/suno/v1/persona/new",
         headers=_headers(),
         json={"audio_url": mp3_url, "title": title},
         timeout=30,
@@ -124,7 +119,7 @@ def generate_with_persona(
         variant_id, persona_id, mv, webhook_url,
     )
     resp = requests.post(
-        f"{COMETAPI_BASE}/suno/submit/music",
+        f"{COMETAPI_BASE}/suno/v1/music/generate",
         headers=_headers(),
         json=body,
         timeout=30,
