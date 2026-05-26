@@ -53,3 +53,42 @@ def test_set_and_clear_sound_persona():
     assert user["sound_persona_id"] is None
     assert user["sound_persona_variant_id"] is None
     assert user["sound_persona_title"] is None
+
+
+from unittest.mock import patch, MagicMock
+
+
+def test_generate_with_persona_builds_correct_payload():
+    import cometapi
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"code": 1, "data": "task-id-abc123"}
+    mock_resp.raise_for_status = MagicMock()
+    with patch("cometapi.requests.post", return_value=mock_resp) as mock_post:
+        task_id = cometapi.generate_with_persona(
+            variant_id=7,
+            lyrics="verse 1 lyrics",
+            style_prompt="uk grime, 140bpm",
+            persona_id="uuid-persona-xyz",
+            webhook_url="https://zeusaidesign.com/webhooks/cometapi?variant_id=7",
+            extra_suno_params=None,
+        )
+    assert task_id == "task-id-abc123"
+    call_json = mock_post.call_args.kwargs["json"]
+    assert call_json["persona_id"] == "uuid-persona-xyz"
+    assert call_json["task"] == "artist_consistency"
+    assert "verse 1 lyrics" in call_json["prompt"]
+    assert call_json["notify_hook"] == "https://zeusaidesign.com/webhooks/cometapi?variant_id=7"
+
+
+def test_generate_with_persona_no_api_key_raises():
+    import cometapi
+    original = cometapi.COMETAPI_API_KEY
+    cometapi.COMETAPI_API_KEY = ""
+    try:
+        try:
+            cometapi.generate_with_persona(7, "lyrics", "style", "pid", "http://hook")
+            assert False, "Should have raised"
+        except RuntimeError as e:
+            assert "COMETAPI_API_KEY" in str(e)
+    finally:
+        cometapi.COMETAPI_API_KEY = original
