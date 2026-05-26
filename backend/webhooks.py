@@ -1224,12 +1224,22 @@ async def cometapi_webhook(request: Request):
             conn.close()
 
     os.makedirs(STORAGE_PATH, exist_ok=True)
-    logger.info("CometAPI webhook: downloading MP3 from %s", audio_url)
-    dl = requests.get(audio_url, timeout=120)
-    dl.raise_for_status()
-    local_path = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
-    with open(local_path, "wb") as fh:
-        fh.write(dl.content)
+    try:
+        logger.info("CometAPI webhook: downloading MP3 from %s", audio_url)
+        dl = requests.get(audio_url, timeout=120)
+        dl.raise_for_status()
+        local_path = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
+        with open(local_path, "wb") as fh:
+            fh.write(dl.content)
+    except Exception as _dl_exc:
+        logger.exception("CometAPI webhook: MP3 download failed variant_id=%d url=%s: %s", variant_id, audio_url, _dl_exc)
+        _fail_conn = sqlite3.connect(DB_PATH)
+        try:
+            _fail_conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
+            _fail_conn.commit()
+        finally:
+            _fail_conn.close()
+        return {"ok": True, "status": "download_failed"}
 
     if os.path.getsize(local_path) < 100_000:
         logger.warning("CometAPI webhook: MP3 too small (%d bytes) variant_id=%d", os.path.getsize(local_path), variant_id)
