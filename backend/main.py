@@ -1750,37 +1750,47 @@ async def songs_generate(
             "italian":    "native Italian speaker singing in Italian, authentic Italian pronunciation, warm melodic Italian vowels, natural Italian delivery, educational Italian language song for children",
             "portuguese": "native Portuguese speaker singing in Portuguese, authentic Portuguese pronunciation, warm Iberian vowels, natural Portuguese delivery, educational Portuguese language song for children",
         }
+        _ACCENT_DESCRIPTORS = {
+            "British":              "strong British English accent, RP received pronunciation, clipped consonants, British vowel sounds, unmistakably English delivery",
+            "American (Southern)":  "strong American accent, General American dialect, American vowel sounds, transatlantic delivery, clearly US pronunciation",
+            "Irish":                "strong Irish accent, Dublin or Cork lilt, rising intonation, Irish vowel sounds, unmistakably Celtic delivery, thick Irish brogue",
+            "Scottish":             "strong Scottish accent, Glasgow or Edinburgh dialect, rolling R sounds, Scottish vowel sounds, thick Scottish brogue, unmistakably Scottish delivery",
+            "Australian":           "strong Australian accent, broad Australian dialect, rising terminal intonation, Australian vowel sounds, distinctly Aussie delivery",
+            "Caribbean":            "strong Caribbean accent, island lilt, Caribbean vowel sounds, warm tropical pronunciation, distinctly West Indian delivery",
+            "French":               "strong French accent singing in English, heavy French pronunciation, nasal French vowels, distinctly Gallic delivery, thick French brogue",
+            "Spanish":              "strong Spanish accent, rolled R sounds, Spanish vowel pronunciation, distinctly Iberian delivery, thick Spanish inflection",
+            "American Soul":        "deep Southern American soul vocal delivery, gospel influenced pronunciation, soulful American drawl, distinctly Black American soul accent",
+            "Jamaican":             "strong Jamaican patois accent, Caribbean lilt, Jamaican dialect pronunciation, patois inflection, thick Jamaican delivery",
+            "D&B MC":               "fast aggressive UK drum and bass MC accent, rapid fire British urban delivery, rave MC pronunciation, hype man energy",
+            "UK Rave MC":           "classic UK rave MC accent, 90s rave pronunciation, energetic British rave delivery, rewind selector accent",
+            "British MC Grime":     "thick East London grime MC delivery, London road man accent, heavy British urban slang pronunciation, clipped aggressive East London vowels, authentic UK grime flow",
+            "Jazz Vocal":           "classic American jazz vocal delivery, sophisticated New York pronunciation, scat influenced phrasing, distinctly jazz club accent",
+            "American Hip-Hop":     "strong American hip-hop accent, East or West Coast rap pronunciation, Black American vernacular English, distinctly US urban delivery",
+            "K-Pop":                "Korean English pronunciation, K-pop vocal style, Korean inflection mixed with English, distinctly Korean pop delivery",
+            "West African":         "strong West African accent, Nigerian or Ghanaian English, Yoruba or Igbo influenced pronunciation, warm African vowel sounds, distinctly Nigerian delivery",
+            "South African":        "strong South African accent, Cape Town or Joburg English, Zulu or Xhosa influenced pronunciation, distinctly South African delivery",
+            "American Phonk":       "deep Memphis Tennessee accent, Southern US drawl, dark phonk delivery, slow deliberate Memphis pronunciation",
+            "New Jersey / Newark":  "strong New Jersey accent, Newark urban pronunciation, East Coast American delivery, distinctly Jersey club MC energy",
+            "British African":      "British African accent, London born with West African heritage, smooth British vowels with African warmth, distinctly British Nigerian or Ghanaian delivery",
+            "Jamaican Rasta":       "deep Rastafarian patois, heavy Jamaican roots accent, Jah pronunciation, conscious spiritual Rasta delivery, thick Caribbean brogue",
+            "West Coast G-Funk":    "smooth Compton California accent, laid back West Coast drawl, G-funk delivery, Southern California pronunciation",
+            "British Street Soul":  "smooth British urban soul accent, London R&B pronunciation, inner city British warmth, distinctly UK street soul delivery",
+            "Jamaican Dancehall":   "fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation",
+        }
         if body.kids_story and body.accent.lower() in _KIDS_LANG_STYLE:
-            style_suffix_parts.append(_KIDS_LANG_STYLE[body.accent.lower()])
+            accent_style = _KIDS_LANG_STYLE[body.accent.lower()]
+            style_suffix_parts.append(accent_style)
+            log.info("accent: kids_lang accent=%r → %r", body.accent, accent_style[:80])
+        elif body.kids_story:
+            # Kids non-language accents — use same strong descriptors as regular mode
+            accent_style = _ACCENT_DESCRIPTORS.get(body.accent) or body.accent
+            style_suffix_parts.append(accent_style)
+            log.info("accent: kids accent=%r → %r", body.accent, accent_style[:80])
         else:
-            _ACCENT_DESCRIPTORS = {
-                "British":              "strong British English accent, RP received pronunciation, clipped consonants, British vowel sounds, unmistakably English delivery",
-                "American (Southern)":  "strong American accent, General American dialect, American vowel sounds, transatlantic delivery, clearly US pronunciation",
-                "Irish":                "strong Irish accent, Dublin or Cork lilt, rising intonation, Irish vowel sounds, unmistakably Celtic delivery, thick Irish brogue",
-                "Scottish":             "strong Scottish accent, Glasgow or Edinburgh dialect, rolling R sounds, Scottish vowel sounds, thick Scottish brogue, unmistakably Scottish delivery",
-                "Australian":           "strong Australian accent, broad Australian dialect, rising terminal intonation, Australian vowel sounds, distinctly Aussie delivery",
-                "Caribbean":            "strong Caribbean accent, island lilt, Caribbean vowel sounds, warm tropical pronunciation, distinctly West Indian delivery",
-                "French":               "strong French accent singing in English, heavy French pronunciation, nasal French vowels, distinctly Gallic delivery, thick French brogue",
-                "Spanish":              "strong Spanish accent, rolled R sounds, Spanish vowel pronunciation, distinctly Iberian delivery, thick Spanish inflection",
-                "American Soul":        "deep Southern American soul vocal delivery, gospel influenced pronunciation, soulful American drawl, distinctly Black American soul accent",
-                "Jamaican":             "strong Jamaican patois accent, Caribbean lilt, Jamaican dialect pronunciation, patois inflection, thick Jamaican delivery",
-                "D&B MC":               "fast aggressive UK drum and bass MC accent, rapid fire British urban delivery, rave MC pronunciation, hype man energy",
-                "UK Rave MC":           "classic UK rave MC accent, 90s rave pronunciation, energetic British rave delivery, rewind selector accent",
-                "British MC Grime":     "thick East London grime MC delivery, London road man accent, heavy British urban slang pronunciation, clipped aggressive East London vowels, authentic UK grime flow",
-                "Jazz Vocal":           "classic American jazz vocal delivery, sophisticated New York pronunciation, scat influenced phrasing, distinctly jazz club accent",
-                "American Hip-Hop":     "strong American hip-hop accent, East or West Coast rap pronunciation, Black American vernacular English, distinctly US urban delivery",
-                "K-Pop":                "Korean English pronunciation, K-pop vocal style, Korean inflection mixed with English, distinctly Korean pop delivery",
-                "West African":         "strong West African accent, Nigerian or Ghanaian English, Yoruba or Igbo influenced pronunciation, warm African vowel sounds, distinctly Nigerian delivery",
-                "South African":        "strong South African accent, Cape Town or Joburg English, Zulu or Xhosa influenced pronunciation, distinctly South African delivery",
-                "American Phonk":       "deep Memphis Tennessee accent, Southern US drawl, dark phonk delivery, slow deliberate Memphis pronunciation",
-                "New Jersey / Newark":  "strong New Jersey accent, Newark urban pronunciation, East Coast American delivery, distinctly Jersey club MC energy",
-                "British African":      "British African accent, London born with West African heritage, smooth British vowels with African warmth, distinctly British Nigerian or Ghanaian delivery",
-                "Jamaican Rasta":       "deep Rastafarian patois, heavy Jamaican roots accent, Jah pronunciation, conscious spiritual Rasta delivery, thick Caribbean brogue",
-                "West Coast G-Funk":    "smooth Compton California accent, laid back West Coast drawl, G-funk delivery, Southern California pronunciation",
-                "British Street Soul":  "smooth British urban soul accent, London R&B pronunciation, inner city British warmth, distinctly UK street soul delivery",
-                "Jamaican Dancehall":   "fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation",
-            }
-            style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
+            # Regular mode — use accent descriptor; if not in dict the value IS the style string
+            accent_style = _ACCENT_DESCRIPTORS.get(body.accent) or body.accent
+            style_suffix_parts.append(accent_style)
+            log.info("accent: regular accent=%r → %r", body.accent, accent_style[:80])
     if body.explicit:
         style_suffix_parts.append("explicit lyrics allowed, no content restrictions")
     if body.instrumental:
