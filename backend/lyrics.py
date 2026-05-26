@@ -56,6 +56,26 @@ GENRE_VOCABULARY: dict[str, str] = {
     "rockney":     "Write in authentic Cockney style — use Cockney rhyming slang, reference East End London life, pubs, markets, football, family. Cheerful singalong verses with a big catchy pub chorus everyone can join in with. Think traditional London street culture.",
 }
 
+_KIDS_LYRIC_SYSTEM = """You are a warm, playful children's songwriter. Write fun, age-appropriate lyrics that children aged 3-8 will love.
+
+Output ONLY valid JSON with this exact shape:
+{{
+  "title": "Song Title Here",
+  "lyrics": "[Verse 1]\\nLine one...\\n[Chorus]\\nLine one..."
+}}
+
+Song structure to use: {structure}
+
+Rules:
+- Simple, clear vocabulary — words a young child can understand
+- Short, rhythmic lines with strong rhymes and repetition
+- Fun, bouncy, sing-along energy — children should be able to join in easily
+- Include repeated phrases or a call-and-response element children can memorise
+- Themes: animals, adventure, friendship, colours, counting, nature, silliness, magic
+- Upbeat and positive — no scary, sad, or adult themes
+- Maximum 150 words total — short enough to hold a child's attention
+- No markdown, no commentary. JSON only."""
+
 _LYRIC_SYSTEM_BASE = """You are the most creative songwriter alive. Your job is to write lyrics that genuinely surprise people.
 
 Output ONLY valid JSON with this exact shape:
@@ -97,7 +117,14 @@ _EXPLICIT_ADDENDUM = (
 )
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None) -> dict:
+_KIDS_LANGUAGE_MAP = {
+    'french': 'French',
+    'spanish': 'Spanish',
+    'german': 'German',
+}
+
+
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, accent: str | None = None) -> dict:
     if instrumental:
         title = song_title or "Instrumental"
         conn = db._conn(db_path)
@@ -114,6 +141,64 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         return {"lyric_id": lyric_id, "lyrics": "[Instrumental]", "title": title}
 
     client = Anthropic()
+
+    if kids_story:
+        structure = random.choice([
+            "[Verse 1], [Chorus], [Verse 2], [Chorus], [Outro]",
+            "[Intro], [Verse 1], [Chorus], [Verse 2], [Chorus]",
+            "[Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus]",
+        ])
+        system = _KIDS_LYRIC_SYSTEM.format(structure=structure)
+        kids_prompt = brief.strip() if brief.strip() else (
+            f"Genre: {', '.join(genres)}. " if genres else ""
+        ) + "Write a fun, catchy children's song."
+        language = _KIDS_LANGUAGE_MAP.get((accent or '').lower())
+        if language:
+            kids_prompt += (
+                f"\nIMPORTANT: Write the lyrics ENTIRELY in {language} — not English. "
+                f"Simple vocabulary appropriate for children learning {language}. "
+                f"Include fun repetitive phrases children can sing along to."
+            )
+        model = "claude-sonnet-4-6"
+        logger.info(
+            "generate_lyrics: kids_story mode — calling %s user=%s accent=%r language=%r brief=%r",
+            model, user_id, accent, language, brief[:200],
+        )
+        try:
+            response = client.messages.create(
+                model=model,
+                max_tokens=800,
+                temperature=1.0,
+                system=system,
+                messages=[{"role": "user", "content": kids_prompt}],
+            )
+        except Exception:
+            logger.exception("generate_lyrics: kids_story %s API call failed — user=%s", model, user_id)
+            raise
+        raw = response.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```", 2)[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.exception("generate_lyrics: kids_story JSON parse failed — raw=%r", raw[:500])
+            raise
+        final_title = song_title or parsed["title"]
+        conn = db._conn(db_path)
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO lyrics (user_id, brief, lyrics_text, title) VALUES (?, ?, ?, ?)",
+                (user_id, brief, parsed["lyrics"], final_title),
+            )
+            lyric_id = cur.lastrowid
+            conn.commit()
+        finally:
+            conn.close()
+        return {"lyric_id": lyric_id, "lyrics": parsed["lyrics"], "title": final_title}
 
     structure = random.choice(_SONG_STRUCTURES)
     mood = random.choice(_MOODS)

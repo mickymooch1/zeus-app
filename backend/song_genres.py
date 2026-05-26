@@ -2,7 +2,7 @@ INSTRUMENTAL_SUFFIX = "fully instrumental, extended arrangement, prominent deep 
 
 GENRE_PRESETS = {
     "country":  "country ballad, acoustic guitar, slide guitar, warm storytelling vocals, moderate tempo",
-    "reggae":   "reggae, off-beat skank guitar, dub bass, laid-back vocals, 80 BPM",
+    "reggae":   "reggae, off-beat rhythm guitar upstroke, dub bass, laid-back vocals, 80 BPM",
     "pop":      "modern pop, polished production, catchy synth melody, clear vocals, 120 BPM",
     "rock":     "rock anthem, electric guitar, driving drums, powerful vocals, 130 BPM",
     "hiphop":   "hip-hop, 808 bass, trap hi-hats, rhythmic vocal delivery, 90 BPM",
@@ -49,5 +49,5 @@ GENRE_PRESETS = {
     "metal":           "heavy metal, distorted electric guitar, double kick drum, powerful screaming vocals, 160 BPM, dark aggressive atmosphere, guitar solo, massive wall of sound, classic heavy metal production, thunderous guitar riffs",
     "reggaeton":       "reggaeton, dembow rhythm, 95 BPM, urban Latin beat, heavy 808 bass, perreo energy, Spanish lyrics, reggaeton flow, Caribbean Latin fusion, infectious Latin urban energy, perreo production style, trap infused Latin production",
     "latintrap":       "Latin trap, dark 808 bass, trap hi-hats, Spanish rap flow, 140 BPM, moody atmospheric production, Latin street sound, melodic Spanish vocals, dark trap beats, dark melodic Spanish rap, moody urban Latin production, urban Latin darkness",
-    "rootsreggae":    "roots reggae, heavy one drop drum pattern, deep rolling bass, classic reggae rhythm guitar skank, 75 BPM, conscious spiritual lyrics, vintage Studio One sound, warm analogue production, Jamaican roots sound, soulful reggae vocals, organic live band feel",
+    "rootsreggae":    "roots reggae, heavy one drop drum pattern, deep rolling bass, classic reggae offbeat rhythm guitar upstroke, 75 BPM, conscious spiritual lyrics, vintage Studio One sound, warm analogue production, Jamaican roots sound, soulful reggae vocals, organic live band feel",
 }

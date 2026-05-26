@@ -1074,6 +1074,10 @@ export default function SongsPage() {
   const [lockToast, setLockToast] = useState('');
   const lockToastTimer = useRef(null);
 
+  // Kids Story Mode
+  const [isKidsMode, setIsKidsMode]   = useState(false);
+  const [kidsAccent, setKidsAccent]   = useState('');
+
   // Custom lyrics
   const [useCustomLyrics, setUseCustomLyrics]   = useState(false);
   const [customLyricsText, setCustomLyricsText] = useState('');
@@ -1389,7 +1393,10 @@ export default function SongsPage() {
           inspired_by_descriptors: artistDescriptors || undefined,
           song_title: songTitle.trim() || undefined,
           animate_cover: animateCover,
-          ...(showAdvanced ? {
+          kids_story: isKidsMode || undefined,
+          ...(isKidsMode ? {
+            accent: kidsAccent || undefined,
+          } : showAdvanced ? {
             vocal_gender: vocalGender || undefined,
             accent: accent || undefined,
             creativity: creativity / 100,
@@ -2592,6 +2599,63 @@ export default function SongsPage() {
                       </p>
                     )}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Kids Story Mode ─────────────────────────────────── */}
+            <button
+              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                background: isKidsMode ? 'rgba(251,191,36,0.10)' : 'rgba(251,191,36,0.04)',
+                border: `1px solid ${isKidsMode ? 'rgba(251,191,36,0.70)' : 'rgba(251,191,36,0.25)'}`,
+                borderRadius: 8, padding: '9px 14px', cursor: 'pointer', marginBottom: 14,
+              }}
+            >
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🧒 Kids Story Mode</span>
+              <span style={{ marginLeft: 'auto', color: '#fbbf24', fontSize: 12, fontWeight: 600 }}>{isKidsMode ? '▲ On' : '▼ Off'}</span>
+            </button>
+
+            {isKidsMode && (
+              <div style={{ background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.30)', borderRadius: 10, padding: '16px 18px', marginBottom: 18 }}>
+                <p style={{ fontSize: 12, color: '#fbbf24', marginBottom: 14, lineHeight: 1.5 }}>
+                  🌟 Zeus will write fun, age-appropriate lyrics with simple words and catchy repetition — perfect for little ones!
+                </p>
+                <p style={{ fontSize: 11, fontWeight: 600, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 10 }}>Choose a Fun Accent</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {[
+                    ['', '🧙 Magical'],
+                    ['Scottish', '🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scottish'],
+                    ['Irish', '🍀 Irish'],
+                    ['Australian', '🦘 Australian'],
+                    ['Welsh', '🏴󠁧󠁢󠁷󠁬󠁳󠁿 Welsh'],
+                    ['Scouse', '🎸 Scouse'],
+                    ['Geordie', '⚽ Geordie'],
+                    ['Caribbean', '🌴 Caribbean'],
+                    ['American (Southern)', '🤠 American'],
+                    ['British', '🎩 Posh British'],
+                    ['french', '🇫🇷 French'],
+                    ['spanish', '🇪🇸 Spanish'],
+                    ['german', '🇩🇪 German'],
+                  ].map(([val, label]) => (
+                    <button
+                      key={val || 'magical'}
+                      onClick={() => setKidsAccent(val)}
+                      style={{
+                        padding: '6px 13px', borderRadius: 20, fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
+                        border: `1px solid ${kidsAccent === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
+                        background: kidsAccent === val ? 'rgba(251,191,36,0.20)' : 'transparent',
+                        color: kidsAccent === val ? '#fbbf24' : 'rgba(251,191,36,0.65)',
+                        fontWeight: kidsAccent === val ? 700 : 400,
+                      }}
+                    >{label}</button>
+                  ))}
+                </div>
+                {kidsAccent && ['french', 'spanish', 'german'].includes(kidsAccent) && (
+                  <p style={{ fontSize: 11, color: '#fbbf24', marginTop: 10, opacity: 0.8 }}>
+                    ✨ Lyrics will be written entirely in {kidsAccent.charAt(0).toUpperCase() + kidsAccent.slice(1)} — great for young language learners!
+                  </p>
                 )}
               </div>
             )}
