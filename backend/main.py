@@ -3915,9 +3915,40 @@ async def download_file(filename: str):
 
 
 @app.get("/sitemap.xml", include_in_schema=False)
-async def sitemap():
-    path = pathlib.Path(__file__).parent / "sitemap.xml"
-    return Response(content=path.read_text(encoding="utf-8"), media_type="application/xml")
+async def sitemap(request: Request):
+    host = request.headers.get("host", "")
+    if "zeusbeats" in host:
+        base = "https://zeusbeats.com"
+        urls = [
+            ("/", "weekly", "1.0"),
+            ("/discover", "daily", "0.9"),
+            ("/pricing", "weekly", "0.9"),
+            ("/register", "monthly", "0.8"),
+            ("/login", "monthly", "0.7"),
+            ("/schools", "weekly", "0.8"),
+            ("/terms", "yearly", "0.4"),
+            ("/privacy", "yearly", "0.4"),
+            ("/refund", "yearly", "0.4"),
+        ]
+    else:
+        base = "https://zeusaidesign.com"
+        urls = [
+            ("/", "weekly", "1.0"),
+            ("/pricing", "weekly", "0.9"),
+            ("/register", "monthly", "0.8"),
+            ("/login", "monthly", "0.7"),
+            ("/terms", "yearly", "0.4"),
+            ("/privacy", "yearly", "0.4"),
+        ]
+    parts = ['<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for path, freq, priority in urls:
+        parts.append(
+            f"  <url><loc>{base}{path}</loc>"
+            f"<changefreq>{freq}</changefreq>"
+            f"<priority>{priority}</priority></url>"
+        )
+    parts.append("</urlset>")
+    return Response(content="\n".join(parts), media_type="application/xml")
 
 
 @app.get("/health")
