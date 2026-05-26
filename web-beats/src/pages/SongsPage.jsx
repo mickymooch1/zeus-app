@@ -2751,18 +2751,10 @@ export default function SongsPage() {
 
                 {/* Voice / Accent */}
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 4 }}>🎤 Choose a Voice</p>
-                <p style={{ fontSize: 11, color: 'rgba(251,191,36,0.60)', marginBottom: 10, lineHeight: 1.4 }}>UK regional, world accents, or lyrics in another language!</p>
+                <p style={{ fontSize: 11, color: 'rgba(251,191,36,0.60)', marginBottom: 10, lineHeight: 1.4 }}>Or write the lyrics entirely in another language!</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: 8 }}>
                   {[
                     ['',                    '🧙',  'Magical'],
-                    ['Scottish',            '🏴󠁧󠁢󠁳󠁣󠁴󠁿',  'Scottish'],
-                    ['Irish',               '🍀',  'Irish'],
-                    ['Welsh',               '🏴󠁧󠁢󠁷󠁬󠁳󠁿',  'Welsh'],
-                    ['Scouse',              '🎸',  'Scouse'],
-                    ['Geordie',             '⚽',  'Geordie'],
-                    ['Brummie',             '🐝',  'Brummie'],
-                    ['Manc',                '🌹',  'Manc'],
-                    ['British',             '🎩',  'Posh British'],
                     ['Australian',          '🦘',  'Australian'],
                     ['American (Southern)', '🤠',  'American'],
                     ['Caribbean',           '🌴',  'Caribbean'],

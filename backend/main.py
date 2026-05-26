@@ -1754,14 +1754,6 @@ async def songs_generate(
             style_suffix_parts.append(_KIDS_LANG_STYLE[body.accent.lower()])
         elif body.kids_story:
             _KIDS_ACCENT_DESCRIPTORS = {
-                "Scottish":             "warm Scottish storyteller voice, fun rolling R sounds, jolly Scottish lilt for children",
-                "Irish":                "jolly Irish lilt, warm cheerful Irish storyteller voice, friendly rising intonation",
-                "Welsh":                "melodic Welsh sing-song voice, warm Welsh lilt, musical storyteller delivery",
-                "Scouse":               "cheerful Liverpool Scouse accent, warm Merseyside storyteller voice for children",
-                "Geordie":              "warm Newcastle Geordie accent, friendly northern English children's storyteller",
-                "Brummie":              "warm Birmingham Brummie accent, friendly West Midlands storyteller voice for children",
-                "Manc":                 "cheerful Manchester Mancunian accent, warm northern English storyteller voice for children",
-                "British":              "warm clear British RP voice, friendly classic storybook delivery",
                 "Australian":           "bright sunny Australian voice, fun enthusiastic Aussie delivery for kids",
                 "American (Southern)":  "warm friendly American voice, clear enthusiastic US children's storyteller",
                 "Caribbean":            "warm Caribbean island lilt, cheerful sunny tropical storyteller voice",
