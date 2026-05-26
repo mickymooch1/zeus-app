@@ -2,6 +2,7 @@ import os
 import pathlib
 import sys
 import tempfile
+from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
@@ -55,9 +56,6 @@ def test_set_and_clear_sound_persona():
     assert user["sound_persona_title"] is None
 
 
-from unittest.mock import patch, MagicMock
-
-
 def test_generate_with_persona_builds_correct_payload():
     import cometapi
     mock_resp = MagicMock()
@@ -92,3 +90,23 @@ def test_generate_with_persona_no_api_key_raises():
             assert "COMETAPI_API_KEY" in str(e)
     finally:
         cometapi.COMETAPI_API_KEY = original
+
+
+def test_create_persona_returns_persona_id_from_string_data():
+    import cometapi
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"code": 1, "data": "persona-uuid-str"}
+    mock_resp.raise_for_status = MagicMock()
+    with patch("cometapi.requests.post", return_value=mock_resp):
+        pid = cometapi.create_persona("https://example.com/song.mp3", "Test Song")
+    assert pid == "persona-uuid-str"
+
+
+def test_create_persona_handles_dict_data_shape():
+    import cometapi
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"code": 1, "data": {"persona_id": "persona-uuid-dict"}}
+    mock_resp.raise_for_status = MagicMock()
+    with patch("cometapi.requests.post", return_value=mock_resp):
+        pid = cometapi.create_persona("https://example.com/song.mp3", "Test Song")
+    assert pid == "persona-uuid-dict"

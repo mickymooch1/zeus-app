@@ -6,8 +6,6 @@ Regular song generation continues to use Apiframe via songs.py.
 
 Environment variables:
     COMETAPI_API_KEY      — CometAPI bearer token (required for persona feature)
-    COMETAPI_WEBHOOK_URL  — public URL for CometAPI callbacks
-                            e.g. https://zeusaidesign.com/webhooks/cometapi
 """
 import logging
 import os
@@ -18,7 +16,6 @@ log = logging.getLogger("zeus.cometapi")
 
 COMETAPI_BASE = "https://api.cometapi.com"
 COMETAPI_API_KEY = os.environ.get("COMETAPI_API_KEY", "")
-COMETAPI_WEBHOOK_URL = os.environ.get("COMETAPI_WEBHOOK_URL", "")
 
 _MV_MAP = {
     "V4_5": "chirp-auk",
@@ -54,6 +51,8 @@ def create_persona(mp3_url: str, title: str) -> str:
         json={"audio_url": mp3_url, "title": title},
         timeout=30,
     )
+    if not resp.ok:
+        log.error("create_persona: HTTP %d: %s", resp.status_code, resp.text[:500])
     resp.raise_for_status()
     data = resp.json()
     payload = data.get("data") or data
@@ -115,6 +114,8 @@ def generate_with_persona(
         json=body,
         timeout=30,
     )
+    if not resp.ok:
+        log.error("generate_with_persona: HTTP %d: %s", resp.status_code, resp.text[:500])
     resp.raise_for_status()
     data = resp.json()
     payload = data.get("data") or data
