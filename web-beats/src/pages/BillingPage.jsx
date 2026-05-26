@@ -61,6 +61,7 @@ export default function BillingPage() {
   const [anSuccess, setAnSuccess] = useState('');
   const [soundPersona, setSoundPersona]     = useState(null);
   const [soundResetLoading, setSoundResetLoading] = useState(false);
+  const [soundResetError, setSoundResetError] = useState('');
 
   const successParam = new URLSearchParams(location.search).get('success');
   const ytParam      = new URLSearchParams(location.search).get('youtube');
@@ -101,6 +102,7 @@ export default function BillingPage() {
   }, [user]);
 
   const handleResetSound = async () => {
+    setSoundResetError('');
     setSoundResetLoading(true);
     try {
       await fetch(`${BACKEND_URL}/api/user/sound`, {
@@ -110,6 +112,7 @@ export default function BillingPage() {
       setSoundPersona(null);
     } catch (err) {
       console.error('Failed to reset sound:', err);
+      setSoundResetError('Failed to reset — please try again.');
     } finally {
       setSoundResetLoading(false);
     }
@@ -311,10 +314,7 @@ export default function BillingPage() {
             <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#00f0ff' }}>Your Sound</h2>
           </div>
           {(() => {
-            const isPaid =
-              user?.is_admin ||
-              (user?.subscription_status === 'active' &&
-                ['music_starter', 'music_pro', 'music_agency'].includes(user?.subscription_plan));
+            const isPaid = isAdmin || (isActive && isMusicPlan);
             if (!isPaid) {
               return (
                 <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, margin: '12px 0 0' }}>
@@ -346,6 +346,9 @@ export default function BillingPage() {
                       {soundResetLoading ? 'Resetting…' : 'Reset'}
                     </button>
                   </div>
+                  {soundResetError && (
+                    <p style={{ color: '#f87171', fontSize: 12, margin: '8px 0 0' }}>{soundResetError}</p>
+                  )}
                 </div>
               );
             }
