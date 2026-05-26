@@ -1123,3 +1123,156 @@ async def telegram_admin_webhook(request: Request):
     # ── No admin configured: fall through silently (existing Porick logic
     #    in /api/telegram/webhook handles public users) ─────────────────────
     return {"ok": True}
+
+
+@router.post("/webhooks/cometapi")
+async def cometapi_webhook(request: Request):
+    """Callback handler for CometAPI persona-based song generations."""
+    _raw_variant_id = request.query_params.get("variant_id", "MISSING")
+    logger.info("COMETAPI WEBHOOK: variant_id=%s", _raw_variant_id)
+
+    body = await request.json()
+
+    variant_id = request.query_params.get("variant_id")
+    if not variant_id:
+        raise HTTPException(400, "Missing variant_id")
+    try:
+        variant_id = int(variant_id)
+    except ValueError:
+        raise HTTPException(400, "variant_id must be an integer")
+
+    status = body.get("status", "")
+    data = body.get("data", [])
+    logger.info("CometAPI webhook: variant_id=%d status=%s", variant_id, status)
+
+    if status == "FAILED":
+        logger.error("CometAPI webhook FAILED for variant_id=%d body=%r", variant_id, body)
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "status": "failed"}
+
+    if status != "SUCCESS":
+        logger.warning("CometAPI unexpected status=%r variant_id=%d", status, variant_id)
+        return {"ok": True, "status": "unexpected"}
+
+    # Atomic claim — prevent duplicate deliveries from processing twice
+    _claim_conn = sqlite3.connect(DB_PATH)
+    try:
+        _claim_conn.execute("BEGIN IMMEDIATE")
+        _claim_row = _claim_conn.execute(
+            "SELECT status FROM song_variants WHERE id = ?", (variant_id,)
+        ).fetchone()
+        if _claim_row and _claim_row[0] in ("complete", "processing"):
+            _claim_conn.execute("ROLLBACK")
+            logger.info("CometAPI webhook: variant_id=%d already %s — ignoring duplicate", variant_id, _claim_row[0])
+            return {"ok": True, "status": "already_" + _claim_row[0]}
+        _claim_conn.execute("UPDATE song_variants SET status = 'processing' WHERE id = ?", (variant_id,))
+        _claim_conn.execute("COMMIT")
+    finally:
+        _claim_conn.close()
+
+    tracks = data if isinstance(data, list) else [data]
+    if not tracks:
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "status": "no_data"}
+
+    track = tracks[0]
+    audio_url = track.get("audio_url") or track.get("audioUrl")
+    duration = round(float(track.get("duration", 0) or 0))
+
+    if not audio_url:
+        logger.error("CometAPI webhook: no audio_url in data: %r", track)
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "status": "no_audio_url"}
+
+    # Fetch variant metadata for cover art + animation
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        orig = conn.execute(
+            "SELECT lyric_id, user_id, genre_tag, animate_cover FROM song_variants WHERE id = ?",
+            (variant_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    animate_cover = bool(orig[3]) if orig and orig[3] is not None else True
+    genre_tag = orig[2] if orig else None
+    song_title = ""
+    artist_name = ""
+    if orig:
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            row = conn.execute("SELECT title FROM lyrics WHERE id = ?", (orig[0],)).fetchone()
+            song_title = row[0] if row and row[0] else ""
+            ur = conn.execute("SELECT artist_name FROM users WHERE id = ?", (orig[1],)).fetchone()
+            artist_name = (ur[0] or "") if ur else ""
+        finally:
+            conn.close()
+
+    os.makedirs(STORAGE_PATH, exist_ok=True)
+    logger.info("CometAPI webhook: downloading MP3 from %s", audio_url)
+    dl = requests.get(audio_url, timeout=120)
+    dl.raise_for_status()
+    local_path = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
+    with open(local_path, "wb") as fh:
+        fh.write(dl.content)
+
+    if os.path.getsize(local_path) < 100_000:
+        logger.warning("CometAPI webhook: MP3 too small (%d bytes) variant_id=%d", os.path.getsize(local_path), variant_id)
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "status": "small_file"}
+
+    public_mp3_url = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
+
+    # Generate cover art via Flux (same as Apiframe path)
+    flux_cover = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name)
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            """UPDATE song_variants
+               SET mp3_url = ?, image_url = ?, duration_seconds = ?,
+                   status = 'complete', take_number = 1, completed_at = CURRENT_TIMESTAMP
+               WHERE id = ?""",
+            (public_mp3_url, flux_cover, duration, variant_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    logger.info("CometAPI webhook: complete variant_id=%d mp3=%s", variant_id, public_mp3_url)
+
+    # Trigger Kling animation if enabled and resources available
+    if animate_cover and flux_cover and duration and FAL_API_KEY:
+        logger.info("CometAPI webhook: starting Kling animation for variant_id=%d", variant_id)
+        threading.Thread(
+            target=_kling_pipeline,
+            args=(variant_id, flux_cover, local_path, duration, genre_tag),
+            daemon=True,
+        ).start()
+    else:
+        logger.info(
+            "CometAPI webhook: Kling skipped animate_cover=%s flux=%s duration=%s fal_key=%s",
+            animate_cover, bool(flux_cover), duration, bool(FAL_API_KEY),
+        )
+
+    return {"ok": True, "status": "complete"}

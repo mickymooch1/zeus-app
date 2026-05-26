@@ -14,6 +14,12 @@ os.environ.setdefault("SONG_PUBLIC_BASE_URL", "https://example.com/songs")
 os.environ.setdefault("COMETAPI_API_KEY", "test-comet-key")
 os.environ.setdefault("COMETAPI_WEBHOOK_URL", "https://zeusaidesign.com/webhooks/cometapi")
 
+# Align DB_PATH used by webhooks.py with the path db.get_db_path() resolves to,
+# so that test inserts and webhook handler reads/writes target the same database.
+if "DB_PATH" not in os.environ:
+    import db as _db_bootstrap
+    os.environ["DB_PATH"] = str(_db_bootstrap.get_db_path())
+
 
 def _make_db():
     import db
@@ -148,3 +154,41 @@ def test_sound_persona_free_user_gets_402():
         )
     assert resp.status_code == 402
     assert resp.json()["detail"] == "upgrade_required"
+
+
+def test_cometapi_webhook_failed_status_marks_variant_failed():
+    import sqlite3
+    from fastapi.testclient import TestClient
+    import main as _main
+    import db as _db
+
+    db_path = _db.get_db_path()
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "INSERT OR IGNORE INTO song_variants (id, lyric_id, user_id, style_prompt, genre_tag, status) VALUES (9901, 1, 'uid', 'style', 'hiphop', 'pending')"
+    )
+    conn.commit()
+    conn.close()
+
+    with TestClient(_main.app) as client:
+        resp = client.post(
+            "/webhooks/cometapi?variant_id=9901",
+            json={"status": "FAILED", "data": []},
+        )
+    assert resp.status_code == 200
+    conn = sqlite3.connect(str(db_path))
+    row = conn.execute("SELECT status FROM song_variants WHERE id = 9901").fetchone()
+    conn.close()
+    assert row and row[0] == "failed"
+
+
+def test_cometapi_webhook_unexpected_status_returns_ok():
+    from fastapi.testclient import TestClient
+    import main as _main
+    with TestClient(_main.app) as client:
+        resp = client.post(
+            "/webhooks/cometapi?variant_id=1",
+            json={"status": "PROCESSING", "data": []},
+        )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "unexpected"
