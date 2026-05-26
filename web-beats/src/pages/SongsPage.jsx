@@ -2755,7 +2755,6 @@ export default function SongsPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: 8 }}>
                   {[
                     ['',                    '🧙',  'Magical'],
-                    ['Australian',          '🦘',  'Australian'],
                     ['American (Southern)', '🤠',  'American'],
                     ['Caribbean',           '🌴',  'Caribbean'],
                     ['french',              '🇫🇷', 'French'],
