@@ -192,3 +192,48 @@ def test_cometapi_webhook_unexpected_status_returns_ok():
         )
     assert resp.status_code == 200
     assert resp.json()["status"] == "unexpected"
+
+
+def test_songs_generate_uses_cometapi_when_persona_set():
+    import sqlite3, uuid, pathlib
+    from unittest.mock import patch, MagicMock
+    from fastapi.testclient import TestClient
+    import main as _main
+    import db as _db
+    import auth as _auth
+
+    db_path = _db.get_db_path()
+    uid = str(uuid.uuid4())
+    conn = sqlite3.connect(str(db_path))
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT OR IGNORE INTO users (id, email, password_hash, subscription_status, subscription_plan, sound_persona_id, sound_persona_title, created_at, updated_at, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (uid, f"{uid}@test.com", "hash", "active", "music_starter", "persona-uuid-test", "Test Song", now, now, 1),
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO song_credits (user_id, balance, monthly_allowance) VALUES (?, 5, 25)",
+        (uid,),
+    )
+    conn.commit()
+    conn.close()
+
+    token = _auth.create_token(uid, f"{uid}@test.com", is_admin=False)
+    mock_task_id = "comet-task-999"
+
+    with patch("cometapi.generate_with_persona", return_value=mock_task_id) as mock_gen, \
+         patch("lyrics.generate_lyrics", return_value={"lyric_id": 1, "lyrics": "test lyrics", "title": "Test"}):
+        with TestClient(_main.app) as client:
+            resp = client.post(
+                "/api/songs/generate",
+                json={"brief": "test song", "genres": ["hiphop"]},
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert len(data["variants"]) == 1
+    assert data["variants"][0]["job_id"] == mock_task_id
+    mock_gen.assert_called_once()
+    call_kwargs = mock_gen.call_args.kwargs
+    assert call_kwargs["persona_id"] == "persona-uuid-test"

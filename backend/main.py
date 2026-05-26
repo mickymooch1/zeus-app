@@ -1772,6 +1772,74 @@ async def songs_generate(
 
     is_admin = bool(current_user.get("is_admin", 0))
 
+    # ── CometAPI persona path ──────────────────────────────────────────────────
+    # When the user has a sound persona set, route through CometAPI instead.
+    # Generates exactly ONE variant using the first selected genre + their persona.
+    _user_row_for_persona = db.get_user_by_id(db_path, user_id)
+    _persona_id = _user_row_for_persona.get("sound_persona_id") if _user_row_for_persona else None
+
+    if _persona_id:
+        from song_genres import GENRE_PRESETS as _GP
+        _p_genre = body.genres[0]
+        _p_style = _GP.get(_p_genre, "")
+        if tempo_suffix:
+            _p_style = f"{_p_style}, {tempo_suffix}"
+
+        _p_conn = sqlite3.connect(str(db_path))
+        try:
+            _p_cur = _p_conn.cursor()
+            if not is_admin:
+                _p_cur.execute("SELECT balance FROM song_credits WHERE user_id = ?", (user_id,))
+                _p_row = _p_cur.fetchone()
+                if not _p_row or _p_row[0] < 1:
+                    raise HTTPException(status_code=402, detail="No song credits available. Top up to continue.")
+                _p_cur.execute("UPDATE song_credits SET balance = balance - 1 WHERE user_id = ?", (user_id,))
+            _p_cur.execute(
+                "INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover) VALUES (?, ?, ?, ?, 'pending', 1, ?)",
+                (lyric_id, user_id, _p_style, _p_genre, 1 if body.animate_cover else 0),
+            )
+            _p_variant_id = _p_cur.lastrowid
+            _p_conn.commit()
+        finally:
+            _p_conn.close()
+
+        _p_webhook = f"{COMETAPI_WEBHOOK_URL}?variant_id={_p_variant_id}"
+        try:
+            _p_task_id = _cometapi_mod.generate_with_persona(
+                variant_id=_p_variant_id,
+                lyrics=lyric_result["lyrics"],
+                style_prompt=_p_style,
+                persona_id=_persona_id,
+                webhook_url=_p_webhook,
+                extra_suno_params=extra_suno_params or None,
+            )
+        except Exception as exc:
+            if not is_admin:
+                _ref = sqlite3.connect(str(db_path))
+                try:
+                    _ref.execute("UPDATE song_credits SET balance = balance + 1 WHERE user_id = ?", (user_id,))
+                    _ref.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (_p_variant_id,))
+                    _ref.commit()
+                finally:
+                    _ref.close()
+            log.exception("songs_generate: CometAPI persona generation failed user_id=%s", user_id)
+            raise HTTPException(status_code=502, detail=f"CometAPI generation failed: {exc}")
+
+        _tj = sqlite3.connect(str(db_path))
+        try:
+            _tj.execute("UPDATE song_variants SET provider_job_id = ? WHERE id = ?", (_p_task_id, _p_variant_id))
+            _tj.commit()
+        finally:
+            _tj.close()
+
+        log.info("songs_generate: CometAPI persona ok user_id=%s variant_id=%d task_id=%s", user_id, _p_variant_id, _p_task_id)
+        return {
+            "lyric_id": lyric_id,
+            "title": lyric_result["title"],
+            "variants": [{"genre": _p_genre, "variant_id": _p_variant_id, "job_id": _p_task_id, "status": "generating"}],
+        }
+    # ── End CometAPI persona path ──────────────────────────────────────────────
+
     log.info(
         "songs_generate: submitting to Apiframe user_id=%s lyric_id=%s genres=%r "
         "extra_suno_params=%r tempo_suffix=%r inspired_by_len=%d is_admin=%s",
