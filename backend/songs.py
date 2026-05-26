@@ -415,6 +415,10 @@ def generate_multiple_variants(
         if safe_inspired_by:
             style = f"{style}, {safe_inspired_by}"
         style = f"{style}, {random.choice(RANDOM_PRODUCTION)}"
+        # Hard cap at 500 chars to prevent Suno rejection
+        if len(style) > 500:
+            logger.warning("style string truncated from %d to 500 chars for genre=%r", len(style), genre)
+            style = style[:500]
         # Genre tag encodes the blend so the frontend can display "Soul × Grime"
         genre_tag = f"{genre}__{genre_b}" if genre_b and genre_b in GENRE_PRESETS else genre
         suno_model = GENRE_MODEL_OVERRIDES.get(genre, GENRE_MODEL_OVERRIDES.get(genre_b or '', 'V5'))
