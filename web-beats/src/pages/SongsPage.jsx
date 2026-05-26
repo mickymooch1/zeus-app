@@ -1332,6 +1332,8 @@ export default function SongsPage() {
     };
   }, []);
 
+  useEffect(() => () => clearTimeout(lockToastTimer.current), []);
+
   useEffect(() => {
     if (!portraitJobId) return;
     let pollCount = 0;
@@ -1585,7 +1587,7 @@ export default function SongsPage() {
     }
   };
 
-  const handleLockSound = async (variant, title) => {
+  const handleLockSound = useCallback(async (variant, title) => {
     const isPaid =
       user?.is_admin ||
       (user?.subscription_status === 'active' &&
@@ -1621,9 +1623,9 @@ export default function SongsPage() {
       setLockToast(`Error: ${err.message}`);
       lockToastTimer.current = setTimeout(() => setLockToast(''), 4000);
     }
-  };
+  }, [user, token]);
 
-  const handleResetSound = async () => {
+  const handleResetSound = useCallback(async () => {
     try {
       await fetch(`${BACKEND_URL}/api/user/sound`, {
         method: 'DELETE',
@@ -1633,7 +1635,7 @@ export default function SongsPage() {
     } catch (err) {
       console.error('Failed to reset sound:', err);
     }
-  };
+  }, [token]);
 
   const handleCoverSubmit = async () => {
     if (!coverModal || !coverLyrics.trim()) return;
