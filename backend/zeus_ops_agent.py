@@ -184,6 +184,137 @@ def daily_report() -> None:
         log.exception("ops_agent: daily_report raised")
 
 
+# ── Evening check-in ──────────────────────────────────────────────────────────
+
+def evening_checkin() -> None:
+    """Send Michael a 7pm check-in asking what he wants to ship tonight."""
+    from alerts import _admin_chat_id
+    try:
+        conn = sqlite3.connect(_db())
+        conn.row_factory = sqlite3.Row
+        try:
+            pending = conn.execute(
+                "SELECT COUNT(*) FROM song_variants WHERE status IN ('pending','generating')"
+            ).fetchone()[0]
+            new_today = conn.execute(
+                "SELECT COUNT(*) FROM users WHERE date(created_at) = date('now')"
+            ).fetchone()[0]
+            songs_today = conn.execute(
+                "SELECT COUNT(*) FROM song_variants WHERE status='complete' AND date(completed_at)=date('now')"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+
+        parts = ["🌆 Evening mate — anything you want to ship tonight? 💪"]
+        if new_today:
+            parts.append(f"👥 {new_today} new signup(s) today")
+        if songs_today:
+            parts.append(f"🎵 {songs_today} songs generated today")
+        if pending:
+            parts.append(f"⏳ {pending} song(s) still processing")
+        parts.append("\nJust tell me what you need and I'll sort it.")
+
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+        chat_id = _admin_chat_id()
+        if token and chat_id:
+            requests.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={"chat_id": chat_id, "text": "\n".join(parts), "parse_mode": "HTML"},
+                timeout=10,
+            )
+        log.info("ops_agent: evening check-in sent")
+    except Exception:
+        log.exception("ops_agent: evening_checkin raised")
+
+
+# ── Product Hunt monitor ───────────────────────────────────────────────────────
+
+_ph_last_votes: int | None = None
+_ph_last_signup_count: int | None = None
+
+
+def ph_monitor() -> None:
+    """Run every 30 min to track Product Hunt upvotes and new signups.
+
+    Configure PRODUCTHUNT_SLUG env var to the product's PH slug
+    (e.g. "zeus-beats" for producthunt.com/posts/zeus-beats).
+    """
+    global _ph_last_votes, _ph_last_signup_count
+    from alerts import _admin_chat_id
+
+    try:
+        conn = sqlite3.connect(_db())
+        conn.row_factory = sqlite3.Row
+        try:
+            total_signups = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        finally:
+            conn.close()
+    except Exception:
+        log.exception("ph_monitor: DB error")
+        return
+
+    new_signups = 0
+    if _ph_last_signup_count is not None:
+        new_signups = max(0, total_signups - _ph_last_signup_count)
+    _ph_last_signup_count = total_signups
+
+    ph_votes: int | None = None
+    ph_change = 0
+    slug = os.environ.get("PRODUCTHUNT_SLUG", "").strip()
+    if slug:
+        try:
+            import re
+            resp = requests.get(
+                f"https://www.producthunt.com/posts/{slug}",
+                headers={"User-Agent": "Mozilla/5.0 (compatible; ZeusBeatsMonitor/1.0)"},
+                timeout=15,
+            )
+            m = re.search(r'"votesCount":\s*(\d+)', resp.text)
+            if m:
+                ph_votes = int(m.group(1))
+            else:
+                # Fallback: look for vote count in OG description
+                m2 = re.search(r'(\d+)\s+(?:upvotes?|votes?)', resp.text, re.IGNORECASE)
+                if m2:
+                    ph_votes = int(m2.group(1))
+        except Exception as exc:
+            log.warning("ph_monitor: could not fetch PH page for %s: %s", slug, exc)
+
+    if ph_votes is not None:
+        ph_change = ph_votes - (_ph_last_votes or ph_votes)
+        _ph_last_votes = ph_votes
+
+    parts = ["🚀 <b>Product Hunt — 30min update</b>"]
+    if slug:
+        if ph_votes is not None:
+            change_str = f" (<b>+{ph_change}</b>)" if ph_change > 0 else ""
+            parts.append(f"⬆️ Upvotes: <b>{ph_votes}</b>{change_str}")
+        else:
+            parts.append("⬆️ Upvotes: couldn't fetch (check PRODUCTHUNT_SLUG)")
+    else:
+        parts.append("⬆️ Upvotes: set PRODUCTHUNT_SLUG env var to track")
+
+    if new_signups > 0:
+        parts.append(f"🆕 New signups (30 min): <b>+{new_signups}</b> 🔥")
+    else:
+        parts.append("🆕 New signups (30 min): 0")
+    parts.append(f"👥 Total users: <b>{total_signups}</b>")
+
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = _admin_chat_id()
+    if token and chat_id:
+        msg = "\n".join(parts)
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"},
+            timeout=10,
+        )
+    log.info(
+        "ph_monitor: votes=%s new_signups=%d total=%d",
+        ph_votes, new_signups, total_signups,
+    )
+
+
 # ── Welcome email ─────────────────────────────────────────────────────────────
 
 def on_new_signup(user_id: str, email: str) -> None:

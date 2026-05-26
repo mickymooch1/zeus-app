@@ -28,13 +28,19 @@ _RAILWAY_GQL = "https://backboard.railway.app/graphql/v2"
 
 HELP_TEXT = """🤖 <b>Porick — Zeus Beats Admin Bot</b>
 
-Just talk to me naturally! Examples:
-• <i>"How many users do we have?"</i>
-• <i>"Post on the channel that we added new genres"</i>
-• <i>"Give user@email.com 10 credits"</i>
-• <i>"Send an email to all users about the new mixer"</i>
+Just talk to me naturally, mate! Examples:
+• <i>"How's everything going?"</i>
+• <i>"What are the latest signups?"</i>
+• <i>"Give laky120@yahoo.com 20 more songs"</i>
+• <i>"Upgrade anne to music_pro for free"</i>
+• <i>"Post on the channel that we have new genres"</i>
+• <i>"Email all users about the new playlist feature"</i>
 • <i>"Show me the logs"</i>
 • <i>"Refund people who had failures"</i>
+• <i>"What's today's revenue?"</i>
+• <i>"Top genres this week"</i>
+• <i>"Tell Claude Code to fix the stems button on mobile"</i>
+• <i>"Log a feature: dark mode for the app"</i>
 
 <b>Precision commands (exact syntax required)</b>
 <code>db query "SELECT ..."</code> — read-only SQL
@@ -276,7 +282,7 @@ def _cmd_db_user(email: str) -> str:
                 """SELECT u.email, u.subscription_status, u.subscription_plan, u.has_paid,
                           u.email_verified, u.created_at,
                           sc.balance, sc.monthly_allowance,
-                          sc.animation_balance, sc.animation_monthly_allowance
+                          sc.premium_balance, sc.premium_monthly_allowance
                    FROM users u
                    LEFT JOIN song_credits sc ON sc.user_id = u.id
                    WHERE lower(u.email) = lower(?)""",
@@ -294,7 +300,7 @@ def _cmd_db_user(email: str) -> str:
             f"💰 Has paid: {bool(row['has_paid'])}\n"
             f"📨 Email verified: {verified}\n"
             f"🎵 Song credits: {row['balance']} (allowance: {row['monthly_allowance']})\n"
-            f"🎬 Animation credits: {row['animation_balance']} (allowance: {row['animation_monthly_allowance']})\n"
+            f"⭐ Premium credits: {row['premium_balance']} (allowance: {row['premium_monthly_allowance']})\n"
             f"📅 Created: {(row['created_at'] or '')[:10]}"
         )
     except Exception as exc:
@@ -328,6 +334,173 @@ def _cmd_db_credits(email: str, delta: int) -> str:
         return f"✅ {sign}{delta} credits → <code>{email}</code>\nNew balance: <b>{new_balance}</b>"
     except Exception as exc:
         return f"❌ Error: {exc}"
+
+
+# ── Upgrade user ─────────────────────────────────────────────────────────────
+
+def _cmd_upgrade_user(email: str, plan: str) -> str:
+    """Upgrade a user to any plan without touching Stripe (admin override)."""
+    try:
+        import billing as _billing
+        import db as _db
+        all_plans = {**_billing.PLANS, **_billing.MUSIC_PLANS}
+        if plan not in all_plans:
+            return f"❌ Unknown plan: <code>{plan}</code>. Valid: {', '.join(sorted(all_plans))}"
+        db_path = _db.get_db_path()
+        user = _db.get_user_by_email(db_path, email)
+        if not user:
+            return f"❓ No user found: <code>{email}</code>"
+        uid = user["id"]
+        _db.update_user(db_path, uid, subscription_plan=plan, subscription_status="active", has_paid=1)
+        song_credits = _billing._PLAN_SONG_CREDITS.get(plan, 0)
+        if song_credits:
+            _db.upsert_song_credits(db_path, uid, balance=song_credits, monthly_allowance=song_credits)
+        premium_credits = _billing._PLAN_PREMIUM_CREDITS.get(plan, 0)
+        if premium_credits:
+            _db.upsert_premium_credits(db_path, uid, balance=premium_credits, monthly_allowance=premium_credits)
+        video_credits = _billing._PLAN_VIDEO_CREDITS.get(plan, 0)
+        if video_credits:
+            try:
+                _db.upsert_video_credits(db_path, uid, balance=video_credits, monthly_allowance=video_credits)
+            except Exception:
+                pass
+        plan_name = all_plans[plan].get("name", plan)
+        log.info("admin: upgraded user %s to plan %s", email, plan)
+        msg = (
+            f"✅ <b>{email}</b> → <b>{plan_name}</b>\n"
+            f"🎵 Song credits: {song_credits}\n"
+            f"⭐ Premium credits: {premium_credits}"
+        )
+        if video_credits:
+            msg += f"\n🎬 Video credits: {video_credits}"
+        return msg
+    except Exception as exc:
+        return f"❌ Error: {exc}"
+
+
+# ── Recent users ─────────────────────────────────────────────────────────────
+
+def _cmd_recent_users(n: int = 5) -> str:
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                """SELECT email, subscription_plan, created_at
+                   FROM users ORDER BY created_at DESC LIMIT ?""",
+                (n,),
+            ).fetchall()
+        finally:
+            conn.close()
+        if not rows:
+            return "No users yet 👀"
+        lines = [f"👥 <b>Last {n} signups</b>"]
+        for r in rows:
+            plan = r["subscription_plan"] or "free"
+            ts = (r["created_at"] or "")[:16]
+            lines.append(f"• {r['email']} — {plan} ({ts})")
+        return "\n".join(lines)
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
+# ── Revenue ──────────────────────────────────────────────────────────────────
+
+def _cmd_revenue() -> str:
+    try:
+        import billing as _billing
+        from datetime import datetime, timezone, timedelta
+        stripe = _billing._get_stripe()
+        now = datetime.now(timezone.utc)
+        today_start = int(datetime(now.year, now.month, now.day, tzinfo=timezone.utc).timestamp())
+        week_start = int((now - timedelta(days=7)).timestamp())
+        month_start = int(datetime(now.year, now.month, 1, tzinfo=timezone.utc).timestamp())
+
+        def _total(since: int) -> float:
+            total = 0.0
+            charges = stripe.Charge.list(created={"gte": since}, limit=100)
+            for ch in charges.auto_paging_iter():
+                if ch.get("paid") and not ch.get("refunded"):
+                    total += ch["amount"] / 100
+            return total
+
+        today_rev = _total(today_start)
+        week_rev = _total(week_start)
+        month_rev = _total(month_start)
+        return (
+            f"💰 <b>Revenue</b>\n"
+            f"📅 Today: <b>£{today_rev:.2f}</b>\n"
+            f"📆 This week: <b>£{week_rev:.2f}</b>\n"
+            f"🗓 This month: <b>£{month_rev:.2f}</b>"
+        )
+    except Exception as exc:
+        return f"❌ Stripe error: {exc}"
+
+
+# ── Top genres ───────────────────────────────────────────────────────────────
+
+def _cmd_top_genres(n: int = 5) -> str:
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                """SELECT genre_tag, COUNT(*) AS cnt FROM song_variants
+                   WHERE status = 'complete'
+                     AND created_at >= datetime('now', '-7 days')
+                     AND genre_tag IS NOT NULL AND genre_tag != ''
+                   GROUP BY genre_tag ORDER BY cnt DESC LIMIT ?""",
+                (n,),
+            ).fetchall()
+        finally:
+            conn.close()
+        if not rows:
+            return "No completed songs this week yet"
+        lines = [f"🎼 <b>Top genres this week</b>"]
+        medals = ["🥇", "🥈", "🥉"] + ["🎵"] * 10
+        for i, r in enumerate(rows):
+            lines.append(f"{medals[i]} {r['genre_tag']}: <b>{r['cnt']}</b>")
+        return "\n".join(lines)
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
+# ── Claude Code queue + feature requests ─────────────────────────────────────
+
+_CLAUDE_QUEUE_PATH = os.environ.get("DATA_DIR", "/data") + "/claude_queue.txt"
+_FEATURE_LOG_PATH  = os.environ.get("DATA_DIR", "/data") + "/feature_requests.txt"
+
+
+def _cmd_tell_claude_code(message: str) -> str:
+    """Append a message to the Claude Code queue file for Michael to review."""
+    try:
+        from datetime import datetime, timezone
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        entry = f"[{ts}] {message}\n"
+        with open(_CLAUDE_QUEUE_PATH, "a", encoding="utf-8") as f:
+            f.write(entry)
+        log.info("tell_claude_code: queued message — %s", message[:120])
+        return f"✅ Queued for Claude Code review:\n<i>{message[:300]}</i>"
+    except Exception as exc:
+        return f"❌ Queue write failed: {exc}"
+
+
+def _cmd_feature_request(description: str) -> str:
+    """Log a feature request to the feature requests file."""
+    try:
+        from datetime import datetime, timezone
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        entry = f"[{ts}] {description}\n"
+        with open(_FEATURE_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(entry)
+        log.info("feature_request: logged — %s", description[:120])
+        return f"📝 Feature logged:\n<i>{description[:300]}</i>"
+    except Exception as exc:
+        return f"❌ Log write failed: {exc}"
 
 
 # ── Email helpers ────────────────────────────────────────────────────────────
@@ -609,91 +782,107 @@ def _cmd_status() -> str:
         return f"❌ Status error: {exc}"
 
 
+# ── Conversation history ──────────────────────────────────────────────────────
+
+# Last 20 messages (10 user + 10 assistant turns) for per-session context.
+_conversation_history: deque = deque(maxlen=20)
+
+
 # ── AI natural language layer ─────────────────────────────────────────────────
 
 ADMIN_SYSTEM_PROMPT = """\
-You are Porick, the admin assistant for Zeus Beats. Michael is the owner \
-and you help him manage the platform.
+You are Porick, Michael's right-hand admin assistant for Zeus Beats. You have \
+banter and personality — call him "mate", "Michael" or even "dickhead" when he \
+makes mistakes (playfully). Be direct, helpful and a bit cheeky. Match the \
+casual UK tone Michael uses with you. You're not a corporate bot — you're his \
+mate who happens to run Zeus Beats infrastructure.
 
-You have these capabilities:
-- Check platform status (users, songs, pending jobs, credits)
-- Send emails to a single user or bulk (all / free / paid subscribers)
-- Post messages to the @zeusbeatsmusic Telegram channel
-- Give or remove song credits for a user
-- Verify or unverify a user's email address
-- Look up full details for a user by email
-- Refund song credits to users whose songs failed in the last 24h
-- Check recent Railway app logs
-- Trigger a Railway redeploy
+Your capabilities:
+- status — users, songs, pending jobs, credits
+- logs — recent app logs
+- redeploy — trigger Railway redeploy
+- post_channel — post to @zeusbeatsmusic Telegram channel
+- email_user — send email to one user
+- email_bulk — bulk email (audience: all / free / paid)
+- add_credits — give or remove song credits for a user (negative to remove)
+- upgrade_user — upgrade user to any plan for free (no Stripe needed)
+- verify_email / unverify_email
+- user_details — full user lookup by email
+- refund_failures — refund song credits for songs that failed in last 24h
+- recent_users — last 5 signups
+- revenue — today / week / month revenue from Stripe
+- top_genres — most popular genres this week
+- tell_claude_code — queue a message for Claude Code review
+- feature_request — log a feature idea
 
-When Michael messages you, respond with ONLY a JSON object — no extra text, \
-no markdown fences. Use one of these action schemas:
+Respond with ONLY a JSON object — no extra text, no markdown fences.
 
-{"action": "post_channel", "message": "..."}
-{"action": "email_user", "email": "user@example.com", "subject": "...", "body": "..."}
-{"action": "email_bulk", "audience": "all|free|paid", "subject": "...", "body": "..."}
-{"action": "add_credits", "email": "user@example.com", "amount": 10}
+Action schemas:
 {"action": "status"}
-{"action": "verify_email", "email": "user@example.com"}
-{"action": "unverify_email", "email": "user@example.com"}
-{"action": "user_details", "email": "user@example.com"}
-{"action": "refund_failures"}
 {"action": "logs"}
 {"action": "redeploy"}
+{"action": "post_channel", "message": "..."}
+{"action": "email_user", "email": "...", "subject": "...", "body": "..."}
+{"action": "email_bulk", "audience": "all|free|paid", "subject": "...", "body": "..."}
+{"action": "add_credits", "email": "...", "amount": 10}
+{"action": "upgrade_user", "email": "...", "plan": "music_starter|music_pro|music_agency|pro|agency|enterprise"}
+{"action": "verify_email", "email": "..."}
+{"action": "unverify_email", "email": "..."}
+{"action": "user_details", "email": "..."}
+{"action": "refund_failures"}
+{"action": "recent_users"}
+{"action": "revenue"}
+{"action": "top_genres"}
+{"action": "tell_claude_code", "message": "..."}
+{"action": "feature_request", "description": "..."}
 {"action": "chat", "message": "..."}
 
 Rules:
-- Use "chat" for general conversation, confirmations, or when you need more info \
-  (e.g. an email address Michael hasn't provided).
-- For post_channel, write the full ready-to-send Telegram message with emojis — \
-  don't just confirm intent.
-- For email actions, write a proper marketing subject and body if Michael hasn't \
-  specified them fully. Keep Zeus Beats brand voice (upbeat, creative).
+- Use "chat" for banter, confirmations, or when you need more info.
+- Use conversation history to resolve "him", "her", "that user" etc.
+- For post_channel, write the full ready-to-post message with emojis.
+- For email actions, write proper subject + body in Zeus Beats brand voice.
 - Use negative amounts for add_credits to remove credits.
-- When Michael refers to a user by first name or nickname and you know their email \
-  from context, use it. If you don't know, use "chat" to ask.
+- For upgrade_user: plan must be one of the exact plan keys listed above.
 
 Examples:
-Michael: "post on the channel that we have new genres"
-→ {"action": "post_channel", "message": "🎵 New genres just dropped on Zeus Beats!\\n\\nFresh sounds added — go create your next hit now 🚀\\n\\nzeusbeats.com"}
-
-Michael: "how many users do we have"
-→ {"action": "status"}
-
-Michael: "give laky 10 songs"
-→ {"action": "chat", "message": "What's laky's email address?"}
-
-Michael: "send an email to all users about the new mixer feature"
-→ {"action": "email_bulk", "audience": "all", "subject": "New Mixer Feature on Zeus Beats 🎚️", "body": "We've just launched a brand new mixer — giving you even more control over your sound.\\n\\nLog in now and try it out!"}
-
-Michael: "refund people who had failures"
-→ {"action": "refund_failures"}
-
-Michael: "add credits back to failed songs"
-→ {"action": "refund_failures"}
-
-Michael: "credit back yesterday's failures"
-→ {"action": "refund_failures"}
+"give laky120@yahoo.com 20 more songs" → {"action": "add_credits", "email": "laky120@yahoo.com", "amount": 20}
+"anne is on free, give her music starter" → {"action": "upgrade_user", "email": "cummins.anne@yahoo.co.uk", "plan": "music_starter"}
+"how's everything going" → {"action": "status"}
+"check the logs" → {"action": "logs"}
+"redeploy" → {"action": "redeploy"}
+"post on the channel that we have new genres" → {"action": "post_channel", "message": "🎵 New genres just dropped on Zeus Beats!\\n\\nFresh sounds added — go create your next hit now 🚀\\n\\nzeusbeats.com"}
+"what's the latest signup" → {"action": "recent_users"}
+"refund failed songs today" → {"action": "refund_failures"}
+"email all users about the new playlist feature" → {"action": "email_bulk", "audience": "all", "subject": "New: AI Playlist Builder on Zeus Beats 🎵", "body": "We've just launched AI playlists — ask Zeus to build you a playlist from your songs.\\n\\nLog in and try it now!"}
+"verify dom@email.com" → {"action": "verify_email", "email": "dom@email.com"}
+"what was today's revenue" → {"action": "revenue"}
+"tell me about user X" → {"action": "user_details", "email": "X"}
+"give him 20 more" → use email from conversation context, then {"action": "add_credits", "email": "...", "amount": 20}
+"log a feature: dark mode for the app" → {"action": "feature_request", "description": "Dark mode for the app"}
+"tell claude code to fix the stems button on mobile" → {"action": "tell_claude_code", "message": "Fix the stems button on mobile — not tapping properly on small screens"}
 """
 
 
 def _ai_parse(text: str) -> dict:
-    """Call Claude Haiku to interpret a natural language admin message.
+    """Call Claude Haiku with conversation history to interpret admin message.
     Returns a parsed action dict; falls back to a chat error on failure.
     """
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+        messages = list(_conversation_history) + [{"role": "user", "content": text}]
         resp = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=512,
+            max_tokens=800,
             system=ADMIN_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": text}],
+            messages=messages,
         )
         raw = resp.content[0].text.strip()
-        # Strip any accidental markdown fences
         raw = re.sub(r'^```[a-z]*\n?', '', raw)
         raw = re.sub(r'\n?```$', '', raw).strip()
+        _conversation_history.append({"role": "user", "content": text})
+        _conversation_history.append({"role": "assistant", "content": raw})
         return json.loads(raw)
     except Exception as exc:
         log.warning("_ai_parse failed — %s", exc)
@@ -763,6 +952,36 @@ def _execute_action(action: dict) -> str:
 
     if act == "refund_failures":
         return _cmd_refund_failures()
+
+    if act == "upgrade_user":
+        email = action.get("email", "").strip()
+        plan = action.get("plan", "").strip().lower()
+        if not email:
+            return "❌ No email address"
+        if not plan:
+            return "❌ No plan specified"
+        return _cmd_upgrade_user(email, plan)
+
+    if act == "recent_users":
+        return _cmd_recent_users()
+
+    if act == "revenue":
+        return _cmd_revenue()
+
+    if act == "top_genres":
+        return _cmd_top_genres()
+
+    if act == "tell_claude_code":
+        msg = action.get("message", "").strip()
+        if not msg:
+            return "❌ No message provided"
+        return _cmd_tell_claude_code(msg)
+
+    if act == "feature_request":
+        desc = action.get("description", "").strip()
+        if not desc:
+            return "❌ No description provided"
+        return _cmd_feature_request(desc)
 
     if act == "chat":
         return action.get("message", "👋")

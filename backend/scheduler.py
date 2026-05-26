@@ -71,7 +71,21 @@ def init_scheduler(history_store) -> None:
         replace_existing=True,
         misfire_grace_time=3600,
     )
-    log.info("Scheduler: ops health check (30 min) and daily report (9am UTC) registered")
+    _scheduler.add_job(
+        _ops.evening_checkin,
+        trigger=_CronTrigger(hour=19, minute=0, timezone="UTC"),
+        id="__evening_checkin__",
+        replace_existing=True,
+        misfire_grace_time=1800,
+    )
+    _scheduler.add_job(
+        _ops.ph_monitor,
+        trigger=IntervalTrigger(minutes=30),
+        id="__ph_monitor__",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
+    log.info("Scheduler: health check, daily report, evening check-in, PH monitor registered")
 
 
 def shutdown_scheduler() -> None:

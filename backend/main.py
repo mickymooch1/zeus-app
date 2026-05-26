@@ -545,6 +545,11 @@ async def lifespan(app: FastAPI):
         log.exception("owner premium credits patch failed (non-fatal)")
 
     try:
+        billing.ensure_promo_codes()
+    except Exception:
+        log.exception("ensure_promo_codes failed (non-fatal)")
+
+    try:
         _scheduler_mod.init_scheduler(history)
         log.info("Scheduler initialised")
 
