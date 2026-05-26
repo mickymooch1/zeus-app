@@ -1302,3 +1302,167 @@ async def cometapi_webhook(request: Request):
         )
 
     return {"ok": True, "status": "complete"}
+
+
+@router.post("/webhooks/goapi")
+async def goapi_webhook(request: Request):
+    """Callback handler for GoAPI (Suno fallback) song generations."""
+    _raw_variant_id = request.query_params.get("variant_id", "MISSING")
+    logger.info("GOAPI WEBHOOK: variant_id=%s", _raw_variant_id)
+
+    body = await request.json()
+    logger.info("GOAPI WEBHOOK body_keys=%s raw=%r", list(body.keys()), str(body)[:500])
+
+    variant_id = request.query_params.get("variant_id")
+    if not variant_id:
+        raise HTTPException(400, "Missing variant_id")
+    try:
+        variant_id = int(variant_id)
+    except ValueError:
+        raise HTTPException(400, "variant_id must be an integer")
+
+    # GoAPI status can be at top level or nested inside data
+    data = body.get("data") or {}
+    status = body.get("status") or data.get("status") or ""
+    task_id = data.get("task_id") or body.get("task_id") or ""
+    logger.info("GoAPI webhook: variant_id=%d task_id=%s status=%s", variant_id, task_id, status)
+
+    status_lower = status.lower()
+    if status_lower in ("failed", "error"):
+        logger.error("GoAPI webhook FAILED for variant_id=%d body=%r", variant_id, body)
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "status": "failed"}
+
+    if status_lower not in ("success", "completed", "succeed"):
+        logger.warning("GoAPI unexpected status=%r variant_id=%d", status, variant_id)
+        return {"ok": True, "status": "unexpected"}
+
+    # Extract audio URL from GoAPI clips structure (dict or list)
+    clips = data.get("clips") or {}
+    audio_url = None
+    duration = 0
+    if isinstance(clips, dict):
+        for _clip_id, clip in clips.items():
+            audio_url = clip.get("audio_url") or clip.get("audioUrl")
+            duration = round(float(clip.get("duration", 0) or 0))
+            break
+    elif isinstance(clips, list) and clips:
+        clip = clips[0]
+        audio_url = clip.get("audio_url") or clip.get("audioUrl")
+        duration = round(float(clip.get("duration", 0) or 0))
+
+    if not audio_url:
+        logger.error("GoAPI webhook: no audio_url found in clips — data=%r", data)
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "status": "no_audio_url"}
+
+    # Atomic claim — prevent duplicate deliveries from processing twice
+    _claim_conn = sqlite3.connect(DB_PATH)
+    try:
+        _claim_conn.execute("BEGIN IMMEDIATE")
+        _claim_row = _claim_conn.execute(
+            "SELECT status FROM song_variants WHERE id = ?", (variant_id,)
+        ).fetchone()
+        if _claim_row and _claim_row[0] in ("complete", "processing"):
+            _claim_conn.execute("ROLLBACK")
+            logger.info("GoAPI webhook: variant_id=%d already %s — ignoring duplicate", variant_id, _claim_row[0])
+            return {"ok": True, "status": "already_" + _claim_row[0]}
+        _claim_conn.execute("UPDATE song_variants SET status = 'processing' WHERE id = ?", (variant_id,))
+        _claim_conn.execute("COMMIT")
+    finally:
+        _claim_conn.close()
+
+    # Fetch variant metadata for cover art + animation
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        orig = conn.execute(
+            "SELECT lyric_id, user_id, genre_tag, animate_cover, style_prompt FROM song_variants WHERE id = ?",
+            (variant_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    animate_cover = bool(orig[3]) if orig and orig[3] is not None else True
+    genre_tag = orig[2] if orig else None
+    orig_style_prompt = (orig[4] or "") if orig else ""
+    song_title = ""
+    artist_name = ""
+    if orig:
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            row = conn.execute("SELECT title FROM lyrics WHERE id = ?", (orig[0],)).fetchone()
+            song_title = row[0] if row and row[0] else ""
+            ur = conn.execute("SELECT artist_name FROM users WHERE id = ?", (orig[1],)).fetchone()
+            artist_name = (ur[0] or "") if ur else ""
+        finally:
+            conn.close()
+
+    os.makedirs(STORAGE_PATH, exist_ok=True)
+    try:
+        logger.info("GoAPI webhook: downloading MP3 from %s", audio_url)
+        dl = requests.get(audio_url, timeout=120)
+        dl.raise_for_status()
+        local_path = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
+        with open(local_path, "wb") as fh:
+            fh.write(dl.content)
+    except Exception as _dl_exc:
+        logger.exception("GoAPI webhook: MP3 download failed variant_id=%d: %s", variant_id, _dl_exc)
+        _fail_conn = sqlite3.connect(DB_PATH)
+        try:
+            _fail_conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
+            _fail_conn.commit()
+        finally:
+            _fail_conn.close()
+        return {"ok": True, "status": "download_failed"}
+
+    if os.path.getsize(local_path) < 100_000:
+        logger.warning("GoAPI webhook: MP3 too small (%d bytes) variant_id=%d — marking failed", os.path.getsize(local_path), variant_id)
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "status": "small_file"}
+
+    public_mp3_url = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
+    flux_cover = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name, orig_style_prompt)
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            """UPDATE song_variants
+               SET mp3_url = ?, image_url = ?, duration_seconds = ?,
+                   status = 'complete', take_number = 1, completed_at = CURRENT_TIMESTAMP
+               WHERE id = ?""",
+            (public_mp3_url, flux_cover, duration, variant_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    logger.info("GoAPI webhook: complete variant_id=%d mp3=%s", variant_id, public_mp3_url)
+
+    if animate_cover and flux_cover and duration and FAL_API_KEY:
+        threading.Thread(
+            target=_kling_pipeline,
+            args=(variant_id, flux_cover, local_path, duration, genre_tag),
+            daemon=True,
+        ).start()
+    else:
+        logger.info(
+            "GoAPI webhook: Kling skipped animate_cover=%s flux=%s duration=%s fal_key=%s",
+            animate_cover, bool(flux_cover), duration, bool(FAL_API_KEY),
+        )
+
+    return {"ok": True, "status": "complete"}

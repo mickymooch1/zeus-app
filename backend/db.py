@@ -286,6 +286,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE users ADD COLUMN sound_persona_id TEXT",
             "ALTER TABLE users ADD COLUMN sound_persona_variant_id INTEGER",
             "ALTER TABLE users ADD COLUMN sound_persona_title TEXT",
+            "ALTER TABLE song_variants ADD COLUMN provider TEXT DEFAULT 'apiframe'",
         ]:
             try:
                 conn.execute(_migration)

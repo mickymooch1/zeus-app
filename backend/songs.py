@@ -5,6 +5,7 @@ import sqlite3
 import logging
 import re
 import time
+import threading
 import requests
 
 GENRE_MODEL_OVERRIDES: dict[str, str] = {
@@ -85,6 +86,15 @@ WEBHOOK_URL = os.environ["SONG_WEBHOOK_URL"].strip().rstrip("/")
 EXPECTED_PRODUCTION_WEBHOOK_URL = "https://zeusaidesign.com/webhooks/apiframe"
 if WEBHOOK_URL != EXPECTED_PRODUCTION_WEBHOOK_URL:
     logger.warning("SONG_WEBHOOK_URL is %r; production should be %r", WEBHOOK_URL, EXPECTED_PRODUCTION_WEBHOOK_URL)
+
+# GoAPI fallback — optional, only active when GOAPI_API_KEY is set
+GOAPI_API_KEY = os.environ.get("GOAPI_API_KEY", "").strip()
+GOAPI_BASE = "https://api.goapi.ai"
+GOAPI_WEBHOOK_URL = os.environ.get("GOAPI_WEBHOOK_URL", "").strip().rstrip("/")
+if GOAPI_API_KEY:
+    logger.info("GoAPI fallback ENABLED (key configured, webhook=%r)", GOAPI_WEBHOOK_URL or "NOT SET")
+else:
+    logger.info("GoAPI fallback DISABLED — set GOAPI_API_KEY to enable")
 
 DIRECT_ARTIST_STYLE_MAP = {
     "drake": "melodic rap, emotional vocals, atmospheric trap drums, late night mood, polished hip-hop production",
@@ -170,6 +180,132 @@ def _dj_transition_style(style_a: str, style_b: str) -> str:
         f"[outro: {style_b}] "
         "genre switch DJ mix, section by section genre change, not blended, alternating genres per section"
     )[:1000]
+
+
+def _submit_to_apiframe(variant_id: int, lyrics: str, style_prompt: str, suno_model: str, extra_suno_params: dict) -> str:
+    """Submit a generation job to Apiframe. Returns jobId or raises."""
+    webhook_url = f"{WEBHOOK_URL}?variant_id={variant_id}"
+    payload = {
+        "prompt": lyrics,
+        "model": "suno",
+        "webhookUrl": webhook_url,
+        "webhookEvents": ["completed", "failed"],
+        "sunoParams": {
+            "custom_mode": True,
+            "instrumental": False,
+            "model_version": suno_model,
+            "style": style_prompt[:1000],
+            **extra_suno_params,
+        },
+    }
+    headers = {"X-API-Key": APIFRAME_API_KEY, "Content-Type": "application/json"}
+    logger.info("APIFRAME_V2_SUBMIT variant_id=%d webhook=%r style_len=%d", variant_id, webhook_url, len(style_prompt))
+    logger.info("APIFRAME_V2_STYLE variant_id=%d style=%r", variant_id, style_prompt[:600])
+
+    for attempt in range(2):
+        try:
+            resp = requests.post(f"{APIFRAME_BASE}/v2/music/generate", headers=headers, json=payload, timeout=30)
+            if resp.status_code == 504 and attempt == 0:
+                logger.warning("Apiframe 504, retrying in 5s for variant_id=%d", variant_id)
+                time.sleep(5)
+                continue
+            break
+        except Exception as conn_err:
+            if attempt == 0:
+                logger.warning("Apiframe connection error (attempt 0), retrying in 5s for variant_id=%d: %s", variant_id, conn_err)
+                time.sleep(5)
+                continue
+            raise
+
+    logger.info("APIFRAME_V2_RESPONSE variant_id=%d status=%d body=%r", variant_id, resp.status_code, resp.text[:500])
+
+    if resp.status_code == 504:
+        raise ValueError("Music generation is taking longer than usual — please try again in a moment")
+    resp.raise_for_status()
+    try:
+        body = resp.json()
+    except Exception:
+        raise ValueError(f"Apiframe non-JSON response: {resp.status_code}")
+    job_id = body.get("jobId")
+    if not job_id:
+        raise RuntimeError(f"Apiframe response missing jobId: {body!r}")
+    return job_id
+
+
+# GoAPI Suno model version mapping (verify against GoAPI docs when key is available)
+_GOAPI_MODEL_MAP = {
+    "V5":   "chirp-v3-5",
+    "V5_5": "chirp-v3-5",
+    "V4":   "chirp-v4",
+    "V3_5": "chirp-v3-5",
+}
+
+
+def _submit_to_goapi(variant_id: int, lyrics: str, style_prompt: str, suno_model: str, extra_suno_params: dict) -> str:
+    """Submit a generation job to GoAPI (fallback). Returns task_id or raises.
+
+    GoAPI endpoint: POST https://api.goapi.ai/api/suno/v1/music
+    Webhook format documented at: https://goapi.ai/docs/suno
+    Verify exact field names against docs when GOAPI_API_KEY is first configured.
+    """
+    if not GOAPI_API_KEY:
+        raise RuntimeError("GOAPI_API_KEY not set")
+    if not GOAPI_WEBHOOK_URL:
+        raise RuntimeError("GOAPI_WEBHOOK_URL not set")
+
+    webhook_url = f"{GOAPI_WEBHOOK_URL}?variant_id={variant_id}"
+    goapi_model = _GOAPI_MODEL_MAP.get(suno_model, "chirp-v3-5")
+
+    payload: dict = {
+        "model": "suno",
+        "task_type": "generate_music",
+        "input": {
+            "custom_mode": True,
+            "mv": goapi_model,
+            "prompt": lyrics,
+            "tags": style_prompt[:500],
+            "make_instrumental": bool(extra_suno_params.get("instrumental", False)),
+        },
+        "callback_url": webhook_url,
+    }
+    if extra_suno_params.get("negative_tags"):
+        payload["input"]["negative_tags"] = str(extra_suno_params["negative_tags"])[:500]
+
+    headers = {"X-API-Key": GOAPI_API_KEY, "Content-Type": "application/json"}
+    logger.info("GOAPI_SUBMIT variant_id=%d webhook=%r model=%r", variant_id, webhook_url, goapi_model)
+
+    resp = requests.post(f"{GOAPI_BASE}/api/suno/v1/music", headers=headers, json=payload, timeout=30)
+    logger.info("GOAPI_RESPONSE variant_id=%d status=%d body=%r", variant_id, resp.status_code, resp.text[:500])
+    resp.raise_for_status()
+
+    data = resp.json()
+    if data.get("code") not in (200, None):
+        raise RuntimeError(f"GoAPI error code {data.get('code')}: {data!r}")
+    task_id = (data.get("data") or {}).get("task_id")
+    if not task_id:
+        raise RuntimeError(f"GoAPI missing task_id in response: {data!r}")
+    return task_id
+
+
+def _alert_fallback_to_goapi(variant_id: int, apiframe_error: str) -> None:
+    """Fire-and-forget Telegram alert when GoAPI fallback is triggered."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    channel = os.environ.get("TELEGRAM_CHANNEL_ID", "").strip()
+    if not token or not channel:
+        return
+    msg = (
+        f"⚠️ <b>Apiframe down — switched to GoAPI</b>\n"
+        f"variant_id={variant_id}\n"
+        f"Apiframe error: {apiframe_error[:300]}"
+    )
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": channel, "text": msg, "parse_mode": "HTML"},
+            timeout=10,
+        )
+    except Exception as exc:
+        logger.warning("Failed to send GoAPI fallback Telegram alert: %s", exc)
 
 
 class InsufficientCreditsError(Exception):
@@ -260,81 +396,26 @@ def generate_song_variant(
     logger.info("APIFRAME_V2_WEBHOOK_URL variant_id=%d url=%r", variant_id, f"{WEBHOOK_URL}?variant_id={variant_id}")
 
     try:
-        _apiframe_payload = {
-            "prompt": lyrics,
-            "model": "suno",
-            "webhookUrl": f"{WEBHOOK_URL}?variant_id={variant_id}",
-            "webhookEvents": ["completed", "failed"],
-            "sunoParams": {
-                "custom_mode": True,
-                "instrumental": False,
-                "model_version": suno_model,
-                "style": style_prompt[:1000],
-                **(extra_suno_params or {}),
-            },
-        }
-        _apiframe_headers = {
-            "X-API-Key": APIFRAME_API_KEY,  # v2 uses X-API-Key, NOT Authorization
-            "Content-Type": "application/json",
-        }
-
-        # Retry once on 504 or connection error
-        for attempt in range(2):
-            try:
-                response = requests.post(
-                    f"{APIFRAME_BASE}/v2/music/generate",
-                    headers=_apiframe_headers,
-                    json=_apiframe_payload,
-                    timeout=30,
-                )
-                if response.status_code == 504 and attempt == 0:
-                    logger.warning(
-                        "Apiframe 504 timeout, retrying in 5s for variant_id=%d", variant_id
-                    )
-                    time.sleep(5)
-                    continue
-                break
-            except Exception as conn_err:
-                if attempt == 0:
-                    logger.warning(
-                        "Apiframe connection error (attempt 0), retrying in 5s for variant_id=%d: %s",
-                        variant_id, conn_err,
-                    )
-                    time.sleep(5)
-                    continue
-                raise
-
-        logger.info(
-            "APIFRAME_V2_RESPONSE variant_id=%d status=%d body=%r",
-            variant_id, response.status_code, response.text[:500],
-        )
-
-        if response.status_code == 504:
-            raise ValueError(
-                "Music generation is taking longer than usual — please try again in a moment"
-            )
-
-        response.raise_for_status()
+        provider = "apiframe"
         try:
-            body = response.json()
-        except Exception:
-            logger.error(
-                "Apiframe returned non-JSON response: %d %s",
-                response.status_code, response.text[:200],
-            )
-            raise ValueError(f"Apiframe error: {response.status_code}")
-        job_id = body.get("jobId")
-        if not job_id:
-            raise RuntimeError(f"Apiframe response missing jobId: {body!r}")
+            job_id = _submit_to_apiframe(variant_id, lyrics, style_prompt, suno_model, extra_suno_params or {})
+        except Exception as af_err:
+            logger.error("APIFRAME_FAILED variant_id=%d — %s. Trying GoAPI fallback.", variant_id, af_err)
+            if not GOAPI_API_KEY or not GOAPI_WEBHOOK_URL:
+                raise
+            job_id = _submit_to_goapi(variant_id, lyrics, style_prompt, suno_model, extra_suno_params or {})
+            provider = "goapi"
+            threading.Thread(
+                target=_alert_fallback_to_goapi,
+                args=(variant_id, str(af_err)),
+                daemon=True,
+            ).start()
 
         conn = sqlite3.connect(db_path)
         try:
-            cur = conn.cursor()
-            cur.execute(
-                """UPDATE song_variants
-                   SET provider_job_id = ?, status = 'generating'
-                   WHERE id = ?""",
-                (job_id, variant_id),
+            conn.execute(
+                "UPDATE song_variants SET provider_job_id = ?, provider = ?, status = 'generating' WHERE id = ?",
+                (job_id, provider, variant_id),
             )
             conn.commit()
         finally:
