@@ -1686,6 +1686,10 @@ async def songs_generate(
         current_user.get("email"),
     )
 
+    if body.kids_story:
+        log.info("songs_generate: kids_story=True accent=%r genres=%s user_id=%s",
+                 body.accent, list(body.genres), user_id)
+
     try:
         if body.custom_lyrics:
             lyric_result = _lyrics_mod.store_custom_lyrics(
@@ -3916,7 +3920,14 @@ async def download_file(filename: str):
 
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap(request: Request):
-    host = request.headers.get("host", "")
+    # Check Host and X-Forwarded-Host (Railway proxies may forward the original host)
+    host = (
+        request.headers.get("x-forwarded-host")
+        or request.headers.get("host")
+        or ""
+    )
+    log.info("sitemap: requested — host=%r x-forwarded-host=%r url=%s",
+             request.headers.get("host"), request.headers.get("x-forwarded-host"), request.url)
     if "zeusbeats" in host:
         base = "https://zeusbeats.com"
         urls = [

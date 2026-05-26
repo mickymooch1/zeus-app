@@ -1379,6 +1379,9 @@ export default function SongsPage() {
     setError('');
     setGenerating(true);
     console.log('animate_cover:', animateCover);
+    if (isKidsMode) {
+      console.log('Kids Story Mode: kidsAccent=', kidsAccent || '(none/magical)');
+    }
     if (genreBlend && genreB) {
       console.log('Genre blend:', genreB, 'ratio:', blendRatio);
     }
