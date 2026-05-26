@@ -418,11 +418,12 @@ def set_sound_persona(
     variant_id: int,
     title: str,
 ) -> None:
+    now = datetime.now(timezone.utc).isoformat()
     conn = _conn(db_path)
     try:
         conn.execute(
-            "UPDATE users SET sound_persona_id = ?, sound_persona_variant_id = ?, sound_persona_title = ? WHERE id = ?",
-            (persona_id, variant_id, title, user_id),
+            "UPDATE users SET sound_persona_id = ?, sound_persona_variant_id = ?, sound_persona_title = ?, updated_at = ? WHERE id = ?",
+            (persona_id, variant_id, title, now, user_id),
         )
         conn.commit()
     finally:
@@ -430,11 +431,12 @@ def set_sound_persona(
 
 
 def clear_sound_persona(db_path: pathlib.Path, user_id: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
     conn = _conn(db_path)
     try:
         conn.execute(
-            "UPDATE users SET sound_persona_id = NULL, sound_persona_variant_id = NULL, sound_persona_title = NULL WHERE id = ?",
-            (user_id,),
+            "UPDATE users SET sound_persona_id = NULL, sound_persona_variant_id = NULL, sound_persona_title = NULL, updated_at = ? WHERE id = ?",
+            (now, user_id),
         )
         conn.commit()
     finally:
