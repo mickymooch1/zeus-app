@@ -243,6 +243,7 @@ def _send_task_email(
 
 _RAILWAY = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
 _REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "").strip() == "1"
+# Used in songs_generate for CometAPI persona callbacks (see persona branch below)
 COMETAPI_WEBHOOK_URL = os.environ.get("COMETAPI_WEBHOOK_URL", "")
 
 SOCIAL_CRAWLERS = [
@@ -2038,10 +2039,13 @@ async def set_sound_persona_endpoint(
     db_path = db.get_db_path()
     user_id = current_user["id"]
 
-    conn = sqlite3.connect(str(db_path))
+    conn = db._conn(db_path)
     try:
         row = conn.execute(
-            "SELECT id, mp3_url FROM song_variants WHERE id = ? AND user_id = ?",
+            """SELECT sv.mp3_url, l.title
+               FROM song_variants sv
+               JOIN lyrics l ON l.id = sv.lyric_id
+               WHERE sv.id = ? AND sv.user_id = ?""",
             (body.variant_id, user_id),
         ).fetchone()
     finally:
@@ -2049,19 +2053,10 @@ async def set_sound_persona_endpoint(
 
     if not row:
         raise HTTPException(status_code=404, detail="Song not found")
-    mp3_url = row[1]
+    mp3_url = row["mp3_url"]
     if not mp3_url:
         raise HTTPException(status_code=400, detail="Song not yet complete — wait for generation to finish")
-
-    conn = sqlite3.connect(str(db_path))
-    try:
-        title_row = conn.execute(
-            "SELECT l.title FROM song_variants sv JOIN lyrics l ON l.id = sv.lyric_id WHERE sv.id = ?",
-            (body.variant_id,),
-        ).fetchone()
-    finally:
-        conn.close()
-    song_title = title_row[0] if title_row and title_row[0] else f"Song #{body.variant_id}"
+    song_title = row["title"] or f"Song #{body.variant_id}"
 
     if not _cometapi_mod.COMETAPI_API_KEY:
         raise HTTPException(status_code=503, detail="CometAPI not configured — contact support")
