@@ -588,18 +588,6 @@ def _user_key(request: Request) -> str:
 
 limiter = Limiter(key_func=get_remote_address)
 
-KIDS_ACCENT_STYLES: dict[str, str] = {
-    'scouse':    'Liverpool Scouse vocalist, Beatles city accent, Merseyside singing voice',
-    'geordie':   'Newcastle Geordie vocalist, Tyneside regional accent, North East England singing voice',
-    'welsh':     'Welsh valleys vocalist, Cardiff singing voice, melodic Welsh accent, Tom Jones style Welsh delivery',
-    'brummie':   'Birmingham vocalist, West Midlands accent, Brummie singing voice',
-    'manc':      'Manchester vocalist, Mancunian accent, Oasis city singing voice',
-    'scottish':  'Scottish vocalist, Glasgow accent, Celtic singing voice',
-    'irish':     'Irish vocalist, Dublin accent, Celtic folk singing voice',
-    'caribbean': 'Jamaican patois vocalist, Caribbean singing voice, reggae delivery',
-    'cockney':   'East London Cockney vocalist, London accent, Cockney singing style',
-}
-
 app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -1764,9 +1752,6 @@ async def songs_generate(
         }
         if body.kids_story and body.accent.lower() in _KIDS_LANG_STYLE:
             style_suffix_parts.append(_KIDS_LANG_STYLE[body.accent.lower()])
-        elif body.kids_story and body.accent.lower() in KIDS_ACCENT_STYLES:
-            style_suffix_parts.append(KIDS_ACCENT_STYLES[body.accent.lower()])
-            log.info("kids_accent: accent=%r → style=%r", body.accent, KIDS_ACCENT_STYLES[body.accent.lower()])
         else:
             _ACCENT_DESCRIPTORS = {
                 "British":              "strong British English accent, RP received pronunciation, clipped consonants, British vowel sounds, unmistakably English delivery",

@@ -2750,49 +2750,39 @@ export default function SongsPage() {
                 </div>
 
                 {/* Voice / Accent */}
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 4 }}>🎤 Choose a Voice</p>
-                <p style={{ fontSize: 11, color: 'rgba(251,191,36,0.60)', marginBottom: 10, lineHeight: 1.4 }}>UK accents, world voices, or lyrics written entirely in another language!</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: 8 }}>
-                  {[
-                    ['',                    '🧙',  'Magical'],
-                    ['Scottish',            '🏴󠁧󠁢󠁳󠁣󠁴󠁿',  'Scottish'],
-                    ['Irish',               '🍀',  'Irish'],
-                    ['Welsh',               '🏴󠁧󠁢󠁷󠁬󠁳󠁿',  'Welsh'],
-                    ['Scouse',              '🎸',  'Scouse'],
-                    ['Geordie',             '⚽',  'Geordie'],
-                    ['Brummie',             '🐝',  'Brummie'],
-                    ['Manc',                '🌹',  'Manc'],
-                    ['British',             '🎩',  'Posh British'],
-                    ['American (Southern)', '🤠',  'American'],
-                    ['Caribbean',           '🌴',  'Caribbean'],
-                    ['french',              '🇫🇷', 'French'],
-                    ['spanish',             '🇪🇸', 'Spanish'],
-                    ['german',              '🇩🇪', 'German'],
-                    ['italian',             '🇮🇹', 'Italian'],
-                    ['portuguese',          '🇵🇹', 'Portuguese'],
-                  ].map(([val, emoji, label]) => (
-                    <button
-                      key={val || 'magical'}
-                      onClick={() => setKidsAccent(val)}
-                      style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                        border: `1px solid ${kidsAccent === val ? '#fbbf24' : 'rgba(251,191,36,0.20)'}`,
-                        background: kidsAccent === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
-                        boxShadow: kidsAccent === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
-                        minHeight: 72,
-                      }}
-                    >
-                      <span style={{ fontSize: 26, lineHeight: 1, marginBottom: 5 }}>{emoji}</span>
-                      <span style={{
-                        fontSize: 10, fontWeight: kidsAccent === val ? 700 : 500, textAlign: 'center', lineHeight: 1.2,
-                        color: kidsAccent === val ? '#fbbf24' : 'rgba(251,191,36,0.65)',
-                      }}>{label}</span>
-                    </button>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🎤 Voice & Accent</p>
+                <select
+                  value={kidsAccent}
+                  onChange={(e) => setKidsAccent(e.target.value)}
+                  style={{ width: '100%', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: 8, padding: '8px 12px', color: kidsAccent ? '#fbbf24' : 'rgba(251,191,36,0.5)', fontSize: 13, outline: 'none', marginBottom: 10 }}
+                >
+                  <option value="">🌟 Default (auto)</option>
+                  {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish','American Soul','Jamaican','D&B MC','UK Rave MC','British MC Grime','Jazz Vocal','American Hip-Hop','K-Pop','West African','South African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta','West Coast G-Funk','British Street Soul'].map((a) => (
+                    <option key={a} value={a}>{a}</option>
                   ))}
-                </div>
+                  {[
+                    ['UK D&B MC', 'energetic UK drum and bass MC delivery, rapid fire hype, crowd control shouts, classic jungle MC style, rewind calls'],
+                    ['UK Jungle MC', 'old school jungle MC flow, ragga influenced delivery, rewind calls, authentic 90s rave MC energy'],
+                    ['Bashment MC', 'Jamaican bashment MC delivery, dancehall ragga style, riddim riding vocals, Caribbean MC energy'],
+                    ['Jamaican Dancehall', 'fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation'],
+                    ['Punjabi', 'authentic Punjabi vocal delivery, Punjabi mother tongue singer, strong Punjabi pronunciation, Gurmukhī influenced phonetics, traditional Punjabi singing style, bhangra vocal technique, nasal Punjabi tones, desi authentic delivery, not English accent'],
+                    ['Spanish Latin', 'authentic Spanish Latin accent, native Spanish speaker singing in Spanish, Cuban or Puerto Rican Caribbean pronunciation, warm Latin vowels, rolling R sounds, natural Spanish flow, not English accent at all'],
+                    ['Colombian', 'authentic Colombian accent, Medellin or Bogota pronunciation, warm Colombian Spanish delivery, melodic Colombian vowel sounds, natural Latin warmth, native Colombian Spanish speaker'],
+                    ['Puerto Rican', 'authentic Puerto Rican accent, Boricua Spanish pronunciation, Caribbean Puerto Rican delivery, urban San Juan flow, authentic PR Spanish vowels, native Puerto Rican speaker'],
+                    ['Cockney Grime', 'thick East London Cockney grime delivery, working class London accent mixed with grime flow, Cockney rhyming slang inflection, hard London vowels, street grime MC style with Cockney twist, authentic East End London road man delivery, sharp clipped Cockney consonants with grime energy'],
+                  ].map(([label, value]) => (
+                    <option key={label} value={value}>{label}</option>
+                  ))}
+                  <optgroup label="── Lyrics in another language ──">
+                    <option value="french">🇫🇷 French (lyrics in French)</option>
+                    <option value="spanish">🇪🇸 Spanish (lyrics in Spanish)</option>
+                    <option value="german">🇩🇪 German (lyrics in German)</option>
+                    <option value="italian">🇮🇹 Italian (lyrics in Italian)</option>
+                    <option value="portuguese">🇵🇹 Portuguese (lyrics in Portuguese)</option>
+                  </optgroup>
+                </select>
                 {kidsAccent && ['french', 'spanish', 'german', 'italian', 'portuguese'].includes(kidsAccent) && (
-                  <p style={{ fontSize: 11, color: '#fbbf24', marginTop: 12, padding: '8px 12px', background: 'rgba(251,191,36,0.08)', borderRadius: 8, lineHeight: 1.5 }}>
+                  <p style={{ fontSize: 11, color: '#fbbf24', marginBottom: 10, padding: '8px 12px', background: 'rgba(251,191,36,0.08)', borderRadius: 8, lineHeight: 1.5 }}>
                     ✨ Lyrics will be written entirely in {kidsAccent.charAt(0).toUpperCase() + kidsAccent.slice(1)} — great for young language learners!
                   </p>
                 )}
