@@ -72,6 +72,12 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"
 
+KIDS_COVER_PROMPT = (
+    "colourful children's book illustration style, bright cheerful colours, cute cartoon characters, "
+    "friendly and fun, no adult themes, child-friendly artwork, Disney Pixar inspired, "
+    "warm happy atmosphere, suitable for children aged 2-12"
+)
+
 
 def _add_text_overlay(image_path: str, title: str, artist_name: str = "") -> None:
     """Burn title (and optional artist name) into the bottom quarter of the cover image."""
@@ -109,10 +115,13 @@ def _add_text_overlay(image_path: str, title: str, artist_name: str = "") -> Non
     img.convert("RGB").save(image_path, "JPEG", quality=95)
 
 
-def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = "", artist_name: str = "") -> str | None:
+def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = "", artist_name: str = "", style_prompt: str = "") -> str | None:
     """Generate a Flux cover image and save to song storage. Returns public URL or None."""
     import image_generator as _img
-    prompt = GENRE_COVER_PROMPTS.get(genre_tag or "", _DEFAULT_COVER_PROMPT)
+    if "children's song" in style_prompt.lower():
+        prompt = KIDS_COVER_PROMPT
+    else:
+        prompt = GENRE_COVER_PROMPTS.get(genre_tag or "", _DEFAULT_COVER_PROMPT)
     logger.info(
         "Starting Flux cover art for variant_id=%d genre=%r FAL_KEY_len=%d prompt=%.80r",
         variant_id, genre_tag, len(_img.FAL_API_KEY) if _img.FAL_API_KEY else 0, prompt,
@@ -797,7 +806,7 @@ async def apiframe_webhook(request: Request):
         finally:
             conn.close()
     logger.info("Starting Flux cover art for variant_id=%d genre=%s", variant_id, genre_tag)
-    flux_cover1 = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name)
+    flux_cover1 = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
     if flux_cover1:
         logger.info("Cover art complete for variant_id=%d url=%s", variant_id, flux_cover1)
         permanent_image_url1 = flux_cover1
@@ -945,7 +954,7 @@ async def apiframe_webhook(request: Request):
                             logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
 
                     logger.info("Starting Flux cover art for variant_id=%d (take2) genre=%s", take2_variant_id, genre_tag)
-                    flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name)
+                    flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
                     if flux_cover2:
                         logger.info("Cover art complete for variant_id=%d url=%s", take2_variant_id, flux_cover2)
                         permanent_image_url2 = flux_cover2
@@ -1209,7 +1218,7 @@ async def cometapi_webhook(request: Request):
     conn = sqlite3.connect(DB_PATH)
     try:
         orig = conn.execute(
-            "SELECT lyric_id, user_id, genre_tag, animate_cover FROM song_variants WHERE id = ?",
+            "SELECT lyric_id, user_id, genre_tag, animate_cover, style_prompt FROM song_variants WHERE id = ?",
             (variant_id,),
         ).fetchone()
     finally:
@@ -1217,6 +1226,7 @@ async def cometapi_webhook(request: Request):
 
     animate_cover = bool(orig[3]) if orig and orig[3] is not None else True
     genre_tag = orig[2] if orig else None
+    orig_style_prompt = (orig[4] or "") if orig else ""
     song_title = ""
     artist_name = ""
     if orig:
@@ -1260,7 +1270,7 @@ async def cometapi_webhook(request: Request):
     public_mp3_url = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
 
     # Generate cover art via Flux (same as Apiframe path)
-    flux_cover = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name)
+    flux_cover = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name, orig_style_prompt)
 
     conn = sqlite3.connect(DB_PATH)
     try:

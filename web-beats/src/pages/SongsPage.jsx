@@ -1075,8 +1075,12 @@ export default function SongsPage() {
   const lockToastTimer = useRef(null);
 
   // Kids Story Mode
-  const [isKidsMode, setIsKidsMode]   = useState(false);
-  const [kidsAccent, setKidsAccent]   = useState('');
+  const [isKidsMode, setIsKidsMode]     = useState(false);
+  const [kidsAccent, setKidsAccent]     = useState('');
+  const [mainCharacter, setMainCharacter] = useState('');
+  const [storyEvent, setStoryEvent]     = useState('');
+  const [kidsAgeRange, setKidsAgeRange] = useState('little_ones');
+  const [kidsMusicStyle, setKidsMusicStyle] = useState('funpop');
 
   // Custom lyrics
   const [useCustomLyrics, setUseCustomLyrics]   = useState(false);
@@ -1100,9 +1104,9 @@ export default function SongsPage() {
   const canDid           = didPlanOk && (isAdmin || credits.video_credits > 0);
   const youtubeConnected = credits.youtube_connected;
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
-  const cost           = selGenres.size;
+  const cost           = isKidsMode ? 1 : selGenres.size;
   const canAfford      = isAdmin || (credits.balance >= cost && cost > 0);
-  const canGenerate    = (useCustomLyrics ? customLyricsText.trim().length > 0 : true) && cost > 0 && canAfford && !generating;
+  const canGenerate    = cost > 0 && canAfford && !generating && (isKidsMode || !useCustomLyrics || customLyricsText.trim().length > 0);
   const creditExceeded = !isAdmin && cost > 0 && cost > credits.balance;
 
   const fetchCredits = useCallback(async () => {
@@ -1378,28 +1382,43 @@ export default function SongsPage() {
   const handleGenerate = async () => {
     setError('');
     setGenerating(true);
-    console.log('animate_cover:', animateCover);
-    if (isKidsMode) {
-      console.log('Kids Story Mode: kidsAccent=', kidsAccent || '(none/magical)');
-    }
-    if (genreBlend && genreB) {
-      console.log('Genre blend:', genreB, 'ratio:', blendRatio);
-    }
+    const KIDS_MUSIC_GENRES = {
+      nursery:  ['acoustic'],
+      funpop:   ['pop'],
+      acoustic: ['acoustic'],
+      piano:    ['classical'],
+      reggae:   ['reggae'],
+    };
     try {
-      const r = await fetch(`${BACKEND_URL}/api/songs/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
+      let requestBody;
+      if (isKidsMode) {
+        const kidsBrief = [
+          mainCharacter.trim() && `Main character: ${mainCharacter.trim()}`,
+          storyEvent.trim()    && `What happens: ${storyEvent.trim()}`,
+          kidsAgeRange === 'tiny_tots'    && 'Age range: tiny tots aged 2-4',
+          kidsAgeRange === 'little_ones'  && 'Age range: little ones aged 4-6',
+          kidsAgeRange === 'big_kids'     && 'Age range: big kids aged 7-10',
+        ].filter(Boolean).join('. ');
+        requestBody = {
+          brief: kidsBrief,
+          genres: KIDS_MUSIC_GENRES[kidsMusicStyle] || ['pop'],
+          song_title: songTitle.trim() || undefined,
+          animate_cover: animateCover,
+          kids_story: true,
+          accent: kidsAccent || undefined,
+        };
+        console.log('Kids Story Mode request body:', requestBody);
+      } else {
+        console.log('animate_cover:', animateCover);
+        if (genreBlend && genreB) console.log('Genre blend:', genreB, 'ratio:', blendRatio);
+        requestBody = {
           brief: useCustomLyrics ? (songTitle.trim() || 'Custom song') : brief.trim(),
           genres: Array.from(selGenres),
           custom_lyrics: useCustomLyrics ? customLyricsText.trim() : undefined,
           inspired_by_descriptors: artistDescriptors || undefined,
           song_title: songTitle.trim() || undefined,
           animate_cover: animateCover,
-          kids_story: isKidsMode || undefined,
-          ...(isKidsMode ? {
-            accent: kidsAccent || undefined,
-          } : showAdvanced ? {
+          ...(showAdvanced ? {
             vocal_gender: vocalGender || undefined,
             accent: accent || undefined,
             creativity: creativity / 100,
@@ -1413,7 +1432,12 @@ export default function SongsPage() {
             genre_b: genreBlend && genreB ? genreB : undefined,
             blend_ratio: genreBlend && genreB ? blendRatio : undefined,
           } : {}),
-        }),
+        };
+      }
+      const r = await fetch(`${BACKEND_URL}/api/songs/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(requestBody),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || 'Generation failed');
@@ -1430,6 +1454,8 @@ export default function SongsPage() {
       setArtistDescriptors('');
       setCustomLyricsText('');
       setUseCustomLyrics(false);
+      setMainCharacter('');
+      setStoryEvent('');
     } catch (e) {
       setError(e.message);
     } finally {
@@ -2132,6 +2158,7 @@ export default function SongsPage() {
               {useCustomLyrics ? t('songs.subtitleOwn') : t('songs.subtitleAI')}
             </p>
 
+            {!isKidsMode && (<>
             {/* Custom lyrics toggle */}
             <div style={{ marginBottom: 14, display: 'flex', gap: 8 }}>
               <button
@@ -2605,6 +2632,7 @@ export default function SongsPage() {
                 )}
               </div>
             )}
+            </>)}
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
@@ -2621,18 +2649,114 @@ export default function SongsPage() {
             </button>
 
             {isKidsMode && (
-              <div style={{ background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.30)', borderRadius: 10, padding: '16px 18px', marginBottom: 18 }}>
-                <p style={{ fontSize: 12, color: '#fbbf24', marginBottom: 14, lineHeight: 1.5 }}>
-                  🌟 Zeus will write fun, age-appropriate lyrics with simple words and catchy repetition — perfect for little ones!
+              <div style={{ background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.30)', borderRadius: 10, padding: '18px 18px', marginBottom: 18 }}>
+                <p style={{ fontSize: 12, color: '#fbbf24', marginBottom: 16, lineHeight: 1.5 }}>
+                  🌟 Zeus will write a fun, age-appropriate story song — simple words, catchy repetition, perfect for little ones!
                 </p>
-                <p style={{ fontSize: 11, fontWeight: 600, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🎤 Choose a Voice</p>
-                <p style={{ fontSize: 11, color: 'rgba(251,191,36,0.60)', marginBottom: 12, lineHeight: 1.4 }}>UK regional, world accents, or lyrics in another language!</p>
+
+                {/* Story Title */}
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>📖 Story Title</p>
+                <input
+                  type="text"
+                  value={songTitle}
+                  onChange={(e) => setSongTitle(e.target.value)}
+                  placeholder="e.g. The Adventures of Benny the Bear"
+                  maxLength={80}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.30)',
+                    borderRadius: 10, padding: '10px 14px', color: '#f0eeff',
+                    fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 14,
+                  }}
+                />
+
+                {/* Main Character */}
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🦁 Main Character</p>
+                <input
+                  type="text"
+                  value={mainCharacter}
+                  onChange={(e) => setMainCharacter(e.target.value)}
+                  placeholder="e.g. a friendly dragon, a little robot, Rosie the rabbit"
+                  maxLength={80}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.30)',
+                    borderRadius: 10, padding: '10px 14px', color: '#f0eeff',
+                    fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 14,
+                  }}
+                />
+
+                {/* What Happens */}
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>✨ What Happens?</p>
+                <textarea
+                  value={storyEvent}
+                  onChange={(e) => setStoryEvent(e.target.value)}
+                  placeholder="e.g. goes on a big adventure to find the magic rainbow cake"
+                  rows={2}
+                  maxLength={200}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.30)',
+                    borderRadius: 10, padding: '10px 14px', color: '#f0eeff',
+                    fontSize: 14, fontFamily: 'inherit', outline: 'none', resize: 'vertical', marginBottom: 16,
+                  }}
+                />
+
+                {/* Age Range */}
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>👶 Age Range</p>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                  {[
+                    ['tiny_tots',   '🍼', 'Tiny Tots',   '2–4'],
+                    ['little_ones', '🌟', 'Little Ones', '4–6'],
+                    ['big_kids',    '📚', 'Big Kids',    '7–10'],
+                  ].map(([val, emoji, label, ages]) => (
+                    <button key={val} onClick={() => setKidsAgeRange(val)} style={{
+                      flex: 1, minWidth: 80, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                      padding: '10px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                      border: `1px solid ${kidsAgeRange === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
+                      background: kidsAgeRange === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
+                      boxShadow: kidsAgeRange === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                    }}>
+                      <span style={{ fontSize: 24, lineHeight: 1, marginBottom: 3 }}>{emoji}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: kidsAgeRange === val ? '#fbbf24' : 'rgba(251,191,36,0.7)' }}>{label}</span>
+                      <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)' }}>ages {ages}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Music Style */}
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎵 Music Style</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginBottom: 16 }}>
+                  {[
+                    ['nursery',  '🎠', 'Nursery Rhyme'],
+                    ['funpop',   '🎉', 'Fun Pop'],
+                    ['acoustic', '🎸', 'Gentle Acoustic'],
+                    ['piano',    '🎹', 'Happy Piano'],
+                    ['reggae',   '🏝️', 'Reggae Fun'],
+                  ].map(([val, emoji, label]) => (
+                    <button key={val} onClick={() => setKidsMusicStyle(val)} style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                      border: `1px solid ${kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.20)'}`,
+                      background: kidsMusicStyle === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
+                      boxShadow: kidsMusicStyle === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                      minHeight: 66,
+                    }}>
+                      <span style={{ fontSize: 24, lineHeight: 1, marginBottom: 4 }}>{emoji}</span>
+                      <span style={{ fontSize: 10, fontWeight: kidsMusicStyle === val ? 700 : 500, textAlign: 'center', lineHeight: 1.2, color: kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.65)' }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Voice / Accent */}
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 4 }}>🎤 Choose a Voice</p>
+                <p style={{ fontSize: 11, color: 'rgba(251,191,36,0.60)', marginBottom: 10, lineHeight: 1.4 }}>UK regional, world accents, or lyrics in another language!</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: 8 }}>
                   {[
                     ['',                    '🧙',  'Magical'],
                     ['Scottish',            '🏴󠁧󠁢󠁳󠁣󠁴󠁿',  'Scottish'],
                     ['Irish',               '🍀',  'Irish'],
-                    ['Welsh',               '🏴󠁧󠁢󠁷󠁬󠁳󠁿',  'Welsh'],
+                    ['Welsh',               '🏴󠁧󠁢󠁷󠁬󠁳󠁥',  'Welsh'],
                     ['Scouse',              '🎸',  'Scouse'],
                     ['Geordie',             '⚽',  'Geordie'],
                     ['Brummie',             '🐝',  'Brummie'],
@@ -2709,10 +2833,12 @@ export default function SongsPage() {
                 borderRadius: 10,
                 border: 'none',
                 background: canGenerate
-                  ? 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)'
+                  ? isKidsMode
+                    ? 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)'
+                    : 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)'
                   : 'rgba(255,255,255,0.05)',
-                color: canGenerate ? '#fff' : '#444',
-                fontSize: 15,
+                color: canGenerate ? (isKidsMode ? '#1a0a00' : '#fff') : '#444',
+                fontSize: isKidsMode ? 16 : 15,
                 fontWeight: 700,
                 cursor: canGenerate ? 'pointer' : 'default',
                 transition: 'all 0.2s',
@@ -2720,10 +2846,12 @@ export default function SongsPage() {
               }}
             >
               {generating
-                ? t('songs.generatingBtn')
-                : cost > 0
-                  ? t('songs.generateBtn', { cost })
-                  : t('songs.selectStyleBtn')}
+                ? (isKidsMode ? '✨ Creating your story song...' : t('songs.generatingBtn'))
+                : isKidsMode
+                  ? `🌟 Create My Story Song! (1 credit)`
+                  : cost > 0
+                    ? t('songs.generateBtn', { cost })
+                    : t('songs.selectStyleBtn')}
             </button>
 
             {error && <p style={{ color: '#f87171', fontSize: 13, marginTop: 12 }}>{error}</p>}
