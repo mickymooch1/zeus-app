@@ -286,6 +286,7 @@ const SongCard = memo(function SongCard({
   isPublic, onShareToggle,
   playlists, onAddToPlaylist,
   premiumCredits, stemsData: stemsProp, onGetStems, onOpenCover,
+  soundPersonaVariantId, onLockSound,
 }) {
   const { t } = useTranslation();
   const waveRef = useRef(null);
@@ -852,6 +853,23 @@ const SongCard = memo(function SongCard({
                 </div>
               );
             })()}
+            {/* Lock My Sound */}
+            {variant.mp3_url && (
+              <div style={{ marginTop: 6 }}>
+                {soundPersonaVariantId === variant.variant_id ? (
+                  <div style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(0,240,255,0.3)', background: 'rgba(0,240,255,0.06)', color: '#00f0ff', fontSize: 12, fontWeight: 700, textAlign: 'center' }}>
+                    ✓ Your Sound
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => onLockSound(variant, title)}
+                    style={{ width: '100%', padding: '8px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    🔒 Lock My Sound
+                  </button>
+                )}
+              </div>
+            )}
             {/* Locked feature message */}
             {lockedMsg && (
               <div style={{
@@ -1052,6 +1070,9 @@ export default function SongsPage() {
   const [coverLoading, setCoverLoading] = useState(false);
   const [coverError, setCoverError] = useState('');
   const [coverToast, setCoverToast] = useState(false);
+  const [soundPersona, setSoundPersona] = useState(null);
+  const [lockToast, setLockToast] = useState('');
+  const lockToastTimer = useRef(null);
 
   // Custom lyrics
   const [useCustomLyrics, setUseCustomLyrics]   = useState(false);
@@ -1191,6 +1212,19 @@ export default function SongsPage() {
     fetchLibrary();
     fetchPlaylists();
   }, [fetchCredits, fetchLibrary, fetchPlaylists]);
+
+  useEffect(() => {
+    if (!user) return;
+    setSoundPersona(
+      user.sound_persona_id
+        ? {
+            sound_persona_id: user.sound_persona_id,
+            sound_persona_title: user.sound_persona_title,
+            sound_persona_variant_id: user.sound_persona_variant_id,
+          }
+        : null
+    );
+  }, [user]);
 
   // First-visit timestamp + re-trigger banner
   useEffect(() => {
@@ -1548,6 +1582,56 @@ export default function SongsPage() {
       }
     } catch {
       alert('Network error starting stem separation');
+    }
+  };
+
+  const handleLockSound = async (variant, title) => {
+    const isPaid =
+      user?.is_admin ||
+      (user?.subscription_status === 'active' &&
+        ['music_starter', 'music_pro', 'music_agency'].includes(user?.subscription_plan));
+    if (!isPaid) {
+      clearTimeout(lockToastTimer.current);
+      setLockToast('Upgrade to Music Starter to unlock Your Sound 🔒');
+      lockToastTimer.current = setTimeout(() => setLockToast(''), 4000);
+      return;
+    }
+    try {
+      const resp = await fetch(`${BACKEND_URL}/api/user/sound`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ variant_id: variant.variant_id }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        if (data.detail === 'upgrade_required') {
+          clearTimeout(lockToastTimer.current);
+          setLockToast('Upgrade to Music Starter to unlock Your Sound 🔒');
+          lockToastTimer.current = setTimeout(() => setLockToast(''), 4000);
+          return;
+        }
+        throw new Error(data.detail || 'Failed to lock sound');
+      }
+      setSoundPersona(data);
+      clearTimeout(lockToastTimer.current);
+      setLockToast(`Your Sound locked to "${data.sound_persona_title}" 🔒`);
+      lockToastTimer.current = setTimeout(() => setLockToast(''), 4000);
+    } catch (err) {
+      clearTimeout(lockToastTimer.current);
+      setLockToast(`Error: ${err.message}`);
+      lockToastTimer.current = setTimeout(() => setLockToast(''), 4000);
+    }
+  };
+
+  const handleResetSound = async () => {
+    try {
+      await fetch(`${BACKEND_URL}/api/user/sound`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSoundPersona(null);
+    } catch (err) {
+      console.error('Failed to reset sound:', err);
     }
   };
 
@@ -2521,6 +2605,20 @@ export default function SongsPage() {
               <div style={{ height: 16 }} />
             )}
 
+            {soundPersona && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, padding: '7px 12px', borderRadius: 8, background: 'rgba(0,240,255,0.07)', border: '1px solid rgba(0,240,255,0.25)' }}>
+                <span style={{ flex: 1, fontSize: 12, color: '#00f0ff', fontWeight: 600 }}>
+                  🔒 Your Sound Active — {soundPersona.sound_persona_title}
+                </span>
+                <button
+                  onClick={handleResetSound}
+                  aria-label="Reset Your Sound"
+                  style={{ background: 'none', border: 'none', color: 'rgba(0,240,255,0.6)', fontSize: 16, cursor: 'pointer', lineHeight: 1, padding: '2px 4px', flexShrink: 0 }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
             <button
               onClick={handleGenerate}
               disabled={!canGenerate}
@@ -2643,6 +2741,8 @@ export default function SongsPage() {
                       stemsData={stemsData[v.variant_id]}
                       onGetStems={handleGetStems}
                       onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
+                      soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
+                      onLockSound={handleLockSound}
                     />
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
@@ -2735,6 +2835,8 @@ export default function SongsPage() {
                     stemsData={stemsData[v.variant_id]}
                     onGetStems={handleGetStems}
                     onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
+                    soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
+                    onLockSound={handleLockSound}
                   />
                 ))}
               </div>
@@ -3005,6 +3107,11 @@ export default function SongsPage() {
       {coverToast && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.4)', borderRadius: 10, padding: '12px 24px', color: '#00f0ff', fontWeight: 600, fontSize: 14, zIndex: 2000, whiteSpace: 'nowrap' }}>
           🎤 Your cover is generating! Check your library soon.
+        </div>
+      )}
+      {lockToast && (
+        <div style={{ position: 'fixed', bottom: 90, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.92)', border: '1px solid rgba(0,240,255,0.35)', borderRadius: 10, padding: '12px 22px', color: '#00f0ff', fontSize: 13, fontWeight: 600, zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(0,240,255,0.12)' }}>
+          {lockToast}
         </div>
       )}
 
