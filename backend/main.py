@@ -1638,6 +1638,7 @@ class SongsGenerateRequest(BaseModel):
     genre_b: str | None = None           # second genre for fusion blend mode
     blend_ratio: int | None = None       # 0–100: how much of genre_b vs genre_a (default 50)
     kids_story: bool = False             # Kids Story Mode — uses simplified Claude prompt, kids accent selector
+    kids_age_range: str | None = None    # "tiny_tots" | "little_ones" | "big_kids" — logged and passed to lyrics prompt
 
 
 @app.post("/api/songs/generate")
@@ -1687,8 +1688,8 @@ async def songs_generate(
     )
 
     if body.kids_story:
-        log.info("songs_generate: kids_story=True accent=%r genres=%s user_id=%s",
-                 body.accent, list(body.genres), user_id)
+        log.info("kids_story: accent=%s age_range=%s genres=%s brief=%r user_id=%s",
+                 body.accent, body.kids_age_range, list(body.genres), body.brief[:120], user_id)
 
     try:
         if body.custom_lyrics:

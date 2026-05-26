@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
 import { useTranslation } from 'react-i18next';
@@ -1405,6 +1405,7 @@ export default function SongsPage() {
           song_title: songTitle.trim() || undefined,
           animate_cover: animateCover,
           kids_story: true,
+          kids_age_range: kidsAgeRange || undefined,
           accent: kidsAccent || undefined,
         };
         console.log('Kids Story Mode request body:', requestBody);
@@ -2756,7 +2757,7 @@ export default function SongsPage() {
                     ['',                    '🧙',  'Magical'],
                     ['Scottish',            '🏴󠁧󠁢󠁳󠁣󠁴󠁿',  'Scottish'],
                     ['Irish',               '🍀',  'Irish'],
-                    ['Welsh',               '🏴󠁧󠁢󠁷󠁬󠁳󠁥',  'Welsh'],
+                    ['Welsh',               '🏴󠁧󠁢󠁷󠁬󠁳󠁿',  'Welsh'],
                     ['Scouse',              '🎸',  'Scouse'],
                     ['Geordie',             '⚽',  'Geordie'],
                     ['Brummie',             '🐝',  'Brummie'],
