@@ -283,6 +283,9 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_variants ADD COLUMN stems_drums_url TEXT",
             "ALTER TABLE song_variants ADD COLUMN stems_bass_url TEXT",
             "ALTER TABLE song_variants ADD COLUMN stems_other_url TEXT",
+            "ALTER TABLE users ADD COLUMN sound_persona_id TEXT",
+            "ALTER TABLE users ADD COLUMN sound_persona_variant_id INTEGER",
+            "ALTER TABLE users ADD COLUMN sound_persona_title TEXT",
         ]:
             try:
                 conn.execute(_migration)
@@ -401,6 +404,37 @@ def update_user(db_path: pathlib.Path, user_id: str, **fields) -> None:
     try:
         conn.execute(
             f"UPDATE users SET {set_clause} WHERE id = ?", values
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def set_sound_persona(
+    db_path: pathlib.Path,
+    user_id: str,
+    *,
+    persona_id: str,
+    variant_id: int,
+    title: str,
+) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE users SET sound_persona_id = ?, sound_persona_variant_id = ?, sound_persona_title = ? WHERE id = ?",
+            (persona_id, variant_id, title, user_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def clear_sound_persona(db_path: pathlib.Path, user_id: str) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE users SET sound_persona_id = NULL, sound_persona_variant_id = NULL, sound_persona_title = NULL WHERE id = ?",
+            (user_id,),
         )
         conn.commit()
     finally:
