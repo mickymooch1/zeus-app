@@ -2625,38 +2625,50 @@ export default function SongsPage() {
                 <p style={{ fontSize: 12, color: '#fbbf24', marginBottom: 14, lineHeight: 1.5 }}>
                   🌟 Zeus will write fun, age-appropriate lyrics with simple words and catchy repetition — perfect for little ones!
                 </p>
-                <p style={{ fontSize: 11, fontWeight: 600, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 10 }}>Choose a Fun Accent</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <p style={{ fontSize: 11, fontWeight: 600, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🎤 Choose a Voice</p>
+                <p style={{ fontSize: 11, color: 'rgba(251,191,36,0.60)', marginBottom: 12, lineHeight: 1.4 }}>UK regional, world accents, or lyrics in another language!</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: 8 }}>
                   {[
-                    ['', '🧙 Magical'],
-                    ['Scottish', '🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scottish'],
-                    ['Irish', '🍀 Irish'],
-                    ['Australian', '🦘 Australian'],
-                    ['Welsh', '🏴󠁧󠁢󠁷󠁬󠁳󠁿 Welsh'],
-                    ['Scouse', '🎸 Scouse'],
-                    ['Geordie', '⚽ Geordie'],
-                    ['Caribbean', '🌴 Caribbean'],
-                    ['American (Southern)', '🤠 American'],
-                    ['British', '🎩 Posh British'],
-                    ['french', '🇫🇷 French'],
-                    ['spanish', '🇪🇸 Spanish'],
-                    ['german', '🇩🇪 German'],
-                  ].map(([val, label]) => (
+                    ['',                    '🧙',  'Magical'],
+                    ['Scottish',            '🏴󠁧󠁢󠁳󠁣󠁴󠁿',  'Scottish'],
+                    ['Irish',               '🍀',  'Irish'],
+                    ['Welsh',               '🏴󠁧󠁢󠁷󠁬󠁳󠁿',  'Welsh'],
+                    ['Scouse',              '🎸',  'Scouse'],
+                    ['Geordie',             '⚽',  'Geordie'],
+                    ['Brummie',             '🐝',  'Brummie'],
+                    ['Manc',                '🌹',  'Manc'],
+                    ['British',             '🎩',  'Posh British'],
+                    ['Australian',          '🦘',  'Australian'],
+                    ['American (Southern)', '🤠',  'American'],
+                    ['Caribbean',           '🌴',  'Caribbean'],
+                    ['french',              '🇫🇷', 'French'],
+                    ['spanish',             '🇪🇸', 'Spanish'],
+                    ['german',              '🇩🇪', 'German'],
+                    ['italian',             '🇮🇹', 'Italian'],
+                    ['portuguese',          '🇵🇹', 'Portuguese'],
+                  ].map(([val, emoji, label]) => (
                     <button
                       key={val || 'magical'}
                       onClick={() => setKidsAccent(val)}
                       style={{
-                        padding: '6px 13px', borderRadius: 20, fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
-                        border: `1px solid ${kidsAccent === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
-                        background: kidsAccent === val ? 'rgba(251,191,36,0.20)' : 'transparent',
-                        color: kidsAccent === val ? '#fbbf24' : 'rgba(251,191,36,0.65)',
-                        fontWeight: kidsAccent === val ? 700 : 400,
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                        border: `1px solid ${kidsAccent === val ? '#fbbf24' : 'rgba(251,191,36,0.20)'}`,
+                        background: kidsAccent === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
+                        boxShadow: kidsAccent === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                        minHeight: 72,
                       }}
-                    >{label}</button>
+                    >
+                      <span style={{ fontSize: 26, lineHeight: 1, marginBottom: 5 }}>{emoji}</span>
+                      <span style={{
+                        fontSize: 10, fontWeight: kidsAccent === val ? 700 : 500, textAlign: 'center', lineHeight: 1.2,
+                        color: kidsAccent === val ? '#fbbf24' : 'rgba(251,191,36,0.65)',
+                      }}>{label}</span>
+                    </button>
                   ))}
                 </div>
-                {kidsAccent && ['french', 'spanish', 'german'].includes(kidsAccent) && (
-                  <p style={{ fontSize: 11, color: '#fbbf24', marginTop: 10, opacity: 0.8 }}>
+                {kidsAccent && ['french', 'spanish', 'german', 'italian', 'portuguese'].includes(kidsAccent) && (
+                  <p style={{ fontSize: 11, color: '#fbbf24', marginTop: 12, padding: '8px 12px', background: 'rgba(251,191,36,0.08)', borderRadius: 8, lineHeight: 1.5 }}>
                     ✨ Lyrics will be written entirely in {kidsAccent.charAt(0).toUpperCase() + kidsAccent.slice(1)} — great for young language learners!
                   </p>
                 )}

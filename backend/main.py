@@ -1743,9 +1743,11 @@ async def songs_generate(
         style_suffix_parts.append("male and female vocal duet, call and response, harmonising together, two voices intertwining")
     if body.accent:
         _KIDS_LANG_STYLE = {
-            "french":  "native French speaker singing in French, authentic French pronunciation, warm French vowels, natural French delivery, educational French language song for children",
-            "spanish": "native Spanish speaker singing in Spanish, authentic Spanish pronunciation, warm Latin vowels, natural Spanish delivery, educational Spanish language song for children",
-            "german":  "native German speaker singing in German, authentic German pronunciation, clear German vowels, natural German delivery, educational German language song for children",
+            "french":     "native French speaker singing in French, authentic French pronunciation, warm French vowels, natural French delivery, educational French language song for children",
+            "spanish":    "native Spanish speaker singing in Spanish, authentic Spanish pronunciation, warm Latin vowels, natural Spanish delivery, educational Spanish language song for children",
+            "german":     "native German speaker singing in German, authentic German pronunciation, clear German vowels, natural German delivery, educational German language song for children",
+            "italian":    "native Italian speaker singing in Italian, authentic Italian pronunciation, warm melodic Italian vowels, natural Italian delivery, educational Italian language song for children",
+            "portuguese": "native Portuguese speaker singing in Portuguese, authentic Portuguese pronunciation, warm Iberian vowels, natural Portuguese delivery, educational Portuguese language song for children",
         }
         if body.kids_story and body.accent.lower() in _KIDS_LANG_STYLE:
             style_suffix_parts.append(_KIDS_LANG_STYLE[body.accent.lower()])
@@ -1753,13 +1755,15 @@ async def songs_generate(
             _KIDS_ACCENT_DESCRIPTORS = {
                 "Scottish":             "warm Scottish storyteller voice, fun rolling R sounds, jolly Scottish lilt for children",
                 "Irish":                "jolly Irish lilt, warm cheerful Irish storyteller voice, friendly rising intonation",
-                "Australian":           "bright sunny Australian voice, fun enthusiastic Aussie delivery for kids",
                 "Welsh":                "melodic Welsh sing-song voice, warm Welsh lilt, musical storyteller delivery",
                 "Scouse":               "cheerful Liverpool Scouse accent, warm Merseyside storyteller voice for children",
                 "Geordie":              "warm Newcastle Geordie accent, friendly northern English children's storyteller",
-                "Caribbean":            "warm Caribbean island lilt, cheerful sunny tropical storyteller voice",
-                "American (Southern)":  "warm friendly American voice, clear enthusiastic US children's storyteller",
+                "Brummie":              "warm Birmingham Brummie accent, friendly West Midlands storyteller voice for children",
+                "Manc":                 "cheerful Manchester Mancunian accent, warm northern English storyteller voice for children",
                 "British":              "warm clear British RP voice, friendly classic storybook delivery",
+                "Australian":           "bright sunny Australian voice, fun enthusiastic Aussie delivery for kids",
+                "American (Southern)":  "warm friendly American voice, clear enthusiastic US children's storyteller",
+                "Caribbean":            "warm Caribbean island lilt, cheerful sunny tropical storyteller voice",
             }
             style_suffix_parts.append(_KIDS_ACCENT_DESCRIPTORS.get(body.accent, f"warm friendly {body.accent} accent, children's storyteller voice"))
         else:

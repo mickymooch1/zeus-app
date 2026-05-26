@@ -118,9 +118,11 @@ _EXPLICIT_ADDENDUM = (
 
 
 _KIDS_LANGUAGE_MAP = {
-    'french': 'French',
-    'spanish': 'Spanish',
-    'german': 'German',
+    'french':     'French',
+    'spanish':    'Spanish',
+    'german':     'German',
+    'italian':    'Italian',
+    'portuguese': 'Portuguese',
 }
 
 
