@@ -256,6 +256,7 @@ def generate_song_variant(
         "APIFRAME_V2_PAYLOAD variant_id=%d genre=%r style_len=%d lyrics_len=%d extra_params=%r",
         variant_id, genre_tag, len(style_prompt), len(lyrics), extra_suno_params,
     )
+    logger.info("APIFRAME_V2_STYLE variant_id=%d style=%r", variant_id, style_prompt[:600])
     logger.info("APIFRAME_V2_WEBHOOK_URL variant_id=%d url=%r", variant_id, f"{WEBHOOK_URL}?variant_id={variant_id}")
 
     try:

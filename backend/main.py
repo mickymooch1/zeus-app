@@ -1752,12 +1752,6 @@ async def songs_generate(
         }
         if body.kids_story and body.accent.lower() in _KIDS_LANG_STYLE:
             style_suffix_parts.append(_KIDS_LANG_STYLE[body.accent.lower()])
-        elif body.kids_story:
-            _KIDS_ACCENT_DESCRIPTORS = {
-                "American (Southern)":  "warm friendly American voice, clear enthusiastic US children's storyteller",
-                "Caribbean":            "warm Caribbean island lilt, cheerful sunny tropical storyteller voice",
-            }
-            style_suffix_parts.append(_KIDS_ACCENT_DESCRIPTORS.get(body.accent, f"warm friendly {body.accent} accent, children's storyteller voice"))
         else:
             _ACCENT_DESCRIPTORS = {
                 "British":              "strong British English accent, RP received pronunciation, clipped consonants, British vowel sounds, unmistakably English delivery",
