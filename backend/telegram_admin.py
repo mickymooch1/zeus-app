@@ -50,6 +50,7 @@ Just talk to me naturally, mate! Examples:
 <code>stripe product "Name" £9.99</code>
 <code>stripe list</code>
 <code>post song VARIANT_ID</code> — post a specific song
+<code>broadcast Subject | Message body</code> — email ALL Zeus Beats users
 <code>refund failures</code> — refund 1 credit per song failed in last 24h
 <code>help</code>"""
 
@@ -868,6 +869,7 @@ def _ai_parse(text: str) -> dict:
     """Call Claude Haiku with conversation history to interpret admin message.
     Returns a parsed action dict; falls back to a chat error on failure.
     """
+    raw = ""
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
@@ -878,12 +880,28 @@ def _ai_parse(text: str) -> dict:
             system=ADMIN_SYSTEM_PROMPT,
             messages=messages,
         )
-        raw = resp.content[0].text.strip()
+        raw = resp.content[0].text.strip() if resp.content else ""
+        # Strip markdown fences
         raw = re.sub(r'^```[a-z]*\n?', '', raw)
         raw = re.sub(r'\n?```$', '', raw).strip()
+
+        if not raw:
+            log.warning("_ai_parse: empty response — stop_reason=%s", getattr(resp, "stop_reason", "?"))
+            return {"action": "chat", "message": "Got an empty response, try again mate."}
+
+        # If the JSON object isn't at the start, extract it
+        if not raw.startswith('{'):
+            start = raw.find('{')
+            end = raw.rfind('}')
+            if start != -1 and end > start:
+                raw = raw[start:end + 1]
+
         _conversation_history.append({"role": "user", "content": text})
         _conversation_history.append({"role": "assistant", "content": raw})
         return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        log.warning("_ai_parse: JSON parse error — raw=%r — %s", raw[:300], exc)
+        return {"action": "chat", "message": f"❌ Couldn't parse AI response. Raw: {raw[:100]!r}"}
     except Exception as exc:
         log.warning("_ai_parse failed — %s", exc)
         return {"action": "chat", "message": f"❌ AI error: {exc}"}
@@ -1036,6 +1054,15 @@ def parse_and_run(text: str) -> str:
 
     if re.match(r'^stripe\s+list$', t, re.IGNORECASE):
         return _cmd_stripe_list()
+
+    # broadcast — email all users; subject and body separated by |
+    # Usage: broadcast Subject here | Full message body here
+    m = re.match(r'^broadcast\s+(.+?)\s*\|\s*(.+)$', t, re.IGNORECASE | re.DOTALL)
+    if m:
+        subject = m.group(1).strip()
+        body = m.group(2).strip()
+        log.info("broadcast: subject=%r body_len=%d", subject[:60], len(body))
+        return _cmd_email_bulk("all", subject, body)
 
     # refund failures — exact command; NL variants go through the AI layer
     if re.match(r'^refund\s+failures?$', t, re.IGNORECASE):
