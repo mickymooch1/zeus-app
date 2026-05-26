@@ -1725,6 +1725,8 @@ async def songs_generate(
         extra_suno_params["instrumental"] = True
 
     style_suffix_parts: list[str] = []
+    if body.kids_story:
+        style_suffix_parts.append("children's song, warm playful singing voice, fun and engaging for kids, upbeat storyteller energy")
     if body.tempo == "slow":
         style_suffix_parts.append("slow tempo")
     elif body.tempo == "medium":
@@ -1743,6 +1745,19 @@ async def songs_generate(
         }
         if body.kids_story and body.accent.lower() in _KIDS_LANG_STYLE:
             style_suffix_parts.append(_KIDS_LANG_STYLE[body.accent.lower()])
+        elif body.kids_story:
+            _KIDS_ACCENT_DESCRIPTORS = {
+                "Scottish":             "warm Scottish storyteller voice, fun rolling R sounds, jolly Scottish lilt for children",
+                "Irish":                "jolly Irish lilt, warm cheerful Irish storyteller voice, friendly rising intonation",
+                "Australian":           "bright sunny Australian voice, fun enthusiastic Aussie delivery for kids",
+                "Welsh":                "melodic Welsh sing-song voice, warm Welsh lilt, musical storyteller delivery",
+                "Scouse":               "cheerful Liverpool Scouse accent, warm Merseyside storyteller voice for children",
+                "Geordie":              "warm Newcastle Geordie accent, friendly northern English children's storyteller",
+                "Caribbean":            "warm Caribbean island lilt, cheerful sunny tropical storyteller voice",
+                "American (Southern)":  "warm friendly American voice, clear enthusiastic US children's storyteller",
+                "British":              "warm clear British RP voice, friendly classic storybook delivery",
+            }
+            style_suffix_parts.append(_KIDS_ACCENT_DESCRIPTORS.get(body.accent, f"warm friendly {body.accent} accent, children's storyteller voice"))
         else:
             _ACCENT_DESCRIPTORS = {
                 "British":              "strong British English accent, RP received pronunciation, clipped consonants, British vowel sounds, unmistakably English delivery",
