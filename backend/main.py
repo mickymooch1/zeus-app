@@ -635,12 +635,26 @@ app.add_middleware(
 
 # ── Pydantic request models ───────────────────────────────────────────────────
 
+_BLOCKED_EMAIL_DOMAINS: frozenset = frozenset({
+    "mailinator.com", "tempmail.com", "guerrillamail.com", "10minutemail.com",
+    "throwaway.email", "yopmail.com", "sharklasers.com", "guerrillamail.info",
+    "guerrillamail.biz", "guerrillamail.de", "guerrillamail.net", "guerrillamail.org",
+    "spam4.me", "trashmail.com", "trashmail.me", "trashmail.net", "trashmail.org",
+    "trashmail.at", "trashmail.io", "dispostable.com", "maildrop.cc",
+    "spamgourmet.com", "spamgourmet.net", "spamgourmet.org", "discard.email",
+    "fakeinbox.com", "fakeinbox.net", "mailnull.com", "spamfree24.org",
+    "anonbox.net", "mailexpire.com", "spaml.com", "spammotel.com", "spaml.de",
+})
+
+
 class RegisterRequest(BaseModel):
     email: str
     password: str
     name: str
     tc_accepted: bool
     app: str = "ai"
+    referral: str | None = None
+    fingerprint: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -719,6 +733,10 @@ async def register(request: Request, body: RegisterRequest):
     if not body.email or "@" not in body.email:
         raise HTTPException(status_code=400, detail="Invalid email address")
 
+    email_domain = body.email.split("@")[-1].lower()
+    if email_domain in _BLOCKED_EMAIL_DOMAINS:
+        raise HTTPException(status_code=400, detail="Please use a real email address to register.")
+
     if len(body.password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
@@ -732,7 +750,7 @@ async def register(request: Request, body: RegisterRequest):
     if not db.check_and_record_registration_attempt(db_path, ip):
         raise HTTPException(
             status_code=429,
-            detail="Too many accounts created from this device. Please try again tomorrow.",
+            detail="An account has already been created from this device recently. Please try again in 7 days.",
         )
 
     existing = db.get_user_by_email(db_path, body.email)
@@ -759,12 +777,29 @@ async def register(request: Request, body: RegisterRequest):
         log.exception("register: create_user failed")
         raise HTTPException(status_code=500, detail=f"Could not create account: {exc}")
 
+    # Device fingerprint check — block duplicate device registrations
+    if body.fingerprint:
+        import hashlib
+        fp_hash = hashlib.sha256(body.fingerprint.encode()).hexdigest()
+        if not db.check_and_record_device_fingerprint(db_path, fp_hash, user["id"]):
+            log.warning("register: duplicate device fingerprint blocked user_id=%s email=%s", user["id"], body.email)
+            raise HTTPException(
+                status_code=429,
+                detail="An account has already been created from this device. Please log in instead.",
+            )
+
     # Create Stripe customer if Stripe is enabled
     if billing.stripe_enabled():
         customer_id = billing.create_stripe_customer(user)
         if customer_id:
             db.update_user(db_path, user["id"], stripe_customer_id=customer_id)
             user = db.get_user_by_id(db_path, user["id"])
+
+    # Grant signup credits — Product Hunt referrals get 5, everyone else gets FREE_SONG_CREDITS (3)
+    signup_credits = 5 if (body.referral or "").lower() == "producthunt" else billing.FREE_SONG_CREDITS
+    db.ensure_free_song_credits(db_path, user["id"], balance=signup_credits, monthly_allowance=0)
+    if signup_credits != billing.FREE_SONG_CREDITS:
+        log.info("register: granted %d signup credits via referral=%s user_id=%s", signup_credits, body.referral, user["id"])
 
     token = auth.create_token(user["id"], user["email"], is_admin=bool(user.get("is_admin", 0)))
     safe_user = {k: v for k, v in user.items() if k != "password_hash"}
@@ -4615,7 +4650,7 @@ async def serve_spa(full_path: str, request: Request):
             r"<title>[^<]*</title>",
             (
                 '<title>Zeus Beats — Create AI Music in Seconds | 30+ Genres</title>\n'
-                '    <meta name="description" content="Create original AI songs in 30+ genres including Soul, Grime, Afrobeats, D&amp;B, Jazz and more. Animated cover art, YouTube upload, avatar videos. 5 free songs on signup. No studio needed.">\n'
+                '    <meta name="description" content="Create original AI songs in 30+ genres including Soul, Grime, Afrobeats, D&amp;B, Jazz and more. Animated cover art, YouTube upload, avatar videos. 3 free songs on signup. No studio needed.">\n'
                 '    <meta name="keywords" content="AI music generator, create AI songs, grime AI, afrobeats generator, UK music AI, AI beats maker, zeus beats">\n'
                 '    <meta property="og:title" content="Zeus Beats — AI Music Creator">\n'
                 '    <meta property="og:description" content="Create original songs in seconds. 30+ genres. Free to start.">\n'

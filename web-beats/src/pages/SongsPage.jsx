@@ -2091,7 +2091,7 @@ export default function SongsPage() {
               <span style={{ fontSize: 20, lineHeight: 1 }}>🎵</span>
               <div style={{ flex: 1 }}>
                 <strong style={{ color: '#00F0FF', display: 'block', marginBottom: 4 }}>Welcome to Zeus Beats!</strong>
-                <span>You have 5 free songs to get started. Generate your first track below — pick a genre and hit Create.</span>
+                <span>You have 3 free songs to get started. Generate your first track below — pick a genre and hit Create.</span>
               </div>
               <button
                 onClick={() => setShowWelcome(false)}

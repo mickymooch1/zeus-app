@@ -287,6 +287,12 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE users ADD COLUMN sound_persona_variant_id INTEGER",
             "ALTER TABLE users ADD COLUMN sound_persona_title TEXT",
             "ALTER TABLE song_variants ADD COLUMN provider TEXT DEFAULT 'apiframe'",
+            """CREATE TABLE IF NOT EXISTS device_fingerprints (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                fp_hash     TEXT NOT NULL UNIQUE,
+                user_id     TEXT,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""",
         ]:
             try:
                 conn.execute(_migration)
@@ -298,21 +304,42 @@ def init_user_tables(db_path: pathlib.Path) -> None:
 
 
 def check_and_record_registration_attempt(db_path: pathlib.Path, ip_address: str) -> bool:
-    """Return True (allowed) if fewer than 3 registrations from this IP in the last 24 h.
+    """Return True (allowed) if no registration from this IP in the last 7 days.
     Records the attempt when allowed; returns False when the limit is reached."""
     from datetime import datetime, timedelta, timezone
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     conn = _conn(db_path)
     try:
         row = conn.execute(
             "SELECT COUNT(*) FROM registration_attempts WHERE ip_address = ? AND attempted_at > ?",
             (ip_address, cutoff),
         ).fetchone()
-        if row[0] >= 3:
+        if row[0] >= 1:
             return False
         conn.execute(
             "INSERT INTO registration_attempts (ip_address, attempted_at) VALUES (?, ?)",
             (ip_address, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def check_and_record_device_fingerprint(db_path: pathlib.Path, fp_hash: str, user_id: str) -> bool:
+    """Return True (allowed) if this device fingerprint hasn't registered before.
+    Records it when allowed; returns False if it already exists."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT id FROM device_fingerprints WHERE fp_hash = ?",
+            (fp_hash,),
+        ).fetchone()
+        if row:
+            return False
+        conn.execute(
+            "INSERT OR IGNORE INTO device_fingerprints (fp_hash, user_id) VALUES (?, ?)",
+            (fp_hash, user_id),
         )
         conn.commit()
         return True

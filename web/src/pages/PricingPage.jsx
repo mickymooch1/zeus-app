@@ -11,7 +11,7 @@ const FREE_FEATURES = [
   'AI chat assistant',
   'Content & copy writing',
   'Web research',
-  '5 free songs on signup',
+  '3 free songs on signup',
 ];
 
 const DEFAULT_PLANS = {

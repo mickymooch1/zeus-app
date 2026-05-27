@@ -83,7 +83,7 @@ const SECTIONS = [
     icon: '💎',
     title: 'Plans & Credits',
     steps: [
-      'Free: 5 songs on signup',
+      'Free: 3 songs on signup',
       'Music Starter £9: 25 songs/month + 3 premium credits',
       'Music Pro £19: 55 songs + 10 premium credits',
       'Music Agency £39: 110 songs + 20 premium credits',

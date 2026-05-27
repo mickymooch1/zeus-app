@@ -1,13 +1,29 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
+
+function collectFingerprint() {
+  try {
+    const parts = [
+      `${screen.width}x${screen.height}`,
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+      navigator.language,
+      navigator.userAgent,
+    ];
+    return parts.join('|');
+  } catch {
+    return null;
+  }
+}
 
 export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const referral = searchParams.get('ref') || null;
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -45,7 +61,8 @@ export default function RegisterPage() {
     setFieldErrors({});
     setLoading(true);
     try {
-      await register(email, password, name, tcAccepted);
+      const fingerprint = collectFingerprint();
+      await register(email, password, name, tcAccepted, 'beats', referral, fingerprint);
       navigate('/pricing', { replace: true });
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');

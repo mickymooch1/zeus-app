@@ -54,11 +54,11 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
-  const register = useCallback(async (email, password, name, tcAccepted, app = 'beats') => {
+  const register = useCallback(async (email, password, name, tcAccepted, app = 'beats', referral = null, fingerprint = null) => {
     const res = await fetch(`${BACKEND_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name, tc_accepted: tcAccepted, app }),
+      body: JSON.stringify({ email, password, name, tc_accepted: tcAccepted, app, referral, fingerprint }),
     });
 
     const data = await res.json();
