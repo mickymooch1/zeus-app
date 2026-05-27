@@ -29,6 +29,7 @@ const DiscoverPage       = lazy(() => import('./pages/DiscoverPage'));
 const DiscoverSongPage   = lazy(() => import('./pages/DiscoverSongPage'));
 const PlaylistPage       = lazy(() => import('./pages/PlaylistPage'));
 const TutorialPage       = lazy(() => import('./pages/TutorialPage'));
+const DownloadPage       = lazy(() => import('./pages/DownloadPage'));
 
 const fallback = (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0b0b14', color: '#94a3b8', fontSize: '1rem' }}>
@@ -109,6 +110,7 @@ export default function App() {
               }
             />
             <Route path="/tutorial" element={<TutorialPage />} />
+            <Route path="/download" element={<DownloadPage />} />
           </Routes>
         </Suspense>
       </BrowserRouter>
