@@ -84,7 +84,7 @@ if MUSIC_PRO_PRICE_ID:
 if MUSIC_AGENCY_PRICE_ID:
     _PRICE_ID_TO_PLAN[MUSIC_AGENCY_PRICE_ID] = "music_agency"
 
-FREE_SONG_CREDITS = 5
+FREE_SONG_CREDITS = 3  # reduced from 5 — existing free users keep their balance
 
 _PLAN_SONG_CREDITS = {
     "pro":           20,
@@ -258,7 +258,9 @@ def create_checkout_session(user: dict, plan: str, success_url: str, cancel_url:
         "payment_method_types": ["card"],
         "line_items": [{"price": price_id, "quantity": 1}],
         "mode": "subscription",
-        "allow_promotion_codes": True,
+        # Auto-apply 50% off first month. Note: allow_promotion_codes cannot be
+        # used alongside discounts — manual promo codes are intentionally disabled.
+        "discounts": [{"coupon": "FIRST_MONTH_50"}],
         "success_url": success_url,
         "cancel_url": cancel_url,
         "metadata": {
@@ -383,17 +385,32 @@ def create_stripe_customer(user: dict) -> str | None:
 
 
 def ensure_promo_codes() -> None:
-    """Create PRODUCTHUNT50 promo code in Stripe if it doesn't already exist.
+    """Create Stripe coupons/promo codes at startup. Idempotent — safe to re-run.
 
-    Call once at startup. Idempotent — safe to re-run on every deploy.
-    Code: PRODUCTHUNT50 — 50% off first month, valid 30 days from creation.
-    Users enter it at checkout; allow_promotion_codes=True is set on all sessions.
+    FIRST_MONTH_50: auto-applied coupon (50% off first month) on all new subscriptions.
+    PRODUCTHUNT50:  manual promo code for Product Hunt launch (50% off, 30-day window).
     """
     if not stripe_enabled():
         return
     try:
         from datetime import datetime, timezone, timedelta
         stripe = _get_stripe()
+
+        # ── FIRST_MONTH_50 — auto-applied coupon with stable custom ID ──────────
+        try:
+            stripe.Coupon.retrieve("FIRST_MONTH_50")
+            log.info("billing: FIRST_MONTH_50 coupon already exists — skipping creation")
+        except Exception:
+            stripe.Coupon.create(
+                id="FIRST_MONTH_50",
+                percent_off=50,
+                duration="once",
+                name="50% off first month",
+                metadata={"source": "auto_applied"},
+            )
+            log.info("billing: Created FIRST_MONTH_50 coupon (50%% off first month, auto-applied to all new subscriptions)")
+
+        # ── PRODUCTHUNT50 — manual promo code for Product Hunt launch ───────────
         existing = stripe.PromotionCode.list(code="PRODUCTHUNT50", limit=1)
         if existing.data:
             log.info("billing: PRODUCTHUNT50 promo code already exists — skipping creation")

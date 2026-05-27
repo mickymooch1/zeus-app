@@ -267,7 +267,7 @@ export default function LandingPage() {
                 <li>✓ AI chat assistant</li>
                 <li>✓ Content writing</li>
                 <li>✓ Web research</li>
-                <li>✓ 5 free songs on signup</li>
+                <li>✓ 3 songs to get started</li>
                 <li className="feat-dim">✗ Website builds</li>
                 <li className="feat-dim">✗ Netlify deployment</li>
               </ul>
@@ -347,7 +347,10 @@ export default function LandingPage() {
             <div className="pricing-grid pricing-grid--music">
               <div className="price-card">
                 <div className="plan-name">Music Starter</div>
-                <div className="plan-price">£9<span>/mo</span></div>
+                <div className="plan-price">
+                  <span style={{ textDecoration: 'line-through', opacity: 0.4, fontSize: '0.6em', marginRight: 6 }}>£9</span>£4.50<span>/mo</span>
+                  <div style={{ fontSize: '0.38em', color: '#00f5ff', marginTop: 3, fontWeight: 600 }}>then £9/month</div>
+                </div>
                 <p className="plan-desc">For artists getting started with AI music creation.</p>
                 <ul className="plan-features">
                   <li>✓ 25 AI songs/month</li>
@@ -362,7 +365,10 @@ export default function LandingPage() {
 
               <div className="price-card">
                 <div className="plan-name">Music Pro</div>
-                <div className="plan-price">£19<span>/mo</span></div>
+                <div className="plan-price">
+                  <span style={{ textDecoration: 'line-through', opacity: 0.4, fontSize: '0.6em', marginRight: 6 }}>£19</span>£9.50<span>/mo</span>
+                  <div style={{ fontSize: '0.38em', color: '#00f5ff', marginTop: 3, fontWeight: 600 }}>then £19/month</div>
+                </div>
                 <p className="plan-desc">For active creators who want avatar videos.</p>
                 <ul className="plan-features">
                   <li>✓ 55 AI songs/month</li>
@@ -377,7 +383,10 @@ export default function LandingPage() {
 
               <div className="price-card">
                 <div className="plan-name">Music Agency</div>
-                <div className="plan-price">£39<span>/mo</span></div>
+                <div className="plan-price">
+                  <span style={{ textDecoration: 'line-through', opacity: 0.4, fontSize: '0.6em', marginRight: 6 }}>£39</span>£19.50<span>/mo</span>
+                  <div style={{ fontSize: '0.38em', color: '#00f5ff', marginTop: 3, fontWeight: 600 }}>then £39/month</div>
+                </div>
                 <p className="plan-desc">For prolific creators and label teams.</p>
                 <ul className="plan-features">
                   <li>✓ 110 AI songs/month</li>
