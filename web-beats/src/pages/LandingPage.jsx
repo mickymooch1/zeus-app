@@ -436,6 +436,12 @@ export default function LandingPage() {
             </p>
           </div>
 
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.3)', borderRadius: 20, padding: '6px 18px', fontSize: 13, color: '#00F0FF', fontWeight: 600 }}>
+              🎉 50% off your first month — no code needed
+            </span>
+          </div>
+
           <div className="pricing-grid pricing-grid--music">
             <div className="price-card">
               <div className="plan-name">Free</div>
