@@ -125,6 +125,12 @@ _KIDS_LANGUAGE_MAP = {
     'portuguese': 'Portuguese',
 }
 
+# Regular (non-kids) accents that should produce lyrics in a non-English language.
+# Claude Sonnet is used automatically when this map has a match.
+_REGULAR_LANGUAGE_MAP = {
+    'korean': 'Korean',
+}
+
 
 def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, accent: str | None = None) -> dict:
     if instrumental:
@@ -260,10 +266,17 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         if vocab_lines:
             user_message += "\n" + " | ".join(vocab_lines)
 
-    model = "claude-sonnet-4-6" if genre_b else "claude-haiku-4-5-20251001"
+    _lyric_language = _REGULAR_LANGUAGE_MAP.get((accent or '').lower())
+    if _lyric_language:
+        user_message += (
+            f"\n\nIMPORTANT: Write the lyrics ENTIRELY in {_lyric_language} — not English. "
+            f"Use authentic {_lyric_language} script, vocabulary and natural phrasing throughout. "
+            f"Every line must be in {_lyric_language} hangul characters — no romanisation, no English."
+        )
+    model = "claude-sonnet-4-6" if (genre_b or _lyric_language) else "claude-haiku-4-5-20251001"
     logger.info(
-        "generate_lyrics: calling %s — user=%s explicit=%s genre_b=%r blend_ratio=%r theme=%r mood=%r brief=%r",
-        model, user_id, explicit, genre_b, blend_ratio, theme, mood, brief[:200],
+        "generate_lyrics: calling %s — user=%s explicit=%s genre_b=%r blend_ratio=%r theme=%r mood=%r lyric_language=%r brief=%r",
+        model, user_id, explicit, genre_b, blend_ratio, theme, mood, _lyric_language, brief[:200],
     )
 
     try:
