@@ -496,10 +496,16 @@ def generate_multiple_variants(
         if safe_inspired_by:
             style = f"{style}, {safe_inspired_by}"
         style = f"{style}, {random.choice(RANDOM_PRODUCTION)}"
-        # Hard cap at 500 chars to prevent Suno rejection
-        if len(style) > 500:
-            logger.warning("style string truncated from %d to 500 chars for genre=%r", len(style), genre)
-            style = style[:500]
+        # Blend songs use section-tag structure (~700+ chars) so they need a higher cap.
+        # Single-genre stays at 500. Both stay under Apiframe's own 1000-char limit.
+        hard_cap = 900 if genre_b else 500
+        if len(style) > hard_cap:
+            logger.warning(
+                "style string truncated from %d to %d chars for genre=%r blend=%s",
+                len(style), hard_cap, genre, bool(genre_b),
+            )
+            style = style[:hard_cap]
+        logger.info("BLEND_STYLE genre=%r genre_b=%r len=%d style=%r", genre, genre_b, len(style), style)
         # Genre tag encodes the blend so the frontend can display "Soul × Grime"
         genre_tag = f"{genre}__{genre_b}" if genre_b and genre_b in GENRE_PRESETS else genre
         suno_model = GENRE_MODEL_OVERRIDES.get(genre, GENRE_MODEL_OVERRIDES.get(genre_b or '', 'V5'))
