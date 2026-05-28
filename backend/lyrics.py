@@ -118,6 +118,7 @@ _EXPLICIT_ADDENDUM = (
 
 
 _KIDS_LANGUAGE_MAP = {
+    # European
     'french':     'French',
     'spanish':    'Spanish',
     'german':     'German',
@@ -134,41 +135,64 @@ _KIDS_LANGUAGE_MAP = {
     'ukrainian':  'Ukrainian',
     'hungarian':  'Hungarian',
     'czech':      'Czech',
-    'turkish':    'Turkish',
-    'thai':       'Thai',
+    # Asian
+    'korean':     'Korean',
     'japanese':   'Japanese',
     'mandarin':   'Mandarin Chinese',
     'hindi':      'Hindi',
+    'thai':       'Thai',
     'tagalog':    'Tagalog (Filipino)',
     'indonesian': 'Bahasa Indonesia',
     'vietnamese': 'Vietnamese',
     'arabic':     'Arabic',
+    'turkish':    'Turkish',
+    # African & Caribbean
+    'swahili':    'Swahili',
+    'yoruba':     'Yoruba',
+    'amharic':    'Amharic',
+    'zulu':       'Zulu',
+    'haitian':    'Haitian Creole',
+    # Americas
+    'brazilian':  'Brazilian Portuguese',
 }
 
 # Regular (non-kids) accents that should produce lyrics in a non-English language.
 # Claude Sonnet is used automatically when this map has a match.
 _REGULAR_LANGUAGE_MAP = {
-    'korean':     'Korean',
-    'russian':    'Russian',
-    'polish':     'Polish',
-    'dutch':      'Dutch',
-    'swedish':    'Swedish',
-    'norwegian':  'Norwegian',
-    'danish':     'Danish',
-    'greek':      'Greek',
-    'romanian':   'Romanian',
-    'ukrainian':  'Ukrainian',
-    'hungarian':  'Hungarian',
-    'czech':      'Czech',
-    'turkish':    'Turkish',
-    'thai':       'Thai',
-    'japanese':   'Japanese',
-    'mandarin':   'Mandarin Chinese',
-    'hindi':      'Hindi',
-    'tagalog':    'Tagalog (Filipino)',
-    'indonesian': 'Bahasa Indonesia',
-    'vietnamese': 'Vietnamese',
-    'arabic':     'Arabic',
+    # European
+    'german':              'German',
+    'italian':             'Italian',
+    'portuguese':          'Portuguese',
+    'russian':             'Russian',
+    'polish':              'Polish',
+    'dutch':               'Dutch',
+    'swedish':             'Swedish',
+    'norwegian':           'Norwegian',
+    'danish':              'Danish',
+    'greek':               'Greek',
+    'romanian':            'Romanian',
+    'ukrainian':           'Ukrainian',
+    'hungarian':           'Hungarian',
+    'czech':               'Czech',
+    # Asian
+    'korean':              'Korean',
+    'japanese':            'Japanese',
+    'mandarin':            'Mandarin Chinese',
+    'hindi':               'Hindi',
+    'thai':                'Thai',
+    'tagalog':             'Tagalog (Filipino)',
+    'indonesian':          'Bahasa Indonesia',
+    'vietnamese':          'Vietnamese',
+    'arabic':              'Arabic',
+    'turkish':             'Turkish',
+    # African & Caribbean
+    'swahili':             'Swahili',
+    'yoruba':              'Yoruba',
+    'amharic':             'Amharic',
+    'zulu':                'Zulu',
+    'haitian creole':      'Haitian Creole',
+    # Americas
+    'brazilian portuguese': 'Brazilian Portuguese',
 }
 
 

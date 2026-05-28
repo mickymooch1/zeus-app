@@ -2453,12 +2453,14 @@ export default function SongsPage() {
                       <option key={label} value={value}>{label}</option>
                     ))}
                     <optgroup label="🇪🇺 European Languages (lyrics in that language)">
+                      <option value="French">🇫🇷 French</option>
+                      <option value="Spanish">🇪🇸 Spanish</option>
+                      <option value="Portuguese">🇵🇹 Portuguese</option>
+                      <option value="Dutch">🇳🇱 Dutch</option>
                       <option value="German">🇩🇪 German</option>
                       <option value="Italian">🇮🇹 Italian</option>
-                      <option value="Portuguese">🇵🇹 Portuguese</option>
                       <option value="Russian">🇷🇺 Russian</option>
                       <option value="Polish">🇵🇱 Polish</option>
-                      <option value="Dutch">🇳🇱 Dutch</option>
                       <option value="Swedish">🇸🇪 Swedish</option>
                       <option value="Norwegian">🇳🇴 Norwegian</option>
                       <option value="Danish">🇩🇰 Danish</option>
@@ -2467,7 +2469,6 @@ export default function SongsPage() {
                       <option value="Ukrainian">🇺🇦 Ukrainian</option>
                       <option value="Hungarian">🇭🇺 Hungarian</option>
                       <option value="Czech">🇨🇿 Czech</option>
-                      <option value="Turkish">🇹🇷 Turkish</option>
                     </optgroup>
                     <optgroup label="🌏 Asian Languages (lyrics in that language)">
                       <option value="Korean">🇰🇷 Korean</option>
@@ -2478,7 +2479,8 @@ export default function SongsPage() {
                       <option value="Tagalog">🇵🇭 Tagalog (Filipino)</option>
                       <option value="Indonesian">🇮🇩 Indonesian</option>
                       <option value="Vietnamese">🇻🇳 Vietnamese</option>
-                      <option value="Arabic">🇸🇦 Arabic</option>
+                      <option value="Arabic">🇦🇪 Arabic</option>
+                      <option value="Turkish">🇹🇷 Turkish</option>
                     </optgroup>
                     <optgroup label="🌍 African & Caribbean Languages (lyrics in that language)">
                       <option value="Swahili">🇰🇪 Swahili</option>
@@ -2821,12 +2823,12 @@ export default function SongsPage() {
                   <optgroup label="🇪🇺 European Languages">
                     <option value="french">🇫🇷 French</option>
                     <option value="spanish">🇪🇸 Spanish</option>
+                    <option value="portuguese">🇵🇹 Portuguese</option>
+                    <option value="dutch">🇳🇱 Dutch</option>
                     <option value="german">🇩🇪 German</option>
                     <option value="italian">🇮🇹 Italian</option>
-                    <option value="portuguese">🇵🇹 Portuguese</option>
                     <option value="russian">🇷🇺 Russian</option>
                     <option value="polish">🇵🇱 Polish</option>
-                    <option value="dutch">🇳🇱 Dutch</option>
                     <option value="swedish">🇸🇪 Swedish</option>
                     <option value="norwegian">🇳🇴 Norwegian</option>
                     <option value="danish">🇩🇰 Danish</option>
@@ -2835,7 +2837,6 @@ export default function SongsPage() {
                     <option value="ukrainian">🇺🇦 Ukrainian</option>
                     <option value="hungarian">🇭🇺 Hungarian</option>
                     <option value="czech">🇨🇿 Czech</option>
-                    <option value="turkish">🇹🇷 Turkish</option>
                   </optgroup>
                   <optgroup label="🌏 Asian Languages">
                     <option value="korean">🇰🇷 Korean</option>
@@ -2846,7 +2847,8 @@ export default function SongsPage() {
                     <option value="tagalog">🇵🇭 Tagalog (Filipino)</option>
                     <option value="indonesian">🇮🇩 Indonesian</option>
                     <option value="vietnamese">🇻🇳 Vietnamese</option>
-                    <option value="arabic">🇸🇦 Arabic</option>
+                    <option value="arabic">🇦🇪 Arabic</option>
+                    <option value="turkish">🇹🇷 Turkish</option>
                   </optgroup>
                   <optgroup label="🌍 African & Caribbean Languages">
                     <option value="swahili">🇰🇪 Swahili</option>
