@@ -247,7 +247,7 @@ export default function PrivacyPage() {
           <p>
             Zeus Beats Ltd is the data controller for personal
             data processed through the Service. Zeus Beats Ltd is registered with the
-            Information Commissioner's Office (ICO), registration number C1903581.
+            Information Commissioner's Office (ICO), registration number CSN5305083.
           </p>
           <address className="content-address">
             Zeus Beats Ltd<br />
