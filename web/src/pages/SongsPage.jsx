@@ -2484,7 +2484,7 @@ export default function SongsPage() {
             </p>
           </div>
 
-          {/* ── Animation credits top-up ───────────────────────────────── */}
+          {/* ── Premium credits top-up ────────────────────────────────── */}
           {!isAdmin && !isFreeTier && animateCoverPref && credits.premium_credits === 0 && (
             <div style={{
               marginBottom: 44,
