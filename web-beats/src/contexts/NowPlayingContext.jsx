@@ -32,6 +32,9 @@ export function NowPlayingProvider({ children }) {
   const indexRef             = useRef(-1);
   const crossfadeRef         = useRef(crossfade);
   const crossfadeDurationRef = useRef(crossfadeDuration);
+  // Tracks the variant_id that is currently loaded in the audio element.
+  // Used by playAtIndex to resume instead of resetting src when the same song is re-clicked.
+  const loadedVariantRef     = useRef(null);
 
   useEffect(() => { shuffleRef.current          = shuffle;          }, [shuffle]);
   useEffect(() => { repeatRef.current           = repeat;           }, [repeat]);
@@ -93,6 +96,27 @@ export function NowPlayingProvider({ children }) {
     const song = q[idx];
     if (!song?.mp3_url) return;
     const audio = getAudio();
+
+    // Bug 2 fix: if this exact variant is already loaded and not ended, just resume.
+    // This prevents src reassignment (which resets currentTime) when the user clicks a
+    // paused song's row again or the NowPlayingBar re-mounts after being hidden.
+    if (
+      loadedVariantRef.current === song.variant_id &&
+      audio.readyState >= 2 &&   // HAVE_CURRENT_DATA or better — audio is usable
+      !audio.ended
+    ) {
+      console.log('[Zeus] playAtIndex: resuming variant', song.variant_id, 'at', audio.currentTime.toFixed(2));
+      audio.volume = 1;
+      audio.play().catch(() => {});
+      audioManager.updateVariantId(song.variant_id);
+      setQueueIndex(idx);
+      indexRef.current = idx;
+      setIsPlaying(true);
+      return;
+    }
+
+    console.log('[Zeus] playAtIndex: loading variant', song.variant_id, '(was', loadedVariantRef.current, ')');
+    loadedVariantRef.current = song.variant_id;
     audio.volume = 1;
     audio.src = song.mp3_url;
     audioManager.play(audio, song.variant_id);
@@ -187,6 +211,7 @@ export function NowPlayingProvider({ children }) {
           if (savedTime > 0.1) primary.currentTime = savedTime;
           primary.play().catch(err => console.warn('[Zeus CF] primary.play() after fade rejected:', err));
           audioManager.updateVariantId(nextSong.variant_id);
+          loadedVariantRef.current = nextSong.variant_id; // keep resume check in sync
           crossfadeActiveRef.current = false;
         };
         primary.addEventListener('canplay', doSeek, { once: true });
@@ -286,6 +311,10 @@ export function NowPlayingProvider({ children }) {
       if (crossfadeActiveRef.current) return; // crossfade is handling the transition
       const q   = queueRef.current;
       const idx = indexRef.current;
+      console.log(
+        '[Zeus] onEnded — idx:', idx, '| qLen:', q.length,
+        '| shuffle:', shuffleRef.current, '| repeat:', repeatRef.current,
+      );
       if (repeatRef.current === 'one') {
         audio.currentTime = 0;
         audio.play().catch(() => {});
@@ -294,14 +323,18 @@ export function NowPlayingProvider({ children }) {
       let next;
       if (shuffleRef.current) {
         next = Math.floor(Math.random() * q.length);
+        console.log('[Zeus] onEnded: shuffle → next idx', next);
       } else {
         next = idx + 1;
+        console.log('[Zeus] onEnded: in-order → next idx', next);
       }
       if (next < q.length) {
         playAtIndex(next);
       } else if (repeatRef.current === 'all') {
+        console.log('[Zeus] onEnded: repeat all → wrapping to 0');
         playAtIndex(0);
       } else {
+        console.log('[Zeus] onEnded: end of queue, stopping');
         setIsPlaying(false);
       }
     };

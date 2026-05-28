@@ -224,14 +224,38 @@ function PlaylistCard({ playlist, token, onDeleted }) {
   );
 }
 
+const settingToggleStyle = (active) => ({
+  background: active ? 'rgba(0,240,255,0.14)' : 'rgba(255,255,255,0.05)',
+  border: `1px solid ${active ? 'rgba(0,240,255,0.55)' : 'rgba(255,255,255,0.14)'}`,
+  borderRadius: 20, padding: '5px 16px', cursor: 'pointer', flexShrink: 0, marginLeft: 16,
+  color: active ? '#00f0ff' : '#64748b', fontWeight: 700, fontSize: 13, transition: 'all 0.2s',
+});
+
 function PlaybackSettings() {
-  const { crossfade, crossfadeDuration, setCrossfade, setCrossfadeDuration } = useNowPlaying();
+  const {
+    crossfade, crossfadeDuration, setCrossfade, setCrossfadeDuration,
+    shuffle, toggleShuffle,
+  } = useNowPlaying();
+
   return (
     <div style={{ ...S.card, marginBottom: 32 }}>
       <div style={{ padding: '16px 20px' }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 14 }}>
           Playback Settings
         </p>
+
+        {/* Shuffle toggle — Bug 3: expose shuffle here so it's visible even when the Now Playing bar is paused/hidden */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <span style={{ fontSize: 14, color: '#e2e8f0', fontWeight: 600 }}>🔀 Shuffle</span>
+            <p style={{ fontSize: 12, color: shuffle ? '#fbbf24' : '#64748b', margin: '2px 0 0', lineHeight: 1.4 }}>
+              {shuffle ? '⚠️ Shuffle is ON — songs play in random order' : 'Songs play in playlist order'}
+            </p>
+          </div>
+          <button onClick={toggleShuffle} style={settingToggleStyle(shuffle)}>
+            {shuffle ? 'ON' : 'OFF'}
+          </button>
+        </div>
 
         {/* Crossfade toggle */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: crossfade ? 16 : 0 }}>
@@ -241,16 +265,7 @@ function PlaybackSettings() {
               Fade smoothly between tracks — starts {crossfadeDuration}s before each track ends
             </p>
           </div>
-          <button
-            onClick={() => setCrossfade(!crossfade)}
-            style={{
-              background: crossfade ? 'rgba(0,240,255,0.14)' : 'rgba(255,255,255,0.05)',
-              border: `1px solid ${crossfade ? 'rgba(0,240,255,0.55)' : 'rgba(255,255,255,0.14)'}`,
-              borderRadius: 20, padding: '5px 16px', cursor: 'pointer', flexShrink: 0, marginLeft: 16,
-              color: crossfade ? '#00f0ff' : '#64748b', fontWeight: 700, fontSize: 13,
-              transition: 'all 0.2s',
-            }}
-          >
+          <button onClick={() => setCrossfade(!crossfade)} style={settingToggleStyle(crossfade)}>
             {crossfade ? 'ON' : 'OFF'}
           </button>
         </div>

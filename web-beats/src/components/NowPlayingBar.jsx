@@ -81,7 +81,10 @@ export default function NowPlayingBar() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  const visible = !!(currentSong && isPlaying);
+  // Bar stays visible whenever a song is loaded — hide only when nothing is in the queue.
+  // This prevents pause from unmounting the bar (which would make users re-click play
+  // from the playlist and restart the song from the beginning).
+  const visible = !!currentSong;
 
   useEffect(() => {
     document.body.style.paddingBottom = visible ? (isMobile ? '108px' : '80px') : '';
