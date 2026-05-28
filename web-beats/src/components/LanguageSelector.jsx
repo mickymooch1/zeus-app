@@ -48,7 +48,7 @@ export function LanguageSelector() {
       </button>
 
       {open && (
-        <div style={{
+        <div className="lang-dropdown" style={{
           position: 'absolute',
           top: 'calc(100% + 6px)',
           right: 0,

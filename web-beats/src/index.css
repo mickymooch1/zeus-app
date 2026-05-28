@@ -694,4 +694,10 @@ body {
   }
   /* Hide account icon at narrowest — billing reachable via hamburger */
   .dashboard-email-icon { display: none !important; }
+  /* Keep language dropdown within viewport — anchor stays right:0 so it
+     grows leftward, capped at the viewport edge */
+  .lang-dropdown {
+    right: 0 !important;
+    max-width: calc(100vw - 16px);
+  }
 }
