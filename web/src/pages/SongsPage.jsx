@@ -2076,6 +2076,30 @@ export default function SongsPage() {
                     ].map(([label, value]) => (
                       <option key={label} value={value}>{label}</option>
                     ))}
+                    <optgroup label="🇪🇺 European Languages (lyrics in that language)">
+                      <option value="Russian">🇷🇺 Russian</option>
+                      <option value="Polish">🇵🇱 Polish</option>
+                      <option value="Dutch">🇳🇱 Dutch</option>
+                      <option value="Swedish">🇸🇪 Swedish</option>
+                      <option value="Norwegian">🇳🇴 Norwegian</option>
+                      <option value="Danish">🇩🇰 Danish</option>
+                      <option value="Greek">🇬🇷 Greek</option>
+                      <option value="Romanian">🇷🇴 Romanian</option>
+                      <option value="Ukrainian">🇺🇦 Ukrainian</option>
+                      <option value="Hungarian">🇭🇺 Hungarian</option>
+                      <option value="Czech">🇨🇿 Czech</option>
+                      <option value="Turkish">🇹🇷 Turkish</option>
+                    </optgroup>
+                    <optgroup label="🌏 Asian Languages (lyrics in that language)">
+                      <option value="Thai">🇹🇭 Thai</option>
+                      <option value="Japanese">🇯🇵 Japanese</option>
+                      <option value="Mandarin">🇨🇳 Mandarin Chinese</option>
+                      <option value="Hindi">🇮🇳 Hindi</option>
+                      <option value="Tagalog">🇵🇭 Tagalog (Filipino)</option>
+                      <option value="Indonesian">🇮🇩 Indonesian</option>
+                      <option value="Vietnamese">🇻🇳 Vietnamese</option>
+                      <option value="Arabic">🇸🇦 Arabic</option>
+                    </optgroup>
                   </select>
                   <p style={{ fontSize: 11, color: '#555', marginTop: 5 }}>Leave on Auto to let Zeus match the accent to your genre</p>
                 </div>
@@ -2383,7 +2407,39 @@ export default function SongsPage() {
                     >{label}</button>
                   ))}
                 </div>
-                {kidsAccent && ['french', 'spanish', 'german'].includes(kidsAccent) && (
+                <p style={{ fontSize: 11, fontWeight: 600, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 14, marginBottom: 8 }}>More Languages</p>
+                <select
+                  value={['russian','polish','dutch','swedish','norwegian','danish','greek','romanian','ukrainian','hungarian','czech','turkish','thai','japanese','mandarin','hindi','tagalog','indonesian','vietnamese','arabic'].includes(kidsAccent) ? kidsAccent : ''}
+                  onChange={(e) => setKidsAccent(e.target.value)}
+                  style={{ width: '100%', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.30)', borderRadius: 6, padding: '6px 10px', color: '#fbbf24', fontSize: 13, outline: 'none' }}
+                >
+                  <option value="">── Choose a language ──</option>
+                  <optgroup label="🇪🇺 European Languages">
+                    <option value="russian">🇷🇺 Russian</option>
+                    <option value="polish">🇵🇱 Polish</option>
+                    <option value="dutch">🇳🇱 Dutch</option>
+                    <option value="swedish">🇸🇪 Swedish</option>
+                    <option value="norwegian">🇳🇴 Norwegian</option>
+                    <option value="danish">🇩🇰 Danish</option>
+                    <option value="greek">🇬🇷 Greek</option>
+                    <option value="romanian">🇷🇴 Romanian</option>
+                    <option value="ukrainian">🇺🇦 Ukrainian</option>
+                    <option value="hungarian">🇭🇺 Hungarian</option>
+                    <option value="czech">🇨🇿 Czech</option>
+                    <option value="turkish">🇹🇷 Turkish</option>
+                  </optgroup>
+                  <optgroup label="🌏 Asian Languages">
+                    <option value="thai">🇹🇭 Thai</option>
+                    <option value="japanese">🇯🇵 Japanese</option>
+                    <option value="mandarin">🇨🇳 Mandarin Chinese</option>
+                    <option value="hindi">🇮🇳 Hindi</option>
+                    <option value="tagalog">🇵🇭 Tagalog (Filipino)</option>
+                    <option value="indonesian">🇮🇩 Indonesian</option>
+                    <option value="vietnamese">🇻🇳 Vietnamese</option>
+                    <option value="arabic">🇸🇦 Arabic</option>
+                  </optgroup>
+                </select>
+                {kidsAccent && ['french', 'spanish', 'german', 'russian', 'polish', 'dutch', 'swedish', 'norwegian', 'danish', 'greek', 'romanian', 'ukrainian', 'hungarian', 'czech', 'turkish', 'thai', 'japanese', 'mandarin', 'hindi', 'tagalog', 'indonesian', 'vietnamese', 'arabic'].includes(kidsAccent) && (
                   <p style={{ fontSize: 11, color: '#fbbf24', marginTop: 10, opacity: 0.8 }}>
                     ✨ Lyrics will be written entirely in {kidsAccent.charAt(0).toUpperCase() + kidsAccent.slice(1)} — great for young language learners!
                   </p>

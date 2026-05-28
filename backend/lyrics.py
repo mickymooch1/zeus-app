@@ -123,12 +123,52 @@ _KIDS_LANGUAGE_MAP = {
     'german':     'German',
     'italian':    'Italian',
     'portuguese': 'Portuguese',
+    'russian':    'Russian',
+    'polish':     'Polish',
+    'dutch':      'Dutch',
+    'swedish':    'Swedish',
+    'norwegian':  'Norwegian',
+    'danish':     'Danish',
+    'greek':      'Greek',
+    'romanian':   'Romanian',
+    'ukrainian':  'Ukrainian',
+    'hungarian':  'Hungarian',
+    'czech':      'Czech',
+    'turkish':    'Turkish',
+    'thai':       'Thai',
+    'japanese':   'Japanese',
+    'mandarin':   'Mandarin Chinese',
+    'hindi':      'Hindi',
+    'tagalog':    'Tagalog (Filipino)',
+    'indonesian': 'Bahasa Indonesia',
+    'vietnamese': 'Vietnamese',
+    'arabic':     'Arabic',
 }
 
 # Regular (non-kids) accents that should produce lyrics in a non-English language.
 # Claude Sonnet is used automatically when this map has a match.
 _REGULAR_LANGUAGE_MAP = {
-    'korean': 'Korean',
+    'korean':     'Korean',
+    'russian':    'Russian',
+    'polish':     'Polish',
+    'dutch':      'Dutch',
+    'swedish':    'Swedish',
+    'norwegian':  'Norwegian',
+    'danish':     'Danish',
+    'greek':      'Greek',
+    'romanian':   'Romanian',
+    'ukrainian':  'Ukrainian',
+    'hungarian':  'Hungarian',
+    'czech':      'Czech',
+    'turkish':    'Turkish',
+    'thai':       'Thai',
+    'japanese':   'Japanese',
+    'mandarin':   'Mandarin Chinese',
+    'hindi':      'Hindi',
+    'tagalog':    'Tagalog (Filipino)',
+    'indonesian': 'Bahasa Indonesia',
+    'vietnamese': 'Vietnamese',
+    'arabic':     'Arabic',
 }
 
 
@@ -271,7 +311,7 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         user_message += (
             f"\n\nIMPORTANT: Write the lyrics ENTIRELY in {_lyric_language} — not English. "
             f"Use authentic {_lyric_language} script, vocabulary and natural phrasing throughout. "
-            f"Every line must be in {_lyric_language} hangul characters — no romanisation, no English."
+            f"Write every line in the native script of {_lyric_language} — no romanisation, no transliteration, no English."
         )
     model = "claude-sonnet-4-6" if (genre_b or _lyric_language) else "claude-haiku-4-5-20251001"
     logger.info(
