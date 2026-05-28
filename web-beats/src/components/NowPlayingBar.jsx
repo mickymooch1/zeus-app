@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNowPlaying } from '../contexts/NowPlayingContext';
 
 const GENRE_LABEL = {
@@ -22,39 +22,128 @@ function gLabel(g) {
 }
 
 function fmt(s) {
-  if (!s || !isFinite(s)) return '0:00';
+  if (!s || !isFinite(s) || s < 0) return '0:00';
   return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+}
+
+// Shared seek-bar used in both layouts
+function SeekBar({ currentTime, duration, seek }) {
+  const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0;
+  return (
+    <div
+      role="slider"
+      aria-label="Song progress"
+      aria-valuemin={0}
+      aria-valuemax={Math.round(duration)}
+      aria-valuenow={Math.round(currentTime)}
+      style={{
+        flex: 1, position: 'relative', height: 8, borderRadius: 4,
+        background: 'rgba(255,255,255,0.1)', cursor: 'pointer', minWidth: 60,
+      }}
+      onClick={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        seek(ratio * duration);
+      }}
+    >
+      <div style={{
+        position: 'absolute', left: 0, top: 0, height: '100%', borderRadius: 4,
+        background: 'linear-gradient(90deg, #7c3aed, #00f0ff)',
+        width: `${progress * 100}%`,
+        transition: 'width 0.1s linear',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', top: '50%', left: `${progress * 100}%`,
+        transform: 'translate(-50%, -50%)',
+        width: 14, height: 14, borderRadius: '50%',
+        background: '#00f0ff', boxShadow: '0 0 6px rgba(0,240,255,0.8)',
+        pointerEvents: 'none',
+      }} />
+    </div>
+  );
 }
 
 export default function NowPlayingBar() {
   const {
     currentSong, isPlaying, togglePlay, next, prev,
-    currentTime, duration, seek,
+    currentTime, duration, seek, rewind, forward,
     shuffle, toggleShuffle, repeat, cycleRepeat,
   } = useNowPlaying();
 
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' && window.innerWidth < 640,
+  );
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', check, { passive: true });
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   const visible = !!(currentSong && isPlaying);
 
-  // Push page content up so the bar doesn't overlap bottom nav on mobile
   useEffect(() => {
-    document.body.style.paddingBottom = visible ? '72px' : '';
+    document.body.style.paddingBottom = visible ? (isMobile ? '108px' : '80px') : '';
     return () => { document.body.style.paddingBottom = ''; };
-  }, [visible]);
+  }, [visible, isMobile]);
 
   if (!visible) return null;
 
-  const progress = duration > 0 ? currentTime / duration : 0;
+  const remaining = duration > 0 ? duration - currentTime : 0;
 
+  const barBase = {
+    position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999,
+    background: 'linear-gradient(180deg, rgba(10,10,20,0.97) 0%, #0a0a14 100%)',
+    borderTop: '1px solid rgba(0,240,255,0.18)',
+    backdropFilter: 'blur(20px)',
+    boxShadow: '0 -4px 40px rgba(0,240,255,0.08)',
+  };
+
+  // ── Mobile layout: 2 rows ─────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div style={{ ...barBase, padding: '8px 14px 10px' }}>
+        {/* Row 1: art + title + transport controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          {currentSong.image_url
+            ? <img src={currentSong.image_url} alt="" style={{ width: 36, height: 36, borderRadius: 5, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,240,255,0.2)' }} />
+            : <div style={{ width: 36, height: 36, borderRadius: 5, background: 'rgba(124,58,237,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>♫</div>
+          }
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentSong.title || 'Untitled'}
+            </div>
+          </div>
+          {/* ⏮ ⏪ ⏸/▶ ⏩ ⏭ — 44px tap targets */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            <button onClick={prev}       style={mBtn}     title="Previous">⏮</button>
+            <button onClick={rewind}     style={mBtn}     title="−10s">⏪</button>
+            <button onClick={togglePlay} style={mBtnPlay} title={isPlaying ? 'Pause' : 'Play'}>
+              {isPlaying ? '⏸' : '▶'}
+            </button>
+            <button onClick={forward}    style={mBtn}     title="+10s">⏩</button>
+            <button onClick={next}       style={mBtn}     title="Next">⏭</button>
+          </div>
+        </div>
+
+        {/* Row 2: current time + seek bar + time remaining */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 11, color: '#64748b', flexShrink: 0, fontVariantNumeric: 'tabular-nums', minWidth: 30 }}>
+            {fmt(currentTime)}
+          </span>
+          <SeekBar currentTime={currentTime} duration={duration} seek={seek} />
+          <span style={{ fontSize: 11, color: '#64748b', flexShrink: 0, fontVariantNumeric: 'tabular-nums', minWidth: 38, textAlign: 'right' }}>
+            -{fmt(remaining)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Desktop layout: single row ────────────────────────────────────────────
   return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999,
-      background: 'linear-gradient(180deg, rgba(10,10,20,0.97) 0%, #0a0a14 100%)',
-      borderTop: '1px solid rgba(0,240,255,0.18)',
-      backdropFilter: 'blur(20px)',
-      padding: '10px 20px 12px',
-      display: 'flex', alignItems: 'center', gap: 16,
-      boxShadow: '0 -4px 40px rgba(0,240,255,0.08)',
-    }}>
+    <div style={{ ...barBase, padding: '10px 20px 14px', display: 'flex', alignItems: 'center', gap: 16 }}>
       {/* Thumb + info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: '0 0 200px', maxWidth: 200 }}>
         {currentSong.image_url
@@ -75,53 +164,47 @@ export default function NowPlayingBar() {
         </div>
       </div>
 
-      {/* Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <button onClick={prev} style={btnStyle} title="Previous">⏮</button>
+      {/* ⏮ ⏪ ⏸/▶ ⏩ ⏭ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <button onClick={prev}       style={dBtn}     title="Previous">⏮</button>
+        <button onClick={rewind}     style={dBtn}     title="−10 seconds">⏪</button>
         <button
           onClick={togglePlay}
           style={{
-            width: 40, height: 40, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            width: 44, height: 44, borderRadius: '50%', border: 'none', cursor: 'pointer',
             background: 'linear-gradient(135deg, #7c3aed, #00f0ff)',
-            color: '#fff', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 0 12px rgba(0,240,255,0.35)',
           }}
           title={isPlaying ? 'Pause' : 'Play'}
         >
           {isPlaying ? '⏸' : '▶'}
         </button>
-        <button onClick={next} style={btnStyle} title="Next">⏭</button>
+        <button onClick={forward}    style={dBtn}     title="+10 seconds">⏩</button>
+        <button onClick={next}       style={dBtn}     title="Next">⏭</button>
       </div>
 
-      {/* Progress */}
+      {/* Progress: current | seekbar | total */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-        <span style={{ fontSize: 11, color: '#64748b', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{fmt(currentTime)}</span>
-        <div style={{ flex: 1, position: 'relative', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            seek(((e.clientX - rect.left) / rect.width) * duration);
-          }}
-        >
-          <div style={{
-            position: 'absolute', left: 0, top: 0, height: '100%', borderRadius: 2,
-            background: 'linear-gradient(90deg, #7c3aed, #00f0ff)',
-            width: `${progress * 100}%`,
-            transition: 'width 0.1s linear',
-          }} />
-        </div>
-        <span style={{ fontSize: 11, color: '#64748b', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{fmt(duration)}</span>
+        <span style={{ fontSize: 11, color: '#64748b', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+          {fmt(currentTime)}
+        </span>
+        <SeekBar currentTime={currentTime} duration={duration} seek={seek} />
+        <span style={{ fontSize: 11, color: '#64748b', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+          {fmt(duration)}
+        </span>
       </div>
 
       {/* Shuffle / Repeat */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <button
           onClick={toggleShuffle}
-          style={{ ...btnStyle, color: shuffle ? '#00f0ff' : '#475569', fontSize: 16 }}
+          style={{ ...dBtn, color: shuffle ? '#00f0ff' : '#475569', fontSize: 16 }}
           title="Shuffle"
         >🔀</button>
         <button
           onClick={cycleRepeat}
-          style={{ ...btnStyle, color: repeat !== 'none' ? '#a855f7' : '#475569', fontSize: 16 }}
+          style={{ ...dBtn, color: repeat !== 'none' ? '#a855f7' : '#475569', fontSize: 16 }}
           title={repeat === 'none' ? 'Repeat off' : repeat === 'all' ? 'Repeat all' : 'Repeat one'}
         >
           {repeat === 'one' ? '🔂' : '🔁'}
@@ -131,9 +214,26 @@ export default function NowPlayingBar() {
   );
 }
 
-const btnStyle = {
+// Desktop button style
+const dBtn = {
   background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6,
-  color: '#94a3b8', fontSize: 18, cursor: 'pointer', width: 34, height: 34,
+  color: '#94a3b8', fontSize: 18, cursor: 'pointer', width: 36, height: 36,
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   transition: 'color 0.15s, border-color 0.15s',
+};
+
+// Mobile button style — 44px tap target
+const mBtn = {
+  background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6,
+  color: '#94a3b8', fontSize: 16, cursor: 'pointer', width: 44, height: 44,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: 'color 0.15s',
+};
+
+const mBtnPlay = {
+  width: 44, height: 44, borderRadius: '50%', border: 'none', cursor: 'pointer',
+  background: 'linear-gradient(135deg, #7c3aed, #00f0ff)',
+  color: '#fff', fontSize: 18,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  boxShadow: '0 0 10px rgba(0,240,255,0.35)',
 };

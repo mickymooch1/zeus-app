@@ -278,6 +278,22 @@ export function NowPlayingProvider({ children }) {
     setCurrentTime(time);
   }, [cancelCrossfade, getAudio]);
 
+  const rewind = useCallback(() => {
+    cancelCrossfade();
+    const a = getAudio();
+    const t = Math.max(0, a.currentTime - 10);
+    a.currentTime = t;
+    setCurrentTime(t);
+  }, [cancelCrossfade, getAudio]);
+
+  const forward = useCallback(() => {
+    cancelCrossfade();
+    const a = getAudio();
+    const t = Math.min(isFinite(a.duration) ? a.duration : 0, a.currentTime + 10);
+    a.currentTime = t;
+    setCurrentTime(t);
+  }, [cancelCrossfade, getAudio]);
+
   const toggleShuffle = useCallback(() => setShuffle(s => !s), []);
   const cycleRepeat   = useCallback(() =>
     setRepeat(r => r === 'none' ? 'all' : r === 'all' ? 'one' : 'none'),
@@ -291,7 +307,7 @@ export function NowPlayingProvider({ children }) {
       shuffle, repeat, currentTime, duration,
       crossfade, crossfadeDuration,
       play, playOne, pause, resume, togglePlay,
-      next, prev, seek, toggleShuffle, cycleRepeat,
+      next, prev, seek, rewind, forward, toggleShuffle, cycleRepeat,
       setCrossfade, setCrossfadeDuration,
     }}>
       {children}
