@@ -3,7 +3,7 @@ import { audioManager } from '../utils/audioManager';
 
 const NowPlayingContext = createContext(null);
 
-const PRELOAD_AHEAD = 10; // seconds before end — start buffering next song
+const PRELOAD_AHEAD = 20; // seconds before end — start buffering next song
 
 export function NowPlayingProvider({ children }) {
   const [queue, setQueue]           = useState([]);
@@ -144,7 +144,7 @@ export function NowPlayingProvider({ children }) {
 
     const primary      = getAudio();
     const fadeDuration = crossfadeDurationRef.current;
-    const step         = 1 / (fadeDuration * 10); // 100 ms interval → N second fade
+    const step         = 1 / (fadeDuration * 20); // 50 ms interval → N second fade
 
     console.log(
       '[Zeus CF] Crossfade starting — current time:', primary.currentTime.toFixed(2),
@@ -180,8 +180,8 @@ export function NowPlayingProvider({ children }) {
       nextAudio.volume = newNextVol;
       tick++;
 
-      // Log every second (every 10 ticks at 100 ms)
-      if (tick % 10 === 0) {
+      // Log every ~1 s (every 20 ticks at 50 ms)
+      if (tick % 20 === 0) {
         console.log(
           '[Zeus CF] Fade tick', tick,
           '— primary vol:', newPrimaryVol.toFixed(2),
@@ -224,7 +224,7 @@ export function NowPlayingProvider({ children }) {
           }
         }, 5000);
       }
-    }, 100);
+    }, 50);
   }, [getAudio]);
 
   useEffect(() => {

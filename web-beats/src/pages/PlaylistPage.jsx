@@ -275,7 +275,12 @@ function PlaybackSettings() {
           <div>
             <p style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>Fade duration</p>
             <div style={{ display: 'flex', gap: 8 }}>
-              {[3, 5, 8, 10].map(d => (
+              {[
+                { d: 5,  label: '⚡ 5s'  },
+                { d: 10, label: '🎚️ 10s' },
+                { d: 15, label: '🎵 15s' },
+                { d: 20, label: '🌊 20s' },
+              ].map(({ d, label }) => (
                 <button
                   key={d}
                   onClick={() => setCrossfadeDuration(d)}
@@ -285,11 +290,11 @@ function PlaybackSettings() {
                     border: `1px solid ${crossfadeDuration === d ? 'rgba(0,240,255,0.55)' : 'rgba(255,255,255,0.1)'}`,
                     borderRadius: 8, cursor: 'pointer',
                     color: crossfadeDuration === d ? '#00f0ff' : '#64748b',
-                    fontWeight: crossfadeDuration === d ? 700 : 400, fontSize: 13,
+                    fontWeight: crossfadeDuration === d ? 700 : 400, fontSize: 12,
                     transition: 'all 0.2s',
                   }}
                 >
-                  {d}s
+                  {label}
                 </button>
               ))}
             </div>
