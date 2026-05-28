@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "1deffc7e-e3ef-4b9f-995d-0b05a576fc17"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.zeusbeats.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
