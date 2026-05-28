@@ -820,6 +820,21 @@
   .lp .footer-links { justify-content: center; }
 }
 
+@media (max-width: 360px) {
+  .lp .container { padding: 0 16px; }
+  .lp .hero { padding: 90px 0 50px; }
+  .lp .hero-title { font-size: 1.8rem; }
+  .lp .hero-sub { font-size: 0.95rem; margin-bottom: 28px; }
+  .lp .hero-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+  .lp .btn-lg { padding: 14px 20px; justify-content: center; }
+  .lp .hero-badge { font-size: 0.7rem; padding: 4px 10px; }
+  /* Hide heavy decorative elements that consume space */
+  .lp .glow-1, .lp .glow-2, .lp .glow-3 { display: none; }
+  .lp .hero-corner { display: none; }
+  .lp .hero-mockup { display: none; }
+  .lp .hero-actions { margin-bottom: 0; }
+}
+
 /* ─── TELEGRAM ─── */
 .lp .footer-tg {
   display: inline-flex;

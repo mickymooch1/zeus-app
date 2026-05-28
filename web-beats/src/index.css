@@ -686,8 +686,12 @@ body {
   }
 }
 @media (max-width: 360px) {
+  body, html { overflow-x: hidden; max-width: 100vw; }
+  .dashboard-header { padding: 0 8px; gap: 4px; }
   .dashboard-header-right .nav-primary-link {
-    font-size: 13px;
-    padding: 6px 8px;
+    font-size: 11px;
+    padding: 4px 6px;
   }
+  /* Hide account icon at narrowest — billing reachable via hamburger */
+  .dashboard-email-icon { display: none !important; }
 }

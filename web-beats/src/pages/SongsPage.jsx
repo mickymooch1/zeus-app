@@ -152,6 +152,11 @@ const PAGE_CSS = `
 .topup-section { animation: pulse-glow 3s ease-in-out infinite; }
 .topup-btn:hover { background: linear-gradient(135deg, rgba(0,240,255,0.22) 0%, rgba(0,191,255,0.22) 100%) !important; box-shadow: 0 0 14px rgba(0,240,255,0.45) !important; transform: translateY(-1px) !important; }
 @media (max-width: 599px) { .topup-section .topup-btn { width: 100% !important; justify-content: center !important; } }
+@media (max-width: 360px) {
+  .genre-pill { padding: 4px 8px !important; font-size: 11px !important; }
+  .songs-content-wrap { padding: 12px 8px 80px !important; }
+  .songs-bar-wrap { padding: 8px !important; }
+}
 `;
 
 const S = {
