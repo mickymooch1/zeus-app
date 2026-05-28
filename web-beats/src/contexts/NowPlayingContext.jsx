@@ -3,6 +3,8 @@ import { audioManager } from '../utils/audioManager';
 
 const NowPlayingContext = createContext(null);
 
+const PRELOAD_AHEAD = 10; // seconds before end — start buffering next song
+
 export function NowPlayingProvider({ children }) {
   const [queue, setQueue]           = useState([]);
   const [queueIndex, setQueueIndex] = useState(-1);
@@ -19,30 +21,44 @@ export function NowPlayingProvider({ children }) {
     try { return Number(localStorage.getItem('zeus_crossfade_duration')) || 5; } catch { return 5; }
   });
 
-  const audioRef            = useRef(null);
-  const nextAudioRef        = useRef(null);   // scratch element used during crossfade
-  const crossfadeActiveRef  = useRef(false);  // true from fade-start until new src is playing
-  const fadeIntervalRef     = useRef(null);
-  const shuffleRef          = useRef(false);
-  const repeatRef           = useRef('none');
-  const queueRef            = useRef([]);
-  const indexRef            = useRef(-1);
-  const crossfadeRef        = useRef(crossfade);
+  const audioRef             = useRef(null);
+  const nextAudioRef         = useRef(null);  // active scratch element during fade
+  const preloadRef           = useRef(null);  // { audio: Audio, idx: number } — loaded 10s early
+  const crossfadeActiveRef   = useRef(false);
+  const fadeIntervalRef      = useRef(null);
+  const shuffleRef           = useRef(false);
+  const repeatRef            = useRef('none');
+  const queueRef             = useRef([]);
+  const indexRef             = useRef(-1);
+  const crossfadeRef         = useRef(crossfade);
   const crossfadeDurationRef = useRef(crossfadeDuration);
 
-  useEffect(() => { shuffleRef.current        = shuffle;          }, [shuffle]);
-  useEffect(() => { repeatRef.current         = repeat;           }, [repeat]);
-  useEffect(() => { queueRef.current          = queue;            }, [queue]);
-  useEffect(() => { indexRef.current          = queueIndex;       }, [queueIndex]);
-  useEffect(() => { crossfadeRef.current      = crossfade;        }, [crossfade]);
+  useEffect(() => { shuffleRef.current          = shuffle;          }, [shuffle]);
+  useEffect(() => { repeatRef.current           = repeat;           }, [repeat]);
+  useEffect(() => { queueRef.current            = queue;            }, [queue]);
+  useEffect(() => { indexRef.current            = queueIndex;       }, [queueIndex]);
+  useEffect(() => { crossfadeRef.current        = crossfade;        }, [crossfade]);
   useEffect(() => { crossfadeDurationRef.current = crossfadeDuration; }, [crossfadeDuration]);
 
+  // Log crossfade config on mount so we can verify localStorage is read correctly
+  useEffect(() => {
+    console.log(
+      '[Zeus CF] Init — crossfade:', crossfadeRef.current,
+      '| duration:', crossfadeDurationRef.current, 's',
+      '| localStorage zeus_crossfade:', localStorage.getItem('zeus_crossfade'),
+      '| zeus_crossfade_duration:', localStorage.getItem('zeus_crossfade_duration'),
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setCrossfade = useCallback((val) => {
+    console.log('[Zeus CF] Toggle crossfade →', val);
     setCrossfadeState(val);
     try { localStorage.setItem('zeus_crossfade', String(val)); } catch {}
   }, []);
 
   const setCrossfadeDuration = useCallback((val) => {
+    console.log('[Zeus CF] Set duration →', val, 's');
     setCrossfadeDurationState(val);
     try { localStorage.setItem('zeus_crossfade_duration', String(val)); } catch {}
   }, []);
@@ -52,7 +68,7 @@ export function NowPlayingProvider({ children }) {
     return audioRef.current;
   }, []);
 
-  // Cancel any in-progress crossfade and restore primary audio to full volume.
+  // Tear down any in-progress crossfade AND any pending preload.
   const cancelCrossfade = useCallback(() => {
     if (fadeIntervalRef.current) {
       clearInterval(fadeIntervalRef.current);
@@ -62,6 +78,10 @@ export function NowPlayingProvider({ children }) {
       nextAudioRef.current.pause();
       nextAudioRef.current.src = '';
       nextAudioRef.current = null;
+    }
+    if (preloadRef.current) {
+      preloadRef.current.audio.src = '';
+      preloadRef.current = null;
     }
     if (audioRef.current) audioRef.current.volume = 1;
     crossfadeActiveRef.current = false;
@@ -83,64 +103,101 @@ export function NowPlayingProvider({ children }) {
     setDuration(0);
   }, [getAudio, cancelCrossfade]);
 
-  // Begin a crossfade from the current song into the song at nextIdx.
-  // The primary audioRef element fades out while a scratch element (nextAudio) fades in.
-  // When the fade is complete, nextAudio's playback position is synced into the primary
-  // element so all existing event listeners remain attached.
+  // Start the volume fade. Reuses preloadRef.current if it matches nextIdx so the
+  // audio has already been buffering for up to PRELOAD_AHEAD seconds.
   const startCrossfade = useCallback((nextIdx) => {
     if (crossfadeActiveRef.current) return;
+
     const q        = queueRef.current;
     const nextSong = q[nextIdx];
-    if (!nextSong?.mp3_url) return;
+    if (!nextSong?.mp3_url) {
+      console.warn('[Zeus CF] startCrossfade: no mp3_url for nextIdx', nextIdx);
+      return;
+    }
 
     crossfadeActiveRef.current = true;
-    audioManager.stopWaveSurfer(); // ensure no WaveSurfer is competing
+    audioManager.stopWaveSurfer();
 
     const primary      = getAudio();
     const fadeDuration = crossfadeDurationRef.current;
-    const step         = 1 / (fadeDuration * 10); // 100 ms tick → N seconds total
+    const step         = 1 / (fadeDuration * 10); // 100 ms interval → N second fade
 
-    const nextAudio = new Audio();
-    nextAudio.src    = nextSong.mp3_url;
+    console.log(
+      '[Zeus CF] Crossfade starting — current time:', primary.currentTime.toFixed(2),
+      '| duration:', isFinite(primary.duration) ? primary.duration.toFixed(2) : 'NaN',
+      '| step:', step.toFixed(4), '| fadeDuration:', fadeDuration, 's',
+    );
+    console.log('[Zeus CF] Loading next song:', nextSong.title, '(idx', nextIdx + ')');
+
+    // Use pre-buffered element if available, otherwise create a cold one
+    let nextAudio;
+    if (preloadRef.current?.idx === nextIdx && preloadRef.current?.audio) {
+      nextAudio = preloadRef.current.audio;
+      console.log('[Zeus CF] Using preloaded audio element — readyState:', nextAudio.readyState);
+      preloadRef.current = null;
+    } else {
+      console.warn('[Zeus CF] No preloaded element — creating cold Audio (may buffer during fade)');
+      nextAudio = new Audio();
+      nextAudio.src = nextSong.mp3_url;
+      nextAudio.preload = 'auto';
+    }
+
     nextAudio.volume = 0;
     nextAudioRef.current = nextAudio;
-    nextAudio.play().catch(() => {});
 
+    console.log('[Zeus CF] Fading out current, fading in next');
+    nextAudio.play().catch(err => console.warn('[Zeus CF] nextAudio.play() rejected:', err));
+
+    let tick = 0;
     fadeIntervalRef.current = setInterval(() => {
       const newPrimaryVol = Math.max(0, primary.volume - step);
       const newNextVol    = Math.min(1, nextAudio.volume + step);
       primary.volume   = newPrimaryVol;
       nextAudio.volume = newNextVol;
+      tick++;
+
+      // Log every second (every 10 ticks at 100 ms)
+      if (tick % 10 === 0) {
+        console.log(
+          '[Zeus CF] Fade tick', tick,
+          '— primary vol:', newPrimaryVol.toFixed(2),
+          '| next vol:', newNextVol.toFixed(2),
+          '| next readyState:', nextAudio.readyState,
+        );
+      }
 
       if (newPrimaryVol <= 0) {
         clearInterval(fadeIntervalRef.current);
         fadeIntervalRef.current = null;
+        console.log('[Zeus CF] Fade complete — handing off to primary element');
 
-        // Capture playback position reached by the scratch element
         const savedTime = nextAudio.currentTime;
-
-        // Tear down scratch element
         nextAudio.pause();
         nextAudio.src = '';
         nextAudioRef.current = null;
 
-        // Hand off to primary element (event listeners stay intact)
         setQueueIndex(nextIdx);
         indexRef.current = nextIdx;
         setDuration(0);
         primary.volume = 1;
         primary.src    = nextSong.mp3_url;
 
-        // Seek to where the scratch element was, then play
         const doSeek = () => {
+          console.log('[Zeus CF] canplay fired — seeking primary to', savedTime.toFixed(2));
           if (savedTime > 0.1) primary.currentTime = savedTime;
-          primary.play().catch(() => {});
+          primary.play().catch(err => console.warn('[Zeus CF] primary.play() after fade rejected:', err));
           audioManager.updateVariantId(nextSong.variant_id);
           crossfadeActiveRef.current = false;
         };
         primary.addEventListener('canplay', doSeek, { once: true });
-        // Safety: clear the flag even if canplay never fires (e.g. network error)
-        setTimeout(() => { crossfadeActiveRef.current = false; }, 5000);
+
+        // Safety: release the lock if canplay never fires (network failure etc.)
+        setTimeout(() => {
+          if (crossfadeActiveRef.current) {
+            console.warn('[Zeus CF] Safety timeout: canplay never fired — releasing lock');
+            crossfadeActiveRef.current = false;
+          }
+        }, 5000);
       }
     }, 100);
   }, [getAudio]);
@@ -152,29 +209,72 @@ export function NowPlayingProvider({ children }) {
       const ct = audio.currentTime;
       setCurrentTime(ct);
 
-      // Trigger crossfade when the song has N seconds remaining
-      if (crossfadeRef.current && !crossfadeActiveRef.current) {
-        const dur = audio.duration;
-        if (isFinite(dur) && dur > 0) {
-          const timeLeft = dur - ct;
-          const fadeSecs = crossfadeDurationRef.current;
-          if (timeLeft <= fadeSecs && timeLeft > 0) {
-            const q   = queueRef.current;
-            const idx = indexRef.current;
-            if (repeatRef.current === 'one') return; // repeat-one: no crossfade
-            let nextIdx;
-            if (shuffleRef.current) {
-              nextIdx = Math.floor(Math.random() * q.length);
-            } else {
-              nextIdx = idx + 1;
-            }
-            if (nextIdx < q.length) {
-              startCrossfade(nextIdx);
-            } else if (repeatRef.current === 'all' && q.length > 1) {
-              startCrossfade(0);
-            }
-          }
+      if (!crossfadeRef.current || crossfadeActiveRef.current) return;
+
+      const dur = audio.duration;
+      if (!isFinite(dur) || dur <= 0) return;
+
+      const timeLeft = dur - ct;
+      const fadeSecs = crossfadeDurationRef.current;
+
+      // Clear stale preload if user seeked away from the danger zone
+      if (timeLeft > PRELOAD_AHEAD && preloadRef.current) {
+        console.log('[Zeus CF] Seek cleared preload');
+        preloadRef.current.audio.src = '';
+        preloadRef.current = null;
+      }
+
+      if (timeLeft > PRELOAD_AHEAD) return;
+
+      const q   = queueRef.current;
+      const idx = indexRef.current;
+      if (repeatRef.current === 'one') return;
+
+      // Determine next index. For shuffle we lock it in at preload time so we don't
+      // pick a new random target every 250 ms in the danger zone.
+      let nextIdx;
+      if (preloadRef.current) {
+        nextIdx = preloadRef.current.idx; // already locked
+      } else if (shuffleRef.current) {
+        nextIdx = Math.floor(Math.random() * q.length);
+      } else {
+        nextIdx = idx + 1;
+      }
+
+      if (nextIdx >= q.length) {
+        if (repeatRef.current === 'all' && q.length > 1) {
+          nextIdx = 0;
+        } else {
+          return; // no next song
         }
+      }
+
+      const nextSong = q[nextIdx];
+      if (!nextSong?.mp3_url) return;
+
+      // Preload phase — buffer the next song silently
+      if (!preloadRef.current) {
+        console.log(
+          '[Zeus CF] Preloading next song:', nextSong.title,
+          '— timeLeft:', timeLeft.toFixed(2), 's',
+          '| crossfade triggers at:', fadeSecs, 's',
+        );
+        const preload = new Audio();
+        preload.src     = nextSong.mp3_url;
+        preload.preload = 'auto';
+        preload.volume  = 0;
+        preload.load();
+        preloadRef.current = { audio: preload, idx: nextIdx };
+      }
+
+      // Crossfade phase
+      if (timeLeft <= fadeSecs) {
+        console.log(
+          '[Zeus CF] Triggering crossfade — timeLeft:', timeLeft.toFixed(2), 's',
+          '| enabled:', crossfadeRef.current,
+          '| nextIdx:', nextIdx,
+        );
+        startCrossfade(nextIdx);
       }
     };
 
@@ -206,13 +306,13 @@ export function NowPlayingProvider({ children }) {
       }
     };
 
-    audio.addEventListener('timeupdate',    onTime);
+    audio.addEventListener('timeupdate',     onTime);
     audio.addEventListener('loadedmetadata', onMeta);
     audio.addEventListener('play',           onPlay);
     audio.addEventListener('pause',          onPause);
     audio.addEventListener('ended',          onEnded);
     return () => {
-      audio.removeEventListener('timeupdate',    onTime);
+      audio.removeEventListener('timeupdate',     onTime);
       audio.removeEventListener('loadedmetadata', onMeta);
       audio.removeEventListener('play',           onPlay);
       audio.removeEventListener('pause',          onPause);
