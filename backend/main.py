@@ -1806,6 +1806,11 @@ async def songs_generate(
             "West Coast G-Funk":    "strong unmistakable Compton California accent, thick laid-back West Coast drawl, smooth G-funk delivery, pronounce words with heavy Southern California gangsta inflection, Westside energy, distinctly West Coast G-Funk delivery that cuts through any genre",
             "British Street Soul":  "strong unmistakable British street soul accent, thick inner-city London R&B brogue, warm urban vowels, pronounce words with heavy UK street soul inflection, distinctly British urban soul delivery that cuts through any genre",
             "Jamaican Dancehall":   "strong unmistakable Jamaican dancehall ragga brogue, thick rapid-fire patois delivery, aggressive bashment energy, pronounce words with heavy dancehall MC inflection, digital riddim flow, distinctly Jamaican dancehall delivery that cuts through any genre",
+            "Scouse":               "Liverpool Scouse accent, Beatles city vocal style, Merseyside pronunciation, [Liverpool accent] male vocalist from Liverpool England, nasal Scouse vowels, distinctly Northern English Liverpool delivery",
+            "Welsh":                "[Welsh accent] vocalist from Cardiff Wales, melodic Welsh sing-song delivery, Tom Jones Welsh vocal style",
+            "Geordie":              "[Geordie accent] vocalist from Newcastle England, Tyneside pronunciation, North East England delivery",
+            "Brummie":              "[Birmingham accent] vocalist from Birmingham England, West Midlands Brummie delivery",
+            "Manc":                 "[Manchester accent] vocalist from Manchester England, Mancunian delivery, Oasis city vocal style",
         }
         # Kids language accents (french/spanish/etc.) — Suno sings in that language
         # Regular mode and kids non-language accents both use _ACCENT_DESCRIPTORS unchanged
