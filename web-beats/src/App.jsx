@@ -5,7 +5,7 @@ import { NowPlayingProvider } from './contexts/NowPlayingContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import CookieBanner from './components/CookieBanner';
 import NowPlayingBar from './components/NowPlayingBar';
-import LandingPage from './pages/LandingPage';
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 import './index.css';
 
 const LoginPage          = lazy(() => import('./pages/LoginPage'));
@@ -32,8 +32,9 @@ const TutorialPage       = lazy(() => import('./pages/TutorialPage'));
 const DownloadPage       = lazy(() => import('./pages/DownloadPage'));
 
 const fallback = (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0b0b14', color: '#94a3b8', fontSize: '1rem' }}>
-    Loading…
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0b0b14', gap: 16 }}>
+    <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '1.4rem', fontWeight: 900, background: 'linear-gradient(135deg,#7c3aed,#00f0ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>⚡ Zeus Beats</div>
+    <div style={{ width: 36, height: 36, border: '3px solid rgba(0,240,255,0.2)', borderTopColor: '#00f0ff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
   </div>
 );
 

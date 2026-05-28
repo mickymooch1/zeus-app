@@ -4277,18 +4277,31 @@ async def serve_file(
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+
+class _LongCacheStaticFiles(StaticFiles):
+    """StaticFiles that adds immutable Cache-Control headers for hashed assets."""
+    async def __call__(self, scope, receive, send):
+        async def send_with_cache(message):
+            if message["type"] == "http.response.start":
+                headers = dict(message.get("headers", []))
+                headers[b"cache-control"] = b"public, max-age=31536000, immutable"
+                message = {**message, "headers": list(headers.items())}
+            await send(message)
+        await super().__call__(scope, receive, send_with_cache)
+
+
 _dist       = pathlib.Path(__file__).parent.parent / "web" / "dist"
 _beats_dist = pathlib.Path(__file__).parent.parent / "web-beats-dist"
 
 if _dist.exists():
     _assets_dir = _dist / "assets"
     if _assets_dir.exists():
-        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
+        app.mount("/assets", _LongCacheStaticFiles(directory=str(_assets_dir)), name="assets")
 
 if _beats_dist.exists():
     _beats_assets_dir = _beats_dist / "assets-beats"
     if _beats_assets_dir.exists():
-        app.mount("/assets-beats", StaticFiles(directory=str(_beats_assets_dir)), name="assets-beats")
+        app.mount("/assets-beats", _LongCacheStaticFiles(directory=str(_beats_assets_dir)), name="assets-beats")
 
     _well_known_dir = _beats_dist / ".well-known"
     if _well_known_dir.exists():
