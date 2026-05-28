@@ -50,4 +50,5 @@ GENRE_PRESETS = {
     "reggaeton":       "reggaeton, dembow rhythm, 95 BPM, urban Latin beat, heavy 808 bass, perreo energy, Spanish lyrics, reggaeton flow, Caribbean Latin fusion, infectious Latin urban energy, perreo production style, trap infused Latin production",
     "latintrap":       "Latin trap, dark 808 bass, trap hi-hats, Spanish rap flow, 140 BPM, moody atmospheric production, Latin street sound, melodic Spanish vocals, dark trap beats, dark melodic Spanish rap, moody urban Latin production, urban Latin darkness",
     "rootsreggae":    "roots reggae, heavy one drop drum pattern, deep rolling bass, classic reggae offbeat rhythm guitar upstroke, 75 BPM, conscious spiritual lyrics, vintage Studio One sound, warm analogue production, Jamaican roots sound, soulful reggae vocals, organic live band feel",
+    "countryamericana": "country Americana, outlaw country storytelling, acoustic guitar and banjo, hip-hop rhythms underneath, working class narratives, heartfelt vocals, 95 BPM, Southern US production, trap influenced country beat, soulful Americana feel, genre blending country and urban, raw authentic delivery",
 }
