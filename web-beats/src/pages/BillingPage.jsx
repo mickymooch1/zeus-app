@@ -5,6 +5,22 @@ import { BeatsNavbar } from '../components/BeatsNavbar';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 
+const APP_LANGUAGES = [
+  { code: 'en', label: 'English',    flag: '🇬🇧' },
+  { code: 'fr', label: 'Français',   flag: '🇫🇷' },
+  { code: 'es', label: 'Español',    flag: '🇪🇸' },
+  { code: 'de', label: 'Deutsch',    flag: '🇩🇪' },
+  { code: 'pt', label: 'Português',  flag: '🇧🇷' },
+  { code: 'it', label: 'Italiano',   flag: '🇮🇹' },
+  { code: 'nl', label: 'Nederlands', flag: '🇳🇱' },
+  { code: 'ru', label: 'Русский',    flag: '🇷🇺' },
+  { code: 'ja', label: '日本語',      flag: '🇯🇵' },
+  { code: 'ko', label: '한국어',      flag: '🇰🇷' },
+  { code: 'zh', label: '中文',        flag: '🇨🇳' },
+  { code: 'ar', label: 'العربية',    flag: '🇦🇪' },
+  { code: 'th', label: 'ภาษาไทย',    flag: '🇹🇭' },
+];
+
 function UsageBar({ used, limit }) {
   const { t } = useTranslation();
   if (limit === null || limit === undefined) {
@@ -34,7 +50,7 @@ function UsageBar({ used, limit }) {
 
 export default function BillingPage() {
   const { user, token } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const [status, setStatus]           = useState(null);
   const [credits, setCredits]         = useState(null);
@@ -620,6 +636,47 @@ export default function BillingPage() {
               {anLoading ? t('billing.saving') : t('billing.saveArtistName')}
             </button>
           </form>
+        </div>
+
+        {/* App Language */}
+        <div className="billing-card" style={{ marginTop: '2rem' }}>
+          <h2 className="billing-card-title">🌐 App Language</h2>
+          <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '1rem' }}>
+            Choose the language for the Zeus Beats interface.
+          </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))',
+            gap: 8,
+          }}>
+            {APP_LANGUAGES.map((lang) => {
+              const isSelected = (i18n.language || 'en').slice(0, 2) === lang.code;
+              return (
+                <button
+                  key={lang.code}
+                  onClick={() => i18n.changeLanguage(lang.code)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '10px 6px',
+                    borderRadius: 10,
+                    border: `2px solid ${isSelected ? '#00f0ff' : 'rgba(255,255,255,0.1)'}`,
+                    background: isSelected ? 'rgba(0,240,255,0.12)' : 'rgba(255,255,255,0.03)',
+                    color: isSelected ? '#e2e8f0' : '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: 22,
+                    transition: 'all 0.15s ease',
+                    boxShadow: isSelected ? '0 0 10px rgba(0,240,255,0.3)' : 'none',
+                  }}
+                >
+                  <span>{lang.flag}</span>
+                  <span style={{ fontSize: 10, lineHeight: 1.2 }}>{lang.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Change Password */}

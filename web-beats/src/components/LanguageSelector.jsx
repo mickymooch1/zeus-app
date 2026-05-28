@@ -7,6 +7,14 @@ const LANGUAGES = [
   { code: 'es', label: 'Español',    flag: '🇪🇸' },
   { code: 'de', label: 'Deutsch',    flag: '🇩🇪' },
   { code: 'pt', label: 'Português',  flag: '🇧🇷' },
+  { code: 'it', label: 'Italiano',   flag: '🇮🇹' },
+  { code: 'nl', label: 'Nederlands', flag: '🇳🇱' },
+  { code: 'ru', label: 'Русский',    flag: '🇷🇺' },
+  { code: 'ja', label: '日本語',      flag: '🇯🇵' },
+  { code: 'ko', label: '한국어',      flag: '🇰🇷' },
+  { code: 'zh', label: '中文',        flag: '🇨🇳' },
+  { code: 'ar', label: 'العربية',    flag: '🇦🇪' },
+  { code: 'th', label: 'ภาษาไทย',    flag: '🇹🇭' },
 ];
 
 export function LanguageSelector() {

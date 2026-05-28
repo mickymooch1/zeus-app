@@ -701,3 +701,31 @@ body {
     max-width: calc(100vw - 16px);
   }
 }
+
+/* Kids mode language flag buttons */
+.kids-accent-btn {
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.4);
+  color: #ffffff;
+  font-size: 24px;
+  padding: 12px 6px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  line-height: 1;
+}
+.kids-accent-btn:hover {
+  background: rgba(0,240,255,0.2);
+  border-color: #00f0ff;
+  transform: scale(1.1);
+}
+.kids-accent-btn.selected {
+  background: rgba(0,240,255,0.3);
+  border-color: #00f0ff;
+  box-shadow: 0 0 15px rgba(0,240,255,0.5);
+  transform: scale(1.05);
+}

@@ -2798,9 +2798,9 @@ export default function SongsPage() {
                 {/* Voice / Accent */}
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🎤 Voice & Accent</p>
                 <select
-                  value={kidsAccent}
+                  value={['french', 'spanish', 'german', 'italian', 'portuguese', 'russian', 'polish', 'dutch', 'swedish', 'norwegian', 'danish', 'greek', 'romanian', 'ukrainian', 'hungarian', 'czech', 'turkish', 'thai', 'japanese', 'mandarin', 'hindi', 'tagalog', 'indonesian', 'vietnamese', 'arabic', 'korean', 'swahili', 'yoruba', 'amharic', 'zulu', 'haitian', 'brazilian'].includes(kidsAccent) ? '' : kidsAccent}
                   onChange={(e) => setKidsAccent(e.target.value)}
-                  style={{ width: '100%', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: 8, padding: '8px 12px', color: kidsAccent ? '#fbbf24' : 'rgba(251,191,36,0.5)', fontSize: 13, outline: 'none', marginBottom: 10 }}
+                  style={{ width: '100%', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: 8, padding: '8px 12px', color: (kidsAccent && !['french','spanish','german','italian','portuguese','russian','polish','dutch','swedish','norwegian','danish','greek','romanian','ukrainian','hungarian','czech','turkish','thai','japanese','mandarin','hindi','tagalog','indonesian','vietnamese','arabic','korean','swahili','yoruba','amharic','zulu','haitian','brazilian'].includes(kidsAccent)) ? '#fbbf24' : 'rgba(251,191,36,0.5)', fontSize: 13, outline: 'none', marginBottom: 10 }}
                 >
                   <option value="">🌟 Default (auto)</option>
                   {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish','American Soul','Jamaican','D&B MC','UK Rave MC','British MC Grime','Jazz Vocal','American Hip-Hop','K-Pop','West African','South African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta','West Coast G-Funk','British Street Soul'].map((a) => (
@@ -2820,47 +2820,55 @@ export default function SongsPage() {
                   ].map(([label, value]) => (
                     <option key={label} value={value}>{label}</option>
                   ))}
-                  <optgroup label="🇪🇺 European Languages">
-                    <option value="french">🇫🇷 French</option>
-                    <option value="spanish">🇪🇸 Spanish</option>
-                    <option value="portuguese">🇵🇹 Portuguese</option>
-                    <option value="dutch">🇳🇱 Dutch</option>
-                    <option value="german">🇩🇪 German</option>
-                    <option value="italian">🇮🇹 Italian</option>
-                    <option value="russian">🇷🇺 Russian</option>
-                    <option value="polish">🇵🇱 Polish</option>
-                    <option value="swedish">🇸🇪 Swedish</option>
-                    <option value="norwegian">🇳🇴 Norwegian</option>
-                    <option value="danish">🇩🇰 Danish</option>
-                    <option value="greek">🇬🇷 Greek</option>
-                    <option value="romanian">🇷🇴 Romanian</option>
-                    <option value="ukrainian">🇺🇦 Ukrainian</option>
-                    <option value="hungarian">🇭🇺 Hungarian</option>
-                    <option value="czech">🇨🇿 Czech</option>
-                  </optgroup>
-                  <optgroup label="🌏 Asian Languages">
-                    <option value="korean">🇰🇷 Korean</option>
-                    <option value="japanese">🇯🇵 Japanese</option>
-                    <option value="mandarin">🇨🇳 Mandarin Chinese</option>
-                    <option value="hindi">🇮🇳 Hindi</option>
-                    <option value="thai">🇹🇭 Thai</option>
-                    <option value="tagalog">🇵🇭 Tagalog (Filipino)</option>
-                    <option value="indonesian">🇮🇩 Indonesian</option>
-                    <option value="vietnamese">🇻🇳 Vietnamese</option>
-                    <option value="arabic">🇦🇪 Arabic</option>
-                    <option value="turkish">🇹🇷 Turkish</option>
-                  </optgroup>
-                  <optgroup label="🌍 African & Caribbean Languages">
-                    <option value="swahili">🇰🇪 Swahili</option>
-                    <option value="yoruba">🇳🇬 Yoruba</option>
-                    <option value="amharic">🇪🇹 Amharic</option>
-                    <option value="zulu">🇿🇦 Zulu</option>
-                    <option value="haitian">🇭🇹 Haitian Creole</option>
-                  </optgroup>
-                  <optgroup label="🌎 Americas Languages">
-                    <option value="brazilian">🇧🇷 Brazilian Portuguese</option>
-                  </optgroup>
                 </select>
+
+                {/* Language Buttons */}
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🌍 Song Language</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 6, marginBottom: 10 }}>
+                  {[
+                    ['french',     '🇫🇷', 'French'],
+                    ['spanish',    '🇪🇸', 'Spanish'],
+                    ['portuguese', '🇵🇹', 'Portuguese'],
+                    ['dutch',      '🇳🇱', 'Dutch'],
+                    ['german',     '🇩🇪', 'German'],
+                    ['italian',    '🇮🇹', 'Italian'],
+                    ['russian',    '🇷🇺', 'Russian'],
+                    ['polish',     '🇵🇱', 'Polish'],
+                    ['swedish',    '🇸🇪', 'Swedish'],
+                    ['norwegian',  '🇳🇴', 'Norwegian'],
+                    ['danish',     '🇩🇰', 'Danish'],
+                    ['greek',      '🇬🇷', 'Greek'],
+                    ['romanian',   '🇷🇴', 'Romanian'],
+                    ['ukrainian',  '🇺🇦', 'Ukrainian'],
+                    ['hungarian',  '🇭🇺', 'Hungarian'],
+                    ['czech',      '🇨🇿', 'Czech'],
+                    ['korean',     '🇰🇷', 'Korean'],
+                    ['japanese',   '🇯🇵', 'Japanese'],
+                    ['mandarin',   '🇨🇳', 'Chinese'],
+                    ['hindi',      '🇮🇳', 'Hindi'],
+                    ['thai',       '🇹🇭', 'Thai'],
+                    ['tagalog',    '🇵🇭', 'Filipino'],
+                    ['indonesian', '🇮🇩', 'Indonesian'],
+                    ['vietnamese', '🇻🇳', 'Vietnamese'],
+                    ['arabic',     '🇦🇪', 'Arabic'],
+                    ['turkish',    '🇹🇷', 'Turkish'],
+                    ['swahili',    '🇰🇪', 'Swahili'],
+                    ['yoruba',     '🇳🇬', 'Yoruba'],
+                    ['amharic',    '🇪🇹', 'Amharic'],
+                    ['zulu',       '🇿🇦', 'Zulu'],
+                    ['haitian',    '🇭🇹', 'Haitian'],
+                    ['brazilian',  '🇧🇷', 'Brazilian'],
+                  ].map(([val, flag, label]) => (
+                    <button
+                      key={val}
+                      className={`kids-accent-btn${kidsAccent === val ? ' selected' : ''}`}
+                      onClick={() => setKidsAccent(kidsAccent === val ? '' : val)}
+                    >
+                      {flag}
+                      <span style={{ fontSize: '10px', display: 'block' }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
                 {kidsAccent && ['french', 'spanish', 'german', 'italian', 'portuguese', 'russian', 'polish', 'dutch', 'swedish', 'norwegian', 'danish', 'greek', 'romanian', 'ukrainian', 'hungarian', 'czech', 'turkish', 'thai', 'japanese', 'mandarin', 'hindi', 'tagalog', 'indonesian', 'vietnamese', 'arabic', 'korean', 'swahili', 'yoruba', 'amharic', 'zulu', 'haitian', 'brazilian'].includes(kidsAccent) && (
                   <p style={{ fontSize: 11, color: '#fbbf24', marginBottom: 10, padding: '8px 12px', background: 'rgba(251,191,36,0.08)', borderRadius: 8, lineHeight: 1.5 }}>
                     ✨ Lyrics will be written entirely in {kidsAccent.charAt(0).toUpperCase() + kidsAccent.slice(1)} — great for young language learners!

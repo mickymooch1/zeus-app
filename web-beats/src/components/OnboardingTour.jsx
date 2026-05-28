@@ -1,7 +1,29 @@
 import { useState } from 'react';
+import i18n from '../i18n';
 
 const CYAN = '#00f0ff';
 const PINK = '#f472b6';
+
+const ONBOARDING_LANGUAGES = [
+  { code: 'en', label: 'English',    flag: '🇬🇧' },
+  { code: 'fr', label: 'Français',   flag: '🇫🇷' },
+  { code: 'es', label: 'Español',    flag: '🇪🇸' },
+  { code: 'de', label: 'Deutsch',    flag: '🇩🇪' },
+  { code: 'pt', label: 'Português',  flag: '🇧🇷' },
+  { code: 'it', label: 'Italiano',   flag: '🇮🇹' },
+  { code: 'nl', label: 'Nederlands', flag: '🇳🇱' },
+  { code: 'ru', label: 'Русский',    flag: '🇷🇺' },
+  { code: 'ja', label: '日本語',      flag: '🇯🇵' },
+  { code: 'ko', label: '한국어',      flag: '🇰🇷' },
+  { code: 'zh', label: '中文',        flag: '🇨🇳' },
+  { code: 'ar', label: 'العربية',    flag: '🇦🇪' },
+  { code: 'th', label: 'ภาษาไทย',    flag: '🇹🇭' },
+];
+
+function detectLang() {
+  const nav = (navigator.language || navigator.userLanguage || 'en').slice(0, 2).toLowerCase();
+  return ONBOARDING_LANGUAGES.find(l => l.code === nav) || ONBOARDING_LANGUAGES[0];
+}
 
 const GENRE_CHOICES = [
   { key: 'soul_rnb',    label: '🎤 Soul / R&B',          genres: ['soul', 'rnb', 'bluessoul'] },
@@ -54,7 +76,8 @@ const STEPS = [
 ];
 
 export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) {
-  const [phase, setPhase] = useState('genre_q');
+  const [phase, setPhase] = useState('lang_pick');
+  const [selectedLang, setSelectedLang] = useState(detectLang);
   const [genrePref, setGenrePref] = useState(null);
   const [step, setStep] = useState(0);
   const [fade, setFade] = useState(true);
@@ -95,6 +118,72 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
     padding: 20,
     backdropFilter: 'blur(4px)',
   };
+
+  if (phase === 'lang_pick') {
+    return (
+      <div style={overlayStyle} onClick={() => dismiss('skip')}>
+        <div style={{ ...cardStyle, maxWidth: 480, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+          <div style={{ fontSize: 42, marginBottom: 12 }}>🌐</div>
+          <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 19, fontWeight: 800, color: '#fff', marginBottom: 8 }}>
+            Choose your language
+          </h2>
+          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, marginBottom: 24 }}>
+            Select the language for the Zeus Beats app
+          </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+            gap: 10,
+            marginBottom: 24,
+          }}>
+            {ONBOARDING_LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => setSelectedLang(lang)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '10px 8px',
+                  borderRadius: 10,
+                  border: `2px solid ${selectedLang.code === lang.code ? CYAN : 'rgba(255,255,255,0.15)'}`,
+                  background: selectedLang.code === lang.code ? `${CYAN}18` : 'rgba(255,255,255,0.04)',
+                  color: selectedLang.code === lang.code ? '#fff' : 'rgba(255,255,255,0.65)',
+                  cursor: 'pointer',
+                  fontSize: 22,
+                  transition: 'all 0.15s ease',
+                  boxShadow: selectedLang.code === lang.code ? `0 0 12px ${CYAN}44` : 'none',
+                }}
+              >
+                <span>{lang.flag}</span>
+                <span style={{ fontSize: 10, lineHeight: 1.2 }}>{lang.label}</span>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => {
+              i18n.changeLanguage(selectedLang.code);
+              transition(() => setPhase('genre_q'));
+            }}
+            style={{
+              width: '100%', padding: '14px 0', borderRadius: 12,
+              background: `linear-gradient(90deg, ${CYAN}, ${PINK})`,
+              color: '#000', fontWeight: 800, fontSize: 15, border: 'none', cursor: 'pointer',
+              fontFamily: "'Orbitron', sans-serif",
+              boxShadow: `0 0 24px ${CYAN}44`,
+              marginBottom: 12,
+            }}
+          >
+            Continue →
+          </button>
+          <button onClick={() => dismiss('skip')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.28)', fontSize: 13, cursor: 'pointer' }}>
+            Skip introduction
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (phase === 'genre_q') {
     return (
