@@ -136,6 +136,7 @@ export default function LandingPage() {
               <div className="feat-card"><span className="feat-icon">🎛️</span><h3>DJ Mixer</h3><p>Mix your songs together and record your set — a built-in DJ deck for blending your AI tracks.</p></div>
               <div className="feat-card"><span className="feat-icon">🎤</span><h3>Voice to Text</h3><p>Describe your song by speaking, not typing. Hit the mic and Zeus transcribes your idea instantly.</p></div>
               <div className="feat-card"><span className="feat-icon">📋</span><h3>Song Templates</h3><p>One-click starters: Club Banger, Emotional R&amp;B, Grime Bars and more — skip the blank page.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎚️</span><h3>Stem Separator</h3><p>Split any song into vocals, drums, bass and instrumental separately. Download each track individually.</p></div>
             </div>
           </div>
 
@@ -373,13 +374,13 @@ export default function LandingPage() {
               ))}
             </div>
 
-            {/* Animation top-ups */}
+            {/* Premium Credits top-ups */}
             <div style={{ marginTop: 32, textAlign: 'center' }}>
-              <p style={{ fontSize: 12, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>Animation Top-ups</p>
+              <p style={{ fontSize: 12, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>Premium Credits Top-ups</p>
               <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
                 {[
-                  { label: '5 Animations', price: '£2' },
-                  { label: '15 Animations', price: '£5' },
+                  { label: '5 credits', price: '£2' },
+                  { label: '15 credits', price: '£5' },
                 ].map(({ label, price }) => (
                   <Link
                     key={label}
@@ -404,7 +405,7 @@ export default function LandingPage() {
                   </Link>
                 ))}
               </div>
-              <p style={{ fontSize: 12, color: '#555', marginTop: 10 }}>Credits never expire · No subscription needed</p>
+              <p style={{ fontSize: 12, color: '#555', marginTop: 10 }}>Use for animated cover art or stem separation · Credits never expire</p>
             </div>
           </div>
 
@@ -452,6 +453,7 @@ export default function LandingPage() {
                 <li>✓ All 38+ genres</li>
                 <li>✓ Static cover art</li>
                 <li>✓ Discover feed access</li>
+                <li>❌ No stems</li>
               </ul>
               <Link to="/register" className="btn-plan-ghost">Get Started Free</Link>
             </div>
@@ -465,7 +467,7 @@ export default function LandingPage() {
               <p className="plan-desc">For artists getting started with AI music creation.</p>
               <ul className="plan-features">
                 <li>✓ 25 songs/month</li>
-                <li>✓ 3 animated cover arts/month</li>
+                <li>✓ 3 premium credits (animations OR stems)</li>
                 <li>✓ YouTube upload</li>
                 <li>✓ All 38+ genres</li>
                 <li>✓ All 27+ accents</li>
@@ -482,7 +484,7 @@ export default function LandingPage() {
               <p className="plan-desc">For active creators who want avatar videos.</p>
               <ul className="plan-features">
                 <li>✓ 55 songs/month</li>
-                <li>✓ 10 animated cover arts/month</li>
+                <li>✓ 10 premium credits (animations OR stems)</li>
                 <li>✓ 3 avatar videos/month</li>
                 <li>✓ YouTube upload</li>
                 <li>✓ Genre blending</li>
@@ -500,7 +502,7 @@ export default function LandingPage() {
               <p className="plan-desc">For prolific creators and label teams.</p>
               <ul className="plan-features">
                 <li>✓ 110 songs/month</li>
-                <li>✓ 20 animated cover arts/month</li>
+                <li>✓ 20 premium credits (animations OR stems)</li>
                 <li>✓ 10 avatar videos/month</li>
                 <li>✓ YouTube upload</li>
                 <li>✓ Genre blending</li>
@@ -509,6 +511,42 @@ export default function LandingPage() {
               </ul>
               <Link to="/register" className="btn-plan-ghost">Get Music Agency</Link>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="section-divider" />
+
+      {/* PREMIUM CREDITS EXPLAINER */}
+      <section style={{ padding: '72px 24px', background: 'linear-gradient(180deg, #000 0%, #05050f 100%)' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ display: 'inline-block', padding: '4px 14px', borderRadius: 20, background: 'rgba(255,0,153,0.10)', border: '1px solid rgba(255,0,153,0.35)', fontSize: 12, fontWeight: 700, color: '#ff0099', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 20 }}>
+            ⭐ Premium Credits
+          </div>
+          <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 900, color: '#fff', marginBottom: 14, letterSpacing: '-0.3px' }}>
+            What are Premium Credits?
+          </h2>
+          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', marginBottom: 40, lineHeight: 1.7 }}>
+            Premium credits unlock advanced features — use them for animated cover art or stem separation, your choice.
+          </p>
+          <div style={{ display: 'flex', gap: 20, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 40 }}>
+            <div style={{ flex: '1 1 240px', maxWidth: 280, padding: '28px 24px', borderRadius: 16, border: '1px solid rgba(255,0,153,0.3)', background: 'rgba(255,0,153,0.05)', textAlign: 'left' }}>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>🎬</div>
+              <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 15, fontWeight: 700, color: '#ff0099', marginBottom: 8 }}>Animated Cover Art</h3>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, margin: 0 }}>Bring your cover to life with Kling AI animation — cinematic motion matched to your genre.</p>
+            </div>
+            <div style={{ flex: '1 1 240px', maxWidth: 280, padding: '28px 24px', borderRadius: 16, border: '1px solid rgba(255,0,153,0.3)', background: 'rgba(255,0,153,0.05)', textAlign: 'left' }}>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>🎚️</div>
+              <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 15, fontWeight: 700, color: '#ff0099', marginBottom: 8 }}>Stem Separator</h3>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, margin: 0 }}>Get vocals, drums, bass and instrumental as separate downloadable tracks.</p>
+            </div>
+          </div>
+          <div style={{ padding: '20px 28px', borderRadius: 14, background: 'rgba(255,0,153,0.07)', border: '1px solid rgba(255,0,153,0.2)', display: 'inline-block' }}>
+            <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 1.8 }}>
+              <strong style={{ color: '#ff0099' }}>1 premium credit</strong> per feature use<br />
+              Top up anytime: <strong style={{ color: '#ff0099' }}>5 credits for £2</strong> or <strong style={{ color: '#ff0099' }}>15 credits for £5</strong><br />
+              <span style={{ fontSize: 12, color: '#555' }}>Credits never expire · No subscription needed</span>
+            </p>
           </div>
         </div>
       </section>
