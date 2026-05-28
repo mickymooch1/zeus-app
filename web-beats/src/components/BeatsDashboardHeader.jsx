@@ -31,20 +31,20 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
     };
   }, [overflowOpen]);
 
-  // Mobile visible: Songs, Search, Discover
-  // Mobile hamburger: Playlists, Mixer, Tutorial, Billing, Contact
+  // Mobile visible: Songs, Search
+  // Mobile hamburger: Discover, Playlists, Mixer, Billing, Tutorial, Contact
   const PRIMARY_LINKS = [
-    { to: '/songs',    label: t('nav.songs') },
-    { to: '/search',   label: t('nav.search') },
-    { to: '/discover', label: 'Discover' },
+    { to: '/songs',  label: t('nav.songs') },
+    { to: '/search', label: t('nav.search') },
   ];
 
   const OVERFLOW_LINKS = [
+    { to: '/discover',  label: '🔍 Discover' },
     { to: '/playlists', label: '🎵 Playlists' },
-    { to: '/mixer',     label: t('nav.mixer') },
+    { to: '/mixer',     label: `🎛️ ${t('nav.mixer')}` },
+    { to: '/billing',   label: `💳 ${t('nav.billing')}` },
     { to: '/tutorial',  label: '📖 Tutorial' },
-    { to: '/billing',   label: t('nav.billing') },
-    { to: '/contact',   label: t('nav.contact') },
+    { to: '/contact',   label: `✉️ ${t('nav.contact')}` },
   ];
 
   return (
