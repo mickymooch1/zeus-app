@@ -397,7 +397,7 @@ body {
 }
 .dashboard-header-right {
   display: flex; align-items: center; gap: 4px; margin-left: auto;
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  overflow: visible;
 }
 .dashboard-header-link {
   color: rgba(255,255,255,0.75);
