@@ -1832,6 +1832,15 @@ async def songs_generate(
             "Indonesian":           "native Indonesian vocalist singing in Bahasa Indonesia, authentic Indonesian pronunciation, warm Southeast Asian delivery, natural Indonesian style",
             "Vietnamese":           "native Vietnamese vocalist singing in Vietnamese, authentic Vietnamese tonal pronunciation, warm Southeast Asian delivery, natural Vietnamese style",
             "Arabic":               "native Arabic vocalist singing in Arabic, authentic Arabic pronunciation, maqam-influenced warmth, natural Arabic vocal delivery",
+            "German":              "native German vocalist singing in German, authentic German pronunciation, clear German consonants, natural German delivery, sings entirely in German",
+            "Italian":             "native Italian vocalist singing in Italian, authentic Italian pronunciation, warm melodic Italian vowels, natural Italian delivery, sings entirely in Italian",
+            "Portuguese":          "native Portuguese vocalist singing in Portuguese, authentic Portuguese pronunciation, warm Iberian vowels, natural Portuguese delivery, sings entirely in Portuguese",
+            "Swahili":             "native Swahili vocalist singing in Swahili, authentic East African Bantu pronunciation, melodic Swahili delivery, natural East African vocal style",
+            "Yoruba":              "native Yoruba vocalist singing in Yoruba, authentic West African tonal pronunciation, rich Yoruba vowels, natural Nigerian Yoruba delivery",
+            "Amharic":             "native Amharic vocalist singing in Amharic, authentic Ethiopian Semitic pronunciation, Ethiopian warmth, natural Amharic delivery",
+            "Zulu":                "native Zulu vocalist singing in Zulu, authentic South African Nguni pronunciation, Zulu click consonants, natural Zulu delivery",
+            "Haitian Creole":      "native Haitian Creole vocalist singing in Kreyòl, authentic Caribbean French Creole pronunciation, warm Haitian tropical delivery, natural Kreyòl flow",
+            "Brazilian Portuguese": "native Brazilian vocalist singing in Brazilian Portuguese, authentic Carioca or Paulistano pronunciation, warm tropical Brazilian vowels, natural Brazilian delivery",
         }
         # Kids language accents (french/spanish/etc.) — Suno sings in that language
         # Regular mode and kids non-language accents both use _ACCENT_DESCRIPTORS unchanged
@@ -1840,7 +1849,8 @@ async def songs_generate(
             "russian", "polish", "dutch", "swedish", "norwegian", "danish",
             "greek", "romanian", "ukrainian", "hungarian", "czech", "turkish",
             "thai", "japanese", "mandarin", "hindi", "tagalog", "indonesian",
-            "vietnamese", "arabic",
+            "vietnamese", "arabic", "korean",
+            "swahili", "yoruba", "amharic", "zulu", "haitian", "brazilian",
         }
         if body.kids_story and body.accent.lower() in _ALL_KIDS_LANGS:
             _KIDS_LANG_STYLE = {
@@ -1869,6 +1879,13 @@ async def songs_generate(
                 "indonesian":  "native Indonesian speaker singing in Bahasa Indonesia, authentic Indonesian pronunciation, warm Southeast Asian children's song delivery",
                 "vietnamese":  "native Vietnamese speaker singing in Vietnamese, authentic Vietnamese tonal pronunciation, warm children's song delivery",
                 "arabic":      "native Arabic speaker singing in Arabic, authentic Arabic pronunciation, warm Middle Eastern children's song style, natural Arabic delivery",
+                "korean":      "native Korean speaker singing in Korean, authentic Korean pronunciation, K-pop vocal style, natural Korean children's song delivery",
+                "swahili":     "native Swahili speaker singing in Swahili, authentic East African pronunciation, educational Swahili language song for children",
+                "yoruba":      "native Yoruba speaker singing in Yoruba, authentic West African tonal pronunciation, educational Yoruba language song for children",
+                "amharic":     "native Amharic speaker singing in Amharic, authentic Ethiopian pronunciation, educational Amharic language song for children",
+                "zulu":        "native Zulu speaker singing in Zulu, authentic South African click consonant pronunciation, educational Zulu language song for children",
+                "haitian":     "native Haitian Creole speaker singing in Kreyòl, authentic Caribbean French Creole pronunciation, educational Haitian Creole language song for children",
+                "brazilian":   "native Brazilian speaker singing in Brazilian Portuguese, authentic Brazilian pronunciation, warm tropical vowels, educational Brazilian Portuguese song for children",
             }
             style_suffix_parts.append(_KIDS_LANG_STYLE[body.accent.lower()])
             log.info("accent: kids_lang accent=%r applied", body.accent)

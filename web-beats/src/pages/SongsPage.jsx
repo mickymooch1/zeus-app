@@ -2444,7 +2444,6 @@ export default function SongsPage() {
                       ['Jamaican Dancehall', 'fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation'],
                       ['Vocoder / Talk Box', 'vocoder effect on vocals, robotic talk box voice, synthesized voice processing, Zapp and Roger style, computerised speech melody, electro funk vocoder, Roger Troutman talk box technique, robotic singing voice, pitch shifted electronic vocal effect'],
                       ['Cyborg / Synthesised', 'vocoder processed vocals, robotic voice effect, synthesised speech, digital pitch correction, computerised vocal tone, sci-fi robot voice, electronic vocal processing'],
-                      ['🇰🇷 Korean', 'Korean'],
                       ['Punjabi', 'authentic Punjabi vocal delivery, Punjabi mother tongue singer, strong Punjabi pronunciation, Gurmukhī influenced phonetics, traditional Punjabi singing style, bhangra vocal technique, nasal Punjabi tones, desi authentic delivery, not English accent'],
                       ['Spanish Latin', 'authentic Spanish Latin accent, native Spanish speaker singing in Spanish, Cuban or Puerto Rican Caribbean pronunciation, warm Latin vowels, rolling R sounds, natural Spanish flow, not English accent at all'],
                       ['Colombian', 'authentic Colombian accent, Medellin or Bogota pronunciation, warm Colombian Spanish delivery, melodic Colombian vowel sounds, natural Latin warmth, native Colombian Spanish speaker'],
@@ -2454,6 +2453,9 @@ export default function SongsPage() {
                       <option key={label} value={value}>{label}</option>
                     ))}
                     <optgroup label="🇪🇺 European Languages (lyrics in that language)">
+                      <option value="German">🇩🇪 German</option>
+                      <option value="Italian">🇮🇹 Italian</option>
+                      <option value="Portuguese">🇵🇹 Portuguese</option>
                       <option value="Russian">🇷🇺 Russian</option>
                       <option value="Polish">🇵🇱 Polish</option>
                       <option value="Dutch">🇳🇱 Dutch</option>
@@ -2468,14 +2470,25 @@ export default function SongsPage() {
                       <option value="Turkish">🇹🇷 Turkish</option>
                     </optgroup>
                     <optgroup label="🌏 Asian Languages (lyrics in that language)">
-                      <option value="Thai">🇹🇭 Thai</option>
+                      <option value="Korean">🇰🇷 Korean</option>
                       <option value="Japanese">🇯🇵 Japanese</option>
                       <option value="Mandarin">🇨🇳 Mandarin Chinese</option>
                       <option value="Hindi">🇮🇳 Hindi</option>
+                      <option value="Thai">🇹🇭 Thai</option>
                       <option value="Tagalog">🇵🇭 Tagalog (Filipino)</option>
                       <option value="Indonesian">🇮🇩 Indonesian</option>
                       <option value="Vietnamese">🇻🇳 Vietnamese</option>
                       <option value="Arabic">🇸🇦 Arabic</option>
+                    </optgroup>
+                    <optgroup label="🌍 African & Caribbean Languages (lyrics in that language)">
+                      <option value="Swahili">🇰🇪 Swahili</option>
+                      <option value="Yoruba">🇳🇬 Yoruba</option>
+                      <option value="Amharic">🇪🇹 Amharic</option>
+                      <option value="Zulu">🇿🇦 Zulu</option>
+                      <option value="Haitian Creole">🇭🇹 Haitian Creole</option>
+                    </optgroup>
+                    <optgroup label="🌎 Americas Languages (lyrics in that language)">
+                      <option value="Brazilian Portuguese">🇧🇷 Brazilian Portuguese</option>
                     </optgroup>
                   </select>
                   <p style={{ fontSize: 11, color: '#555', marginTop: 5 }}>Leave on Auto to let Zeus match the accent to your genre</p>
@@ -2797,7 +2810,6 @@ export default function SongsPage() {
                     ['UK Jungle MC', 'old school jungle MC flow, ragga influenced delivery, rewind calls, authentic 90s rave MC energy'],
                     ['Bashment MC', 'Jamaican bashment MC delivery, dancehall ragga style, riddim riding vocals, Caribbean MC energy'],
                     ['Jamaican Dancehall', 'fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation'],
-                    ['🇰🇷 Korean', 'Korean'],
                     ['Punjabi', 'authentic Punjabi vocal delivery, Punjabi mother tongue singer, strong Punjabi pronunciation, Gurmukhī influenced phonetics, traditional Punjabi singing style, bhangra vocal technique, nasal Punjabi tones, desi authentic delivery, not English accent'],
                     ['Spanish Latin', 'authentic Spanish Latin accent, native Spanish speaker singing in Spanish, Cuban or Puerto Rican Caribbean pronunciation, warm Latin vowels, rolling R sounds, natural Spanish flow, not English accent at all'],
                     ['Colombian', 'authentic Colombian accent, Medellin or Bogota pronunciation, warm Colombian Spanish delivery, melodic Colombian vowel sounds, natural Latin warmth, native Colombian Spanish speaker'],
@@ -2826,17 +2838,28 @@ export default function SongsPage() {
                     <option value="turkish">🇹🇷 Turkish</option>
                   </optgroup>
                   <optgroup label="🌏 Asian Languages">
-                    <option value="thai">🇹🇭 Thai</option>
+                    <option value="korean">🇰🇷 Korean</option>
                     <option value="japanese">🇯🇵 Japanese</option>
                     <option value="mandarin">🇨🇳 Mandarin Chinese</option>
                     <option value="hindi">🇮🇳 Hindi</option>
+                    <option value="thai">🇹🇭 Thai</option>
                     <option value="tagalog">🇵🇭 Tagalog (Filipino)</option>
                     <option value="indonesian">🇮🇩 Indonesian</option>
                     <option value="vietnamese">🇻🇳 Vietnamese</option>
                     <option value="arabic">🇸🇦 Arabic</option>
                   </optgroup>
+                  <optgroup label="🌍 African & Caribbean Languages">
+                    <option value="swahili">🇰🇪 Swahili</option>
+                    <option value="yoruba">🇳🇬 Yoruba</option>
+                    <option value="amharic">🇪🇹 Amharic</option>
+                    <option value="zulu">🇿🇦 Zulu</option>
+                    <option value="haitian">🇭🇹 Haitian Creole</option>
+                  </optgroup>
+                  <optgroup label="🌎 Americas Languages">
+                    <option value="brazilian">🇧🇷 Brazilian Portuguese</option>
+                  </optgroup>
                 </select>
-                {kidsAccent && ['french', 'spanish', 'german', 'italian', 'portuguese', 'russian', 'polish', 'dutch', 'swedish', 'norwegian', 'danish', 'greek', 'romanian', 'ukrainian', 'hungarian', 'czech', 'turkish', 'thai', 'japanese', 'mandarin', 'hindi', 'tagalog', 'indonesian', 'vietnamese', 'arabic'].includes(kidsAccent) && (
+                {kidsAccent && ['french', 'spanish', 'german', 'italian', 'portuguese', 'russian', 'polish', 'dutch', 'swedish', 'norwegian', 'danish', 'greek', 'romanian', 'ukrainian', 'hungarian', 'czech', 'turkish', 'thai', 'japanese', 'mandarin', 'hindi', 'tagalog', 'indonesian', 'vietnamese', 'arabic', 'korean', 'swahili', 'yoruba', 'amharic', 'zulu', 'haitian', 'brazilian'].includes(kidsAccent) && (
                   <p style={{ fontSize: 11, color: '#fbbf24', marginBottom: 10, padding: '8px 12px', background: 'rgba(251,191,36,0.08)', borderRadius: 8, lineHeight: 1.5 }}>
                     ✨ Lyrics will be written entirely in {kidsAccent.charAt(0).toUpperCase() + kidsAccent.slice(1)} — great for young language learners!
                   </p>
