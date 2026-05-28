@@ -52,6 +52,21 @@ export const audioManager = {
     currentVariantId = null;
   },
 
+  // Stop only WaveSurfer — used at crossfade start so the primary HTMLAudioElement
+  // is not interrupted while it begins fading out.
+  stopWaveSurfer() {
+    if (currentWaveSurfer) {
+      currentWaveSurfer.pause();
+      currentWaveSurfer = null;
+    }
+  },
+
+  // Update the tracked variant ID without touching playback — called after crossfade
+  // completes so getCurrentId() returns the new song without triggering a play().
+  updateVariantId(variantId) {
+    currentVariantId = variantId;
+  },
+
   getCurrentId() {
     return currentVariantId;
   },

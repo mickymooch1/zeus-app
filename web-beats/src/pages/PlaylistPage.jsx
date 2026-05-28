@@ -224,6 +224,67 @@ function PlaylistCard({ playlist, token, onDeleted }) {
   );
 }
 
+function PlaybackSettings() {
+  const { crossfade, crossfadeDuration, setCrossfade, setCrossfadeDuration } = useNowPlaying();
+  return (
+    <div style={{ ...S.card, marginBottom: 32 }}>
+      <div style={{ padding: '16px 20px' }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 14 }}>
+          Playback Settings
+        </p>
+
+        {/* Crossfade toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: crossfade ? 16 : 0 }}>
+          <div>
+            <span style={{ fontSize: 14, color: '#e2e8f0', fontWeight: 600 }}>🎚️ Crossfade</span>
+            <p style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0', lineHeight: 1.4 }}>
+              Fade smoothly between tracks — starts {crossfadeDuration}s before each track ends
+            </p>
+          </div>
+          <button
+            onClick={() => setCrossfade(!crossfade)}
+            style={{
+              background: crossfade ? 'rgba(0,240,255,0.14)' : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${crossfade ? 'rgba(0,240,255,0.55)' : 'rgba(255,255,255,0.14)'}`,
+              borderRadius: 20, padding: '5px 16px', cursor: 'pointer', flexShrink: 0, marginLeft: 16,
+              color: crossfade ? '#00f0ff' : '#64748b', fontWeight: 700, fontSize: 13,
+              transition: 'all 0.2s',
+            }}
+          >
+            {crossfade ? 'ON' : 'OFF'}
+          </button>
+        </div>
+
+        {/* Duration selector — only shown when crossfade is on */}
+        {crossfade && (
+          <div>
+            <p style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>Fade duration</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[3, 5, 8, 10].map(d => (
+                <button
+                  key={d}
+                  onClick={() => setCrossfadeDuration(d)}
+                  style={{
+                    flex: 1, padding: '7px 0',
+                    background: crossfadeDuration === d ? 'rgba(0,240,255,0.14)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${crossfadeDuration === d ? 'rgba(0,240,255,0.55)' : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: 8, cursor: 'pointer',
+                    color: crossfadeDuration === d ? '#00f0ff' : '#64748b',
+                    fontWeight: crossfadeDuration === d ? 700 : 400, fontSize: 13,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {d}s
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PlaylistPage() {
   const { token } = useAuth();
   const [playlists, setPlaylists]   = useState([]);
@@ -333,6 +394,8 @@ export default function PlaylistPage() {
         >
           ✨ AI Playlist
         </button>
+
+        <PlaybackSettings />
 
         {loading ? (
           <div style={{ color:'#64748b', textAlign:'center', padding:40 }}>Loading playlists…</div>
