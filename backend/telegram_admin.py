@@ -874,9 +874,10 @@ def _serper_find_school_emails(city: str) -> list[tuple[str, str]]:
     found: dict[str, str] = {}  # email -> school_name
 
     queries = [
-        f'primary school {city} headteacher email contact',
-        f'"{city}" school "sch.uk" contact email address',
-        f'site:sch.uk {city} school contact',
+        f"primary school {city} contact email headteacher",
+        f"secondary school {city} contact email",
+        f"academy school {city} email address",
+        f"site:*.sch.uk {city} contact",
     ]
 
     for q in queries:
