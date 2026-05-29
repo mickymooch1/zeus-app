@@ -2136,6 +2136,8 @@ export default function SongsPage() {
                   <input
                     type="range" min={0} max={100} value={creativity}
                     onChange={(e) => setCreativity(Number(e.target.value))}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
                     style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }}
                   />
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
@@ -2153,6 +2155,8 @@ export default function SongsPage() {
                   <input
                     type="range" min={0} max={100} value={styleWeight}
                     onChange={(e) => setStyleWeight(Number(e.target.value))}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
                     style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }}
                   />
                 </div>

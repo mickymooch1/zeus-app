@@ -2519,7 +2519,7 @@ export default function SongsPage() {
                     <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', margin: 0 }}>{t('songs.creativityLabel')}</p>
                     <span style={{ fontSize: 11, color: '#a78bfa' }}>{creativity}%</span>
                   </div>
-                  <input type="range" min={0} max={100} value={creativity} onChange={(e) => setCreativity(Number(e.target.value))} style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }} />
+                  <input type="range" min={0} max={100} value={creativity} onChange={(e) => setCreativity(Number(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
                     <span style={{ fontSize: 10, color: '#666' }}>{t('songs.weirdnessSafe')}</span>
                     <span style={{ fontSize: 10, color: '#666' }}>{t('songs.weirdnessExperimental')}</span>
@@ -2531,7 +2531,7 @@ export default function SongsPage() {
                     <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', margin: 0 }}>{t('songs.styleStrengthLabel')}</p>
                     <span style={{ fontSize: 11, color: '#a78bfa' }}>{styleWeight}%</span>
                   </div>
-                  <input type="range" min={0} max={100} value={styleWeight} onChange={(e) => setStyleWeight(Number(e.target.value))} style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }} />
+                  <input type="range" min={0} max={100} value={styleWeight} onChange={(e) => setStyleWeight(Number(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }} />
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
