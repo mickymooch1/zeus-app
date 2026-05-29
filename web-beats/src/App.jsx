@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { NowPlayingProvider } from './contexts/NowPlayingContext';
+import { NowPlayingProvider, useNowPlaying } from './contexts/NowPlayingContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import CookieBanner from './components/CookieBanner';
 import NowPlayingBar from './components/NowPlayingBar';
@@ -38,13 +38,22 @@ const fallback = (
   </div>
 );
 
+function AppInner() {
+  const { currentSong } = useNowPlaying();
+  return (
+    <>
+      <CookieBanner />
+      {currentSong?.mp3_url && <NowPlayingBar />}
+    </>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <NowPlayingProvider>
       <BrowserRouter>
-        <CookieBanner />
-        <NowPlayingBar />
+        <AppInner />
         <Suspense fallback={fallback}>
           <Routes>
             <Route path="/" element={<LandingPage />} />

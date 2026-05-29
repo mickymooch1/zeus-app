@@ -432,6 +432,20 @@ export function NowPlayingProvider({ children }) {
     setRepeat(r => r === 'none' ? 'all' : r === 'all' ? 'one' : 'none'),
   []);
 
+  const dismiss = useCallback(() => {
+    cancelCrossfade();
+    const audio = getAudio();
+    audio.pause();
+    audio.src = '';
+    audioManager.stop();
+    loadedVariantRef.current = null;
+    setQueue([]);
+    setQueueIndex(-1);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  }, [cancelCrossfade, getAudio]);
+
   const currentSong = queue[queueIndex] ?? null;
 
   return (
@@ -442,6 +456,7 @@ export function NowPlayingProvider({ children }) {
       play, playOne, pause, resume, togglePlay,
       next, prev, seek, rewind, forward, toggleShuffle, cycleRepeat,
       setCrossfade, setCrossfadeDuration,
+      dismiss,
     }}>
       {children}
     </NowPlayingContext.Provider>

@@ -69,6 +69,7 @@ export default function NowPlayingBar() {
     currentSong, isPlaying, togglePlay, next, prev,
     currentTime, duration, seek, rewind, forward,
     shuffle, toggleShuffle, repeat, cycleRepeat,
+    dismiss,
   } = useNowPlaying();
 
   const [isMobile, setIsMobile] = useState(
@@ -107,6 +108,11 @@ export default function NowPlayingBar() {
   if (isMobile) {
     return (
       <div style={{ ...barBase, padding: '8px 14px 10px' }}>
+        <button
+          onClick={dismiss}
+          aria-label="Close player"
+          style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', color: '#475569', fontSize: 16, cursor: 'pointer', lineHeight: 1, padding: 4 }}
+        >✕</button>
         {/* Row 1: art + title + transport controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           {currentSong.image_url
@@ -146,7 +152,7 @@ export default function NowPlayingBar() {
 
   // ── Desktop layout: single row ────────────────────────────────────────────
   return (
-    <div style={{ ...barBase, padding: '10px 20px 14px', display: 'flex', alignItems: 'center', gap: 16 }}>
+    <div style={{ ...barBase, padding: '10px 20px 14px', display: 'flex', alignItems: 'center', gap: 16, paddingRight: 40 }}>
       {/* Thumb + info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: '0 0 200px', maxWidth: 200 }}>
         {currentSong.image_url
@@ -213,6 +219,13 @@ export default function NowPlayingBar() {
           {repeat === 'one' ? '🔂' : '🔁'}
         </button>
       </div>
+
+      {/* Dismiss */}
+      <button
+        onClick={dismiss}
+        aria-label="Close player"
+        style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', color: '#475569', fontSize: 16, cursor: 'pointer', lineHeight: 1, padding: 4 }}
+      >✕</button>
     </div>
   );
 }

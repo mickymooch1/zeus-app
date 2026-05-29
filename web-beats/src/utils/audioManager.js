@@ -70,4 +70,10 @@ export const audioManager = {
   getCurrentId() {
     return currentVariantId;
   },
+
+  isPlaying() {
+    if (currentWaveSurfer) return currentWaveSurfer.isPlaying?.() ?? false;
+    if (currentAudio)      return !currentAudio.paused && !currentAudio.ended;
+    return false;
+  },
 };

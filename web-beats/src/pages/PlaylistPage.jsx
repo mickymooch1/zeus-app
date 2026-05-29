@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNowPlaying } from '../contexts/NowPlayingContext';
+import { audioManager } from '../utils/audioManager';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
@@ -307,6 +308,7 @@ function PlaybackSettings() {
 
 export default function PlaylistPage() {
   const { token } = useAuth();
+  const { dismiss } = useNowPlaying();
   const [playlists, setPlaylists]   = useState([]);
   const [loading, setLoading]       = useState(true);
   const [newName, setNewName]       = useState('');
@@ -315,6 +317,16 @@ export default function PlaylistPage() {
   const [aiPrompt, setAiPrompt]     = useState('');
   const [aiLoading, setAiLoading]   = useState(false);
   const [aiError, setAiError]       = useState('');
+
+  // Clear now-playing when leaving playlist if nothing is actively playing
+  useEffect(() => {
+    return () => {
+      if (!audioManager.isPlaying()) {
+        dismiss();
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchPlaylists = useCallback(async () => {
     try {
