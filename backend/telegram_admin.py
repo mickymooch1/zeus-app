@@ -52,6 +52,10 @@ Just talk to me naturally, mate! Examples:
 <code>post song VARIANT_ID</code> — post a specific song
 <code>broadcast Subject | Message body</code> — email ALL Zeus Beats users
 <code>refund failures</code> — refund 1 credit per song failed in last 24h
+<code>school email EMAIL</code> — outreach email to one school
+<code>school blast CITY</code> — find schools in city and email them all
+<code>school list</code> — all schools contacted with status
+<code>school followup</code> — follow up with schools >7 days, no reply
 <code>help</code>"""
 
 
@@ -676,6 +680,382 @@ def _cmd_email_bulk(audience: str, subject: str, body: str) -> str:
     return result
 
 
+# ── School outreach ──────────────────────────────────────────────────────────
+
+_SCHOOL_SUBJECT = "Free AI Music Tool for Your School — Zeus Beats Kids Mode"
+
+_SCHOOL_BODY = """\
+Hi,
+
+I'm Michael, founder of Zeus Beats — an AI music platform that's just launched a Kids Story Mode designed for schools and teachers.
+
+With Zeus Beats Kids Mode your students can:
+🎵 Create original songs in 13+ languages (French, Spanish, German and more)
+📖 Turn their stories into songs instantly
+🌍 Learn languages through music
+🎨 Get animated cover art for every song
+
+We're offering FREE access for teachers to try it — no credit card needed.
+
+Try it at zeusbeats.com/schools
+
+Happy to answer any questions!
+
+Michael Rowle
+Founder, Zeus Beats Ltd
+hello@zeusbeats.com
+zeusbeats.com"""
+
+_SCHOOL_FOLLOWUP_SUBJECT = "Following up — Free AI Music Tool for Your School"
+
+_SCHOOL_FOLLOWUP_BODY = """\
+Hi,
+
+Just following up on my email from last week about Zeus Beats Kids Mode.
+
+We've had great feedback from teachers using it — students love creating songs in different languages and turning their stories into music.
+
+If you'd like to try it free with your class, just visit zeusbeats.com/schools — no sign-up required to explore.
+
+Happy to answer any questions or arrange a quick demo!
+
+Michael Rowle
+Founder, Zeus Beats Ltd
+hello@zeusbeats.com
+zeusbeats.com"""
+
+_SCHOOL_EMAIL_HTML = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{subject}</title>
+</head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+
+        <tr>
+          <td style="text-align:center;padding-bottom:24px;">
+            <span style="font-size:24px;font-weight:800;letter-spacing:-0.5px;">
+              <span style="color:#0ea5e9;">Zeus</span><span style="color:#8b5cf6;"> Beats</span>
+            </span>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:32px 28px;">
+            <div style="font-size:15px;color:#374151;line-height:1.75;white-space:pre-wrap;">{body}</div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:20px 0 8px;text-align:center;">
+            <p style="margin:0;font-size:12px;color:#9ca3af;">
+              Zeus Beats Ltd &middot; <a href="https://zeusbeats.com" style="color:#9ca3af;text-decoration:none;">zeusbeats.com</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+def _ensure_school_table() -> None:
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS school_outreach (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT NOT NULL UNIQUE,
+                    school_name TEXT,
+                    city TEXT,
+                    contacted_at TEXT NOT NULL,
+                    followup_sent TEXT,
+                    responded INTEGER DEFAULT 0
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as exc:
+        log.error("_ensure_school_table: %s", exc)
+
+
+def _send_school_email(to: str, subject: str, body: str, api_key: str) -> bool:
+    html = _SCHOOL_EMAIL_HTML.format(subject=subject, body=body)
+    try:
+        resp = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": "Michael at Zeus Beats <hello@zeusbeats.com>",
+                "to": [to],
+                "subject": subject,
+                "html": html,
+                "text": body,
+                "reply_to": "hello@zeusbeats.com",
+            },
+            timeout=15,
+        )
+        if resp.status_code < 300:
+            return True
+        log.error("_send_school_email: FAIL to=%s status=%d body=%r", to, resp.status_code, resp.text[:200])
+        return False
+    except Exception as exc:
+        log.exception("_send_school_email: exception to=%s: %s", to, exc)
+        return False
+
+
+def _cmd_school_email(to: str, school_name: str = "") -> str:
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if not api_key:
+        return "❌ RESEND_API_KEY not set in Railway variables"
+
+    _ensure_school_table()
+
+    # Check if already contacted
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        try:
+            existing = conn.execute(
+                "SELECT contacted_at FROM school_outreach WHERE lower(email) = lower(?)", (to,)
+            ).fetchone()
+        finally:
+            conn.close()
+        if existing:
+            return f"⚠️ Already contacted <code>{to}</code> on {existing[0][:10]}"
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+    ok = _send_school_email(to, _SCHOOL_SUBJECT, _SCHOOL_BODY, api_key)
+    if not ok:
+        return f"❌ Failed to send email to <code>{to}</code>"
+
+    try:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        conn = sqlite3.connect(str(_db.get_db_path()))
+        try:
+            conn.execute(
+                "INSERT OR IGNORE INTO school_outreach (email, school_name, contacted_at) VALUES (?, ?, ?)",
+                (to.lower(), school_name or to, now),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as exc:
+        log.error("_cmd_school_email: DB insert failed: %s", exc)
+
+    log.info("school_email: sent to %s (%s)", to, school_name)
+    return f"✅ School email sent to <code>{to}</code>"
+
+
+def _serper_find_school_emails(city: str) -> list[tuple[str, str]]:
+    """Search Serper for school email addresses in a city.
+
+    Returns list of (email, school_name) tuples — .sch.uk addresses only.
+    """
+    serper_key = os.environ.get("SERPER_API_KEY", "").strip()
+    if not serper_key:
+        return []
+
+    email_re = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.sch\.uk', re.IGNORECASE)
+    found: dict[str, str] = {}  # email -> school_name
+
+    queries = [
+        f'primary school {city} headteacher email contact',
+        f'"{city}" school "sch.uk" contact email address',
+        f'site:sch.uk {city} school contact',
+    ]
+
+    for q in queries:
+        try:
+            resp = requests.post(
+                "https://google.serper.dev/search",
+                headers={"X-API-KEY": serper_key, "Content-Type": "application/json"},
+                json={"q": q, "gl": "gb", "hl": "en", "num": 10},
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                continue
+            data = resp.json()
+            for item in data.get("organic", []):
+                title = item.get("title", "")
+                snippet = item.get("snippet", "")
+                link = item.get("link", "")
+                text_blob = f"{title} {snippet} {link}"
+                for email in email_re.findall(text_blob):
+                    e = email.lower()
+                    if e not in found:
+                        # Derive school name from title or domain
+                        name = title.split(" - ")[0].split(" | ")[0].strip() or e
+                        found[e] = name
+        except Exception as exc:
+            log.warning("_serper_find_school_emails: query=%r error=%s", q, exc)
+
+    return list(found.items())
+
+
+def _cmd_school_blast(city: str) -> str:
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if not api_key:
+        return "❌ RESEND_API_KEY not set in Railway variables"
+    if not os.environ.get("SERPER_API_KEY", "").strip():
+        return "❌ SERPER_API_KEY not set in Railway variables"
+
+    _ensure_school_table()
+
+    # Load already-contacted emails
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        try:
+            already = {r[0] for r in conn.execute("SELECT lower(email) FROM school_outreach").fetchall()}
+        finally:
+            conn.close()
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+    results = _serper_find_school_emails(city)
+    if not results:
+        return f"❌ No school emails found for {city} — Serper returned nothing"
+
+    new_schools = [(e, n) for e, n in results if e not in already]
+    if not new_schools:
+        return f"ℹ️ Found {len(results)} school(s) in {city} but all already contacted"
+
+    sent = 0
+    failed = 0
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+
+    for email, school_name in new_schools:
+        ok = _send_school_email(email, _SCHOOL_SUBJECT, _SCHOOL_BODY, api_key)
+        if ok:
+            try:
+                conn = sqlite3.connect(str(db_path))
+                try:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO school_outreach (email, school_name, city, contacted_at) VALUES (?, ?, ?, ?)",
+                        (email, school_name, city, now),
+                    )
+                    conn.commit()
+                finally:
+                    conn.close()
+            except Exception as exc:
+                log.error("school_blast: DB insert failed for %s: %s", email, exc)
+            sent += 1
+        else:
+            failed += 1
+        time.sleep(0.5)
+
+    log.info("school_blast: city=%s found=%d sent=%d failed=%d", city, len(results), sent, failed)
+    msg = f"🏫 <b>School blast — {city}</b>\nFound: {len(results)} schools\nNew: {len(new_schools)}\n✅ Sent: {sent}"
+    if failed:
+        msg += f"\n❌ Failed: {failed}"
+    return msg
+
+
+def _cmd_school_list() -> str:
+    _ensure_school_table()
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                "SELECT email, school_name, city, contacted_at, followup_sent, responded FROM school_outreach ORDER BY contacted_at DESC LIMIT 30"
+            ).fetchall()
+        finally:
+            conn.close()
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+    if not rows:
+        return "📋 No schools contacted yet — try <code>school blast Manchester</code>"
+
+    lines = [f"🏫 <b>Schools contacted ({len(rows)} shown)</b>"]
+    for r in rows:
+        status = "✅ Responded" if r["responded"] else ("📨 Followed up" if r["followup_sent"] else "📧 Contacted")
+        city = f" [{r['city']}]" if r["city"] else ""
+        date = (r["contacted_at"] or "")[:10]
+        name = r["school_name"] or r["email"]
+        lines.append(f"• {name}{city} — {status} ({date})\n  <code>{r['email']}</code>")
+
+    return "\n".join(lines)
+
+
+def _cmd_school_followup() -> str:
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if not api_key:
+        return "❌ RESEND_API_KEY not set in Railway variables"
+
+    _ensure_school_table()
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                """SELECT email, school_name FROM school_outreach
+                   WHERE responded = 0
+                     AND followup_sent IS NULL
+                     AND contacted_at <= datetime('now', '-7 days')"""
+            ).fetchall()
+        finally:
+            conn.close()
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+    if not rows:
+        return "✅ No schools due for follow-up (none >7 days old without a response)"
+
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    sent = 0
+    failed = 0
+
+    for r in rows:
+        ok = _send_school_email(r["email"], _SCHOOL_FOLLOWUP_SUBJECT, _SCHOOL_FOLLOWUP_BODY, api_key)
+        if ok:
+            try:
+                conn = sqlite3.connect(str(_db.get_db_path()))
+                try:
+                    conn.execute(
+                        "UPDATE school_outreach SET followup_sent = ? WHERE lower(email) = lower(?)",
+                        (now, r["email"]),
+                    )
+                    conn.commit()
+                finally:
+                    conn.close()
+            except Exception as exc:
+                log.error("school_followup: DB update failed for %s: %s", r["email"], exc)
+            sent += 1
+        else:
+            failed += 1
+        time.sleep(0.5)
+
+    log.info("school_followup: sent=%d failed=%d", sent, failed)
+    msg = f"📨 <b>Follow-up sent to {sent} school(s)</b>"
+    if failed:
+        msg += f"\n❌ Failed: {failed}"
+    return msg
+
+
 # ── Refund helpers ───────────────────────────────────────────────────────────
 
 def _cmd_refund_failures() -> str:
@@ -1072,6 +1452,24 @@ def parse_and_run(text: str) -> str:
     m = re.match(r'^post\s+song\s+(\d+)$', t, re.IGNORECASE)
     if m:
         return f"__POST_SONG__:{m.group(1)}"
+
+    # school email EMAIL — send outreach to a single school
+    m = re.match(r'^school\s+email\s+(\S+@\S+)$', t, re.IGNORECASE)
+    if m:
+        return _cmd_school_email(m.group(1).strip())
+
+    # school blast CITY — find and email all schools in a city
+    m = re.match(r'^school\s+blast\s+(.+)$', t, re.IGNORECASE)
+    if m:
+        return _cmd_school_blast(m.group(1).strip())
+
+    # school list — show all contacted schools
+    if re.match(r'^school\s+list$', t, re.IGNORECASE):
+        return _cmd_school_list()
+
+    # school followup — follow up with schools contacted >7 days ago
+    if re.match(r'^school\s+followup?$', t, re.IGNORECASE):
+        return _cmd_school_followup()
 
     # ── Everything else → Claude Haiku natural language ───────────────────────
     log.info("telegram_admin: routing to AI — %r", t[:80])
