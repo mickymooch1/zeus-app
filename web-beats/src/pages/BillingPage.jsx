@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { BeatsNavbar } from '../components/BeatsNavbar';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
+import { isIOSWebView } from '../hooks/useIsIOSWebView';
+import IOSWebViewBanner from '../components/IOSWebViewBanner';
 
 const APP_LANGUAGES = [
   { code: 'en', label: 'English',    flag: '🇬🇧' },
@@ -412,7 +414,7 @@ export default function BillingPage() {
                 {loadingPortal ? <span className="spinner spinner--inline" /> : t('billing.manageSubscription')}
               </button>
             ) : null}
-            {!isActive && (
+            {!isActive && !isIOSWebView && (
               <Link to="/pricing" className="btn btn-primary">{t('billing.upgradePlan')}</Link>
             )}
           </div>
@@ -444,8 +446,11 @@ export default function BillingPage() {
           })()}
         </div>
 
+        {/* iOS WebView: show banner instead of payment sections */}
+        {isIOSWebView && !isActive && <IOSWebViewBanner />}
+
         {/* Upgrade grid — music plans only */}
-        {!isActive && (
+        {!isActive && !isIOSWebView && (
           <div className="billing-upgrade-section">
             <h2 className="billing-section-title">{t('billing.choosePlan')}</h2>
             <div className="billing-upgrade-grid">
@@ -503,8 +508,8 @@ export default function BillingPage() {
           </ul>
         </div>
 
-        {/* Pay As You Go */}
-        <div className="billing-card">
+        {/* Pay As You Go — hidden inside iOS WebView */}
+        {!isIOSWebView && <div className="billing-card">
           <h2 className="billing-card-title">Pay As You Go</h2>
           <p style={{ fontSize: 13, color: '#666', marginBottom: 20 }}>
             No subscription needed — buy song credits whenever you need them.
@@ -542,7 +547,7 @@ export default function BillingPage() {
               </button>
             ))}
           </div>
-        </div>
+        </div>}
 
         {/* Connected Accounts */}
         <div className="billing-card">

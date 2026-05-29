@@ -8,6 +8,8 @@ import { EmailVerificationBanner } from '../components/EmailVerificationBanner';
 import { BACKEND_URL } from '../brand';
 import OnboardingTour from '../components/OnboardingTour';
 import { audioManager } from '../utils/audioManager';
+import { isIOSWebView } from '../hooks/useIsIOSWebView';
+import IOSWebViewBanner from '../components/IOSWebViewBanner';
 
 const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul'];
 const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', southemsoul:'Southern Soul' };
@@ -882,10 +884,10 @@ const SongCard = memo(function SongCard({
                 background: 'rgba(18,18,30,0.96)', border: '1px solid rgba(0,240,255,0.15)',
                 fontSize: 11, color: '#c4b5fd', textAlign: 'center', lineHeight: 1.5,
               }}>
-                {lockedMsg === 'upgrade-yt' && <>{t('songs.locked.upgradeYT')} <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.upgradeLink')}</Link></>}
+                {lockedMsg === 'upgrade-yt' && <>{t('songs.locked.upgradeYT')} {!isIOSWebView && <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.upgradeLink')}</Link>}</>}
                 {lockedMsg === 'connect-yt' && <>{t('songs.locked.connectYT')}</>}
-                {lockedMsg === 'upgrade-avatar' && <>{t('songs.locked.upgradeAvatar')} <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.upgradeLink')}</Link></>}
-                {lockedMsg === 'no-avatar-credits' && <>{t('songs.locked.noAvatarCredits')} <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.topUpLink')}</Link></>}
+                {lockedMsg === 'upgrade-avatar' && <>{t('songs.locked.upgradeAvatar')} {!isIOSWebView && <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.upgradeLink')}</Link>}</>}
+                {lockedMsg === 'no-avatar-credits' && <>{t('songs.locked.noAvatarCredits')} {!isIOSWebView && <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.topUpLink')}</Link>}</>}
               </div>
             )}
             {/* Row 5: Add to Playlist + Delete */}
@@ -1992,7 +1994,7 @@ export default function SongsPage() {
                 · {credits.premium_credits} premium credit{credits.premium_credits !== 1 ? 's' : ''} remaining
               </span>
             )}
-            {!isAdmin && balance <= 2 && (
+            {!isAdmin && !isIOSWebView && balance <= 2 && (
               <Link to="/billing" style={{ fontSize: 13, color: barColor, fontWeight: 600, whiteSpace: 'nowrap' }}>
                 {t('songs.topUp')}
               </Link>
@@ -2000,13 +2002,16 @@ export default function SongsPage() {
           </div>
         </div>
 
-        {!isAdmin && !credits.plan && (
+        {!isAdmin && !credits.plan && !isIOSWebView && (
           <div style={{ background: 'rgba(0,240,255,0.04)', borderBottom: '1px solid rgba(0,240,255,0.08)', padding: '8px 24px', textAlign: 'center' }}>
             <span style={{ fontSize: 12, color: '#555' }}>
               {t('songs.upgradeBanner')}{' '}
               <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>→ {t('songs.viewPlans')}</Link>
             </span>
           </div>
+        )}
+        {!isAdmin && !credits.plan && isIOSWebView && (
+          <div style={{ padding: '6px 24px' }}><IOSWebViewBanner /></div>
         )}
 
         {!isAdmin && balance <= 0 && (
@@ -2653,7 +2658,7 @@ export default function SongsPage() {
                     </label>
                     {animateCoverPref && !isAdmin && credits.premium_credits === 0 && (
                       <p style={{ fontSize: 11, color: '#f87171', margin: '6px 0 0 46px' }}>
-                        No premium credits left this month. <button onClick={() => handleAnimationTopup('animation_pack_5')} disabled={topupLoading !== null} style={{ background: 'none', border: 'none', color: '#f87171', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: 11 }}>Buy more</button> or <Link to="/billing" style={{ color: '#f87171' }}>upgrade</Link>.
+                        No premium credits left this month.{!isIOSWebView && <> <button onClick={() => handleAnimationTopup('animation_pack_5')} disabled={topupLoading !== null} style={{ background: 'none', border: 'none', color: '#f87171', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: 11 }}>Buy more</button> or <Link to="/billing" style={{ color: '#f87171' }}>upgrade</Link>.</>}
                       </p>
                     )}
                   </div>
@@ -2887,7 +2892,7 @@ export default function SongsPage() {
             {cost > 0 ? (
               <p style={{ fontSize: 13, color: creditExceeded ? '#f87171' : '#666', marginBottom: 16, fontWeight: creditExceeded ? 600 : 400 }}>
                 {isAdmin ? t('songs.creditUnlimited', { cost }) : t('songs.creditInfo', { cost, balance })}
-                {creditExceeded && (
+                {creditExceeded && !isIOSWebView && (
                   <> <Link to="/billing" style={{ color: '#f87171' }}>{t('songs.creditExceeded')}</Link></>
                 )}
               </p>
