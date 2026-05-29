@@ -2825,6 +2825,13 @@ export default function SongsPage() {
                 {/* Language Buttons */}
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🌍 Song Language</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 6, marginBottom: 10 }}>
+                  <button
+                    className={`kids-accent-btn${kidsAccent === '' ? ' selected' : ''}`}
+                    onClick={() => setKidsAccent('')}
+                  >
+                    🌟
+                    <span style={{ fontSize: '10px', display: 'block' }}>Default</span>
+                  </button>
                   {[
                     ['french',     '🇫🇷', 'French'],
                     ['spanish',    '🇪🇸', 'Spanish'],
