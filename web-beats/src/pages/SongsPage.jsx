@@ -995,6 +995,7 @@ export default function SongsPage() {
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
   const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, has_paid: false, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '', premium_credits: 0, premium_monthly_allowance: 0 });
+  const [creditsLoaded, setCreditsLoaded] = useState(false);
   const [brief, setBrief]               = useState('');
   const [selGenres, setSelGenres]       = useState(() => { const s = _matchGenreSlug(location.state?.prefillGenre); return s ? new Set([s]) : new Set(); });
   const [generating, setGenerating]     = useState(false);
@@ -1115,8 +1116,13 @@ export default function SongsPage() {
   const youtubeConnected = credits.youtube_connected;
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
   const cost           = isKidsMode ? 1 : selGenres.size;
-  const canAfford      = isAdmin || (credits.balance >= cost && cost > 0);
+  // Before credits load, optimistically allow — server rejects if truly insufficient
+  const canAfford      = isAdmin || !creditsLoaded || (credits.balance >= cost && cost > 0);
   const canGenerate    = cost > 0 && canAfford && !generating && (isKidsMode || !useCustomLyrics || customLyricsText.trim().length > 0);
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log('[Generate] disabled:', !canGenerate, { cost, creditsLoaded, balance: credits.balance, canAfford, generating, isKidsMode, useCustomLyrics });
+  }
   const creditExceeded = !isAdmin && cost > 0 && cost > credits.balance;
 
   const fetchCredits = useCallback(async () => {
@@ -1126,6 +1132,7 @@ export default function SongsPage() {
       });
       if (r.ok) setCredits(await r.json());
     } catch (_) {}
+    finally { setCreditsLoaded(true); }
   }, [token]);
 
   const fetchLibrary = useCallback(async () => {
