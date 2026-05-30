@@ -73,6 +73,10 @@ export default function BillingPage() {
   const [cpLoading, setCpLoading] = useState(false);
   const [cpError, setCpError] = useState('');
   const [cpSuccess, setCpSuccess] = useState('');
+  const [pinCurrent, setPinCurrent] = useState('');
+  const [pinNew, setPinNew] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [pinSuccess, setPinSuccess] = useState('');
   const [anName, setAnName]       = useState('');
   const [anLoading, setAnLoading] = useState(false);
   const [anError, setAnError]     = useState('');
@@ -269,6 +273,18 @@ export default function BillingPage() {
     } finally {
       setCpLoading(false);
     }
+  };
+
+  const handleChangePIN = () => {
+    setPinError('');
+    setPinSuccess('');
+    const saved = localStorage.getItem('zeus_explicit_pin') || '1234';
+    if (pinCurrent !== saved) { setPinError('Incorrect current PIN'); return; }
+    if (!/^\d{4}$/.test(pinNew)) { setPinError('New PIN must be exactly 4 digits'); return; }
+    localStorage.setItem('zeus_explicit_pin', pinNew);
+    setPinSuccess('PIN updated successfully ✅');
+    setPinCurrent('');
+    setPinNew('');
   };
 
   const handleDeleteRequest = async () => {
@@ -718,6 +734,44 @@ export default function BillingPage() {
               {cpLoading ? t('billing.saving') : t('billing.updatePassword')}
             </button>
           </form>
+        </div>
+
+        {/* Explicit Content PIN */}
+        <div className="billing-card" style={{ marginTop: '2rem' }}>
+          <h2 className="billing-card-title">🔞 Explicit Content PIN</h2>
+          <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '1rem' }}>
+            Set a 4-digit PIN to prevent unauthorised access to explicit content. Default PIN is <strong style={{ color: '#e2e8f0' }}>1234</strong>.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 400 }}>
+            <input
+              type="password"
+              inputMode="numeric"
+              placeholder="Current PIN (default: 1234)"
+              maxLength={4}
+              value={pinCurrent}
+              onChange={e => { setPinCurrent(e.target.value.replace(/\D/g, '')); setPinError(''); setPinSuccess(''); }}
+              className="form-input"
+            />
+            <input
+              type="password"
+              inputMode="numeric"
+              placeholder="New PIN (4 digits)"
+              maxLength={4}
+              value={pinNew}
+              onChange={e => { setPinNew(e.target.value.replace(/\D/g, '')); setPinError(''); setPinSuccess(''); }}
+              className="form-input"
+            />
+            {pinError && <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: 0 }}>{pinError}</p>}
+            {pinSuccess && <p style={{ color: '#22c55e', fontSize: '0.875rem', margin: 0 }}>{pinSuccess}</p>}
+            <button
+              type="button"
+              onClick={handleChangePIN}
+              className="btn btn-primary"
+              style={{ alignSelf: 'flex-start' }}
+            >
+              Save PIN
+            </button>
+          </div>
         </div>
 
         {/* Danger zone */}
