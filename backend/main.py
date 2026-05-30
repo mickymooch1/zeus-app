@@ -1088,6 +1088,101 @@ async def reset_password(request: Request, body: ResetPasswordRequest):
     return {"ok": True, "message": "Password updated successfully. You can now log in."}
 
 
+@app.post("/api/user/reset-pin/request")
+@limiter.limit("5/minute")
+async def reset_pin_request(request: Request, current_user: dict = Depends(auth.get_current_user)):
+    """Send a PIN reset email to the authenticated user's registered address."""
+    import secrets
+    from datetime import timedelta
+
+    db_path = db.get_db_path()
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    db.create_pin_reset_token(db_path, current_user["id"], token, expires_at)
+
+    reset_url = f"https://zeusbeats.com/reset-pin?token={token}"
+    name = current_user.get("name", "there")
+
+    reset_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:Arial,Helvetica,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:40px 20px">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#12121a;border-radius:12px;overflow:hidden;border:1px solid #2a2a3a">
+        <tr><td style="background:linear-gradient(135deg,#1a0533 0%,#0d1a33 100%);padding:32px 40px;text-align:center">
+          <h1 style="margin:0;font-size:28px;font-weight:900;letter-spacing:2px;color:#ffffff">Zeus Beats</h1>
+          <p style="margin:8px 0 0;font-size:13px;color:#a0a0c0;letter-spacing:1px">EXPLICIT CONTENT PIN RESET</p>
+        </td></tr>
+        <tr><td style="padding:40px">
+          <p style="margin:0 0 16px;font-size:16px;color:#e0e0f0">Hi {name},</p>
+          <p style="margin:0 0 24px;font-size:15px;color:#b0b0c8;line-height:1.6">
+            You requested a reset of your explicit content PIN. Click the button below to reset it to <strong style="color:#e0e0f0">1234</strong>.
+            This link expires in <strong style="color:#e0e0f0">1 hour</strong>.
+          </p>
+          <table cellpadding="0" cellspacing="0" style="margin:32px auto">
+            <tr><td align="center" style="border-radius:8px;background:linear-gradient(135deg,#7b2fff,#00bfff)">
+              <a href="{reset_url}" style="display:inline-block;padding:16px 40px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:0.5px">Reset My PIN</a>
+            </td></tr>
+          </table>
+          <p style="margin:24px 0 0;font-size:13px;color:#606080;line-height:1.5">
+            Or copy this link into your browser:<br>
+            <a href="{reset_url}" style="color:#7b2fff;word-break:break-all">{reset_url}</a>
+          </p>
+          <p style="margin:24px 0 0;font-size:13px;color:#606080">
+            If you didn't request this, ignore this email. Your PIN won't change.
+          </p>
+        </td></tr>
+        <tr><td style="background:#0d0d15;padding:24px 40px;border-top:1px solid #2a2a3a;text-align:center">
+          <p style="margin:0;font-size:12px;color:#404060">Zeus Beats &bull; <a href="https://zeusbeats.com" style="color:#7b2fff;text-decoration:none">zeusbeats.com</a></p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    reset_text = "\n".join([
+        f"Hi {name},",
+        "",
+        "You requested a reset of your explicit content PIN on Zeus Beats.",
+        "Click the link below to reset it to 1234. This link expires in 1 hour.",
+        "",
+        f"Reset your PIN: {reset_url}",
+        "",
+        "If you didn't request this, ignore this email.",
+        "",
+        "— The Zeus Beats Team",
+    ])
+
+    _send_email_async(current_user["email"], "Reset your Zeus Beats explicit content PIN", reset_html, reset_text)
+    log.info("reset_pin_request: sent to user_id=%s email=%s", current_user["id"], current_user["email"])
+    return {"ok": True, "message": "PIN reset email sent to your registered address."}
+
+
+@app.get("/api/user/reset-pin")
+@limiter.limit("10/minute")
+async def reset_pin_confirm(request: Request, token: str):
+    """Validate a PIN reset token. Frontend resets PIN to 1234 in localStorage on success."""
+    db_path = db.get_db_path()
+    record = db.get_pin_reset_token(db_path, token)
+
+    if not record:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+    if record["used"]:
+        raise HTTPException(status_code=400, detail="This reset link has already been used")
+
+    expires_at = datetime.fromisoformat(record["expires_at"])
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="This reset link has expired")
+
+    db.mark_pin_reset_token_used(db_path, token)
+    log.info("reset_pin_confirm: token consumed for user_id=%s", record["user_id"])
+    return {"ok": True, "message": "PIN reset. Your explicit content PIN is now 1234."}
+
+
 @app.post("/api/auth/verify-email")
 @limiter.limit("10/minute")
 async def verify_email(request: Request, body: VerifyEmailRequest):

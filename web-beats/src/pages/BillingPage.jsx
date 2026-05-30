@@ -287,6 +287,21 @@ export default function BillingPage() {
     setPinNew('');
   };
 
+  const handleForgotPIN = async () => {
+    setPinError('');
+    setPinSuccess('');
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/user/reset-pin/request`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to send reset email');
+      setPinSuccess('PIN reset email sent to your registered address ✅');
+    } catch {
+      setPinError('Failed to send reset email. Please try again.');
+    }
+  };
+
   const handleDeleteRequest = async () => {
     setDeleteLoading(true);
     try {
@@ -770,6 +785,13 @@ export default function BillingPage() {
               style={{ alignSelf: 'flex-start' }}
             >
               Save PIN
+            </button>
+            <button
+              type="button"
+              onClick={handleForgotPIN}
+              style={{ background: 'none', border: 'none', color: '#00f0ff', fontSize: '13px', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+            >
+              Forgot PIN? Reset via email
             </button>
           </div>
         </div>

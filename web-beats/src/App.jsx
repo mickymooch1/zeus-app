@@ -30,6 +30,7 @@ const DiscoverSongPage   = lazy(() => import('./pages/DiscoverSongPage'));
 const PlaylistPage       = lazy(() => import('./pages/PlaylistPage'));
 const TutorialPage       = lazy(() => import('./pages/TutorialPage'));
 const DownloadPage       = lazy(() => import('./pages/DownloadPage'));
+const ResetPINPage       = lazy(() => import('./pages/ResetPINPage'));
 
 const fallback = (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0b0b14', gap: 16 }}>
@@ -65,6 +66,7 @@ export default function App() {
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/reset-pin" element={<ResetPINPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/refund-policy" element={<RefundPolicyPage />} />
             <Route path="/data-deletion" element={<DataDeletionPage />} />

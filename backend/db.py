@@ -214,6 +214,16 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_evt_token ON email_verification_tokens (token);
 
+            CREATE TABLE IF NOT EXISTS pin_reset_tokens (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    TEXT NOT NULL,
+                token      TEXT NOT NULL UNIQUE,
+                expires_at TEXT NOT NULL,
+                used       INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_pint_token ON pin_reset_tokens (token);
+
             CREATE TABLE IF NOT EXISTS registration_attempts (
                 id           INTEGER PRIMARY KEY AUTOINCREMENT,
                 ip_address   TEXT NOT NULL,
@@ -1529,6 +1539,36 @@ def mark_reset_token_used(db_path: pathlib.Path, token: str) -> None:
     conn = _conn(db_path)
     try:
         conn.execute("UPDATE password_reset_tokens SET used = 1 WHERE token = ?", (token,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def create_pin_reset_token(db_path: pathlib.Path, user_id: str, token: str, expires_at: str) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "INSERT INTO pin_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)",
+            (user_id, token, expires_at),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_pin_reset_token(db_path: pathlib.Path, token: str) -> dict | None:
+    conn = _conn(db_path)
+    try:
+        row = conn.execute("SELECT * FROM pin_reset_tokens WHERE token = ?", (token,)).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def mark_pin_reset_token_used(db_path: pathlib.Path, token: str) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute("UPDATE pin_reset_tokens SET used = 1 WHERE token = ?", (token,))
         conn.commit()
     finally:
         conn.close()
