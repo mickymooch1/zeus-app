@@ -860,6 +860,9 @@ export default function SongsPage() {
   const [modelVersion, setModelVersion]   = useState('V5');
   const [negativeTags, setNegativeTags]   = useState('');
   const [explicit, setExplicit]           = useState(false);
+  const [pinModalOpen, setPinModalOpen]   = useState(false);
+  const [pinInput, setPinInput]           = useState('');
+  const [pinError, setPinError]           = useState('');
   const [vocals, setVocals]               = useState(true);
   const [animateCoverPref, setAnimateCoverPref] = useState(
     () => localStorage.getItem('zeus_animated_covers') === 'true'
@@ -1061,6 +1064,22 @@ export default function SongsPage() {
   useEffect(() => {
     localStorage.setItem('zeus_animated_covers', animateCoverPref ? 'true' : 'false');
   }, [animateCoverPref]);
+
+  // Kids mode forces explicit off and the toggle hidden
+  useEffect(() => { if (isKidsMode) setExplicit(false); }, [isKidsMode]);
+
+  const handleExplicitToggle = () => {
+    if (explicit) { setExplicit(false); return; }
+    setPinInput(''); setPinError(''); setPinModalOpen(true);
+  };
+  const handlePinSubmit = () => {
+    const savedPin = localStorage.getItem('zeus_explicit_pin') || '1234';
+    if (pinInput === savedPin) {
+      setExplicit(true); setPinModalOpen(false); setPinInput(''); setPinError('');
+    } else {
+      setPinError('Incorrect PIN');
+    }
+  };
 
   // Song generation polling (5s)
   useEffect(() => {
@@ -2320,12 +2339,44 @@ export default function SongsPage() {
                   </div>
                 )}
 
-                {/* Explicit content */}
-                {canShowExplicit && (
+                {/* PIN modal for explicit content */}
+                {pinModalOpen && (
+                  <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    onClick={() => { setPinModalOpen(false); setPinError(''); }}
+                  >
+                    <div
+                      style={{ background: '#0f0f1e', border: '1px solid rgba(0,240,255,0.25)', borderRadius: 14, padding: '28px 24px', width: 280, textAlign: 'center' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p style={{ margin: '0 0 6px', fontWeight: 700, color: '#e2e8f0', fontSize: 15 }}>Enter PIN to enable explicit content</p>
+                      <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 12 }}>Default PIN is 1234. Change in settings.</p>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={4}
+                        value={pinInput}
+                        onChange={(e) => { setPinInput(e.target.value.replace(/\D/g, '')); setPinError(''); }}
+                        onKeyDown={(e) => e.key === 'Enter' && handlePinSubmit()}
+                        autoFocus
+                        placeholder="••••"
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: 22, textAlign: 'center', letterSpacing: 8, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                      {pinError && <p style={{ color: '#f87171', fontSize: 12, margin: '8px 0 0' }}>{pinError}</p>}
+                      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                        <button onClick={() => { setPinModalOpen(false); setPinError(''); setPinInput(''); }} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: 14 }}>Cancel</button>
+                        <button onClick={handlePinSubmit} style={{ flex: 1, padding: 10, borderRadius: 8, border: 'none', background: '#7c3aed', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>Unlock</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Explicit content — hidden in kids mode */}
+                {canShowExplicit && !isKidsMode && (
                   <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                       <div
-                        onClick={() => setExplicit((v) => !v)}
+                        onClick={handleExplicitToggle}
                         style={{
                           width: 36,
                           height: 20,

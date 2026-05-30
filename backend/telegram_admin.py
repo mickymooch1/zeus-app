@@ -966,6 +966,13 @@ def _cmd_school_blast(city: str) -> str:
     msg = f"🏫 <b>School blast — {city}</b>\nFound: {len(results)} schools\nNew: {len(new_schools)}\n✅ Sent: {sent}"
     if failed:
         msg += f"\n❌ Failed: {failed}"
+    # Push to conversation history so AI remembers school blast context for follow-up questions
+    context_note = (
+        f"[system] Just ran school blast for {city}: found {len(results)} schools, "
+        f"emailed {sent} new ones. Emails: {[e for e, _ in new_schools[:10]]}"
+    )
+    _conversation_history.append({"role": "user", "content": f"school blast {city}"})
+    _conversation_history.append({"role": "assistant", "content": context_note})
     return msg
 
 
@@ -978,8 +985,9 @@ def _cmd_school_list() -> str:
         conn.row_factory = sqlite3.Row
         try:
             rows = conn.execute(
-                "SELECT email, school_name, city, contacted_at, followup_sent, responded FROM school_outreach ORDER BY contacted_at DESC LIMIT 30"
+                "SELECT email, school_name, contacted_at, followup_sent, responded FROM school_outreach ORDER BY contacted_at DESC LIMIT 20"
             ).fetchall()
+            total = conn.execute("SELECT COUNT(*) FROM school_outreach").fetchone()[0]
         finally:
             conn.close()
     except Exception as exc:
@@ -988,15 +996,19 @@ def _cmd_school_list() -> str:
     if not rows:
         return "📋 No schools contacted yet — try <code>school blast Manchester</code>"
 
-    lines = [f"🏫 <b>Schools contacted ({len(rows)} shown)</b>"]
+    lines = [f"🏫 <b>School outreach — {total} total contacted</b>\n"]
     for r in rows:
-        status = "✅ Responded" if r["responded"] else ("📨 Followed up" if r["followup_sent"] else "📧 Contacted")
-        city = f" [{r['city']}]" if r["city"] else ""
         date = (r["contacted_at"] or "")[:10]
-        name = r["school_name"] or r["email"]
-        lines.append(f"• {name}{city} — {status} ({date})\n  <code>{r['email']}</code>")
+        name = (r["school_name"] or r["email"])[:45]
+        if r["responded"]:
+            status = "✅ Responded"
+        elif r["followup_sent"]:
+            status = f"📨 Followed up ({(r['followup_sent'] or '')[:10]})"
+        else:
+            status = "📧 Emailed"
+        lines.append(f"<b>{name}</b>\n  {r['email']} — {status} on {date}")
 
-    return "\n".join(lines)
+    return "\n\n".join(lines)
 
 
 def _cmd_school_followup() -> str:
