@@ -392,6 +392,37 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("Song credit backfill failed (non-fatal)")
 
+    # Diagnostic: log recent signups and their credit balance so missing credits are visible in Railway logs
+    try:
+        import sqlite3 as _sqlite3
+        _dc = _sqlite3.connect(str(_db_path))
+        _dc.row_factory = _sqlite3.Row
+        try:
+            _recent = _dc.execute(
+                """SELECT u.email, u.created_at, sc.balance, sc.monthly_allowance
+                   FROM users u
+                   LEFT JOIN song_credits sc ON sc.user_id = u.id
+                   WHERE u.created_at > datetime('now', '-3 days')
+                   ORDER BY u.created_at DESC LIMIT 20"""
+            ).fetchall()
+            _no_credits = [r for r in _recent if r["balance"] is None]
+            if _no_credits:
+                log.warning(
+                    "startup: %d recent user(s) have NO song_credits row: %s",
+                    len(_no_credits),
+                    [r["email"] for r in _no_credits],
+                )
+            for r in _recent:
+                log.info(
+                    "startup: recent user=%s created=%s balance=%s allowance=%s",
+                    r["email"], (r["created_at"] or "")[:16],
+                    r["balance"], r["monthly_allowance"],
+                )
+        finally:
+            _dc.close()
+    except Exception:
+        log.exception("startup: recent-user credit diagnostic failed (non-fatal)")
+
     # Fix: ensure free-plan users have monthly_allowance=0 (no periodic refill)
     # Also log bugrowle@gmail.com specifically for manual verification
     try:
@@ -757,6 +788,17 @@ async def register(request: Request, body: RegisterRequest):
     if existing:
         raise HTTPException(status_code=409, detail="An account with that email already exists")
 
+    # Device fingerprint pre-check BEFORE create_user — prevents ghost accounts with no credits
+    # (old flow: create_user ran first, then fingerprint check failed → user existed but never got credits)
+    import hashlib
+    fp_hash = hashlib.sha256(body.fingerprint.encode()).hexdigest() if body.fingerprint else None
+    if fp_hash and db.check_device_fingerprint_exists(db_path, fp_hash):
+        log.warning("register: duplicate device fingerprint pre-check blocked email=%s", body.email)
+        raise HTTPException(
+            status_code=429,
+            detail="An account has already been created from this device. Please log in instead.",
+        )
+
     try:
         password_hash = auth.hash_password(body.password)
     except Exception as exc:
@@ -777,17 +819,6 @@ async def register(request: Request, body: RegisterRequest):
         log.exception("register: create_user failed")
         raise HTTPException(status_code=500, detail=f"Could not create account: {exc}")
 
-    # Device fingerprint check — block duplicate device registrations
-    if body.fingerprint:
-        import hashlib
-        fp_hash = hashlib.sha256(body.fingerprint.encode()).hexdigest()
-        if not db.check_and_record_device_fingerprint(db_path, fp_hash, user["id"]):
-            log.warning("register: duplicate device fingerprint blocked user_id=%s email=%s", user["id"], body.email)
-            raise HTTPException(
-                status_code=429,
-                detail="An account has already been created from this device. Please log in instead.",
-            )
-
     # Create Stripe customer if Stripe is enabled
     if billing.stripe_enabled():
         customer_id = billing.create_stripe_customer(user)
@@ -797,9 +828,16 @@ async def register(request: Request, body: RegisterRequest):
 
     # Grant signup credits — Product Hunt referrals get 5, everyone else gets FREE_SONG_CREDITS (3)
     signup_credits = 5 if (body.referral or "").lower() == "producthunt" else billing.FREE_SONG_CREDITS
-    db.ensure_free_song_credits(db_path, user["id"], balance=signup_credits, monthly_allowance=0)
-    if signup_credits != billing.FREE_SONG_CREDITS:
-        log.info("register: granted %d signup credits via referral=%s user_id=%s", signup_credits, body.referral, user["id"])
+    credit_row = db.ensure_free_song_credits(db_path, user["id"], balance=signup_credits, monthly_allowance=0)
+    log.info(
+        "register: credits granted — email=%s balance=%d referral=%s user_id=%s",
+        body.email, credit_row.get("balance", signup_credits) if credit_row else signup_credits,
+        body.referral or "none", user["id"],
+    )
+
+    # Record fingerprint AFTER credits are safely granted — no more ghost accounts
+    if fp_hash:
+        db.record_device_fingerprint(db_path, fp_hash, user["id"])
 
     token = auth.create_token(user["id"], user["email"], is_admin=bool(user.get("is_admin", 0)))
     safe_user = {k: v for k, v in user.items() if k != "password_hash"}

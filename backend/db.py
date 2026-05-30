@@ -347,6 +347,30 @@ def check_and_record_device_fingerprint(db_path: pathlib.Path, fp_hash: str, use
         conn.close()
 
 
+def check_device_fingerprint_exists(db_path: pathlib.Path, fp_hash: str) -> bool:
+    """Read-only check — True if fingerprint already registered. No side effects."""
+    conn = _conn(db_path)
+    try:
+        return bool(conn.execute(
+            "SELECT id FROM device_fingerprints WHERE fp_hash = ?", (fp_hash,)
+        ).fetchone())
+    finally:
+        conn.close()
+
+
+def record_device_fingerprint(db_path: pathlib.Path, fp_hash: str, user_id: str) -> None:
+    """Record a device fingerprint after successful registration. Idempotent."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO device_fingerprints (fp_hash, user_id) VALUES (?, ?)",
+            (fp_hash, user_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def _row_to_dict(row) -> dict:
     return dict(row) if row else None
 
@@ -1041,12 +1065,14 @@ def backfill_missing_song_credits(db_path: pathlib.Path, plan_credits: dict, fre
             status = row["subscription_status"]
             if status == "active" and plan in plan_credits:
                 credits = plan_credits[plan]
+                allowance = credits
             else:
                 credits = free_credits
+                allowance = 0  # free users have no periodic refill
             conn.execute(
                 """INSERT OR IGNORE INTO song_credits (user_id, balance, monthly_allowance, last_reset)
                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)""",
-                (row["id"], credits, credits),
+                (row["id"], credits, allowance),
             )
             count += 1
         conn.commit()
