@@ -1876,6 +1876,44 @@ async def songs_generate(
 
     lyric_id = lyric_result["lyric_id"]
 
+    # ElevenLabs TTS narration for Kids Story Mode
+    story_audio_url = None
+    if body.kids_story:
+        _el_key = os.environ.get("ELEVENLABS_API_KEY", "")
+        if _el_key and lyric_result.get("lyrics"):
+            _has_credit = db.check_and_deduct_premium_credit(db_path, user_id)
+            if _has_credit:
+                try:
+                    _story_text = _re.sub(r'\[[^\]]+\]\n?', '', lyric_result["lyrics"]).strip()
+                    _voice_id = "XB0fDUnXU5powFXDhCwa"  # Charlotte — warm, child-friendly
+                    async with httpx.AsyncClient(timeout=30.0) as _el_client:
+                        _tts_resp = await _el_client.post(
+                            f"https://api.elevenlabs.io/v1/text-to-speech/{_voice_id}",
+                            headers={"xi-api-key": _el_key, "Content-Type": "application/json"},
+                            json={
+                                "text": _story_text,
+                                "model_id": "eleven_turbo_v2_5",
+                                "voice_settings": {"stability": 0.75, "similarity_boost": 0.75},
+                            },
+                        )
+                    if _tts_resp.status_code == 200:
+                        _story_dir = pathlib.Path("/data/stories")
+                        _story_dir.mkdir(parents=True, exist_ok=True)
+                        (_story_dir / f"{lyric_id}.mp3").write_bytes(_tts_resp.content)
+                        story_audio_url = f"/files/stories/{lyric_id}.mp3"
+                        log.info("kids_story TTS: ok user=%s lyric_id=%s bytes=%d", user_id, lyric_id, len(_tts_resp.content))
+                    else:
+                        db.increment_premium_credits(db_path, user_id, 1)
+                        log.warning("kids_story TTS: ElevenLabs error %d user=%s body=%r", _tts_resp.status_code, user_id, _tts_resp.text[:200])
+                except Exception:
+                    log.exception("kids_story TTS: failed user=%s lyric_id=%s", user_id, lyric_id)
+                    try:
+                        db.increment_premium_credits(db_path, user_id, 1)
+                    except Exception:
+                        pass
+            else:
+                log.info("kids_story TTS: skipped — no premium credits user=%s", user_id)
+
     # Build extra sunoParams from advanced controls
     _MODEL_VERSION_MAP = {
         "V4.5": "V4_5",
@@ -2107,6 +2145,7 @@ async def songs_generate(
             "lyric_id": lyric_id,
             "title": lyric_result["title"],
             "variants": [{"genre": _p_genre, "variant_id": _p_variant_id, "job_id": _p_task_id, "status": "generating"}],
+            "story_audio_url": story_audio_url,
         }
     # ── End CometAPI persona path ──────────────────────────────────────────────
 
@@ -2155,6 +2194,7 @@ async def songs_generate(
         "lyric_id": lyric_id,
         "title": lyric_result["title"],
         "variants": variant_result["variants"],
+        "story_audio_url": story_audio_url,
     }
 
 
@@ -4360,6 +4400,10 @@ app.mount("/files/videos", _StaticFiles(directory=str(_video_storage)), name="vi
 _image_storage = pathlib.Path("/data/images")
 _image_storage.mkdir(parents=True, exist_ok=True)
 app.mount("/files/images", _StaticFiles(directory=str(_image_storage)), name="images")
+
+_story_storage = pathlib.Path("/data/stories")
+_story_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/stories", _StaticFiles(directory=str(_story_storage)), name="stories")
 
 # Authenticated file serving — keeps /api/files/* available for future use.
 _FILE_STORAGE: dict[str, pathlib.Path] = {

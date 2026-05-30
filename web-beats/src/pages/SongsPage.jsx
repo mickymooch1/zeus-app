@@ -1000,6 +1000,8 @@ export default function SongsPage() {
   const [selGenres, setSelGenres]       = useState(() => { const s = _matchGenreSlug(location.state?.prefillGenre); return s ? new Set([s]) : new Set(); });
   const [generating, setGenerating]     = useState(false);
   const [activeJob, setActiveJob]       = useState(null);
+  const [storyPlaying, setStoryPlaying] = useState(false);
+  const storyAudioRef = useRef(null);
   const [library, setLibrary]           = useState([]);
   const [error, setError]               = useState('');
   const [topupLoading, setTopupLoading] = useState(null);
@@ -1475,10 +1477,16 @@ export default function SongsPage() {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || 'Generation failed');
+      if (storyAudioRef.current) {
+        storyAudioRef.current.pause();
+        storyAudioRef.current = null;
+        setStoryPlaying(false);
+      }
       setActiveJob({
         lyric_id: d.lyric_id,
         title: d.title,
         variants: d.variants.map((v) => ({ ...v, title: d.title })),
+        story_audio_url: d.story_audio_url || null,
       });
       setCredits((p) => ({ ...p, balance: Math.max(0, p.balance - cost) }));
       setBrief('');
@@ -3053,11 +3061,36 @@ export default function SongsPage() {
 
           {activeJob && (
             <section style={{ marginBottom: 48 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
                 <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', margin: 0 }}>{activeJob.title}</h2>
                 <span style={{ background: 'rgba(167,139,250,0.1)', color: '#a78bfa', borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 500 }}>
                   {t('songs.generatingStatus')}
                 </span>
+                {activeJob.story_audio_url && (
+                  <button
+                    onClick={() => {
+                      if (!storyAudioRef.current) {
+                        storyAudioRef.current = new Audio(activeJob.story_audio_url);
+                        storyAudioRef.current.onended = () => setStoryPlaying(false);
+                      }
+                      if (storyPlaying) {
+                        storyAudioRef.current.pause();
+                        setStoryPlaying(false);
+                      } else {
+                        storyAudioRef.current.play();
+                        setStoryPlaying(true);
+                      }
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      background: 'linear-gradient(135deg,#7c3aed,#00f0ff)', color: '#000',
+                      border: 'none', borderRadius: 20, padding: '5px 14px',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    {storyPlaying ? '⏸ Pause Story' : '▶ Hear Story'}
+                  </button>
+                )}
               </div>
               <div className="songs-grid" style={S.grid}>
                 {activeJob.variants.map((v) =>
