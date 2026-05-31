@@ -1,3 +1,10 @@
+KIDS_STORY_PRESETS = {
+    "pop":       "gentle upbeat children's background instrumental, bright piano and bells, soft warm percussion, playful whimsical melody, no vocals, 90 BPM",
+    "classical": "gentle orchestral children's background instrumental, soft strings and warm woodwinds, tender and whimsical, cinematic storytelling feel, no vocals",
+    "acoustic":  "gentle fingerpicked acoustic guitar instrumental, warm and intimate, soft and peaceful, children's story background music, no vocals",
+    "reggae":    "gentle reggae background instrumental, light laid-back rhythm, warm bass and guitar, soft tropical feel, children's background music, no vocals",
+}
+
 INSTRUMENTAL_SUFFIX = "fully instrumental, extended arrangement, prominent deep bass, dynamic structure with build ups and breakdowns, musical complexity, clever chord progressions, layered instrumentation, extended intro and outro, detailed production, rich harmonic content, bass-forward mix, evolving arrangement that develops throughout, professional instrumental composition"
 
 GENRE_PRESETS = {

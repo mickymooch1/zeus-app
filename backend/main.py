@@ -1884,8 +1884,12 @@ async def songs_generate(
             _has_credit = db.check_and_deduct_premium_credit(db_path, user_id)
             if _has_credit:
                 try:
-                    _story_text = _re.sub(r'\[[^\]]+\]\n?', '', lyric_result["lyrics"]).strip()
-                    _voice_id = "XB0fDUnXU5powFXDhCwa"  # Charlotte — warm, child-friendly
+                    _story_text = lyric_result["lyrics"].strip()
+                    _NARRATOR_VOICES = {
+                        'daniel':  'onwK4e9ZLuTAKqWW03F9',
+                        'matilda': 'XrExE9yKIg1WjnnlVkGX',
+                    }
+                    _voice_id = _NARRATOR_VOICES.get((body.accent or '').lower(), 'XB0fDUnXU5powFXDhCwa')  # default: Charlotte
                     async with httpx.AsyncClient(timeout=30.0) as _el_client:
                         _tts_resp = await _el_client.post(
                             f"https://api.elevenlabs.io/v1/text-to-speech/{_voice_id}",
@@ -1932,12 +1936,10 @@ async def songs_generate(
         extra_suno_params["model_version"] = _MODEL_VERSION_MAP[body.model_version]
     if body.negative_tags and body.negative_tags.strip():
         extra_suno_params["negative_tags"] = body.negative_tags.strip()[:500]
-    if body.instrumental:
+    if body.instrumental or body.kids_story:
         extra_suno_params["instrumental"] = True
 
     style_suffix_parts: list[str] = []
-    if body.kids_story:
-        style_suffix_parts.append("children's song, warm playful singing voice, fun and engaging for kids, upbeat storyteller energy")
     if body.tempo == "slow":
         style_suffix_parts.append("slow tempo")
     elif body.tempo == "medium":
@@ -1948,7 +1950,7 @@ async def songs_generate(
         style_suffix_parts.append(f"{max(40, min(300, body.tempo_bpm))} BPM")
     if body.vocal_gender == "duet":
         style_suffix_parts.append("male and female vocal duet, call and response, harmonising together, two voices intertwining")
-    if body.accent:
+    if body.accent and not body.kids_story:
         # ── REGULAR MODE ACCENT — original working code, DO NOT MODIFY ──────────
         _ACCENT_DESCRIPTORS = {
             "British":              "strong unmistakable British RP brogue, thick received pronunciation, clipped precise consonants, pronounce words with heavy Queen's English inflection, distinctly posh British delivery that cuts through any genre",
@@ -2170,6 +2172,7 @@ async def songs_generate(
             animate_cover=body.animate_cover,
             genre_b=body.genre_b or None,
             blend_ratio=body.blend_ratio,
+            kids_story=bool(body.kids_story),
         )
         log.info(
             "songs_generate: Apiframe submission ok user_id=%s lyric_id=%s variants=%r",

@@ -56,25 +56,23 @@ GENRE_VOCABULARY: dict[str, str] = {
     "rockney":     "Write in authentic Cockney style — use Cockney rhyming slang, reference East End London life, pubs, markets, football, family. Cheerful singalong verses with a big catchy pub chorus everyone can join in with. Think traditional London street culture.",
 }
 
-_KIDS_LYRIC_SYSTEM = """You are a warm, playful children's songwriter. Write fun, age-appropriate lyrics that children aged 3-8 will love.
+_KIDS_STORY_SYSTEM = """You are a warm, imaginative children's storyteller. Write a short enchanting children's story.
 
 Output ONLY valid JSON with this exact shape:
-{{
-  "title": "Song Title Here",
-  "lyrics": "[Verse 1]\\nLine one...\\n[Chorus]\\nLine one..."
-}}
-
-Song structure to use: {structure}
+{
+  "title": "Story Title Here",
+  "lyrics": "First paragraph...\\n\\nSecond paragraph...\\n\\nThird paragraph..."
+}
 
 Rules:
-- Simple, clear vocabulary — words a young child can understand
-- Short, rhythmic lines with strong rhymes and repetition
-- Fun, bouncy, sing-along energy — children should be able to join in easily
-- Include repeated phrases or a call-and-response element children can memorise
-- Themes: animals, adventure, friendship, colours, counting, nature, silliness, magic
-- Upbeat and positive — no scary, sad, or adult themes
-- Maximum 150 words total — short enough to hold a child's attention
-- No markdown, no commentary. JSON only."""
+- Write 3 to 4 natural prose paragraphs — NO song sections, NO [Verse] or [Chorus] labels
+- Clear story arc: beginning (introduce the character and setting), middle (a gentle adventure or challenge), end (a warm happy resolution)
+- Simple, vivid vocabulary that a young child can easily picture
+- 220 to 300 words total — short enough to hold a young child's attention
+- Warm, gentle excitement throughout — children should want to lean in and listen
+- Always end with comfort, warmth and a smile
+- No scary, violent, or adult themes whatsoever
+- No markdown, no section labels, no commentary. JSON only."""
 
 _LYRIC_SYSTEM_BASE = """You are the most creative songwriter alive. Your job is to write lyrics that genuinely surprise people.
 
@@ -215,34 +213,19 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
     client = Anthropic()
 
     if kids_story:
-        structure = random.choice([
-            "[Verse 1], [Chorus], [Verse 2], [Chorus], [Outro]",
-            "[Intro], [Verse 1], [Chorus], [Verse 2], [Chorus]",
-            "[Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus]",
-        ])
-        system = _KIDS_LYRIC_SYSTEM.format(structure=structure)
-        kids_prompt = brief.strip() if brief.strip() else (
-            f"Genre: {', '.join(genres)}. " if genres else ""
-        ) + "Write a fun, catchy children's song."
-        language = _KIDS_LANGUAGE_MAP.get((accent or '').lower())
-        if language:
-            kids_prompt += (
-                f"\nIMPORTANT: Write the lyrics ENTIRELY in {language} — not English. "
-                f"Simple vocabulary appropriate for children learning {language}. "
-                f"Include fun repetitive phrases children can sing along to."
-            )
+        story_prompt = brief.strip() if brief.strip() else "Write a fun, magical adventure story for young children."
         model = "claude-sonnet-4-6"
         logger.info(
-            "generate_lyrics: kids_story mode — calling %s user=%s accent=%r language=%r brief=%r",
-            model, user_id, accent, language, brief[:200],
+            "generate_lyrics: kids_story prose mode — calling %s user=%s brief=%r",
+            model, user_id, brief[:200],
         )
         try:
             response = client.messages.create(
                 model=model,
                 max_tokens=800,
                 temperature=1.0,
-                system=system,
-                messages=[{"role": "user", "content": kids_prompt}],
+                system=_KIDS_STORY_SYSTEM,
+                messages=[{"role": "user", "content": story_prompt}],
             )
         except Exception:
             logger.exception("generate_lyrics: kids_story %s API call failed — user=%s", model, user_id)

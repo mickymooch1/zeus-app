@@ -456,6 +456,7 @@ def generate_multiple_variants(
     animate_cover: bool = True,
     genre_b: str | None = None,
     blend_ratio: int | None = None,
+    kids_story: bool = False,
 ) -> dict:
     """Generate the same lyrics in multiple genres. Costs len(genres) credits.
     Admin users bypass credit checks entirely."""
@@ -484,7 +485,8 @@ def generate_multiple_variants(
 
     variants = []
     for genre in valid_genres:
-        style = GENRE_PRESETS[genre]
+        from song_genres import KIDS_STORY_PRESETS
+        style = KIDS_STORY_PRESETS.get(genre, GENRE_PRESETS[genre]) if kids_story else GENRE_PRESETS[genre]
         # Apply DJ-transition style for genre blend
         if genre_b and genre_b in GENRE_PRESETS:
             style = _dj_transition_style(style, GENRE_PRESETS[genre_b])
@@ -497,7 +499,8 @@ def generate_multiple_variants(
         safe_inspired_by = sanitize_inspired_by_descriptors(inspired_by_descriptors)
         if safe_inspired_by:
             style = f"{style}, {safe_inspired_by}"
-        style = f"{style}, {random.choice(RANDOM_PRODUCTION)}"
+        if not kids_story:
+            style = f"{style}, {random.choice(RANDOM_PRODUCTION)}"
         # Blend songs use section-tag structure (~700+ chars) so they need a higher cap.
         # Single-genre stays at 500. Both stay under Apiframe's own 1000-char limit.
         hard_cap = 900 if genre_b else 500
