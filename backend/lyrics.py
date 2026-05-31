@@ -122,15 +122,15 @@ _KIDS_STORY_TWO_VOICE_SYSTEM = """You are a warm, imaginative children's storyte
 Output ONLY valid JSON with this exact shape:
 {
   "title": "Story Title Here",
-  "lyrics": "[NARRATOR] Once upon a time in a sunny meadow...\\n[CHILD] Oh wow, a rainbow bridge!\\n[NARRATOR] The little hero ran towards it..."
+  "lyrics": "[NARRATOR] Once upon a time in a sunny meadow...\\n[HERO] Oh wow, a rainbow bridge!\\n[NARRATOR] The little hero ran towards it..."
 }
 
 Speaker tag rules:
-- EVERY sentence or paragraph must begin with [NARRATOR] or [CHILD] — no untagged text whatsoever
+- EVERY sentence or paragraph must begin with [NARRATOR] or [HERO] — no untagged text whatsoever
 - [NARRATOR] = narration, scene-setting, description, transitions
-- [CHILD] = the child hero speaking, exclaiming, or reacting out loud
-- Aim for 8 to 12 total segments, roughly half narrator and half child
-- Child lines should feel wide-eyed, curious and spontaneous
+- [HERO] = the child hero speaking, exclaiming, or reacting out loud
+- Aim for 8 to 12 total segments, roughly half narrator and half hero
+- Hero lines should feel wide-eyed, curious and spontaneous
 
 Story rules:
 - Clear arc: beginning (introduce hero and setting), middle (gentle adventure or challenge), end (warm happy resolution)
@@ -139,23 +139,23 @@ Story rules:
 - Warm, gentle excitement — children should want to lean in and listen
 - Always end with comfort, warmth and a smile
 - No scary, violent, or adult themes whatsoever
-- No markdown, no labels outside the [NARRATOR]/[CHILD] tags, no commentary. JSON only."""
+- No markdown, no labels outside the [NARRATOR]/[HERO] tags, no commentary. JSON only."""
 
 _KIDS_STORY_THREE_VOICE_SYSTEM = """You are a warm, imaginative children's storyteller. Write a short enchanting children's story using three distinct voices: a narrator, a child hero, and an other character (like a dragon, villain, or magical creature).
 
 Output ONLY valid JSON with this exact shape:
 {
   "title": "Story Title Here",
-  "lyrics": "[NARRATOR] Deep in the enchanted forest...\\n[CHILD] I'm not scared!\\n[CHARACTER] ROAR! Who dares enter my forest?\\n[NARRATOR] The little hero stood tall..."
+  "lyrics": "[NARRATOR] Deep in the enchanted forest...\\n[HERO] I'm not scared!\\n[CHARACTER] ROAR! Who dares enter my forest?\\n[NARRATOR] The little hero stood tall..."
 }
 
 Speaker tag rules:
-- EVERY sentence or paragraph must begin with [NARRATOR], [CHILD], or [CHARACTER] — no untagged text whatsoever
+- EVERY sentence or paragraph must begin with [NARRATOR], [HERO], or [CHARACTER] — no untagged text whatsoever
 - [NARRATOR] = narration, scene-setting, description, transitions
-- [CHILD] = the child hero speaking, exclaiming, or reacting out loud
+- [HERO] = the child hero speaking, exclaiming, or reacting out loud
 - [CHARACTER] = the other character (dragon, villain, magical creature etc.) speaking
-- Aim for 10 to 14 total segments; roughly half narrator, a quarter child, a quarter character
-- [CHILD] lines: wide-eyed, curious and brave
+- Aim for 10 to 14 total segments; roughly half narrator, a quarter hero, a quarter character
+- [HERO] lines: wide-eyed, curious and brave
 - [CHARACTER] lines: dramatic, distinctive and memorable — this voice should be unmistakably different
 
 Story rules:

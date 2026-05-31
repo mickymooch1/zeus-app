@@ -1197,7 +1197,7 @@ export default function SongsPage() {
   const [kidsSubMode, setKidsSubMode]       = useState('song'); // 'song' | 'story'
   const [kidsAccent, setKidsAccent]         = useState('');     // Suno vocal accent (song mode)
   const [kidsNarratorVoice, setKidsNarratorVoice]   = useState('british');    // ElevenLabs narrator (story mode)
-  const [kidsChildVoice, setKidsChildVoice]         = useState('australian'); // ElevenLabs child hero voice
+  const [kidsChildVoice, setKidsChildVoice]         = useState('younggirl'); // ElevenLabs child hero voice
   const [kidsCharacterVoice, setKidsCharacterVoice] = useState('');           // ElevenLabs other character voice (optional)
   const [storyLanguage, setStoryLanguage]           = useState('english');  // language Claude writes story in
   const [mainCharacter, setMainCharacter]   = useState('');
@@ -2874,7 +2874,7 @@ export default function SongsPage() {
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
-              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('british'); setKidsChildVoice('australian'); setKidsCharacterVoice(''); setKidsSubMode('song'); setStoryLanguage('english'); }}
+              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('british'); setKidsChildVoice('younggirl'); setKidsCharacterVoice(''); setKidsSubMode('song'); setStoryLanguage('english'); }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                 background: isKidsMode ? 'rgba(251,191,36,0.10)' : 'rgba(251,191,36,0.04)',
