@@ -1087,12 +1087,14 @@ export default function SongsPage() {
   const [lockToast, setLockToast] = useState('');
   const lockToastTimer = useRef(null);
 
-  // Kids Story Mode
-  const [isKidsMode, setIsKidsMode]     = useState(false);
-  const [kidsAccent, setKidsAccent]     = useState('');
-  const [mainCharacter, setMainCharacter] = useState('');
-  const [storyEvent, setStoryEvent]     = useState('');
-  const [kidsAgeRange, setKidsAgeRange] = useState('little_ones');
+  // Kids Mode
+  const [isKidsMode, setIsKidsMode]         = useState(false);
+  const [kidsSubMode, setKidsSubMode]       = useState('song'); // 'song' | 'story'
+  const [kidsAccent, setKidsAccent]         = useState('');     // Suno vocal accent (song mode)
+  const [kidsNarratorVoice, setKidsNarratorVoice] = useState(''); // ElevenLabs narrator (story mode)
+  const [mainCharacter, setMainCharacter]   = useState('');
+  const [storyEvent, setStoryEvent]         = useState('');
+  const [kidsAgeRange, setKidsAgeRange]     = useState('little_ones');
   const [kidsMusicStyle, setKidsMusicStyle] = useState('funpop');
 
   // Custom lyrics
@@ -1440,10 +1442,11 @@ export default function SongsPage() {
           song_title: songTitle.trim() || undefined,
           animate_cover: animateCover,
           kids_story: true,
+          kids_mode: kidsSubMode,
           kids_age_range: kidsAgeRange || undefined,
-          accent: kidsAccent || undefined,
+          accent: kidsSubMode === 'story' ? (kidsNarratorVoice || undefined) : (kidsAccent || undefined),
         };
-        console.log('Kids Story Mode request body:', requestBody);
+        if (process.env.NODE_ENV === 'development') console.log('Kids Mode request:', requestBody);
       } else {
         console.log('animate_cover:', animateCover);
         if (genreBlend && genreB) console.log('Genre blend:', genreB, 'ratio:', blendRatio);
@@ -2755,7 +2758,7 @@ export default function SongsPage() {
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
-              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); }}
+              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice(''); setKidsSubMode('song'); }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                 background: isKidsMode ? 'rgba(251,191,36,0.10)' : 'rgba(251,191,36,0.04)',
@@ -2769,12 +2772,33 @@ export default function SongsPage() {
 
             {isKidsMode && (
               <div style={{ background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.30)', borderRadius: 10, padding: '18px 18px', marginBottom: 18 }}>
-                <p style={{ fontSize: 12, color: '#fbbf24', marginBottom: 16, lineHeight: 1.5 }}>
-                  🌟 Zeus will write a fun, age-appropriate story song — simple words, catchy repetition, perfect for little ones!
-                </p>
 
-                {/* Story Title */}
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>📖 Story Title</p>
+                {/* ── Sub-mode toggle ── */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+                  {[
+                    ['song',  '🎵', 'Song Mode',  'Suno sings a fun children\'s song'],
+                    ['story', '📖', 'Story Mode', 'Story narrated with gentle music'],
+                  ].map(([val, emoji, label, desc]) => (
+                    <button
+                      key={val}
+                      onClick={() => setKidsSubMode(val)}
+                      style={{
+                        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                        padding: '12px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                        border: `2px solid ${kidsSubMode === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
+                        background: kidsSubMode === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
+                        boxShadow: kidsSubMode === val ? '0 0 14px rgba(251,191,36,0.30)' : 'none',
+                      }}
+                    >
+                      <span style={{ fontSize: 22 }}>{emoji}</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: kidsSubMode === val ? '#fbbf24' : 'rgba(251,191,36,0.7)' }}>{label}</span>
+                      <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)', textAlign: 'center', lineHeight: 1.3 }}>{desc}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── Shared fields: title, character, what happens ── */}
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>📖 {kidsSubMode === 'story' ? 'Story Title' : 'Song Title'}</p>
                 <input
                   type="text"
                   value={songTitle}
@@ -2789,7 +2813,6 @@ export default function SongsPage() {
                   }}
                 />
 
-                {/* Main Character */}
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🦁 Main Character</p>
                 <input
                   type="text"
@@ -2805,7 +2828,6 @@ export default function SongsPage() {
                   }}
                 />
 
-                {/* What Happens */}
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>✨ What Happens?</p>
                 <textarea
                   value={storyEvent}
@@ -2821,7 +2843,7 @@ export default function SongsPage() {
                   }}
                 />
 
-                {/* Age Range */}
+                {/* ── Age Range (both modes) ── */}
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>👶 Age Range</p>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
                   {[
@@ -2843,55 +2865,98 @@ export default function SongsPage() {
                   ))}
                 </div>
 
-                {/* Music Style */}
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎵 Music Style</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginBottom: 16 }}>
-                  {[
-                    ['nursery',  '🎠', 'Nursery Rhyme'],
-                    ['funpop',   '🎉', 'Fun Pop'],
-                    ['acoustic', '🎸', 'Gentle Acoustic'],
-                    ['piano',    '🎹', 'Happy Piano'],
-                    ['reggae',   '🏝️', 'Reggae Fun'],
-                  ].map(([val, emoji, label]) => (
-                    <button key={val} onClick={() => setKidsMusicStyle(val)} style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                      padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                      border: `1px solid ${kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.20)'}`,
-                      background: kidsMusicStyle === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
-                      boxShadow: kidsMusicStyle === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
-                      minHeight: 66,
-                    }}>
-                      <span style={{ fontSize: 24, lineHeight: 1, marginBottom: 4 }}>{emoji}</span>
-                      <span style={{ fontSize: 10, fontWeight: kidsMusicStyle === val ? 700 : 500, textAlign: 'center', lineHeight: 1.2, color: kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.65)' }}>{label}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Narrator Voice */}
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎙 Narrator Voice</p>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                  {[
-                    ['',        '🌟', 'Charlotte', 'Warm & friendly'],
-                    ['daniel',  '🎙', 'Daniel',    'Calm & clear'],
-                    ['matilda', '🌸', 'Matilda',   'Gentle & nurturing'],
-                  ].map(([val, emoji, name, desc]) => (
-                    <button
-                      key={val || 'charlotte'}
-                      onClick={() => setKidsAccent(val)}
-                      style={{
-                        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                {/* ── SONG MODE fields ── */}
+                {kidsSubMode === 'song' && (<>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎵 Music Style</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginBottom: 16 }}>
+                    {[
+                      ['nursery',  '🎠', 'Nursery Rhyme'],
+                      ['funpop',   '🎉', 'Fun Pop'],
+                      ['acoustic', '🎸', 'Gentle Acoustic'],
+                      ['piano',    '🎹', 'Happy Piano'],
+                      ['reggae',   '🏝️', 'Reggae Fun'],
+                    ].map(([val, emoji, label]) => (
+                      <button key={val} onClick={() => setKidsMusicStyle(val)} style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                        border: `1px solid ${kidsAccent === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
-                        background: kidsAccent === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
-                        boxShadow: kidsAccent === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
-                      }}
-                    >
-                      <span style={{ fontSize: 22, lineHeight: 1, marginBottom: 4 }}>{emoji}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: kidsAccent === val ? '#fbbf24' : 'rgba(251,191,36,0.8)', marginBottom: 2 }}>{name}</span>
-                      <span style={{ fontSize: 9, color: 'rgba(251,191,36,0.5)', textAlign: 'center' }}>{desc}</span>
-                    </button>
-                  ))}
-                </div>
+                        border: `1px solid ${kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.20)'}`,
+                        background: kidsMusicStyle === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
+                        boxShadow: kidsMusicStyle === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                        minHeight: 66,
+                      }}>
+                        <span style={{ fontSize: 24, lineHeight: 1, marginBottom: 4 }}>{emoji}</span>
+                        <span style={{ fontSize: 10, fontWeight: kidsMusicStyle === val ? 700 : 500, textAlign: 'center', lineHeight: 1.2, color: kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.65)' }}>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🎤 Singing Accent</p>
+                  <select
+                    value={kidsAccent}
+                    onChange={(e) => setKidsAccent(e.target.value)}
+                    style={{ width: '100%', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: 8, padding: '8px 12px', color: kidsAccent ? '#fbbf24' : 'rgba(251,191,36,0.5)', fontSize: 13, outline: 'none', marginBottom: 4 }}
+                  >
+                    <option value="">🌟 Default</option>
+                    {['British','Irish','Scottish','Australian','Caribbean','American Soul','Jamaican','French','Spanish'].map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                </>)}
+
+                {/* ── STORY MODE fields ── */}
+                {kidsSubMode === 'story' && (<>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎙 Narrator Voice</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+                    {[
+                      ['',         '🌟', 'Charlotte', 'Warm & clear'],
+                      ['scottish', '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',  'Lively'],
+                      ['irish',    '🍀', 'Irish',     'Musical'],
+                      ['welsh',    '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'Welsh',     'Melodic'],
+                      ['geordie',  '⚓', 'Geordie',   'Friendly'],
+                      ['scouse',   '🎶', 'Scouse',    'Warm'],
+                    ].map(([val, emoji, name, desc]) => (
+                      <button
+                        key={val || 'charlotte'}
+                        onClick={() => setKidsNarratorVoice(val)}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                          padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                          border: `1px solid ${kidsNarratorVoice === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
+                          background: kidsNarratorVoice === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
+                          boxShadow: kidsNarratorVoice === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                        }}
+                      >
+                        <span style={{ fontSize: 20 }}>{emoji}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: kidsNarratorVoice === val ? '#fbbf24' : 'rgba(251,191,36,0.8)' }}>{name}</span>
+                        <span style={{ fontSize: 9, color: 'rgba(251,191,36,0.5)' }}>{desc}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎵 Background Music</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginBottom: 4 }}>
+                    {[
+                      ['piano',    '🎹', 'Gentle Piano'],
+                      ['acoustic', '🎸', 'Soft Acoustic'],
+                      ['nursery',  '🎠', 'Nursery Tune'],
+                      ['funpop',   '🎵', 'Light Pop'],
+                      ['reggae',   '🏝️', 'Soft Reggae'],
+                    ].map(([val, emoji, label]) => (
+                      <button key={val} onClick={() => setKidsMusicStyle(val)} style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                        border: `1px solid ${kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.20)'}`,
+                        background: kidsMusicStyle === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
+                        boxShadow: kidsMusicStyle === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                        minHeight: 66,
+                      }}>
+                        <span style={{ fontSize: 24, lineHeight: 1, marginBottom: 4 }}>{emoji}</span>
+                        <span style={{ fontSize: 10, fontWeight: kidsMusicStyle === val ? 700 : 500, textAlign: 'center', lineHeight: 1.2, color: kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.65)' }}>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>)}
+
               </div>
             )}
 

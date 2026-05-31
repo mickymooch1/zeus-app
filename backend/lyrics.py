@@ -56,6 +56,26 @@ GENRE_VOCABULARY: dict[str, str] = {
     "rockney":     "Write in authentic Cockney style — use Cockney rhyming slang, reference East End London life, pubs, markets, football, family. Cheerful singalong verses with a big catchy pub chorus everyone can join in with. Think traditional London street culture.",
 }
 
+_KIDS_SONG_SYSTEM = """You are a warm, playful children's songwriter. Write fun, age-appropriate lyrics that children aged 3-8 will love.
+
+Output ONLY valid JSON with this exact shape:
+{{
+  "title": "Song Title Here",
+  "lyrics": "[Verse 1]\\nLine one...\\n[Chorus]\\nLine one..."
+}}
+
+Song structure to use: {structure}
+
+Rules:
+- Simple, clear vocabulary — words a young child can understand
+- Short, rhythmic lines with strong rhymes and repetition
+- Fun, bouncy, sing-along energy — children should be able to join in easily
+- Include repeated phrases or a call-and-response element children can memorise
+- Themes: animals, adventure, friendship, colours, counting, nature, silliness, magic
+- Upbeat and positive — no scary, sad, or adult themes
+- Maximum 150 words total — short enough to hold a child's attention
+- No markdown, no commentary. JSON only."""
+
 _KIDS_STORY_SYSTEM = """You are a warm, imaginative children's storyteller. Write a short enchanting children's story.
 
 Output ONLY valid JSON with this exact shape:
@@ -194,7 +214,7 @@ _REGULAR_LANGUAGE_MAP = {
 }
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, accent: str | None = None) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None) -> dict:
     if instrumental:
         title = song_title or "Instrumental"
         conn = db._conn(db_path)
@@ -213,22 +233,34 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
     client = Anthropic()
 
     if kids_story:
-        story_prompt = brief.strip() if brief.strip() else "Write a fun, magical adventure story for young children."
         model = "claude-sonnet-4-6"
+        if kids_mode == 'story':
+            kids_prompt = brief.strip() if brief.strip() else "Write a fun, magical adventure story for young children."
+            system = _KIDS_STORY_SYSTEM
+        else:  # song mode
+            structure = random.choice([
+                "[Verse 1], [Chorus], [Verse 2], [Chorus], [Outro]",
+                "[Intro], [Verse 1], [Chorus], [Verse 2], [Chorus]",
+                "[Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus]",
+            ])
+            system = _KIDS_SONG_SYSTEM.format(structure=structure)
+            kids_prompt = brief.strip() if brief.strip() else (
+                f"Genre: {', '.join(genres)}. " if genres else ""
+            ) + "Write a fun, catchy children's song."
         logger.info(
-            "generate_lyrics: kids_story prose mode — calling %s user=%s brief=%r",
-            model, user_id, brief[:200],
+            "generate_lyrics: kids_%s mode — calling %s user=%s brief=%r",
+            kids_mode, model, user_id, brief[:200],
         )
         try:
             response = client.messages.create(
                 model=model,
                 max_tokens=800,
                 temperature=1.0,
-                system=_KIDS_STORY_SYSTEM,
-                messages=[{"role": "user", "content": story_prompt}],
+                system=system,
+                messages=[{"role": "user", "content": kids_prompt}],
             )
         except Exception:
-            logger.exception("generate_lyrics: kids_story %s API call failed — user=%s", model, user_id)
+            logger.exception("generate_lyrics: kids_%s %s API call failed — user=%s", kids_mode, model, user_id)
             raise
         raw = response.content[0].text.strip()
         if raw.startswith("```"):

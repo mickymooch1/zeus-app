@@ -1805,8 +1805,9 @@ class SongsGenerateRequest(BaseModel):
     animate_cover: bool = True           # generate Kling animated video after song completes
     genre_b: str | None = None           # second genre for fusion blend mode
     blend_ratio: int | None = None       # 0–100: how much of genre_b vs genre_a (default 50)
-    kids_story: bool = False             # Kids Story Mode — uses simplified Claude prompt, kids accent selector
+    kids_story: bool = False             # Kids Mode — uses child-appropriate Claude prompt
     kids_age_range: str | None = None    # "tiny_tots" | "little_ones" | "big_kids" — logged and passed to lyrics prompt
+    kids_mode: str | None = None         # "song" | "story" — controls lyric style, TTS, instrumental
 
 
 @app.post("/api/songs/generate")
@@ -1855,9 +1856,12 @@ async def songs_generate(
         current_user.get("email"),
     )
 
+    # True only for Story sub-mode; False = Song sub-mode (sung kids song, no TTS)
+    _is_story = body.kids_story and body.kids_mode == 'story'
+
     if body.kids_story:
-        log.info("kids_story: accent=%s age_range=%s genres=%s brief=%r user_id=%s",
-                 body.accent, body.kids_age_range, list(body.genres), body.brief[:120], user_id)
+        log.info("kids_%s: accent=%s age_range=%s genres=%s brief=%r user_id=%s",
+                 body.kids_mode or 'song', body.accent, body.kids_age_range, list(body.genres), body.brief[:120], user_id)
 
     try:
         if body.custom_lyrics:
@@ -1869,16 +1873,16 @@ async def songs_generate(
                 song_title=body.song_title or None,
             )
         else:
-            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), accent=body.accent or None)
+            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None)
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
 
     lyric_id = lyric_result["lyric_id"]
 
-    # ElevenLabs TTS narration for Kids Story Mode
+    # ElevenLabs TTS narration — Story sub-mode only
     story_audio_url = None
-    if body.kids_story:
+    if _is_story:
         _el_key = os.environ.get("ELEVENLABS_API_KEY", "")
         if _el_key and lyric_result.get("lyrics"):
             _has_credit = db.check_and_deduct_premium_credit(db_path, user_id)
@@ -1886,8 +1890,13 @@ async def songs_generate(
                 try:
                     _story_text = lyric_result["lyrics"].strip()
                     _NARRATOR_VOICES = {
-                        'daniel':  'onwK4e9ZLuTAKqWW03F9',
-                        'matilda': 'XrExE9yKIg1WjnnlVkGX',
+                        'daniel':   'onwK4e9ZLuTAKqWW03F9',
+                        'matilda':  'XrExE9yKIg1WjnnlVkGX',
+                        'scottish': 'N2lVS1w4EtoT3dr4eOWO',  # Callum
+                        'irish':    'D38z5RcWu1voky8WS1ja',  # Fin
+                        'welsh':    'ThT5KcBeYPX3keUQqHPh',  # Dorothy
+                        'geordie':  'SOYHLrjzK2X1ezoPC6cr',  # Harry
+                        'scouse':   'GBv7mTt0atIp3Br8iCZE',  # Thomas
                     }
                     _voice_id = _NARRATOR_VOICES.get((body.accent or '').lower(), 'XB0fDUnXU5powFXDhCwa')  # default: Charlotte
                     async with httpx.AsyncClient(timeout=30.0) as _el_client:
@@ -1936,10 +1945,12 @@ async def songs_generate(
         extra_suno_params["model_version"] = _MODEL_VERSION_MAP[body.model_version]
     if body.negative_tags and body.negative_tags.strip():
         extra_suno_params["negative_tags"] = body.negative_tags.strip()[:500]
-    if body.instrumental or body.kids_story:
+    if body.instrumental or _is_story:
         extra_suno_params["instrumental"] = True
 
     style_suffix_parts: list[str] = []
+    if body.kids_story and not _is_story:  # Song sub-mode — sung children's song
+        style_suffix_parts.append("children's song, warm playful singing voice, fun and engaging for kids, upbeat storyteller energy")
     if body.tempo == "slow":
         style_suffix_parts.append("slow tempo")
     elif body.tempo == "medium":
@@ -1950,7 +1961,7 @@ async def songs_generate(
         style_suffix_parts.append(f"{max(40, min(300, body.tempo_bpm))} BPM")
     if body.vocal_gender == "duet":
         style_suffix_parts.append("male and female vocal duet, call and response, harmonising together, two voices intertwining")
-    if body.accent and not body.kids_story:
+    if body.accent and not _is_story:
         # ── REGULAR MODE ACCENT — original working code, DO NOT MODIFY ──────────
         _ACCENT_DESCRIPTORS = {
             "British":              "strong unmistakable British RP brogue, thick received pronunciation, clipped precise consonants, pronounce words with heavy Queen's English inflection, distinctly posh British delivery that cuts through any genre",
@@ -2072,7 +2083,7 @@ async def songs_generate(
         style_suffix_parts.append(_INSTRUMENTAL_SUFFIX)
     tempo_suffix = ", ".join(style_suffix_parts) or None
     if body.kids_story:
-        log.info("kids_story: tempo_suffix=%r", tempo_suffix)
+        log.info("kids_%s: tempo_suffix=%r", body.kids_mode or 'song', tempo_suffix)
 
     is_admin = bool(current_user.get("is_admin", 0))
 
@@ -2172,7 +2183,7 @@ async def songs_generate(
             animate_cover=body.animate_cover,
             genre_b=body.genre_b or None,
             blend_ratio=body.blend_ratio,
-            kids_story=bool(body.kids_story),
+            kids_story=_is_story,
         )
         log.info(
             "songs_generate: Apiframe submission ok user_id=%s lyric_id=%s variants=%r",
