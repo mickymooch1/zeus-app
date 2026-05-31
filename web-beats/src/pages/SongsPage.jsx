@@ -284,9 +284,18 @@ const SONG_TEMPLATES = [
   { emoji: '🌴', label: 'Afrobeats Vibe', value: 'A feel good afrobeats song about summer, good vibes and celebrating life' },
 ];
 
+function formatStoryTime(secs) {
+  if (!secs || isNaN(secs)) return '0:00';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }) {
-  const [playing, setPlaying] = useState(false);
-  const [copied, setCopied]   = useState(false);
+  const [playing, setPlaying]       = useState(false);
+  const [copied, setCopied]         = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration]     = useState(0);
   const audioRef = useRef(null);
 
   const audioUrl = variant.mp3_url
@@ -296,8 +305,11 @@ const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }
   const handlePlay = () => {
     if (!audioUrl) return;
     if (!audioRef.current) {
-      audioRef.current = new Audio(audioUrl);
-      audioRef.current.onended = () => setPlaying(false);
+      const a = new Audio(audioUrl);
+      a.onended = () => setPlaying(false);
+      a.addEventListener('timeupdate', () => setCurrentTime(a.currentTime));
+      a.addEventListener('loadedmetadata', () => setDuration(a.duration));
+      audioRef.current = a;
     }
     if (playing) {
       audioRef.current.pause();
@@ -306,6 +318,12 @@ const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }
       audioRef.current.play().catch(() => {});
       setPlaying(true);
     }
+  };
+
+  const handleSeek = (e) => {
+    const val = Number(e.target.value);
+    if (audioRef.current) audioRef.current.currentTime = val;
+    setCurrentTime(val);
   };
 
   useEffect(() => () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } }, []);
@@ -354,7 +372,32 @@ const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }
           <span style={{ ...S.pill, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.35)', background: 'rgba(167,139,250,0.1)' }}>🧒 Kids Story</span>
         </div>
         {audioUrl && (
-          <div style={{ marginTop: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#a78bfa', minWidth: 28, textAlign: 'right', fontFamily: 'monospace' }}>
+              {formatStoryTime(currentTime)}
+            </span>
+            <input
+              type="range"
+              min="0"
+              max={duration || 0}
+              step="0.1"
+              value={currentTime}
+              onChange={handleSeek}
+              style={{
+                flex: 1, height: 4, cursor: 'pointer', accentColor: '#a855f7',
+                background: duration
+                  ? `linear-gradient(to right, #a855f7 ${(currentTime / duration) * 100}%, rgba(167,139,250,0.2) ${(currentTime / duration) * 100}%)`
+                  : 'rgba(167,139,250,0.2)',
+                borderRadius: 2, outline: 'none', border: 'none', appearance: 'none', WebkitAppearance: 'none',
+              }}
+            />
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(167,139,250,0.6)', minWidth: 28, fontFamily: 'monospace' }}>
+              {formatStoryTime(duration)}
+            </span>
+          </div>
+        )}
+        {audioUrl && (
+          <div style={{ marginTop: 8 }}>
             <a
               href={audioUrl}
               download={safeFilename}
