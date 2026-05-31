@@ -1890,13 +1890,11 @@ async def songs_generate(
                 try:
                     _story_text = lyric_result["lyrics"].strip()
                     _NARRATOR_VOICES = {
-                        'daniel':   'onwK4e9ZLuTAKqWW03F9',
-                        'matilda':  'XrExE9yKIg1WjnnlVkGX',
-                        'scottish': 'N2lVS1w4EtoT3dr4eOWO',  # Callum
-                        'irish':    'D38z5RcWu1voky8WS1ja',  # Fin
-                        'welsh':    'ThT5KcBeYPX3keUQqHPh',  # Dorothy
-                        'geordie':  'SOYHLrjzK2X1ezoPC6cr',  # Harry
-                        'scouse':   'GBv7mTt0atIp3Br8iCZE',  # Thomas
+                        'charlotte':  'XB0fDUnXU5powFXDhCwa',  # British (default)
+                        'scouse':     'QskpmzLHRFPTEOkFlnAI',  # Scouse/Liverpool
+                        'australian': 'dh3YdvdCYZdqFjtSFNTx',  # Australian
+                        'irish':      'E8tAm6nkbW2yKYAJLVXH',  # Irish
+                        'scottish':   'InE4naNnowIxWA78Z5kE',  # Scottish
                     }
                     _voice_id = _NARRATOR_VOICES.get((body.accent or '').lower(), 'XB0fDUnXU5powFXDhCwa')  # default: Charlotte
                     async with httpx.AsyncClient(timeout=30.0) as _el_client:
@@ -1947,6 +1945,8 @@ async def songs_generate(
         extra_suno_params["negative_tags"] = body.negative_tags.strip()[:500]
     if body.instrumental or _is_story:
         extra_suno_params["instrumental"] = True
+    if body.kids_story:
+        log.info("Kids mode: sub_mode=%s instrumental=%s", body.kids_mode or 'song', extra_suno_params.get("instrumental", False))
 
     style_suffix_parts: list[str] = []
     if body.kids_story and not _is_story:  # Song sub-mode — sung children's song

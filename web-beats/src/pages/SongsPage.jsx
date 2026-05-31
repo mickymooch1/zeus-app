@@ -1091,7 +1091,7 @@ export default function SongsPage() {
   const [isKidsMode, setIsKidsMode]         = useState(false);
   const [kidsSubMode, setKidsSubMode]       = useState('song'); // 'song' | 'story'
   const [kidsAccent, setKidsAccent]         = useState('');     // Suno vocal accent (song mode)
-  const [kidsNarratorVoice, setKidsNarratorVoice] = useState(''); // ElevenLabs narrator (story mode)
+  const [kidsNarratorVoice, setKidsNarratorVoice] = useState('charlotte'); // ElevenLabs narrator (story mode)
   const [mainCharacter, setMainCharacter]   = useState('');
   const [storyEvent, setStoryEvent]         = useState('');
   const [kidsAgeRange, setKidsAgeRange]     = useState('little_ones');
@@ -2758,7 +2758,7 @@ export default function SongsPage() {
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
-              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice(''); setKidsSubMode('song'); }}
+              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('charlotte'); setKidsSubMode('song'); }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                 background: isKidsMode ? 'rgba(251,191,36,0.10)' : 'rgba(251,191,36,0.04)',
@@ -2908,15 +2908,14 @@ export default function SongsPage() {
                   <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎙 Narrator Voice</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
                     {[
-                      ['',         '🌟', 'Charlotte', 'Warm & clear'],
-                      ['scottish', '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',  'Lively'],
-                      ['irish',    '🍀', 'Irish',     'Musical'],
-                      ['welsh',    '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'Welsh',     'Melodic'],
-                      ['geordie',  '⚓', 'Geordie',   'Friendly'],
-                      ['scouse',   '🎶', 'Scouse',    'Warm'],
+                      ['charlotte',   '🇬🇧', 'British',    'Warm & clear'],
+                      ['scouse',      '🎸',  'Scouse',     'Liverpool'],
+                      ['australian',  '🦘',  'Australian', 'Warm & bright'],
+                      ['irish',       '🍀',  'Irish',      'Musical'],
+                      ['scottish',    '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
                     ].map(([val, emoji, name, desc]) => (
                       <button
-                        key={val || 'charlotte'}
+                        key={val}
                         onClick={() => setKidsNarratorVoice(val)}
                         style={{
                           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
