@@ -1569,7 +1569,7 @@ export default function SongsPage() {
     return () => { if (portraitPollRef.current) clearTimeout(portraitPollRef.current); };
   }, [portraitJobId, token]);
 
-  const handleVoicePreview = async (voiceKey) => {
+  const handleVoicePreview = (voiceKey) => {
     // Toggle off: user taps the same voice that is currently playing
     if (previewingVoice === voiceKey && previewAudioRef.current) {
       previewAudioRef.current.onpause = null; // prevent double-clear
@@ -1584,24 +1584,15 @@ export default function SongsPage() {
       previewAudioRef.current.pause();
       previewAudioRef.current = null;
     }
+    // Pre-generated file — play instantly, no API fetch needed
+    const url = `${BACKEND_URL}/files/voice-previews/${voiceKey}.mp3`;
+    const audio = new Audio(url);
+    // onpause fires when audioManager stops this preview (e.g. a story or song starts)
+    audio.onpause = () => { setPreviewingVoice(null); previewAudioRef.current = null; };
+    audio.onended = () => { setPreviewingVoice(null); previewAudioRef.current = null; };
+    previewAudioRef.current = audio;
     setPreviewingVoice(voiceKey);
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/voice-preview`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voice_key: voiceKey }),
-      });
-      const data = await res.json();
-      const url = data.url?.startsWith('http') ? data.url : `${BACKEND_URL}${data.url}`;
-      const audio = new Audio(url);
-      // onpause fires when audioManager stops this preview (e.g. a story starts)
-      audio.onpause  = () => { setPreviewingVoice(null); previewAudioRef.current = null; };
-      audio.onended  = () => { setPreviewingVoice(null); previewAudioRef.current = null; };
-      previewAudioRef.current = audio;
-      audioManager.play(audio, 'voice-preview');
-    } catch {
-      setPreviewingVoice(null);
-    }
+    audioManager.play(audio, 'voice-preview');
   };
 
   const handleGenerate = async () => {

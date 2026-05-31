@@ -590,6 +590,42 @@ async def lifespan(app: FastAPI):
         # Free-tier users receive a one-time signup bonus of FREE_SONG_CREDITS.
         # Monthly credit refreshes apply to paid plans only (handled via Stripe invoice webhooks).
 
+        # Pre-generate ElevenLabs voice preview samples so they play instantly in the UI.
+        async def _pregenerate_voice_previews() -> None:
+            import httpx as _hx
+            el_key = os.environ.get("ELEVENLABS_API_KEY", "")
+            if not el_key:
+                log.warning("voice-preview pre-gen skipped — ELEVENLABS_API_KEY not set")
+                return
+            cache_dir = pathlib.Path("/data/voice-previews")
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            sample_text = "Hello! This is what I sound like. I hope you enjoy my voice!"
+            generated = 0
+            async with _hx.AsyncClient(timeout=30) as _cl:
+                for _vkey, _vid in _STORY_VOICES.items():
+                    _path = cache_dir / f"{_vkey}.mp3"
+                    if _path.exists():
+                        continue
+                    try:
+                        _r = await _cl.post(
+                            f"https://api.elevenlabs.io/v1/text-to-speech/{_vid}",
+                            headers={"xi-api-key": el_key, "Content-Type": "application/json"},
+                            json={"text": sample_text, "model_id": "eleven_multilingual_v2",
+                                  "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}},
+                        )
+                        if _r.status_code == 200:
+                            _path.write_bytes(_r.content)
+                            generated += 1
+                            log.info("voice-preview pre-gen: cached %s", _vkey)
+                        else:
+                            log.warning("voice-preview pre-gen: ElevenLabs %s for %s", _r.status_code, _vkey)
+                    except Exception:
+                        log.exception("voice-preview pre-gen: failed for %s", _vkey)
+            log.info("voice-preview pre-gen complete — %d new file(s) generated", generated)
+
+        _pg_task = asyncio.create_task(_pregenerate_voice_previews())
+        _background_tasks.add(_pg_task)
+        _pg_task.add_done_callback(_background_tasks.discard)
 
         if _RAILWAY:
             log.info("Running on Railway — skipping cloudflared tunnel (not installed)")
