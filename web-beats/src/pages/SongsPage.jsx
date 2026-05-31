@@ -1243,6 +1243,8 @@ export default function SongsPage() {
   const [kidsChildVoice, setKidsChildVoice]         = useState('younggirl'); // ElevenLabs child hero voice
   const [kidsCharacterVoice, setKidsCharacterVoice] = useState('');           // ElevenLabs other character voice (optional)
   const [storyLanguage, setStoryLanguage]           = useState('english');  // language Claude writes story in
+  const [previewingVoice, setPreviewingVoice]       = useState(null);        // voice key currently previewing
+  const previewAudioRef = useRef(null);
   const [mainCharacter, setMainCharacter]   = useState('');
   const [storyEvent, setStoryEvent]         = useState('');
   const [kidsAgeRange, setKidsAgeRange]     = useState('little_ones');
@@ -1566,6 +1568,33 @@ export default function SongsPage() {
     portraitPollRef.current = setTimeout(poll, 5000);
     return () => { if (portraitPollRef.current) clearTimeout(portraitPollRef.current); };
   }, [portraitJobId, token]);
+
+  const handleVoicePreview = async (voiceKey) => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current = null;
+    }
+    if (previewingVoice === voiceKey) {
+      setPreviewingVoice(null);
+      return;
+    }
+    setPreviewingVoice(voiceKey);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/voice-preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voice_key: voiceKey }),
+      });
+      const data = await res.json();
+      const url = data.url?.startsWith('http') ? data.url : `${BACKEND_URL}${data.url}`;
+      const audio = new Audio(url);
+      previewAudioRef.current = audio;
+      audio.onended = () => { setPreviewingVoice(null); previewAudioRef.current = null; };
+      audio.play().catch(() => setPreviewingVoice(null));
+    } catch {
+      setPreviewingVoice(null);
+    }
+  };
 
   const handleGenerate = async () => {
     setError('');
@@ -3076,21 +3105,35 @@ export default function SongsPage() {
                       ['irish',      '🍀',  'Irish',       'Musical'],
                       ['scottish',   '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
                     ].map(([val, emoji, name, desc]) => (
-                      <button
-                        key={val}
-                        onClick={() => setKidsNarratorVoice(val)}
-                        style={{
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                          padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                          border: `1px solid ${kidsNarratorVoice === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
-                          background: kidsNarratorVoice === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
-                          boxShadow: kidsNarratorVoice === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
-                        }}
-                      >
-                        <span style={{ fontSize: 20 }}>{emoji}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: kidsNarratorVoice === val ? '#fbbf24' : 'rgba(251,191,36,0.8)' }}>{name}</span>
-                        <span style={{ fontSize: 9, color: 'rgba(251,191,36,0.5)' }}>{desc}</span>
-                      </button>
+                      <div key={val} style={{ position: 'relative' }}>
+                        <button
+                          onClick={() => setKidsNarratorVoice(val)}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                            padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                            border: `1px solid ${kidsNarratorVoice === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
+                            background: kidsNarratorVoice === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
+                            boxShadow: kidsNarratorVoice === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                            width: '100%',
+                          }}
+                        >
+                          <span style={{ fontSize: 20 }}>{emoji}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: kidsNarratorVoice === val ? '#fbbf24' : 'rgba(251,191,36,0.8)' }}>{name}</span>
+                          <span style={{ fontSize: 9, color: 'rgba(251,191,36,0.5)' }}>{desc}</span>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleVoicePreview(val); }}
+                          title="Preview voice"
+                          style={{
+                            position: 'absolute', top: 4, right: 4, width: 18, height: 18,
+                            borderRadius: '50%', border: '1px solid rgba(251,191,36,0.5)',
+                            background: previewingVoice === val ? 'rgba(251,191,36,0.7)' : 'rgba(0,0,0,0.45)',
+                            color: '#fbbf24', fontSize: 7, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            backdropFilter: 'blur(4px)', transition: 'all 0.15s', padding: 0,
+                          }}
+                        >{previewingVoice === val ? '⏸' : '▶'}</button>
+                      </div>
                     ))}
                   </div>
 
@@ -3107,21 +3150,35 @@ export default function SongsPage() {
                       ['scouse',     '🎸',  'Scouse',      'Cheeky'],
                       ['scottish',   '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
                     ].map(([val, emoji, name, desc]) => (
-                      <button
-                        key={val}
-                        onClick={() => setKidsChildVoice(val)}
-                        style={{
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                          padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                          border: `1px solid ${kidsChildVoice === val ? '#34d399' : 'rgba(52,211,153,0.25)'}`,
-                          background: kidsChildVoice === val ? 'rgba(52,211,153,0.15)' : 'rgba(52,211,153,0.04)',
-                          boxShadow: kidsChildVoice === val ? '0 0 10px rgba(52,211,153,0.25)' : 'none',
-                        }}
-                      >
-                        <span style={{ fontSize: 20 }}>{emoji}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: kidsChildVoice === val ? '#34d399' : 'rgba(52,211,153,0.8)' }}>{name}</span>
-                        <span style={{ fontSize: 9, color: 'rgba(52,211,153,0.5)' }}>{desc}</span>
-                      </button>
+                      <div key={val} style={{ position: 'relative' }}>
+                        <button
+                          onClick={() => setKidsChildVoice(val)}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                            padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                            border: `1px solid ${kidsChildVoice === val ? '#34d399' : 'rgba(52,211,153,0.25)'}`,
+                            background: kidsChildVoice === val ? 'rgba(52,211,153,0.15)' : 'rgba(52,211,153,0.04)',
+                            boxShadow: kidsChildVoice === val ? '0 0 10px rgba(52,211,153,0.25)' : 'none',
+                            width: '100%',
+                          }}
+                        >
+                          <span style={{ fontSize: 20 }}>{emoji}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: kidsChildVoice === val ? '#34d399' : 'rgba(52,211,153,0.8)' }}>{name}</span>
+                          <span style={{ fontSize: 9, color: 'rgba(52,211,153,0.5)' }}>{desc}</span>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleVoicePreview(val); }}
+                          title="Preview voice"
+                          style={{
+                            position: 'absolute', top: 4, right: 4, width: 18, height: 18,
+                            borderRadius: '50%', border: '1px solid rgba(52,211,153,0.5)',
+                            background: previewingVoice === val ? 'rgba(52,211,153,0.7)' : 'rgba(0,0,0,0.45)',
+                            color: '#34d399', fontSize: 7, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            backdropFilter: 'blur(4px)', transition: 'all 0.15s', padding: 0,
+                          }}
+                        >{previewingVoice === val ? '⏸' : '▶'}</button>
+                      </div>
                     ))}
                   </div>
 
@@ -3151,21 +3208,35 @@ export default function SongsPage() {
                       ['raspy',   '👹', 'Raspy',    'Scary'],
                       ['gnarly',  '🤙', 'Gnarly',   'Wild'],
                     ].map(([val, emoji, name, desc]) => (
-                      <button
-                        key={val}
-                        onClick={() => setKidsCharacterVoice(v => v === val ? '' : val)}
-                        style={{
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                          padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                          border: `1px solid ${kidsCharacterVoice === val ? '#f472b6' : 'rgba(244,114,182,0.25)'}`,
-                          background: kidsCharacterVoice === val ? 'rgba(244,114,182,0.18)' : 'rgba(244,114,182,0.04)',
-                          boxShadow: kidsCharacterVoice === val ? '0 0 12px rgba(244,114,182,0.35)' : 'none',
-                        }}
-                      >
-                        <span style={{ fontSize: 20 }}>{emoji}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: kidsCharacterVoice === val ? '#f472b6' : 'rgba(244,114,182,0.8)' }}>{name}</span>
-                        <span style={{ fontSize: 9, color: 'rgba(244,114,182,0.5)' }}>{desc}</span>
-                      </button>
+                      <div key={val} style={{ position: 'relative' }}>
+                        <button
+                          onClick={() => setKidsCharacterVoice(v => v === val ? '' : val)}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                            padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                            border: `1px solid ${kidsCharacterVoice === val ? '#f472b6' : 'rgba(244,114,182,0.25)'}`,
+                            background: kidsCharacterVoice === val ? 'rgba(244,114,182,0.18)' : 'rgba(244,114,182,0.04)',
+                            boxShadow: kidsCharacterVoice === val ? '0 0 12px rgba(244,114,182,0.35)' : 'none',
+                            width: '100%',
+                          }}
+                        >
+                          <span style={{ fontSize: 20 }}>{emoji}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: kidsCharacterVoice === val ? '#f472b6' : 'rgba(244,114,182,0.8)' }}>{name}</span>
+                          <span style={{ fontSize: 9, color: 'rgba(244,114,182,0.5)' }}>{desc}</span>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleVoicePreview(val); }}
+                          title="Preview voice"
+                          style={{
+                            position: 'absolute', top: 4, right: 4, width: 18, height: 18,
+                            borderRadius: '50%', border: '1px solid rgba(244,114,182,0.5)',
+                            background: previewingVoice === val ? 'rgba(244,114,182,0.7)' : 'rgba(0,0,0,0.45)',
+                            color: '#f472b6', fontSize: 7, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            backdropFilter: 'blur(4px)', transition: 'all 0.15s', padding: 0,
+                          }}
+                        >{previewingVoice === val ? '⏸' : '▶'}</button>
+                      </div>
                     ))}
                   </div>
 

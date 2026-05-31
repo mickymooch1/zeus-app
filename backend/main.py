@@ -1813,6 +1813,27 @@ class SongsGenerateRequest(BaseModel):
     child_voice: str | None = None       # child hero voice key — enables narrator+child+character 3-voice mode
 
 
+_STORY_VOICES: dict[str, str] = {
+    # Accent narrators
+    'british':    'WUyjxM8OTY6l8LhTmdkq',
+    'australian': 'b8gbDO0ybjX1VA89pBdX',
+    'newzealand': 'BHhU6fTKdSX6bN7T1tpz',
+    'indian':     'nwXBqbMKJWkQdYCbhxqZ',
+    'scouse':     'QskpmzLHRFPTEOkFlnAI',
+    'irish':      'E8tAm6nkbW2yKYAJLVXH',
+    'scottish':   'InE4naNnowIxWA78Z5kE',
+    # Character voices
+    'cranky':     'MKlLqCItoCkvdhrxgtLv',
+    'villain':    'TDTTIZEngvvWARkECefs',
+    'dragon':     'xsiB5fGhEtknnqzudCO6',
+    'gnarly':     'bFrjFL4nlpeYNwNRhXxq',
+    'raspy':      '1zvnni6XluAvqQJWPf1M',
+    'pirate':     '6VgigPFWF0sNZy1BthVg',
+    'wizard':     'BBfN7Spa3cqLPH1xAS22',
+    'younggirl':  'pPdl9cQBQq4p6mRkZy2Z',
+}
+
+
 def _parse_story_segments(text: str) -> list[dict]:
     """Split speaker-tagged story text into ordered [{speaker, text}] segments.
     Handles any all-caps tag: [NARRATOR], [CHILD], [CHARACTER], [DRAGON], etc."""
@@ -1935,32 +1956,13 @@ async def songs_generate(
             if _has_credit:
                 try:
                     _story_text = lyric_result["lyrics"].strip()
-                    _ALL_VOICES = {
-                        # Accents
-                        'british':    'WUyjxM8OTY6l8LhTmdkq',
-                        'australian': 'b8gbDO0ybjX1VA89pBdX',
-                        'newzealand': 'BHhU6fTKdSX6bN7T1tpz',
-                        'indian':     'nwXBqbMKJWkQdYCbhxqZ',
-                        'scouse':     'QskpmzLHRFPTEOkFlnAI',
-                        'irish':      'E8tAm6nkbW2yKYAJLVXH',
-                        'scottish':   'InE4naNnowIxWA78Z5kE',
-                        # Character voices
-                        'cranky':     'MKlLqCItoCkvdhrxgtLv',
-                        'villain':    'TDTTIZEngvvWARkECefs',
-                        'dragon':     'xsiB5fGhEtknnqzudCO6',
-                        'gnarly':     'bFrjFL4nlpeYNwNRhXxq',
-                        'raspy':      '1zvnni6XluAvqQJWPf1M',
-                        'pirate':     '6VgigPFWF0sNZy1BthVg',
-                        'wizard':     'BBfN7Spa3cqLPH1xAS22',
-                        'younggirl':  'pPdl9cQBQq4p6mRkZy2Z',
-                    }
-                    _narrator_voice_id = _ALL_VOICES.get((body.accent or '').lower(), 'WUyjxM8OTY6l8LhTmdkq')
+                    _narrator_voice_id = _STORY_VOICES.get((body.accent or '').lower(), 'WUyjxM8OTY6l8LhTmdkq')
                     _char_voice_key  = (body.character_voice or '').lower()
                     _child_voice_key = (body.child_voice or '').lower()
-                    _char_voice_id   = _ALL_VOICES.get(_char_voice_key,  _narrator_voice_id)
-                    _child_voice_id  = _ALL_VOICES.get(_child_voice_key, _narrator_voice_id)
-                    _use_char  = bool(body.character_voice and _char_voice_key in _ALL_VOICES)
-                    _use_child = bool(body.child_voice and _child_voice_key in _ALL_VOICES)
+                    _char_voice_id   = _STORY_VOICES.get(_char_voice_key,  _narrator_voice_id)
+                    _child_voice_id  = _STORY_VOICES.get(_child_voice_key, _narrator_voice_id)
+                    _use_char  = bool(body.character_voice and _char_voice_key in _STORY_VOICES)
+                    _use_child = bool(body.child_voice and _child_voice_key in _STORY_VOICES)
                     _use_multi = _use_char or _use_child
 
                     # Build speaker → voice_id map; unknown tags fall back to narrator
@@ -4544,6 +4546,45 @@ async def ad_poster():
     return HTMLResponse(content=html)
 
 
+class _VoicePreviewRequest(BaseModel):
+    voice_key: str
+
+
+@app.post("/api/voice-preview")
+async def voice_preview(body: _VoicePreviewRequest):
+    """Return a short ElevenLabs audio sample for a voice key. Cached on disk."""
+    key = body.voice_key.lower().strip()
+    voice_id = _STORY_VOICES.get(key)
+    if not voice_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f"Unknown voice key: {key}")
+
+    cache_dir = pathlib.Path("/data/voice-previews")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / f"{key}.mp3"
+
+    if not cache_path.exists():
+        el_key = os.environ.get("ELEVENLABS_API_KEY", "")
+        if not el_key:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=503, detail="ElevenLabs not configured")
+        sample_text = "Hello! This is what I sound like. I hope you enjoy my voice!"
+        import httpx as _httpx
+        async with _httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+                headers={"xi-api-key": el_key, "Content-Type": "application/json"},
+                json={"text": sample_text, "model_id": "eleven_multilingual_v2",
+                      "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}},
+            )
+        if resp.status_code != 200:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=502, detail="ElevenLabs error")
+        cache_path.write_bytes(resp.content)
+
+    return {"url": f"/files/voice-previews/{key}.mp3"}
+
+
 # Temporary public mounts restored so songs/videos/images play in the UI.
 # The /api/files/* authenticated endpoint below will replace these once the
 # frontend is updated to send auth tokens with media requests.
@@ -4568,6 +4609,10 @@ app.mount("/files/images", _StaticFiles(directory=str(_image_storage)), name="im
 _story_storage = pathlib.Path("/data/stories")
 _story_storage.mkdir(parents=True, exist_ok=True)
 app.mount("/files/stories", _StaticFiles(directory=str(_story_storage)), name="stories")
+
+_voice_preview_storage = pathlib.Path("/data/voice-previews")
+_voice_preview_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/voice-previews", _StaticFiles(directory=str(_voice_preview_storage)), name="voice-previews")
 
 # Authenticated file serving — keeps /api/files/* available for future use.
 _FILE_STORAGE: dict[str, pathlib.Path] = {
