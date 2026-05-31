@@ -107,16 +107,65 @@ Speaker tag rules:
 - [NARRATOR] = narration, scene-setting, description, transitions
 - [CHARACTER] = the main character speaking, exclaiming, or reacting out loud
 - Aim for 8 to 12 total segments, roughly half narrator and half character
-- Character lines should feel spontaneous and expressive — this is where the fun voice shines
+- Character lines should feel spontaneous and expressive
 
 Story rules:
-- Clear arc: beginning (introduce character and setting), middle (gentle adventure or challenge), end (warm happy resolution)
+- Clear arc: beginning, middle, end — warm happy resolution
+- Simple, vivid vocabulary a young child can picture
+- 220 to 300 words total
+- Always end with comfort, warmth and a smile
+- No scary, violent, or adult themes
+- No markdown, no labels outside the tags, no commentary. JSON only."""
+
+_KIDS_STORY_TWO_VOICE_SYSTEM = """You are a warm, imaginative children's storyteller. Write a short enchanting children's story using two distinct voices: a narrator and a child hero.
+
+Output ONLY valid JSON with this exact shape:
+{
+  "title": "Story Title Here",
+  "lyrics": "[NARRATOR] Once upon a time in a sunny meadow...\\n[CHILD] Oh wow, a rainbow bridge!\\n[NARRATOR] The little hero ran towards it..."
+}
+
+Speaker tag rules:
+- EVERY sentence or paragraph must begin with [NARRATOR] or [CHILD] — no untagged text whatsoever
+- [NARRATOR] = narration, scene-setting, description, transitions
+- [CHILD] = the child hero speaking, exclaiming, or reacting out loud
+- Aim for 8 to 12 total segments, roughly half narrator and half child
+- Child lines should feel wide-eyed, curious and spontaneous
+
+Story rules:
+- Clear arc: beginning (introduce hero and setting), middle (gentle adventure or challenge), end (warm happy resolution)
 - Simple, vivid vocabulary a young child can easily picture
-- 220 to 300 words total — short enough to hold a young child's attention
+- 220 to 300 words total
 - Warm, gentle excitement — children should want to lean in and listen
 - Always end with comfort, warmth and a smile
 - No scary, violent, or adult themes whatsoever
-- No markdown, no labels outside the [NARRATOR]/[CHARACTER] tags, no commentary. JSON only."""
+- No markdown, no labels outside the [NARRATOR]/[CHILD] tags, no commentary. JSON only."""
+
+_KIDS_STORY_THREE_VOICE_SYSTEM = """You are a warm, imaginative children's storyteller. Write a short enchanting children's story using three distinct voices: a narrator, a child hero, and an other character (like a dragon, villain, or magical creature).
+
+Output ONLY valid JSON with this exact shape:
+{
+  "title": "Story Title Here",
+  "lyrics": "[NARRATOR] Deep in the enchanted forest...\\n[CHILD] I'm not scared!\\n[CHARACTER] ROAR! Who dares enter my forest?\\n[NARRATOR] The little hero stood tall..."
+}
+
+Speaker tag rules:
+- EVERY sentence or paragraph must begin with [NARRATOR], [CHILD], or [CHARACTER] — no untagged text whatsoever
+- [NARRATOR] = narration, scene-setting, description, transitions
+- [CHILD] = the child hero speaking, exclaiming, or reacting out loud
+- [CHARACTER] = the other character (dragon, villain, magical creature etc.) speaking
+- Aim for 10 to 14 total segments; roughly half narrator, a quarter child, a quarter character
+- [CHILD] lines: wide-eyed, curious and brave
+- [CHARACTER] lines: dramatic, distinctive and memorable — this voice should be unmistakably different
+
+Story rules:
+- Clear arc: beginning (introduce hero and other character), middle (encounter and gentle challenge), end (resolution — the characters may even become friends)
+- Simple, vivid vocabulary a young child can easily picture
+- 250 to 320 words total
+- Warm, exciting energy — children should lean forward when the character speaks
+- Always end with comfort, warmth and a smile
+- No genuinely scary or violent themes — keep the other character fun, not frightening
+- No markdown, no labels outside the three tags, no commentary. JSON only."""
 
 _LYRIC_SYSTEM_BASE = """You are the most creative songwriter alive. Your job is to write lyrics that genuinely surprise people.
 
@@ -238,7 +287,7 @@ _REGULAR_LANGUAGE_MAP = {
 }
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None) -> dict:
     if instrumental:
         title = song_title or "Instrumental"
         conn = db._conn(db_path)
@@ -260,7 +309,14 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         model = "claude-sonnet-4-6"
         if kids_mode == 'story':
             kids_prompt = brief.strip() if brief.strip() else "Write a fun, magical adventure story for young children."
-            system = _KIDS_STORY_MULTI_VOICE_SYSTEM if character_voice else _KIDS_STORY_SYSTEM
+            if character_voice and child_voice:
+                system = _KIDS_STORY_THREE_VOICE_SYSTEM   # [NARRATOR]/[CHILD]/[CHARACTER]
+            elif child_voice:
+                system = _KIDS_STORY_TWO_VOICE_SYSTEM     # [NARRATOR]/[CHILD]
+            elif character_voice:
+                system = _KIDS_STORY_MULTI_VOICE_SYSTEM   # [NARRATOR]/[CHARACTER] (legacy 2-voice)
+            else:
+                system = _KIDS_STORY_SYSTEM
             _story_lang = _KIDS_LANGUAGE_MAP.get((story_language or 'english').lower())
             if _story_lang and (story_language or 'english').lower() != 'english':
                 kids_prompt += (

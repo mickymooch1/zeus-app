@@ -1196,8 +1196,9 @@ export default function SongsPage() {
   const [isKidsMode, setIsKidsMode]         = useState(false);
   const [kidsSubMode, setKidsSubMode]       = useState('song'); // 'song' | 'story'
   const [kidsAccent, setKidsAccent]         = useState('');     // Suno vocal accent (song mode)
-  const [kidsNarratorVoice, setKidsNarratorVoice]   = useState('british'); // ElevenLabs narrator (story mode)
-  const [kidsCharacterVoice, setKidsCharacterVoice] = useState('');        // ElevenLabs character voice (enables multi-voice)
+  const [kidsNarratorVoice, setKidsNarratorVoice]   = useState('british');    // ElevenLabs narrator (story mode)
+  const [kidsChildVoice, setKidsChildVoice]         = useState('australian'); // ElevenLabs child hero voice
+  const [kidsCharacterVoice, setKidsCharacterVoice] = useState('');           // ElevenLabs other character voice (optional)
   const [storyLanguage, setStoryLanguage]           = useState('english');  // language Claude writes story in
   const [mainCharacter, setMainCharacter]   = useState('');
   const [storyEvent, setStoryEvent]         = useState('');
@@ -1552,6 +1553,7 @@ export default function SongsPage() {
           kids_mode: kidsSubMode,
           kids_age_range: kidsAgeRange || undefined,
           accent: kidsSubMode === 'story' ? (kidsNarratorVoice || undefined) : (kidsAccent || undefined),
+          child_voice: kidsSubMode === 'story' ? (kidsChildVoice || undefined) : undefined,
           character_voice: kidsSubMode === 'story' ? (kidsCharacterVoice || undefined) : undefined,
           story_language: kidsSubMode === 'story' ? (storyLanguage || 'english') : undefined,
         };
@@ -2872,7 +2874,7 @@ export default function SongsPage() {
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
-              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('british'); setKidsCharacterVoice(''); setKidsSubMode('song'); setStoryLanguage('english'); }}
+              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('british'); setKidsChildVoice('australian'); setKidsCharacterVoice(''); setKidsSubMode('song'); setStoryLanguage('english'); }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                 background: isKidsMode ? 'rgba(251,191,36,0.10)' : 'rgba(251,191,36,0.04)',
@@ -3049,6 +3051,36 @@ export default function SongsPage() {
                     ))}
                   </div>
 
+                  {/* ── 🧒 Child Hero Voice ── */}
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#34d399', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🧒 Child Hero Voice</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+                    {[
+                      ['australian', '🦘',  'Australian',  'Warm'],
+                      ['newzealand', '🇳🇿', 'New Zealand', 'Bright'],
+                      ['irish',      '🍀',  'Irish',       'Musical'],
+                      ['british',    '🇬🇧', 'British',     'Clear'],
+                      ['indian',     '🇮🇳', 'Indian',      'Rich'],
+                      ['scouse',     '🎸',  'Scouse',      'Cheeky'],
+                      ['scottish',   '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
+                    ].map(([val, emoji, name, desc]) => (
+                      <button
+                        key={val}
+                        onClick={() => setKidsChildVoice(val)}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                          padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                          border: `1px solid ${kidsChildVoice === val ? '#34d399' : 'rgba(52,211,153,0.25)'}`,
+                          background: kidsChildVoice === val ? 'rgba(52,211,153,0.15)' : 'rgba(52,211,153,0.04)',
+                          boxShadow: kidsChildVoice === val ? '0 0 10px rgba(52,211,153,0.25)' : 'none',
+                        }}
+                      >
+                        <span style={{ fontSize: 20 }}>{emoji}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: kidsChildVoice === val ? '#34d399' : 'rgba(52,211,153,0.8)' }}>{name}</span>
+                        <span style={{ fontSize: 9, color: 'rgba(52,211,153,0.5)' }}>{desc}</span>
+                      </button>
+                    ))}
+                  </div>
+
                   {/* ── 🎭 Character Voice ── */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <p style={{ fontSize: 11, fontWeight: 700, color: '#f472b6', letterSpacing: '0.5px', textTransform: 'uppercase', margin: 0 }}>🎭 Character Voice</p>
@@ -3062,7 +3094,7 @@ export default function SongsPage() {
                   </div>
                   {kidsCharacterVoice && (
                     <div style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(244,114,182,0.08)', border: '1px solid rgba(244,114,182,0.2)', fontSize: 10, color: '#f472b6' }}>
-                      ✨ Multi-voice mode — narrator and character will speak with different voices
+                      ✨ 3-voice mode — narrator, child hero, and {kidsCharacterVoice} each get their own distinct voice
                     </div>
                   )}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>

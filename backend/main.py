@@ -1809,19 +1809,21 @@ class SongsGenerateRequest(BaseModel):
     kids_age_range: str | None = None    # "tiny_tots" | "little_ones" | "big_kids" — logged and passed to lyrics prompt
     kids_mode: str | None = None         # "song" | "story" — controls lyric style, TTS, instrumental
     story_language: str | None = None    # "english" | "french" | "spanish" | "german" | "italian" etc
-    character_voice: str | None = None   # character voice key (e.g. "dragon") — enables multi-voice mode
+    character_voice: str | None = None   # other character voice key (dragon/villain etc.)
+    child_voice: str | None = None       # child hero voice key — enables narrator+child+character 3-voice mode
 
 
 def _parse_story_segments(text: str) -> list[dict]:
-    """Split [NARRATOR]/[CHARACTER] tagged story text into ordered segments."""
+    """Split speaker-tagged story text into ordered [{speaker, text}] segments.
+    Handles any all-caps tag: [NARRATOR], [CHILD], [CHARACTER], [DRAGON], etc."""
     import re
     segments = []
-    parts = re.split(r'\[(NARRATOR|CHARACTER)\]', text.strip())
+    parts = re.split(r'\[([A-Z][A-Z0-9]*)\]', text.strip())
     i = 1
     while i + 1 <= len(parts) - 1:
         speaker = parts[i].strip()
         content = parts[i + 1].strip()
-        if content:
+        if speaker and content:
             segments.append({'speaker': speaker, 'text': content})
         i += 2
     return segments
@@ -1917,7 +1919,7 @@ async def songs_generate(
                 song_title=body.song_title or None,
             )
         else:
-            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None)
+            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None)
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
@@ -1947,9 +1949,21 @@ async def songs_generate(
                         'gnarly':     'bFrjFL4nlpeYNwNRhXxq',
                     }
                     _narrator_voice_id = _ALL_VOICES.get((body.accent or '').lower(), 'WUyjxM8OTY6l8LhTmdkq')
-                    _char_voice_key = (body.character_voice or '').lower()
-                    _char_voice_id = _ALL_VOICES.get(_char_voice_key, _narrator_voice_id)
-                    _use_multi = bool(body.character_voice and _char_voice_key in _ALL_VOICES)
+                    _char_voice_key  = (body.character_voice or '').lower()
+                    _child_voice_key = (body.child_voice or '').lower()
+                    _char_voice_id   = _ALL_VOICES.get(_char_voice_key,  _narrator_voice_id)
+                    _child_voice_id  = _ALL_VOICES.get(_child_voice_key, _narrator_voice_id)
+                    _use_char  = bool(body.character_voice and _char_voice_key in _ALL_VOICES)
+                    _use_child = bool(body.child_voice and _child_voice_key in _ALL_VOICES)
+                    _use_multi = _use_char or _use_child
+
+                    # Build speaker → voice_id map; unknown tags fall back to narrator
+                    _voice_map = {'NARRATOR': _narrator_voice_id}
+                    if _use_child:
+                        _voice_map['CHILD'] = _child_voice_id
+                        _voice_map['HERO']  = _child_voice_id  # alias
+                    if _use_char:
+                        _voice_map['CHARACTER'] = _char_voice_id
 
                     _story_dir = pathlib.Path("/data/stories")
                     _story_dir.mkdir(parents=True, exist_ok=True)
@@ -1958,13 +1972,14 @@ async def songs_generate(
                     if _use_multi:
                         # MULTI-VOICE: parse segments → TTS each → FFmpeg concat
                         _segments = _parse_story_segments(_story_text)
-                        log.info("STORY MULTI-VOICE: narrator=%s character=%s segments=%d user=%s",
-                                 _narrator_voice_id, _char_voice_id, len(_segments), user_id)
+                        log.info("STORY MULTI-VOICE: narrator=%s child=%s character=%s segments=%d user=%s",
+                                 _narrator_voice_id, _child_voice_id if _use_child else 'n/a',
+                                 _char_voice_id if _use_char else 'n/a', len(_segments), user_id)
                         _clip_paths = []
                         _all_ok = bool(_segments)
                         async with httpx.AsyncClient(timeout=30.0) as _el_client:
                             for _i, _seg in enumerate(_segments):
-                                _seg_vid = _narrator_voice_id if _seg['speaker'] == 'NARRATOR' else _char_voice_id
+                                _seg_vid = _voice_map.get(_seg['speaker'], _narrator_voice_id)
                                 _seg_resp = await _el_client.post(
                                     f"https://api.elevenlabs.io/v1/text-to-speech/{_seg_vid}",
                                     headers={"xi-api-key": _el_key, "Content-Type": "application/json"},
