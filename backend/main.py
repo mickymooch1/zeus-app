@@ -1896,13 +1896,15 @@ async def songs_generate(
                 try:
                     _story_text = lyric_result["lyrics"].strip()
                     _NARRATOR_VOICES = {
-                        'charlotte':  'XB0fDUnXU5powFXDhCwa',  # British (default)
+                        'british':    'WUyjxM8OTY6l8LhTmdkq',  # British (default)
+                        'australian': 'b8gbDO0ybjX1VA89pBdX',  # Australian
+                        'newzealand': 'BHhU6fTKdSX6bN7T1tpz',  # New Zealand
+                        'indian':     'nwXBqbMKJWkQdYCbhxqZ',  # Indian
                         'scouse':     'QskpmzLHRFPTEOkFlnAI',  # Scouse/Liverpool
-                        'australian': 'dh3YdvdCYZdqFjtSFNTx',  # Australian
                         'irish':      'E8tAm6nkbW2yKYAJLVXH',  # Irish
                         'scottish':   'InE4naNnowIxWA78Z5kE',  # Scottish
                     }
-                    _voice_id = _NARRATOR_VOICES.get((body.accent or '').lower(), 'XB0fDUnXU5powFXDhCwa')  # default: Charlotte
+                    _voice_id = _NARRATOR_VOICES.get((body.accent or '').lower(), 'WUyjxM8OTY6l8LhTmdkq')  # default: British
                     log.info("STORY MODE: calling ElevenLabs voice_id=%s NOT Suno, text_len=%d", _voice_id, len(_story_text))
                     async with httpx.AsyncClient(timeout=30.0) as _el_client:
                         _tts_resp = await _el_client.post(

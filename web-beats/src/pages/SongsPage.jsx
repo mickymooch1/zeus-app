@@ -1196,7 +1196,7 @@ export default function SongsPage() {
   const [isKidsMode, setIsKidsMode]         = useState(false);
   const [kidsSubMode, setKidsSubMode]       = useState('song'); // 'song' | 'story'
   const [kidsAccent, setKidsAccent]         = useState('');     // Suno vocal accent (song mode)
-  const [kidsNarratorVoice, setKidsNarratorVoice] = useState('charlotte'); // ElevenLabs narrator (story mode)
+  const [kidsNarratorVoice, setKidsNarratorVoice] = useState('british'); // ElevenLabs narrator (story mode)
   const [storyLanguage, setStoryLanguage]           = useState('english');  // language Claude writes story in
   const [mainCharacter, setMainCharacter]   = useState('');
   const [storyEvent, setStoryEvent]         = useState('');
@@ -2870,7 +2870,7 @@ export default function SongsPage() {
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
-              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('charlotte'); setKidsSubMode('song'); setStoryLanguage('english'); }}
+              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('british'); setKidsSubMode('song'); setStoryLanguage('english'); }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                 background: isKidsMode ? 'rgba(251,191,36,0.10)' : 'rgba(251,191,36,0.04)',
@@ -3018,13 +3018,15 @@ export default function SongsPage() {
                 {/* ── STORY MODE fields ── */}
                 {kidsSubMode === 'story' && (<>
                   <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎙 Narrator Voice</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
                     {[
-                      ['charlotte',   '🇬🇧', 'British',    'Warm & clear'],
-                      ['scouse',      '🎸',  'Scouse',     'Liverpool'],
-                      ['australian',  '🦘',  'Australian', 'Warm & bright'],
-                      ['irish',       '🍀',  'Irish',      'Musical'],
-                      ['scottish',    '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
+                      ['british',    '🇬🇧', 'British',     'Default'],
+                      ['australian', '🦘',  'Australian',  'Warm'],
+                      ['newzealand', '🇳🇿', 'New Zealand', 'Clear'],
+                      ['indian',     '🇮🇳', 'Indian',      'Expressive'],
+                      ['scouse',     '🎸',  'Scouse',      'Liverpool'],
+                      ['irish',      '🍀',  'Irish',       'Musical'],
+                      ['scottish',   '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
                     ].map(([val, emoji, name, desc]) => (
                       <button
                         key={val}
