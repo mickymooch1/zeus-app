@@ -1822,6 +1822,7 @@ _STORY_VOICES: dict[str, str] = {
     'scouse':     'QskpmzLHRFPTEOkFlnAI',
     'irish':      'E8tAm6nkbW2yKYAJLVXH',
     'scottish':   'InE4naNnowIxWA78Z5kE',
+    'cockney':    'ytcsltLTtCHxNn1vC76H',
     # Character voices
     'cranky':     'MKlLqCItoCkvdhrxgtLv',
     'villain':    'TDTTIZEngvvWARkECefs',
@@ -1831,6 +1832,8 @@ _STORY_VOICES: dict[str, str] = {
     'pirate':     '6VgigPFWF0sNZy1BthVg',
     'wizard':     'BBfN7Spa3cqLPH1xAS22',
     'younggirl':  'pPdl9cQBQq4p6mRkZy2Z',
+    'youngboy':   'bTrXJpbeuC5KgriLhQeC',
+    'fairy':      'piI8Kku0DcvcL6TTSeQt',
 }
 
 

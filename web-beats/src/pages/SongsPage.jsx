@@ -307,16 +307,16 @@ const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }
     if (!audioRef.current) {
       const a = new Audio(audioUrl);
       a.onended = () => setPlaying(false);
+      a.onpause = () => setPlaying(false);
+      a.onplay  = () => setPlaying(true);
       a.addEventListener('timeupdate', () => setCurrentTime(a.currentTime));
       a.addEventListener('loadedmetadata', () => setDuration(a.duration));
       audioRef.current = a;
     }
     if (playing) {
       audioRef.current.pause();
-      setPlaying(false);
     } else {
-      audioRef.current.play().catch(() => {});
-      setPlaying(true);
+      audioManager.play(audioRef.current, variant.variant_id);
     }
   };
 
@@ -1570,13 +1570,19 @@ export default function SongsPage() {
   }, [portraitJobId, token]);
 
   const handleVoicePreview = async (voiceKey) => {
-    if (previewAudioRef.current) {
+    // Toggle off: user taps the same voice that is currently playing
+    if (previewingVoice === voiceKey && previewAudioRef.current) {
+      previewAudioRef.current.onpause = null; // prevent double-clear
       previewAudioRef.current.pause();
       previewAudioRef.current = null;
-    }
-    if (previewingVoice === voiceKey) {
       setPreviewingVoice(null);
       return;
+    }
+    // Stop any current preview without triggering the onpause clear
+    if (previewAudioRef.current) {
+      previewAudioRef.current.onpause = null;
+      previewAudioRef.current.pause();
+      previewAudioRef.current = null;
     }
     setPreviewingVoice(voiceKey);
     try {
@@ -1588,9 +1594,11 @@ export default function SongsPage() {
       const data = await res.json();
       const url = data.url?.startsWith('http') ? data.url : `${BACKEND_URL}${data.url}`;
       const audio = new Audio(url);
+      // onpause fires when audioManager stops this preview (e.g. a story starts)
+      audio.onpause  = () => { setPreviewingVoice(null); previewAudioRef.current = null; };
+      audio.onended  = () => { setPreviewingVoice(null); previewAudioRef.current = null; };
       previewAudioRef.current = audio;
-      audio.onended = () => { setPreviewingVoice(null); previewAudioRef.current = null; };
-      audio.play().catch(() => setPreviewingVoice(null));
+      audioManager.play(audio, 'voice-preview');
     } catch {
       setPreviewingVoice(null);
     }
@@ -3142,6 +3150,7 @@ export default function SongsPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
                     {[
                       ['younggirl',  '👧',  'Young Girl',  'Youthful'],
+                      ['youngboy',   '👦',  'Young Boy',   'Boyish'],
                       ['australian', '🦘',  'Australian',  'Warm'],
                       ['newzealand', '🇳🇿', 'New Zealand', 'Bright'],
                       ['irish',      '🍀',  'Irish',       'Musical'],
@@ -3200,13 +3209,15 @@ export default function SongsPage() {
                   )}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
                     {[
-                      ['dragon',  '🐉', 'Dragon',   'Fierce'],
-                      ['villain', '😈', 'Villain',  'Menacing'],
-                      ['cranky',  '👴', 'Cranky',   'Old man'],
-                      ['pirate',  '🏴‍☠️', 'Pirate',   'Swashbuckling'],
-                      ['wizard',  '🧙', 'Wizard',   'Wise & old'],
-                      ['raspy',   '👹', 'Raspy',    'Scary'],
-                      ['gnarly',  '🤙', 'Gnarly',   'Wild'],
+                      ['dragon',  '🐉',   'Dragon',   'Fierce'],
+                      ['villain', '😈',   'Villain',  'Menacing'],
+                      ['fairy',   '🧚',   'Fairy',    'Magical'],
+                      ['cranky',  '👴',   'Cranky',   'Old man'],
+                      ['pirate',  '🏴‍☠️',  'Pirate',   'Swashbuckling'],
+                      ['wizard',  '🧙',   'Wizard',   'Wise & old'],
+                      ['raspy',   '👹',   'Raspy',    'Scary'],
+                      ['gnarly',  '🤙',   'Gnarly',   'Wild'],
+                      ['cockney', '🎩',   'Cockney',  'London'],
                     ].map(([val, emoji, name, desc]) => (
                       <div key={val} style={{ position: 'relative' }}>
                         <button
