@@ -1808,6 +1808,7 @@ class SongsGenerateRequest(BaseModel):
     kids_story: bool = False             # Kids Mode — uses child-appropriate Claude prompt
     kids_age_range: str | None = None    # "tiny_tots" | "little_ones" | "big_kids" — logged and passed to lyrics prompt
     kids_mode: str | None = None         # "song" | "story" — controls lyric style, TTS, instrumental
+    story_language: str | None = None    # "english" | "french" | "spanish" | "german" | "italian" etc
 
 
 @app.post("/api/songs/generate")
@@ -1873,7 +1874,7 @@ async def songs_generate(
                 song_title=body.song_title or None,
             )
         else:
-            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None)
+            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None)
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
@@ -1903,7 +1904,7 @@ async def songs_generate(
                             headers={"xi-api-key": _el_key, "Content-Type": "application/json"},
                             json={
                                 "text": _story_text,
-                                "model_id": "eleven_turbo_v2_5",
+                                "model_id": "eleven_multilingual_v2",
                                 "voice_settings": {"stability": 0.75, "similarity_boost": 0.75},
                             },
                         )

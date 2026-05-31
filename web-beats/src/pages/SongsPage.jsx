@@ -1092,6 +1092,7 @@ export default function SongsPage() {
   const [kidsSubMode, setKidsSubMode]       = useState('song'); // 'song' | 'story'
   const [kidsAccent, setKidsAccent]         = useState('');     // Suno vocal accent (song mode)
   const [kidsNarratorVoice, setKidsNarratorVoice] = useState('charlotte'); // ElevenLabs narrator (story mode)
+  const [storyLanguage, setStoryLanguage]           = useState('english');  // language Claude writes story in
   const [mainCharacter, setMainCharacter]   = useState('');
   const [storyEvent, setStoryEvent]         = useState('');
   const [kidsAgeRange, setKidsAgeRange]     = useState('little_ones');
@@ -1445,6 +1446,7 @@ export default function SongsPage() {
           kids_mode: kidsSubMode,
           kids_age_range: kidsAgeRange || undefined,
           accent: kidsSubMode === 'story' ? (kidsNarratorVoice || undefined) : (kidsAccent || undefined),
+          story_language: kidsSubMode === 'story' ? (storyLanguage || 'english') : undefined,
         };
         if (process.env.NODE_ENV === 'development') console.log('Kids Mode request:', requestBody);
       } else {
@@ -2758,7 +2760,7 @@ export default function SongsPage() {
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
-              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('charlotte'); setKidsSubMode('song'); }}
+              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('charlotte'); setKidsSubMode('song'); setStoryLanguage('english'); }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                 background: isKidsMode ? 'rgba(251,191,36,0.10)' : 'rgba(251,191,36,0.04)',
@@ -2928,6 +2930,32 @@ export default function SongsPage() {
                         <span style={{ fontSize: 20 }}>{emoji}</span>
                         <span style={{ fontSize: 11, fontWeight: 700, color: kidsNarratorVoice === val ? '#fbbf24' : 'rgba(251,191,36,0.8)' }}>{name}</span>
                         <span style={{ fontSize: 9, color: 'rgba(251,191,36,0.5)' }}>{desc}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🌍 Story Language</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 16 }}>
+                    {[
+                      ['english',  '🇬🇧', 'English'],
+                      ['french',   '🇫🇷', 'French'],
+                      ['spanish',  '🇪🇸', 'Spanish'],
+                      ['german',   '🇩🇪', 'German'],
+                      ['italian',  '🇮🇹', 'Italian'],
+                    ].map(([val, flag, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => setStoryLanguage(val)}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                          padding: '8px 4px 6px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s',
+                          border: `1px solid ${storyLanguage === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
+                          background: storyLanguage === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
+                          boxShadow: storyLanguage === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                        }}
+                      >
+                        <span style={{ fontSize: 18 }}>{flag}</span>
+                        <span style={{ fontSize: 9, fontWeight: storyLanguage === val ? 700 : 500, color: storyLanguage === val ? '#fbbf24' : 'rgba(251,191,36,0.7)', textAlign: 'center' }}>{label}</span>
                       </button>
                     ))}
                   </div>

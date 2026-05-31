@@ -214,7 +214,7 @@ _REGULAR_LANGUAGE_MAP = {
 }
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None) -> dict:
     if instrumental:
         title = song_title or "Instrumental"
         conn = db._conn(db_path)
@@ -237,6 +237,13 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         if kids_mode == 'story':
             kids_prompt = brief.strip() if brief.strip() else "Write a fun, magical adventure story for young children."
             system = _KIDS_STORY_SYSTEM
+            _story_lang = _KIDS_LANGUAGE_MAP.get((story_language or 'english').lower())
+            if _story_lang and (story_language or 'english').lower() != 'english':
+                kids_prompt += (
+                    f"\n\nIMPORTANT: Write the story ENTIRELY in {_story_lang}. "
+                    f"Use natural, child-friendly {_story_lang} vocabulary and phrasing throughout. "
+                    "Do not include any English text."
+                )
         else:  # song mode
             structure = random.choice([
                 "[Verse 1], [Chorus], [Verse 2], [Chorus], [Outro]",
