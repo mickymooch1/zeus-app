@@ -3018,12 +3018,14 @@ export default function SongsPage() {
                 {/* ── STORY MODE fields ── */}
                 {kidsSubMode === 'story' && (<>
                   <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎙 Narrator Voice</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+                  {/* Accents */}
+                  <p style={{ fontSize: 10, fontWeight: 600, color: 'rgba(251,191,36,0.6)', marginBottom: 6, marginTop: 0 }}>🌍 Accents</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
                     {[
                       ['british',    '🇬🇧', 'British',     'Default'],
                       ['australian', '🦘',  'Australian',  'Warm'],
                       ['newzealand', '🇳🇿', 'New Zealand', 'Clear'],
-                      ['indian',     '🇮🇳', 'Indian',      'Expressive'],
+                      ['indian',     '🇮🇳', 'Indian',      'Rich'],
                       ['scouse',     '🎸',  'Scouse',      'Liverpool'],
                       ['irish',      '🍀',  'Irish',       'Musical'],
                       ['scottish',   '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
@@ -3042,6 +3044,32 @@ export default function SongsPage() {
                         <span style={{ fontSize: 20 }}>{emoji}</span>
                         <span style={{ fontSize: 11, fontWeight: 700, color: kidsNarratorVoice === val ? '#fbbf24' : 'rgba(251,191,36,0.8)' }}>{name}</span>
                         <span style={{ fontSize: 9, color: 'rgba(251,191,36,0.5)' }}>{desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {/* Character voices */}
+                  <p style={{ fontSize: 10, fontWeight: 600, color: 'rgba(251,191,36,0.6)', marginBottom: 6, marginTop: 0 }}>🎭 Character Voices</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+                    {[
+                      ['cranky', '👴', 'Cranky',  'Old man'],
+                      ['villain', '😈', 'Villain', 'Menacing'],
+                      ['dragon',  '🐉', 'Dragon',  'Fierce'],
+                      ['gnarly',  '🤙', 'Gnarly',  'Wild'],
+                    ].map(([val, emoji, name, desc]) => (
+                      <button
+                        key={val}
+                        onClick={() => setKidsNarratorVoice(val)}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                          padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                          border: `1px solid ${kidsNarratorVoice === val ? '#f472b6' : 'rgba(244,114,182,0.25)'}`,
+                          background: kidsNarratorVoice === val ? 'rgba(244,114,182,0.18)' : 'rgba(244,114,182,0.04)',
+                          boxShadow: kidsNarratorVoice === val ? '0 0 10px rgba(244,114,182,0.3)' : 'none',
+                        }}
+                      >
+                        <span style={{ fontSize: 20 }}>{emoji}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: kidsNarratorVoice === val ? '#f472b6' : 'rgba(244,114,182,0.8)' }}>{name}</span>
+                        <span style={{ fontSize: 9, color: 'rgba(244,114,182,0.5)' }}>{desc}</span>
                       </button>
                     ))}
                   </div>

@@ -1903,6 +1903,10 @@ async def songs_generate(
                         'scouse':     'QskpmzLHRFPTEOkFlnAI',  # Scouse/Liverpool
                         'irish':      'E8tAm6nkbW2yKYAJLVXH',  # Irish
                         'scottish':   'InE4naNnowIxWA78Z5kE',  # Scottish
+                        'cranky':     'MKlLqCItoCkvdhrxgtLv',  # Old cranky character
+                        'villain':    'TDTTIZEngvvWARkECefs',  # Villain character
+                        'dragon':     'xsiB5fGhEtknnqzudCO6',  # Dragon character
+                        'gnarly':     'bFrjFL4nlpeYNwNRhXxq',  # Gnarly character
                     }
                     _voice_id = _NARRATOR_VOICES.get((body.accent or '').lower(), 'WUyjxM8OTY6l8LhTmdkq')  # default: British
                     log.info("STORY MODE: calling ElevenLabs voice_id=%s NOT Suno, text_len=%d", _voice_id, len(_story_text))
