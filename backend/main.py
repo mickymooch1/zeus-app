@@ -1936,6 +1936,7 @@ async def songs_generate(
                 try:
                     _story_text = lyric_result["lyrics"].strip()
                     _ALL_VOICES = {
+                        # Accents
                         'british':    'WUyjxM8OTY6l8LhTmdkq',
                         'australian': 'b8gbDO0ybjX1VA89pBdX',
                         'newzealand': 'BHhU6fTKdSX6bN7T1tpz',
@@ -1943,10 +1944,15 @@ async def songs_generate(
                         'scouse':     'QskpmzLHRFPTEOkFlnAI',
                         'irish':      'E8tAm6nkbW2yKYAJLVXH',
                         'scottish':   'InE4naNnowIxWA78Z5kE',
+                        # Character voices
                         'cranky':     'MKlLqCItoCkvdhrxgtLv',
                         'villain':    'TDTTIZEngvvWARkECefs',
                         'dragon':     'xsiB5fGhEtknnqzudCO6',
                         'gnarly':     'bFrjFL4nlpeYNwNRhXxq',
+                        'raspy':      '1zvnni6XluAvqQJWPf1M',
+                        'pirate':     '6VgigPFWF0sNZy1BthVg',
+                        'wizard':     'BBfN7Spa3cqLPH1xAS22',
+                        'younggirl':  'pPdl9cQBQq4p6mRkZy2Z',
                     }
                     _narrator_voice_id = _ALL_VOICES.get((body.accent or '').lower(), 'WUyjxM8OTY6l8LhTmdkq')
                     _char_voice_key  = (body.character_voice or '').lower()

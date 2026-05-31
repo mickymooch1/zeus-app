@@ -3052,9 +3052,10 @@ export default function SongsPage() {
                   </div>
 
                   {/* ── 🧒 Child Hero Voice ── */}
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#34d399', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🧒 Child Hero Voice</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#34d399', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🧒 Main Character Voice</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
                     {[
+                      ['younggirl',  '👧',  'Young Girl',  'Youthful'],
                       ['australian', '🦘',  'Australian',  'Warm'],
                       ['newzealand', '🇳🇿', 'New Zealand', 'Bright'],
                       ['irish',      '🍀',  'Irish',       'Musical'],
@@ -3099,10 +3100,13 @@ export default function SongsPage() {
                   )}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
                     {[
-                      ['cranky',  '👴', 'Cranky',  'Old man'],
-                      ['villain', '😈', 'Villain', 'Menacing'],
-                      ['dragon',  '🐉', 'Dragon',  'Fierce'],
-                      ['gnarly',  '🤙', 'Gnarly',  'Wild'],
+                      ['dragon',  '🐉', 'Dragon',   'Fierce'],
+                      ['villain', '😈', 'Villain',  'Menacing'],
+                      ['cranky',  '👴', 'Cranky',   'Old man'],
+                      ['pirate',  '🏴‍☠️', 'Pirate',   'Swashbuckling'],
+                      ['wizard',  '🧙', 'Wizard',   'Wise & old'],
+                      ['raspy',   '👹', 'Raspy',    'Scary'],
+                      ['gnarly',  '🤙', 'Gnarly',   'Wild'],
                     ].map(([val, emoji, name, desc]) => (
                       <button
                         key={val}
