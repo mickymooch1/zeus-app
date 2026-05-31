@@ -1196,7 +1196,8 @@ export default function SongsPage() {
   const [isKidsMode, setIsKidsMode]         = useState(false);
   const [kidsSubMode, setKidsSubMode]       = useState('song'); // 'song' | 'story'
   const [kidsAccent, setKidsAccent]         = useState('');     // Suno vocal accent (song mode)
-  const [kidsNarratorVoice, setKidsNarratorVoice] = useState('british'); // ElevenLabs narrator (story mode)
+  const [kidsNarratorVoice, setKidsNarratorVoice]   = useState('british'); // ElevenLabs narrator (story mode)
+  const [kidsCharacterVoice, setKidsCharacterVoice] = useState('');        // ElevenLabs character voice (enables multi-voice)
   const [storyLanguage, setStoryLanguage]           = useState('english');  // language Claude writes story in
   const [mainCharacter, setMainCharacter]   = useState('');
   const [storyEvent, setStoryEvent]         = useState('');
@@ -1551,6 +1552,7 @@ export default function SongsPage() {
           kids_mode: kidsSubMode,
           kids_age_range: kidsAgeRange || undefined,
           accent: kidsSubMode === 'story' ? (kidsNarratorVoice || undefined) : (kidsAccent || undefined),
+          character_voice: kidsSubMode === 'story' ? (kidsCharacterVoice || undefined) : undefined,
           story_language: kidsSubMode === 'story' ? (storyLanguage || 'english') : undefined,
         };
         if (process.env.NODE_ENV === 'development') console.log('Kids Mode request:', requestBody);
@@ -2870,7 +2872,7 @@ export default function SongsPage() {
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
-              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('british'); setKidsSubMode('song'); setStoryLanguage('english'); }}
+              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('british'); setKidsCharacterVoice(''); setKidsSubMode('song'); setStoryLanguage('english'); }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                 background: isKidsMode ? 'rgba(251,191,36,0.10)' : 'rgba(251,191,36,0.04)',
@@ -3017,10 +3019,9 @@ export default function SongsPage() {
 
                 {/* ── STORY MODE fields ── */}
                 {kidsSubMode === 'story' && (<>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎙 Narrator Voice</p>
-                  {/* Accents */}
-                  <p style={{ fontSize: 10, fontWeight: 600, color: 'rgba(251,191,36,0.6)', marginBottom: 6, marginTop: 0 }}>🌍 Accents</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+                  {/* ── 📖 Narrator Voice ── */}
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>📖 Narrator Voice</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
                     {[
                       ['british',    '🇬🇧', 'British',     'Default'],
                       ['australian', '🦘',  'Australian',  'Warm'],
@@ -3047,28 +3048,43 @@ export default function SongsPage() {
                       </button>
                     ))}
                   </div>
-                  {/* Character voices */}
-                  <p style={{ fontSize: 10, fontWeight: 600, color: 'rgba(251,191,36,0.6)', marginBottom: 6, marginTop: 0 }}>🎭 Character Voices</p>
+
+                  {/* ── 🎭 Character Voice ── */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#f472b6', letterSpacing: '0.5px', textTransform: 'uppercase', margin: 0 }}>🎭 Character Voice</p>
+                    <span style={{ fontSize: 10, color: 'rgba(244,114,182,0.55)', fontStyle: 'italic' }}>optional — gives the main character their own voice</span>
+                    {kidsCharacterVoice && (
+                      <button
+                        onClick={() => setKidsCharacterVoice('')}
+                        style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(244,114,182,0.3)', borderRadius: 6, color: 'rgba(244,114,182,0.7)', fontSize: 10, cursor: 'pointer', padding: '2px 8px' }}
+                      >✕ None</button>
+                    )}
+                  </div>
+                  {kidsCharacterVoice && (
+                    <div style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(244,114,182,0.08)', border: '1px solid rgba(244,114,182,0.2)', fontSize: 10, color: '#f472b6' }}>
+                      ✨ Multi-voice mode — narrator and character will speak with different voices
+                    </div>
+                  )}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
                     {[
-                      ['cranky', '👴', 'Cranky',  'Old man'],
+                      ['cranky',  '👴', 'Cranky',  'Old man'],
                       ['villain', '😈', 'Villain', 'Menacing'],
                       ['dragon',  '🐉', 'Dragon',  'Fierce'],
                       ['gnarly',  '🤙', 'Gnarly',  'Wild'],
                     ].map(([val, emoji, name, desc]) => (
                       <button
                         key={val}
-                        onClick={() => setKidsNarratorVoice(val)}
+                        onClick={() => setKidsCharacterVoice(v => v === val ? '' : val)}
                         style={{
                           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
                           padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                          border: `1px solid ${kidsNarratorVoice === val ? '#f472b6' : 'rgba(244,114,182,0.25)'}`,
-                          background: kidsNarratorVoice === val ? 'rgba(244,114,182,0.18)' : 'rgba(244,114,182,0.04)',
-                          boxShadow: kidsNarratorVoice === val ? '0 0 10px rgba(244,114,182,0.3)' : 'none',
+                          border: `1px solid ${kidsCharacterVoice === val ? '#f472b6' : 'rgba(244,114,182,0.25)'}`,
+                          background: kidsCharacterVoice === val ? 'rgba(244,114,182,0.18)' : 'rgba(244,114,182,0.04)',
+                          boxShadow: kidsCharacterVoice === val ? '0 0 12px rgba(244,114,182,0.35)' : 'none',
                         }}
                       >
                         <span style={{ fontSize: 20 }}>{emoji}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: kidsNarratorVoice === val ? '#f472b6' : 'rgba(244,114,182,0.8)' }}>{name}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: kidsCharacterVoice === val ? '#f472b6' : 'rgba(244,114,182,0.8)' }}>{name}</span>
                         <span style={{ fontSize: 9, color: 'rgba(244,114,182,0.5)' }}>{desc}</span>
                       </button>
                     ))}

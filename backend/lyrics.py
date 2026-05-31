@@ -94,6 +94,30 @@ Rules:
 - No scary, violent, or adult themes whatsoever
 - No markdown, no section labels, no commentary. JSON only."""
 
+_KIDS_STORY_MULTI_VOICE_SYSTEM = """You are a warm, imaginative children's storyteller. Write a short enchanting children's story using two distinct voices: a narrator and a main character.
+
+Output ONLY valid JSON with this exact shape:
+{
+  "title": "Story Title Here",
+  "lyrics": "[NARRATOR] Once upon a time...\\n[CHARACTER] Wow, it's magical!\\n[NARRATOR] The adventure began..."
+}
+
+Speaker tag rules:
+- EVERY sentence or paragraph must begin with [NARRATOR] or [CHARACTER] — no untagged text whatsoever
+- [NARRATOR] = narration, scene-setting, description, transitions
+- [CHARACTER] = the main character speaking, exclaiming, or reacting out loud
+- Aim for 8 to 12 total segments, roughly half narrator and half character
+- Character lines should feel spontaneous and expressive — this is where the fun voice shines
+
+Story rules:
+- Clear arc: beginning (introduce character and setting), middle (gentle adventure or challenge), end (warm happy resolution)
+- Simple, vivid vocabulary a young child can easily picture
+- 220 to 300 words total — short enough to hold a young child's attention
+- Warm, gentle excitement — children should want to lean in and listen
+- Always end with comfort, warmth and a smile
+- No scary, violent, or adult themes whatsoever
+- No markdown, no labels outside the [NARRATOR]/[CHARACTER] tags, no commentary. JSON only."""
+
 _LYRIC_SYSTEM_BASE = """You are the most creative songwriter alive. Your job is to write lyrics that genuinely surprise people.
 
 Output ONLY valid JSON with this exact shape:
@@ -214,7 +238,7 @@ _REGULAR_LANGUAGE_MAP = {
 }
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None) -> dict:
     if instrumental:
         title = song_title or "Instrumental"
         conn = db._conn(db_path)
@@ -236,7 +260,7 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         model = "claude-sonnet-4-6"
         if kids_mode == 'story':
             kids_prompt = brief.strip() if brief.strip() else "Write a fun, magical adventure story for young children."
-            system = _KIDS_STORY_SYSTEM
+            system = _KIDS_STORY_MULTI_VOICE_SYSTEM if character_voice else _KIDS_STORY_SYSTEM
             _story_lang = _KIDS_LANGUAGE_MAP.get((story_language or 'english').lower())
             if _story_lang and (story_language or 'english').lower() != 'english':
                 kids_prompt += (
