@@ -1860,6 +1860,11 @@ async def songs_generate(
     # True only for Story sub-mode; False = Song sub-mode (sung kids song, no TTS)
     _is_story = body.kids_story and body.kids_mode == 'story'
 
+    log.info(
+        "KIDS DEBUG: kids_story=%s kids_mode=%r _is_story=%s accent=%r story_language=%r user_id=%s",
+        body.kids_story, body.kids_mode, _is_story, body.accent, body.story_language, user_id,
+    )
+
     if body.kids_story:
         log.info("kids_%s: accent=%s age_range=%s genres=%s brief=%r user_id=%s",
                  body.kids_mode or 'song', body.accent, body.kids_age_range, list(body.genres), body.brief[:120], user_id)
@@ -1898,6 +1903,7 @@ async def songs_generate(
                         'scottish':   'InE4naNnowIxWA78Z5kE',  # Scottish
                     }
                     _voice_id = _NARRATOR_VOICES.get((body.accent or '').lower(), 'XB0fDUnXU5powFXDhCwa')  # default: Charlotte
+                    log.info("STORY MODE: calling ElevenLabs voice_id=%s NOT Suno, text_len=%d", _voice_id, len(_story_text))
                     async with httpx.AsyncClient(timeout=30.0) as _el_client:
                         _tts_resp = await _el_client.post(
                             f"https://api.elevenlabs.io/v1/text-to-speech/{_voice_id}",
@@ -1925,6 +1931,44 @@ async def songs_generate(
                         pass
             else:
                 log.info("kids_story TTS: skipped — no premium credits user=%s", user_id)
+
+    # STORY MODE EARLY RETURN — pure ElevenLabs narration, do NOT call Suno
+    if _is_story:
+        _is_admin_story = bool(current_user.get("is_admin", 0))
+        _sv_conn = sqlite3.connect(str(db_path))
+        try:
+            if not _is_admin_story:
+                _sv_conn.execute("UPDATE song_credits SET balance = balance - 1 WHERE user_id = ?", (user_id,))
+            _sv_conn.execute(
+                "INSERT INTO song_variants "
+                "(lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover) "
+                "VALUES (?, ?, 'kids_story', 'kids_story', 'complete', 1, 0)",
+                (lyric_id, user_id),
+            )
+            _sv_id = _sv_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            _sv_conn.commit()
+        finally:
+            _sv_conn.close()
+        log.info("STORY MODE: Suno skipped. variant_id=%d story_audio_url=%r", _sv_id, story_audio_url)
+        try:
+            _story_cover = _webhooks_mod._generate_flux_cover(
+                _sv_id, 'kids_story', lyric_result["title"], "", "children's story"
+            )
+            if _story_cover:
+                _cc = sqlite3.connect(str(db_path))
+                try:
+                    _cc.execute("UPDATE song_variants SET image_url = ? WHERE id = ?", (_story_cover, _sv_id))
+                    _cc.commit()
+                finally:
+                    _cc.close()
+        except Exception:
+            log.exception("story mode: Flux cover art failed variant_id=%d", _sv_id)
+        return {
+            "lyric_id": lyric_id,
+            "title": lyric_result["title"],
+            "variants": [{"variant_id": _sv_id, "genre": "kids_story", "status": "complete"}],
+            "story_audio_url": story_audio_url,
+        }
 
     # Build extra sunoParams from advanced controls
     _MODEL_VERSION_MAP = {

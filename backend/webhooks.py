@@ -120,7 +120,7 @@ def _add_text_overlay(image_path: str, title: str, artist_name: str = "") -> Non
 def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = "", artist_name: str = "", style_prompt: str = "") -> str | None:
     """Generate a Flux cover image and save to song storage. Returns public URL or None."""
     import image_generator as _img
-    if "children's song" in style_prompt.lower():
+    if "children's" in style_prompt.lower() or genre_tag == 'kids_story':
         prompt = KIDS_COVER_PROMPT
     else:
         prompt = GENRE_COVER_PROMPTS.get(genre_tag or "", _DEFAULT_COVER_PROMPT)

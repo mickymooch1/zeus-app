@@ -1001,6 +1001,7 @@ export default function SongsPage() {
   const [generating, setGenerating]     = useState(false);
   const [activeJob, setActiveJob]       = useState(null);
   const [storyPlaying, setStoryPlaying] = useState(false);
+  const [storyResult, setStoryResult]   = useState(null); // {url, title} — persists after activeJob clears
   const storyAudioRef = useRef(null);
   const [library, setLibrary]           = useState([]);
   const [error, setError]               = useState('');
@@ -1420,6 +1421,7 @@ export default function SongsPage() {
   const handleGenerate = async () => {
     setError('');
     setGenerating(true);
+    setStoryResult(null);
     const KIDS_MUSIC_GENRES = {
       nursery:  ['acoustic'],
       funpop:   ['pop'],
@@ -1487,11 +1489,15 @@ export default function SongsPage() {
         storyAudioRef.current = null;
         setStoryPlaying(false);
       }
+      const _storyUrl = d.story_audio_url
+        ? (d.story_audio_url.startsWith('http') ? d.story_audio_url : `${BACKEND_URL}${d.story_audio_url}`)
+        : null;
+      if (_storyUrl) setStoryResult({ url: _storyUrl, title: d.title });
       setActiveJob({
         lyric_id: d.lyric_id,
         title: d.title,
         variants: d.variants.map((v) => ({ ...v, title: d.title })),
-        story_audio_url: d.story_audio_url || null,
+        story_audio_url: _storyUrl,
       });
       setCredits((p) => ({ ...p, balance: Math.max(0, p.balance - cost) }));
       setBrief('');
@@ -3170,6 +3176,61 @@ export default function SongsPage() {
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
                   )
                 )}
+              </div>
+            </section>
+          )}
+
+          {!activeJob && storyResult && (
+            <section style={{ marginBottom: 32 }}>
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(0,240,255,0.08))',
+                border: '1px solid rgba(124,58,237,0.3)',
+                borderRadius: 16,
+                padding: '20px 24px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                flexWrap: 'wrap',
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Kids Story</div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#e2d9f3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{storyResult.title}</div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!storyAudioRef.current) {
+                      storyAudioRef.current = new Audio(storyResult.url);
+                      storyAudioRef.current.onended = () => setStoryPlaying(false);
+                    }
+                    if (storyPlaying) {
+                      storyAudioRef.current.pause();
+                      setStoryPlaying(false);
+                    } else {
+                      storyAudioRef.current.play();
+                      setStoryPlaying(true);
+                    }
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: 'linear-gradient(135deg,#7c3aed,#00f0ff)', color: '#000',
+                    border: 'none', borderRadius: 20, padding: '8px 18px',
+                    fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
+                  }}
+                >
+                  {storyPlaying ? '⏸ Pause Story' : '▶ Hear Story'}
+                </button>
+                <button
+                  onClick={() => {
+                    if (storyAudioRef.current) { storyAudioRef.current.pause(); storyAudioRef.current = null; }
+                    setStoryPlaying(false);
+                    setStoryResult(null);
+                  }}
+                  style={{
+                    background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8,
+                    color: '#64748b', fontSize: 11, cursor: 'pointer', padding: '6px 10px', flexShrink: 0,
+                  }}
+                  title="Dismiss"
+                >✕</button>
               </div>
             </section>
           )}
