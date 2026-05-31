@@ -284,6 +284,113 @@ const SONG_TEMPLATES = [
   { emoji: '🌴', label: 'Afrobeats Vibe', value: 'A feel good afrobeats song about summer, good vibes and celebrating life' },
 ];
 
+const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }) {
+  const [playing, setPlaying] = useState(false);
+  const [copied, setCopied]   = useState(false);
+  const audioRef = useRef(null);
+
+  const audioUrl = variant.mp3_url
+    ? (variant.mp3_url.startsWith('http') ? variant.mp3_url : `${BACKEND_URL}${variant.mp3_url}`)
+    : null;
+
+  const handlePlay = () => {
+    if (!audioUrl) return;
+    if (!audioRef.current) {
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.onended = () => setPlaying(false);
+    }
+    if (playing) {
+      audioRef.current.pause();
+      setPlaying(false);
+    } else {
+      audioRef.current.play().catch(() => {});
+      setPlaying(true);
+    }
+  };
+
+  useEffect(() => () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } }, []);
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/songs/share/${variant.variant_id}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: title || 'Kids Story', url: shareUrl }); } catch (_) {}
+    } else {
+      try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch (_) {}
+    }
+  };
+
+  const safeFilename = `${(title || 'story').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
+
+  return (
+    <div className="song-card-anim" style={S.card}>
+      <div style={{ position: 'relative' }}>
+        {variant.image_url ? (
+          <img src={variant.image_url} alt={title} style={S.artBox} />
+        ) : (
+          <div style={{ ...S.artBox, ...S.artPlaceholder }}>
+            <span style={{ fontSize: 40, opacity: 0.2 }}>📖</span>
+          </div>
+        )}
+        {audioUrl && (
+          <button
+            onClick={handlePlay}
+            style={{
+              position: 'absolute', bottom: 8, left: 8,
+              width: 40, height: 40, borderRadius: '50%',
+              border: '1.5px solid rgba(255,255,255,0.7)',
+              background: playing ? 'rgba(124,58,237,0.85)' : 'rgba(0,0,0,0.6)',
+              color: '#fff', fontSize: 16, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(6px)', transition: 'all 0.2s', flexShrink: 0,
+            }}
+          >
+            {playing ? '⏸' : '▶'}
+          </button>
+        )}
+      </div>
+      <div style={S.cardBody}>
+        <div style={{ ...S.cardTitle, fontSize: 15, fontWeight: 700 }}>{title || `Story #${variant.variant_id}`}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+          <span style={{ ...S.pill, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.35)', background: 'rgba(167,139,250,0.1)' }}>🧒 Kids Story</span>
+        </div>
+        {audioUrl && (
+          <div style={{ marginTop: 10 }}>
+            <a
+              href={audioUrl}
+              download={safeFilename}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '100%', minHeight: 44, borderRadius: 7,
+                background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+                color: '#fff', fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', textDecoration: 'none', boxSizing: 'border-box',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              ⬇ Download Story
+            </a>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button
+            onClick={handleShare}
+            style={{ ...actionBtnStyle, flex: 1, color: '#38bdf8', borderColor: 'rgba(56,189,248,0.55)' }}
+          >
+            {copied ? '✓ Copied' : '🔗 Share'}
+          </button>
+          <button
+            onClick={() => onDelete(variant.variant_id)}
+            disabled={deleting}
+            style={{ ...actionBtnStyle, flex: 1, color: '#f87171', borderColor: 'rgba(248,113,113,0.5)', opacity: deleting ? 0.55 : 1, cursor: deleting ? 'default' : 'pointer' }}
+          >
+            {deleting ? 'Deleting…' : '🗑 Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const SongCard = memo(function SongCard({
   variant, title, artistName, activeWsRef,
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, ytError, onYouTubeClick,
@@ -1000,9 +1107,6 @@ export default function SongsPage() {
   const [selGenres, setSelGenres]       = useState(() => { const s = _matchGenreSlug(location.state?.prefillGenre); return s ? new Set([s]) : new Set(); });
   const [generating, setGenerating]     = useState(false);
   const [activeJob, setActiveJob]       = useState(null);
-  const [storyPlaying, setStoryPlaying] = useState(false);
-  const [storyResult, setStoryResult]   = useState(null); // {url, title} — persists after activeJob clears
-  const storyAudioRef = useRef(null);
   const [library, setLibrary]           = useState([]);
   const [error, setError]               = useState('');
   const [topupLoading, setTopupLoading] = useState(null);
@@ -1421,7 +1525,6 @@ export default function SongsPage() {
   const handleGenerate = async () => {
     setError('');
     setGenerating(true);
-    setStoryResult(null);
     const KIDS_MUSIC_GENRES = {
       nursery:  ['acoustic'],
       funpop:   ['pop'],
@@ -1484,20 +1587,21 @@ export default function SongsPage() {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || 'Generation failed');
-      if (storyAudioRef.current) {
-        storyAudioRef.current.pause();
-        storyAudioRef.current = null;
-        setStoryPlaying(false);
-      }
       const _storyUrl = d.story_audio_url
         ? (d.story_audio_url.startsWith('http') ? d.story_audio_url : `${BACKEND_URL}${d.story_audio_url}`)
         : null;
-      if (_storyUrl) setStoryResult({ url: _storyUrl, title: d.title });
       setActiveJob({
         lyric_id: d.lyric_id,
         title: d.title,
-        variants: d.variants.map((v) => ({ ...v, title: d.title })),
-        story_audio_url: _storyUrl,
+        variants: d.variants.map((v) => {
+          const tag = v.genre_tag || v.genre || null;
+          return {
+            ...v,
+            title: d.title,
+            genre_tag: tag,
+            mp3_url: tag === 'kids_story' ? _storyUrl : (v.mp3_url || null),
+          };
+        }),
       });
       setCredits((p) => ({ ...p, balance: Math.max(0, p.balance - cost) }));
       setBrief('');
@@ -3103,134 +3207,64 @@ export default function SongsPage() {
                 <span style={{ background: 'rgba(167,139,250,0.1)', color: '#a78bfa', borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 500 }}>
                   {t('songs.generatingStatus')}
                 </span>
-                {activeJob.story_audio_url && (
-                  <button
-                    onClick={() => {
-                      if (!storyAudioRef.current) {
-                        storyAudioRef.current = new Audio(activeJob.story_audio_url);
-                        storyAudioRef.current.onended = () => setStoryPlaying(false);
-                      }
-                      if (storyPlaying) {
-                        storyAudioRef.current.pause();
-                        setStoryPlaying(false);
-                      } else {
-                        storyAudioRef.current.play();
-                        setStoryPlaying(true);
-                      }
-                    }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      background: 'linear-gradient(135deg,#7c3aed,#00f0ff)', color: '#000',
-                      border: 'none', borderRadius: 20, padding: '5px 14px',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                    }}
-                  >
-                    {storyPlaying ? '⏸ Pause Story' : '▶ Hear Story'}
-                  </button>
-                )}
               </div>
               <div className="songs-grid" style={S.grid}>
                 {activeJob.variants.map((v) =>
                   v.status === 'complete' || v.status === 'failed' ? (
-                    <SongCard
-                      key={v.variant_id}
-                      variant={v}
-                      title={activeJob.title}
-                      activeWsRef={activeWsRef}
-                      canYouTube={canYouTube}
-                      ytConnected={youtubeConnected}
-                      ytStatus={ytStatus[v.variant_id]}
-                      ytUrl={ytUrls[v.variant_id]}
-                      ytError={ytErrors[v.variant_id]}
-                      onYouTubeClick={handleYouTubeClick}
-                      canDid={canDid}
-                      didSt={didStatus[v.variant_id]}
-                      videoUrl={videoUrls[v.variant_id]}
-                      onAvatarClick={handleAvatarClick}
-                      videoCredits={credits.video_credits}
-                      didPlanOk={didPlanOk}
-                      isAdmin={isAdmin}
-                      onDelete={handleDeleteVariant}
-                      deleting={deletingVariants.has(v.variant_id)}
-                      musicVideoUrl={musicVideoUrls[v.variant_id]}
-                      onRemake={handleOpenRemake}
-                      onTelegramClick={handleTelegramPost}
-                      artistName={credits.artist_name}
-                      onRegenerate={handleRegenerate}
-                      isFavourite={favourites.has(v.variant_id)}
-                      onToggleFavourite={handleToggleFavourite}
-                      isFreeTier={isFreeTier}
-                      animateCover={animateCover}
-                      isPublic={publicVariants.has(v.variant_id)}
-                      onShareToggle={handleShareToggle}
-                      playlists={playlists}
-                      onAddToPlaylist={handleAddToPlaylist}
-                      premiumCredits={credits.premium_credits}
-                      stemsData={stemsData[v.variant_id]}
-                      onGetStems={handleGetStems}
-                      onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
-                      soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
-                      onLockSound={handleLockSound}
-                    />
+                    v.genre_tag === 'kids_story' ? (
+                      <StoryCard
+                        key={v.variant_id}
+                        variant={v}
+                        title={activeJob.title}
+                        onDelete={handleDeleteVariant}
+                        deleting={deletingVariants.has(v.variant_id)}
+                      />
+                    ) : (
+                      <SongCard
+                        key={v.variant_id}
+                        variant={v}
+                        title={activeJob.title}
+                        activeWsRef={activeWsRef}
+                        canYouTube={canYouTube}
+                        ytConnected={youtubeConnected}
+                        ytStatus={ytStatus[v.variant_id]}
+                        ytUrl={ytUrls[v.variant_id]}
+                        ytError={ytErrors[v.variant_id]}
+                        onYouTubeClick={handleYouTubeClick}
+                        canDid={canDid}
+                        didSt={didStatus[v.variant_id]}
+                        videoUrl={videoUrls[v.variant_id]}
+                        onAvatarClick={handleAvatarClick}
+                        videoCredits={credits.video_credits}
+                        didPlanOk={didPlanOk}
+                        isAdmin={isAdmin}
+                        onDelete={handleDeleteVariant}
+                        deleting={deletingVariants.has(v.variant_id)}
+                        musicVideoUrl={musicVideoUrls[v.variant_id]}
+                        onRemake={handleOpenRemake}
+                        onTelegramClick={handleTelegramPost}
+                        artistName={credits.artist_name}
+                        onRegenerate={handleRegenerate}
+                        isFavourite={favourites.has(v.variant_id)}
+                        onToggleFavourite={handleToggleFavourite}
+                        isFreeTier={isFreeTier}
+                        animateCover={animateCover}
+                        isPublic={publicVariants.has(v.variant_id)}
+                        onShareToggle={handleShareToggle}
+                        playlists={playlists}
+                        onAddToPlaylist={handleAddToPlaylist}
+                        premiumCredits={credits.premium_credits}
+                        stemsData={stemsData[v.variant_id]}
+                        onGetStems={handleGetStems}
+                        onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
+                        soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
+                        onLockSound={handleLockSound}
+                      />
+                    )
                   ) : (
                     <SkeletonCard key={v.variant_id} genre={v.genre_tag} />
                   )
                 )}
-              </div>
-            </section>
-          )}
-
-          {!activeJob && storyResult && (
-            <section style={{ marginBottom: 32 }}>
-              <div style={{
-                background: 'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(0,240,255,0.08))',
-                border: '1px solid rgba(124,58,237,0.3)',
-                borderRadius: 16,
-                padding: '20px 24px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16,
-                flexWrap: 'wrap',
-              }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Kids Story</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#e2d9f3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{storyResult.title}</div>
-                </div>
-                <button
-                  onClick={() => {
-                    if (!storyAudioRef.current) {
-                      storyAudioRef.current = new Audio(storyResult.url);
-                      storyAudioRef.current.onended = () => setStoryPlaying(false);
-                    }
-                    if (storyPlaying) {
-                      storyAudioRef.current.pause();
-                      setStoryPlaying(false);
-                    } else {
-                      storyAudioRef.current.play();
-                      setStoryPlaying(true);
-                    }
-                  }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    background: 'linear-gradient(135deg,#7c3aed,#00f0ff)', color: '#000',
-                    border: 'none', borderRadius: 20, padding: '8px 18px',
-                    fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
-                  }}
-                >
-                  {storyPlaying ? '⏸ Pause Story' : '▶ Hear Story'}
-                </button>
-                <button
-                  onClick={() => {
-                    if (storyAudioRef.current) { storyAudioRef.current.pause(); storyAudioRef.current = null; }
-                    setStoryPlaying(false);
-                    setStoryResult(null);
-                  }}
-                  style={{
-                    background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8,
-                    color: '#64748b', fontSize: 11, cursor: 'pointer', padding: '6px 10px', flexShrink: 0,
-                  }}
-                  title="Dismiss"
-                >✕</button>
               </div>
             </section>
           )}
@@ -3281,46 +3315,56 @@ export default function SongsPage() {
               )}
               <div className="songs-grid" style={S.grid}>
                 {visibleLibrary.map((v) => (
-                  <SongCard
-                    key={v.variant_id}
-                    variant={v}
-                    title={v.title}
-                    activeWsRef={activeWsRef}
-                    canYouTube={canYouTube}
-                    ytConnected={youtubeConnected}
-                    ytStatus={ytStatus[v.variant_id]}
-                    ytUrl={ytUrls[v.variant_id]}
-                    ytError={ytErrors[v.variant_id]}
-                    onYouTubeClick={handleYouTubeClick}
-                    canDid={canDid}
-                    didSt={didStatus[v.variant_id]}
-                    videoUrl={videoUrls[v.variant_id]}
-                    onAvatarClick={handleAvatarClick}
-                    videoCredits={credits.video_credits}
-                    didPlanOk={didPlanOk}
-                    isAdmin={isAdmin}
-                    onDelete={handleDeleteVariant}
-                    deleting={deletingVariants.has(v.variant_id)}
-                    musicVideoUrl={musicVideoUrls[v.variant_id]}
-                    onRemake={handleOpenRemake}
-                    onTelegramClick={handleTelegramPost}
-                    artistName={credits.artist_name}
-                    onRegenerate={handleRegenerate}
-                    isFavourite={favourites.has(v.variant_id)}
-                    onToggleFavourite={handleToggleFavourite}
-                    isFreeTier={isFreeTier}
-                    animateCover={animateCover}
-                    isPublic={publicVariants.has(v.variant_id)}
-                    onShareToggle={handleShareToggle}
-                    playlists={playlists}
-                    onAddToPlaylist={handleAddToPlaylist}
-                    premiumCredits={credits.premium_credits}
-                    stemsData={stemsData[v.variant_id]}
-                    onGetStems={handleGetStems}
-                    onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
-                    soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
-                    onLockSound={handleLockSound}
-                  />
+                  v.genre_tag === 'kids_story' ? (
+                    <StoryCard
+                      key={v.variant_id}
+                      variant={v}
+                      title={v.title}
+                      onDelete={handleDeleteVariant}
+                      deleting={deletingVariants.has(v.variant_id)}
+                    />
+                  ) : (
+                    <SongCard
+                      key={v.variant_id}
+                      variant={v}
+                      title={v.title}
+                      activeWsRef={activeWsRef}
+                      canYouTube={canYouTube}
+                      ytConnected={youtubeConnected}
+                      ytStatus={ytStatus[v.variant_id]}
+                      ytUrl={ytUrls[v.variant_id]}
+                      ytError={ytErrors[v.variant_id]}
+                      onYouTubeClick={handleYouTubeClick}
+                      canDid={canDid}
+                      didSt={didStatus[v.variant_id]}
+                      videoUrl={videoUrls[v.variant_id]}
+                      onAvatarClick={handleAvatarClick}
+                      videoCredits={credits.video_credits}
+                      didPlanOk={didPlanOk}
+                      isAdmin={isAdmin}
+                      onDelete={handleDeleteVariant}
+                      deleting={deletingVariants.has(v.variant_id)}
+                      musicVideoUrl={musicVideoUrls[v.variant_id]}
+                      onRemake={handleOpenRemake}
+                      onTelegramClick={handleTelegramPost}
+                      artistName={credits.artist_name}
+                      onRegenerate={handleRegenerate}
+                      isFavourite={favourites.has(v.variant_id)}
+                      onToggleFavourite={handleToggleFavourite}
+                      isFreeTier={isFreeTier}
+                      animateCover={animateCover}
+                      isPublic={publicVariants.has(v.variant_id)}
+                      onShareToggle={handleShareToggle}
+                      playlists={playlists}
+                      onAddToPlaylist={handleAddToPlaylist}
+                      premiumCredits={credits.premium_credits}
+                      stemsData={stemsData[v.variant_id]}
+                      onGetStems={handleGetStems}
+                      onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
+                      soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
+                      onLockSound={handleLockSound}
+                    />
+                  )
                 ))}
               </div>
               {visibleCount < tabFilteredLibrary.length && (

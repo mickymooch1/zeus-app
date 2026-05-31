@@ -1941,9 +1941,9 @@ async def songs_generate(
                 _sv_conn.execute("UPDATE song_credits SET balance = balance - 1 WHERE user_id = ?", (user_id,))
             _sv_conn.execute(
                 "INSERT INTO song_variants "
-                "(lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover) "
-                "VALUES (?, ?, 'kids_story', 'kids_story', 'complete', 1, 0)",
-                (lyric_id, user_id),
+                "(lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover, mp3_url) "
+                "VALUES (?, ?, 'kids_story', 'kids_story', 'complete', 1, 0, ?)",
+                (lyric_id, user_id, story_audio_url),
             )
             _sv_id = _sv_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             _sv_conn.commit()
