@@ -1762,38 +1762,62 @@ def log_play_event(db_path: pathlib.Path, variant_id: int, user_id: str | None) 
 
 
 def get_for_you_songs(db_path: pathlib.Path, user_id: str, limit: int = 20) -> list[dict]:
-    """Personalised feed: songs in liked genres, falling back to trending when empty."""
+    """Personalised feed using both likes and play history.
+
+    Ranking logic:
+    - Infer preferred genres from likes (weight 2) + plays (weight 1)
+    - Exclude songs the user has already played or liked
+    - Order by recency (newest first) — deliberately different from trending
+    - Falls back to trending only when the user has zero activity at all
+    """
     conn = _conn(db_path)
     try:
-        # Get genre_tags from songs the user has liked
-        liked_tag_rows = conn.execute(
-            """SELECT DISTINCT sv.genre_tag
+        # ── 1. Collect genre preferences from both likes and plays ────────────
+        liked_tags = conn.execute(
+            """SELECT sv.genre_tag, COUNT(*) AS n
                FROM song_variant_likes svl
                JOIN song_variants sv ON sv.id = svl.variant_id
-               WHERE svl.user_id = ? AND sv.genre_tag IS NOT NULL""",
+               WHERE svl.user_id = ? AND sv.genre_tag IS NOT NULL
+               GROUP BY sv.genre_tag""",
             (user_id,),
         ).fetchall()
 
-        # Expand hybrid tags: "hiphop__rnb" → {"hiphop__rnb", "hiphop", "rnb"}
-        # so liking a hybrid also surfaces pure-genre songs and vice-versa.
-        seen: set[str] = set()
-        liked_genres: list[str] = []
-        for (tag,) in liked_tag_rows:
+        played_tags = conn.execute(
+            """SELECT sv.genre_tag, COUNT(*) AS n
+               FROM song_play_events spe
+               JOIN song_variants sv ON sv.id = spe.variant_id
+               WHERE spe.user_id = ? AND sv.genre_tag IS NOT NULL
+               GROUP BY sv.genre_tag""",
+            (user_id,),
+        ).fetchall()
+
+        # Merge weights: likes count double vs plays
+        genre_weights: dict[str, int] = {}
+        for (tag, n) in liked_tags:
             for part in [tag] + tag.split("__"):
-                if part and part not in seen:
-                    seen.add(part)
-                    liked_genres.append(part)
+                if part:
+                    genre_weights[part] = genre_weights.get(part, 0) + n * 2
+        for (tag, n) in played_tags:
+            for part in [tag] + tag.split("__"):
+                if part:
+                    genre_weights[part] = genre_weights.get(part, 0) + n
 
-        # Songs the user already liked — exclude from results
-        liked_id_rows = conn.execute(
-            "SELECT variant_id FROM song_variant_likes WHERE user_id = ?",
-            (user_id,),
-        ).fetchall()
-        liked_ids = [r[0] for r in liked_id_rows]
+        # Top genres by combined weight
+        top_genres = sorted(genre_weights, key=genre_weights.__getitem__, reverse=True)
+
+        # ── 2. Build exclusion list: played + liked ───────────────────────────
+        played_ids = [r[0] for r in conn.execute(
+            "SELECT DISTINCT variant_id FROM song_play_events WHERE user_id = ?", (user_id,),
+        ).fetchall()]
+        liked_ids = [r[0] for r in conn.execute(
+            "SELECT variant_id FROM song_variant_likes WHERE user_id = ?", (user_id,),
+        ).fetchall()]
+        exclude_ids = list(set(played_ids) | set(liked_ids))
+        has_activity = bool(played_ids or liked_ids)
 
         _log.info(
-            "For You: user=%s liked_genres=%s excluded_ids=%d",
-            user_id, liked_genres, len(liked_ids),
+            "For You: user=%s top_genres=%s played=%d liked=%d exclude=%d",
+            user_id, top_genres[:6], len(played_ids), len(liked_ids), len(exclude_ids),
         )
 
         base_select = """SELECT sv.id AS variant_id,
@@ -1813,48 +1837,54 @@ def get_for_you_songs(db_path: pathlib.Path, user_id: str, limit: int = 20) -> l
                            AND sv.status = 'complete'
                            AND sv.mp3_url IS NOT NULL"""
 
-        # ── Attempt 1: personalised by liked genres ──────────────────────────
-        if liked_genres:
-            genre_ph = ",".join("?" * len(liked_genres))
-            # Also match hybrids that CONTAIN a liked component (e.g. user liked
-            # "hiphop" → also return "hiphop__rnb" songs)
+        def _excl_clause(ids: list) -> tuple[str, list]:
+            if not ids:
+                return "", []
+            ph = ",".join("?" * len(ids))
+            return f" AND sv.id NOT IN ({ph})", ids
+
+        # ── 3. Personalised: genres user has engaged with, ordered by recency ─
+        if top_genres and has_activity:
+            genre_ph = ",".join("?" * len(top_genres))
             like_clauses: list[str] = []
             like_params: list[str] = []
-            for g in liked_genres:
+            for g in top_genres:
                 if "__" not in g:
                     like_clauses.append("sv.genre_tag LIKE ? OR sv.genre_tag LIKE ?")
                     like_params += [f"{g}__%", f"%__{g}"]
 
             if like_clauses:
                 genre_filter = f"(sv.genre_tag IN ({genre_ph}) OR {' OR '.join(like_clauses)})"
-                genre_params: list = liked_genres + like_params
+                genre_params: list = top_genres + like_params
             else:
                 genre_filter = f"sv.genre_tag IN ({genre_ph})"
-                genre_params = liked_genres
+                genre_params = top_genres
 
-            if liked_ids:
-                excl_ph = ",".join("?" * len(liked_ids))
-                sql = (f"{base_select} AND {genre_filter}"
-                       f" AND sv.id NOT IN ({excl_ph})"
-                       f" ORDER BY like_count DESC, sv.completed_at DESC LIMIT ?")
-                params: list = genre_params + liked_ids + [limit]
-            else:
-                sql = (f"{base_select} AND {genre_filter}"
-                       f" ORDER BY like_count DESC, sv.completed_at DESC LIMIT ?")
-                params = genre_params + [limit]
-
-            rows = conn.execute(sql, params).fetchall()
+            excl_sql, excl_p = _excl_clause(exclude_ids)
+            # Order by recency — intentionally different from trending (which is like_count)
+            sql = (f"{base_select} AND {genre_filter}{excl_sql}"
+                   f" ORDER BY sv.completed_at DESC LIMIT ?")
+            rows = conn.execute(sql, genre_params + excl_p + [limit]).fetchall()
             results = [dict(r) for r in rows]
-            _log.info("For You: personalised query returned %d songs", len(results))
+            _log.info("For You: personalised returned %d songs", len(results))
             if results:
                 return results
-            _log.info("For You: personalised empty — falling back to trending")
+            _log.info("For You: personalised empty (all heard?) — expanding to any genre")
 
-        # ── Fallback: most-liked public songs regardless of genre ─────────────
+        # ── 4. Soft fallback: any unheard public songs, newest first ──────────
+        excl_sql, excl_p = _excl_clause(exclude_ids)
+        sql = f"{base_select}{excl_sql} ORDER BY sv.completed_at DESC LIMIT ?"
+        rows = conn.execute(sql, excl_p + [limit]).fetchall()
+        results = [dict(r) for r in rows]
+        _log.info("For You: unheard fallback returned %d songs", len(results))
+        if results:
+            return results
+
+        # ── 5. Last resort: trending regardless of play history ───────────────
         sql = f"{base_select} ORDER BY like_count DESC, sv.completed_at DESC LIMIT ?"
         rows = conn.execute(sql, [limit]).fetchall()
         results = [dict(r) for r in rows]
-        _log.info("For You: trending fallback returned %d songs", len(results))
+        _log.info("For You: trending last-resort returned %d songs", len(results))
         return results
     finally:
         conn.close()
