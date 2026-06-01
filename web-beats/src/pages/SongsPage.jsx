@@ -2656,7 +2656,7 @@ export default function SongsPage() {
                   </div>
                 </div>
 
-                <div>
+                {!['meditation','healingfrequency'].some(g => selGenres.has(g)) && <div>
                   <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.accentLabel')}</p>
                   <select
                     value={accent}
@@ -2725,7 +2725,7 @@ export default function SongsPage() {
                     </optgroup>
                   </select>
                   <p style={{ fontSize: 11, color: '#555', marginTop: 5 }}>Leave on Auto to let Zeus match the accent to your genre</p>
-                </div>
+                </div>}
 
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.modelLabel')}</p>
@@ -2883,6 +2883,7 @@ export default function SongsPage() {
                   </div>
                 )}
 
+                {!['meditation','healingfrequency'].some(g => selGenres.has(g)) && (
                 <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                     <div
@@ -2896,6 +2897,7 @@ export default function SongsPage() {
                     </span>
                   </label>
                 </div>
+                )}
 
                 {!isFreeTier && (
                   <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>

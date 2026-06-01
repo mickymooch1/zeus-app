@@ -8,6 +8,8 @@ import time
 import threading
 import requests
 
+INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency'})
+
 GENRE_MODEL_OVERRIDES: dict[str, str] = {
     'ragga':    'V5_5',
     'bhangra':  'V5_5',
@@ -528,13 +530,17 @@ def generate_multiple_variants(
         # Genre tag encodes the blend so the frontend can display "Soul × Grime"
         genre_tag = f"{genre}__{genre_b}" if genre_b and genre_b in GENRE_PRESETS else genre
         suno_model = GENRE_MODEL_OVERRIDES.get(genre, GENRE_MODEL_OVERRIDES.get(genre_b or '', 'V5'))
+        genre_suno_params = dict(extra_suno_params or {})
+        if genre in INSTRUMENTAL_GENRES:
+            genre_suno_params['instrumental'] = True
+            logger.info("Forcing instrumental for genre=%r", genre)
         result = generate_song_variant(
             user_id=user_id,
             lyric_id=lyric_id,
             style_prompt=style,
             genre_tag=genre_tag,
             db_path=db_path,
-            extra_suno_params=extra_suno_params,
+            extra_suno_params=genre_suno_params,
             is_admin=is_admin,
             animate_cover=animate_cover,
             suno_model=suno_model,

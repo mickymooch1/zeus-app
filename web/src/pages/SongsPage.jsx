@@ -2063,8 +2063,8 @@ export default function SongsPage() {
                   </div>
                 </div>
 
-                {/* Accent */}
-                <div>
+                {/* Accent — hidden for instrumental-only genres */}
+                {!['meditation','healingfrequency'].some(g => selGenres.has(g)) && <div>
                   <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>Accent</p>
                   <select
                     value={accent}
@@ -2124,7 +2124,7 @@ export default function SongsPage() {
                     </optgroup>
                   </select>
                   <p style={{ fontSize: 11, color: '#555', marginTop: 5 }}>Leave on Auto to let Zeus match the accent to your genre</p>
-                </div>
+                </div>}
 
                 {/* Model version */}
                 <div>
@@ -2313,7 +2313,8 @@ export default function SongsPage() {
                   </div>
                 )}
 
-                {/* Vocals toggle */}
+                {/* Vocals toggle — hidden for instrumental-only genres */}
+                {!['meditation','healingfrequency'].some(g => selGenres.has(g)) && (
                 <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                     <div
@@ -2345,6 +2346,7 @@ export default function SongsPage() {
                     </span>
                   </label>
                 </div>
+                )}
 
                 {/* Animated cover art toggle — paid users only */}
                 {!isFreeTier && (
