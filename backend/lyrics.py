@@ -287,7 +287,7 @@ _REGULAR_LANGUAGE_MAP = {
 }
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None) -> dict:
     if instrumental:
         title = song_title or "Instrumental"
         conn = db._conn(db_path)
@@ -432,12 +432,12 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         if vocab_lines:
             user_message += "\n" + " | ".join(vocab_lines)
 
-    _lyric_language = _REGULAR_LANGUAGE_MAP.get((accent or '').lower())
+    _lyric_language = lyrics_language or _REGULAR_LANGUAGE_MAP.get((accent or '').lower())
     if _lyric_language:
         user_message += (
             f"\n\nIMPORTANT: Write the lyrics ENTIRELY in {_lyric_language} — not English. "
-            f"Use authentic {_lyric_language} script, vocabulary and natural phrasing throughout. "
-            f"Write every line in the native script of {_lyric_language} — no romanisation, no transliteration, no English."
+            f"Use authentic {_lyric_language} vocabulary and natural phrasing throughout. "
+            f"Write every line in {_lyric_language} — no English translation."
         )
     model = "claude-sonnet-4-6" if (genre_b or _lyric_language) else "claude-haiku-4-5-20251001"
     logger.info(

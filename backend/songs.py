@@ -84,6 +84,15 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "southemsoul":      "Southern soul singer performing passionately, gospel church energy, warm amber lighting, deeply emotional soulful delivery",
     "traditionalpop":   "classic crooner performing elegantly, smooth sophisticated movement, warm golden vintage lighting, timeless pop performance",
     "rocknroll":        "rock and roll musician performing energetically, lively rockabilly movement, vintage stage lighting, rebellious 1950s energy",
+    "trap":             "trap artist performing intensely, dark moody studio lighting, heavy bass atmosphere, intense focused expression",
+    "eastcoasthiphop":  "East Coast MC performing lyrically, confident authentic delivery, urban New York backdrop, classic boom bap energy",
+    "poprap":           "pop rap artist performing energetically, bright colourful stage lighting, melodic crossover energy, infectious crowd energy",
+    "synthwave":        "synthwave artist in neon lit retro studio, dramatic 80s atmosphere, pulsing electronic energy, glowing synthesizer setup",
+    "gospel":           "gospel choir performing passionately, hands raised, warm golden church lighting, powerful spiritual energy",
+    "trapsoul":         "trap soul singer performing soulfully, smooth movement, dark atmospheric studio lighting, emotional R&B energy",
+    "meditation":       "meditation practitioner in serene peaceful setting, slow gentle movement, soft natural lighting, tranquil spiritual energy",
+    "christmas":        "Christmas performer singing joyfully, festive warm lighting, holiday celebration energy, cosy festive atmosphere",
+    "corridos":         "corridos musician playing guitar passionately, traditional Mexican performance, vibrant warm lighting, heartfelt authentic storytelling energy",
 }
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]

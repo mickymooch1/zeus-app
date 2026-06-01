@@ -660,6 +660,9 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(_webhooks_mod.router)
 
+import voice_agent as _voice_agent_mod
+app.include_router(_voice_agent_mod.router)
+
 # In-memory WebSocket rate limiter: tracks message timestamps per user
 _ws_rate: dict[str, deque] = defaultdict(deque)
 
@@ -1979,7 +1982,8 @@ async def songs_generate(
                 song_title=body.song_title or None,
             )
         else:
-            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None)
+            _genre_lang = _GENRE_LANGUAGE_MAP.get((list(body.genres)[0] if body.genres else ''), None)
+            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None, lyrics_language=_genre_lang)
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
@@ -4671,6 +4675,10 @@ _voice_preview_storage = pathlib.Path("/data/voice-previews")
 _voice_preview_storage.mkdir(parents=True, exist_ok=True)
 app.mount("/files/voice-previews", _StaticFiles(directory=str(_voice_preview_storage)), name="voice-previews")
 
+_porick_audio_storage = pathlib.Path("/data/porick-audio")
+_porick_audio_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/porick-audio", _StaticFiles(directory=str(_porick_audio_storage)), name="porick-audio")
+
 # Authenticated file serving — keeps /api/files/* available for future use.
 _FILE_STORAGE: dict[str, pathlib.Path] = {
     "songs":   pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs")),
@@ -4779,6 +4787,14 @@ _OG_GENRE_LABELS = {
     "indie": "Indie", "afrobeats": "Afrobeats", "amapiano": "Amapiano",
     "afroswing": "Afroswing", "country": "Country", "acoustic": "Acoustic",
     "hyperpop": "Hyperpop",
+    "trap": "Trap", "eastcoasthiphop": "East Coast Hip-Hop", "poprap": "Pop Rap",
+    "synthwave": "Synthwave", "gospel": "Gospel", "trapsoul": "Trap Soul",
+    "meditation": "Meditation", "christmas": "Christmas", "corridos": "Corridos",
+}
+
+# Genres that should always generate lyrics in a specific language regardless of accent setting.
+_GENRE_LANGUAGE_MAP: dict[str, str] = {
+    "corridos": "Spanish",
 }
 
 

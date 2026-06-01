@@ -11,23 +11,23 @@ import { audioManager } from '../utils/audioManager';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
 import IOSWebViewBanner from '../components/IOSWebViewBanner';
 
-const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll'];
-const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', southemsoul:'Southern Soul', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll' };
+const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos'];
+const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', southemsoul:'Southern Soul', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', christmas:'Christmas', corridos:'Corridos' };
 const GENRE_CATEGORIES = [
   { id: 'uk_street',  label: 'UK STREET',          color: '#00f0ff',
-    genres: ['grime','ukdrill','ukgarage','jungle','drumandbass','niche','deeprotbassline','bassline','ukstreetsoul'] },
+    genres: ['grime','ukdrill','ukgarage','jungle','drumandbass','niche','deeprotbassline','bassline','ukstreetsoul','eastcoasthiphop'] },
   { id: 'caribbean',  label: 'CARIBBEAN & AFRICAN', color: '#f472b6',
-    genres: ['reggae','loversrock','rastadub','ragga','afrobeats','afroswing','amapiano','reggaeton','latintrap','rootsreggae'] },
+    genres: ['reggae','loversrock','rastadub','ragga','afrobeats','afroswing','amapiano','reggaeton','latintrap','rootsreggae','corridos'] },
   { id: 'soul',       label: 'SOUL & BLUES',        color: '#fb923c',
-    genres: ['soul','rnb','blues','bluessoul','deepsoulblues','jazz','swing','vocaljazz','southemsoul'] },
+    genres: ['soul','rnb','blues','bluessoul','deepsoulblues','jazz','swing','vocaljazz','southemsoul','gospel'] },
   { id: 'electronic', label: 'ELECTRONIC & DANCE',  color: '#4ade80',
-    genres: ['house','technhouse','techno','edm','lofi','electronicfunk','dubstep','driftphonk','jerseyclub','hyperpop','syntheticpop'] },
+    genres: ['house','technhouse','techno','edm','lofi','electronicfunk','dubstep','driftphonk','jerseyclub','hyperpop','syntheticpop','synthwave'] },
   { id: 'rock',       label: 'ROCK & METAL',        color: '#f87171',
     genres: ['rock','metal','indie','acoustic','country','rockney','countryamericana','rocknroll','traditionalpop'] },
   { id: 'world',      label: 'WORLD & URBAN',       color: '#fbbf24',
-    genres: ['hiphop','kpop','bhangra'] },
+    genres: ['hiphop','kpop','bhangra','trap','poprap','trapsoul'] },
   { id: 'classic',    label: 'CLASSIC',             color: '#e2e8f0',
-    genres: ['classical','irishjig','irishfolk','pop'] },
+    genres: ['classical','irishjig','irishfolk','pop','meditation','christmas'] },
 ];
 const _genreColorMap = Object.fromEntries(
   GENRE_CATEGORIES.flatMap(cat => cat.genres.map(g => [g, cat.color]))

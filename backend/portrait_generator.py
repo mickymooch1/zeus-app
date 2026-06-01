@@ -68,6 +68,15 @@ GENRE_PORTRAIT_PROMPTS = {
     "southemsoul":      "Black Southern American soul musician, professional portrait photo, clear frontal face, warm amber church or studio lighting, deeply emotional soulful expression, photorealistic",
     "traditionalpop":   "classic crooner in elegant suit, professional portrait photo, clear frontal face, warm golden vintage lighting, charming sophisticated expression, 1950s aesthetic, photorealistic",
     "rocknroll":        "rock and roll musician with quiff hairstyle, professional portrait photo, clear frontal face, vintage stage lighting, energetic rebellious expression, 1950s rockabilly aesthetic, photorealistic",
+    "trap":             "Black American trap artist, professional portrait photo, clear frontal face, dark moody studio lighting, intense brooding expression, photorealistic",
+    "eastcoasthiphop":  "Black American hip-hop MC, professional portrait photo, clear frontal face, New York urban backdrop lighting, confident lyrical expression, photorealistic",
+    "poprap":           "pop rap artist, professional portrait photo, clear frontal face, bright commercial studio lighting, confident charming expression, photorealistic",
+    "synthwave":        "synthwave artist, professional portrait photo, clear frontal face, purple and pink neon retro studio lighting, intense cool expression, photorealistic",
+    "gospel":           "Black gospel singer, professional portrait photo, clear frontal face, warm golden church lighting, deeply expressive joyful expression, photorealistic",
+    "trapsoul":         "Black R&B trap soul artist, professional portrait photo, clear frontal face, dark atmospheric studio lighting, smooth emotional expression, photorealistic",
+    "meditation":       "meditation music artist, professional portrait photo, clear frontal face, soft warm natural lighting, serene peaceful expression, photorealistic",
+    "christmas":        "Christmas music performer, professional portrait photo, clear frontal face, warm festive red and gold lighting, joyful festive expression, photorealistic",
+    "corridos":         "Mexican musician, professional portrait photo, clear frontal face, warm vibrant studio lighting, passionate authentic expression, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"
