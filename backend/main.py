@@ -4771,6 +4771,7 @@ if _beats_dist.exists():
 _OG_GENRE_LABELS = {
     "hiphop": "Hip-Hop", "rnb": "R&B", "soul": "Soul", "pop": "Pop",
     "rock": "Rock", "blues": "Blues", "jazz": "Jazz", "swing": "Swing", "vocaljazz": "Vocal Jazz", "reggae": "Reggae",
+    "traditionalpop": "Traditional Pop", "rocknroll": "Rock & Roll",
     "lofi": "Lo-Fi", "edm": "EDM", "drumandbass": "D&B", "grime": "Grime",
     "ukgarage": "UK Garage", "jungle": "Jungle", "bassline": "Bassline",
     "house": "House", "techno": "Techno", "loversrock": "Lovers Rock",

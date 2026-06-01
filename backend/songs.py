@@ -82,6 +82,8 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "rootsreggae":    "roots reggae musician performing peacefully, gentle swaying movement, warm golden sunset lighting, spiritual conscious energy",
     "countryamericana": "country Americana performer playing guitar, authentic Southern energy, warm golden lighting, heartfelt emotional performance",
     "southemsoul":      "Southern soul singer performing passionately, gospel church energy, warm amber lighting, deeply emotional soulful delivery",
+    "traditionalpop":   "classic crooner performing elegantly, smooth sophisticated movement, warm golden vintage lighting, timeless pop performance",
+    "rocknroll":        "rock and roll musician performing energetically, lively rockabilly movement, vintage stage lighting, rebellious 1950s energy",
 }
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]
