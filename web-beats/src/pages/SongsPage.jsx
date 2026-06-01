@@ -11,8 +11,8 @@ import { audioManager } from '../utils/audioManager';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
 import IOSWebViewBanner from '../components/IOSWebViewBanner';
 
-const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos'];
-const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', southemsoul:'Southern Soul', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', christmas:'Christmas', corridos:'Corridos' };
+const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos','healingfrequency'];
+const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', southemsoul:'Southern Soul', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', christmas:'Christmas', corridos:'Corridos', healingfrequency:'Healing Frequencies' };
 const GENRE_CATEGORIES = [
   { id: 'uk_street',  label: 'UK STREET',          color: '#00f0ff',
     genres: ['grime','ukdrill','ukgarage','jungle','drumandbass','niche','deeprotbassline','bassline','ukstreetsoul','eastcoasthiphop'] },
@@ -27,7 +27,7 @@ const GENRE_CATEGORIES = [
   { id: 'world',      label: 'WORLD & URBAN',       color: '#fbbf24',
     genres: ['hiphop','kpop','bhangra','trap','poprap','trapsoul'] },
   { id: 'classic',    label: 'CLASSIC',             color: '#e2e8f0',
-    genres: ['classical','irishjig','irishfolk','pop','meditation','christmas'] },
+    genres: ['classical','irishjig','irishfolk','pop','meditation','christmas','healingfrequency'] },
 ];
 const _genreColorMap = Object.fromEntries(
   GENRE_CATEGORIES.flatMap(cat => cat.genres.map(g => [g, cat.color]))
@@ -1180,6 +1180,7 @@ export default function SongsPage() {
     () => localStorage.getItem('zeus_animated_covers') === 'true'
   );
   const [songTitle, setSongTitle]         = useState('');
+  const [healingFrequency, setHealingFrequency] = useState('432');
 
   const [showWelcome, setShowWelcome] = useState(() => !!user?.is_new_user);
 
@@ -1652,6 +1653,7 @@ export default function SongsPage() {
             negative_tags: negativeTags.trim() || undefined,
             genre_b: genreBlend && genreB ? genreB : undefined,
             blend_ratio: genreBlend && genreB ? blendRatio : undefined,
+            healing_frequency: selGenres.has('healingfrequency') ? healingFrequency : undefined,
           } : {}),
         };
       }
@@ -2852,6 +2854,34 @@ export default function SongsPage() {
                     )}
                   </div>
                 </div>
+
+                {selGenres.has('healingfrequency') && (
+                  <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: '#e2e8f0', letterSpacing: '0.6px', textTransform: 'uppercase', margin: '0 0 10px' }}>Healing Frequency</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {[
+                        ['432', '432 Hz — Natural Tuning'],
+                        ['528', '528 Hz — Miracle Tone'],
+                        ['396', '396 Hz — Release Fear'],
+                        ['639', '639 Hz — Connection'],
+                        ['741', '741 Hz — Expression'],
+                        ['852', '852 Hz — Intuition'],
+                        ['963', '963 Hz — Spiritual'],
+                      ].map(([hz, label]) => (
+                        <button
+                          key={hz}
+                          onClick={() => setHealingFrequency(hz)}
+                          style={{
+                            padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', transition: 'all 0.15s',
+                            border: `1px solid ${healingFrequency === hz ? '#e2e8f0' : 'rgba(255,255,255,0.08)'}`,
+                            background: healingFrequency === hz ? 'rgba(226,232,240,0.12)' : 'transparent',
+                            color: healingFrequency === hz ? '#e2e8f0' : '#555',
+                          }}
+                        >{label}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>

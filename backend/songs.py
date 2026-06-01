@@ -93,6 +93,7 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "meditation":       "meditation practitioner in serene peaceful setting, slow gentle movement, soft natural lighting, tranquil spiritual energy",
     "christmas":        "Christmas performer singing joyfully, festive warm lighting, holiday celebration energy, cosy festive atmosphere",
     "corridos":         "corridos musician playing guitar passionately, traditional Mexican performance, vibrant warm lighting, heartfelt authentic storytelling energy",
+    "healingfrequency": "peaceful healing frequency visuals, gentle energy waves, soft glowing calming light, serene meditative atmosphere",
 }
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]

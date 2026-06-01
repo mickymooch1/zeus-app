@@ -1850,6 +1850,7 @@ class SongsGenerateRequest(BaseModel):
     story_language: str | None = None    # "english" | "french" | "spanish" | "german" | "italian" etc
     character_voice: str | None = None   # other character voice key (dragon/villain etc.)
     child_voice: str | None = None       # child hero voice key — enables narrator+child+character 3-voice mode
+    healing_frequency: str | None = None # e.g. "432" | "528" | "396" — appended to healingfrequency genre style
 
 
 _STORY_VOICES: dict[str, str] = {
@@ -2276,6 +2277,11 @@ async def songs_generate(
     if body.instrumental:
         from song_genres import INSTRUMENTAL_SUFFIX as _INSTRUMENTAL_SUFFIX
         style_suffix_parts.append(_INSTRUMENTAL_SUFFIX)
+    if body.healing_frequency and 'healingfrequency' in list(body.genres):
+        _valid_hz = {"432", "528", "396", "639", "741", "852", "963"}
+        _hz = body.healing_frequency.strip().replace(" Hz", "").replace("Hz", "")
+        if _hz in _valid_hz:
+            style_suffix_parts.append(f"{_hz} Hz solfeggio healing frequency tuning, {_hz} Hz resonance")
     tempo_suffix = ", ".join(style_suffix_parts) or None
     if body.kids_story:
         log.info("kids_%s: tempo_suffix=%r", body.kids_mode or 'song', tempo_suffix)
@@ -4790,6 +4796,7 @@ _OG_GENRE_LABELS = {
     "trap": "Trap", "eastcoasthiphop": "East Coast Hip-Hop", "poprap": "Pop Rap",
     "synthwave": "Synthwave", "gospel": "Gospel", "trapsoul": "Trap Soul",
     "meditation": "Meditation", "christmas": "Christmas", "corridos": "Corridos",
+    "healingfrequency": "Healing Frequencies",
 }
 
 # Genres that should always generate lyrics in a specific language regardless of accent setting.

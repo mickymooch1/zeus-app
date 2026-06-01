@@ -77,6 +77,7 @@ GENRE_PORTRAIT_PROMPTS = {
     "meditation":       "meditation music artist, professional portrait photo, clear frontal face, soft warm natural lighting, serene peaceful expression, photorealistic",
     "christmas":        "Christmas music performer, professional portrait photo, clear frontal face, warm festive red and gold lighting, joyful festive expression, photorealistic",
     "corridos":         "Mexican musician, professional portrait photo, clear frontal face, warm vibrant studio lighting, passionate authentic expression, photorealistic",
+    "healingfrequency": "sound healer with singing bowls, professional portrait photo, clear frontal face, soft glowing pastel light, serene peaceful expression, spiritual wellness aesthetic, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"
