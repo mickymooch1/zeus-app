@@ -36,6 +36,14 @@ _THEMES = [
     "identity", "home", "money", "loyalty", "family", "the come up",
 ]
 
+# Genre-specific mood/theme directives appended to the user prompt — overrides the random mood
+# for genres where the required emotional register is non-negotiable.
+GENRE_MOOD_DIRECTIVES: dict[str, str] = {
+    "christmas":  "\n\nIMPORTANT MOOD: Write a joyful, warm, cheerful Christmas song — uplifting and festive, NEVER sad or dark. Themes: joy, family, snow, giving, togetherness, celebration, carol singing. Major key feel, upbeat and merry. Every line should feel warm and positive.",
+    "gospel":     "\n\nIMPORTANT MOOD: Write with powerful uplifting gospel spirit — testifying, praising, hopeful, joyful. Church energy, call and response. Never dark or despairing.",
+    "meditation": "\n\nIMPORTANT MOOD: Write peaceful, deeply calming, reflective lyrics — serene and tranquil. No aggression, no darkness, no urgency. Themes: stillness, breath, inner peace, letting go.",
+}
+
 GENRE_VOCABULARY: dict[str, str] = {
     "grime":       "mandem, road, ends, bare, peng, wasteman, dutty, link, P's",
     "afrobeats":   "omo, wahala, jollof, Lagos, naija, vibez, soro soke",
@@ -431,6 +439,9 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         ]
         if vocab_lines:
             user_message += "\n" + " | ".join(vocab_lines)
+        for g in all_genres:
+            if g in GENRE_MOOD_DIRECTIVES:
+                user_message += GENRE_MOOD_DIRECTIVES[g]
 
     _lyric_language = lyrics_language or _REGULAR_LANGUAGE_MAP.get((accent or '').lower())
     if _lyric_language:
