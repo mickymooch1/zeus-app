@@ -3,7 +3,22 @@ import { useParams, Link } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
 import { BRAND, BACKEND_URL } from '../brand';
 
-const GENRE_LABEL = { hiphop: 'Hip-hop', lofi: 'Lo-Fi', edm: 'EDM', irishjig: 'Irish Jig', irishfolk: 'Irish Folk' };
+const GENRE_LABEL = {
+  hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk',
+  rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage',
+  jungle:'Jungle', bassline:'Bassline', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill',
+  kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House',
+  driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub',
+  deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk',
+  syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep',
+  bhangra:'Bhangra', rockney:'Rockney', metal:'Metal',
+  trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap',
+  synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul',
+  meditation:'Meditation', christmas:'Christmas', corridos:'Corridos',
+  healingfrequency:'Healing Frequency', swing:'Swing', vocaljazz:'Vocal Jazz',
+  traditionalpop:'Traditional Pop', rocknroll:"Rock 'n' Roll",
+  southemsoul:'Southern Soul', countryamericana:'Country Americana',
+};
 const gLabel = (g) => GENRE_LABEL[g] || (g ? g.charAt(0).toUpperCase() + g.slice(1) : '');
 
 const PAGE_CSS = `

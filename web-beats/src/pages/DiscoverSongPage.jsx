@@ -13,6 +13,17 @@ const GENRE_LABELS = {
   ukdrill:'UK Drill', kpop:'K-Pop', classical:'Classical', indie:'Indie',
   afrobeats:'Afrobeats', amapiano:'Amapiano', afroswing:'Afroswing',
   country:'Country', acoustic:'Acoustic', hyperpop:'Hyperpop',
+  trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap',
+  synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul',
+  meditation:'Meditation', christmas:'Christmas', corridos:'Corridos',
+  healingfrequency:'Healing Frequency', irishjig:'Irish Jig', irishfolk:'Irish Folk',
+  bluessoul:'Blues Soul', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul',
+  technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club',
+  rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', electronicfunk:'Electronic Funk',
+  syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep',
+  bhangra:'Bhangra', rockney:'Rockney', metal:'Metal',
+  swing:'Swing', vocaljazz:'Vocal Jazz', traditionalpop:'Traditional Pop',
+  rocknroll:"Rock 'n' Roll", southemsoul:'Southern Soul', countryamericana:'Country Americana',
 };
 const gLabel = (g) => GENRE_LABELS[g] || (g ? g.charAt(0).toUpperCase() + g.slice(1) : '');
 

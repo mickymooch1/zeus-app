@@ -1863,7 +1863,7 @@ def get_for_you_songs(db_path: pathlib.Path, user_id: str, limit: int = 20) -> l
             excl_sql, excl_p = _excl_clause(exclude_ids)
             # Order by recency — intentionally different from trending (which is like_count)
             sql = (f"{base_select} AND {genre_filter}{excl_sql}"
-                   f" ORDER BY sv.completed_at DESC LIMIT ?")
+                   f" ORDER BY COALESCE(sv.completed_at, sv.created_at) DESC LIMIT ?")
             rows = conn.execute(sql, genre_params + excl_p + [limit]).fetchall()
             results = [dict(r) for r in rows]
             _log.info("For You: personalised returned %d songs", len(results))
@@ -1873,7 +1873,7 @@ def get_for_you_songs(db_path: pathlib.Path, user_id: str, limit: int = 20) -> l
 
         # ── 4. Soft fallback: any unheard public songs, newest first ──────────
         excl_sql, excl_p = _excl_clause(exclude_ids)
-        sql = f"{base_select}{excl_sql} ORDER BY sv.completed_at DESC LIMIT ?"
+        sql = f"{base_select}{excl_sql} ORDER BY COALESCE(sv.completed_at, sv.created_at) DESC LIMIT ?"
         rows = conn.execute(sql, excl_p + [limit]).fetchall()
         results = [dict(r) for r in rows]
         _log.info("For You: unheard fallback returned %d songs", len(results))

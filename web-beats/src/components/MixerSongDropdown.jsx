@@ -1,7 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 
 const gLabel = (g) => {
-  const MAP = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', rnb:'R&B', drumandbass:'D&B', ukgarage:'UK Garage', ukdrill:'UK Drill', kpop:'K-Pop', afrobeats:'Afrobeats', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub' };
+  const MAP = {
+    hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', rnb:'R&B', drumandbass:'D&B',
+    ukgarage:'UK Garage', ukdrill:'UK Drill', kpop:'K-Pop', afrobeats:'Afrobeats',
+    technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club',
+    afroswing:'Afroswing', rastadub:'Rasta Dub', irishjig:'Irish Jig', irishfolk:'Irish Folk',
+    bluessoul:'Blues Soul', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul',
+    deeprotbassline:'Deeprot Bassline', electronicfunk:'Electronic Funk',
+    syntheticpop:'Synthetic Pop', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap',
+    trapsoul:'Trap Soul', healingfrequency:'Healing Frequency', vocaljazz:'Vocal Jazz',
+    traditionalpop:'Traditional Pop', rocknroll:"Rock 'n' Roll",
+    southemsoul:'Southern Soul', countryamericana:'Country Americana',
+  };
   return MAP[g] || (g ? g.charAt(0).toUpperCase() + g.slice(1) : '');
 };
 

@@ -23,6 +23,12 @@ const GENRE_LABEL = {
   deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk',
   syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep',
   bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', rootsreggae:'Roots Reggae',
+  trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap',
+  synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul',
+  meditation:'Meditation', christmas:'Christmas', corridos:'Corridos',
+  healingfrequency:'Healing Frequency', swing:'Swing', vocaljazz:'Vocal Jazz',
+  traditionalpop:'Traditional Pop', rocknroll:"Rock 'n' Roll",
+  southemsoul:'Southern Soul', countryamericana:'Country Americana',
 };
 function gLabel(g) {
   if (!g) return '';
