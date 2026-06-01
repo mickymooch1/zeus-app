@@ -9,6 +9,13 @@ const CYAN  = '#00f0ff';
 const PINK  = '#f472b6';
 const BG    = '#000';
 
+function formatTime(secs) {
+  if (!secs || isNaN(secs)) return '0:00';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 /* ── Genre label → display ─────────────────────────────────────────────── */
 const GENRE_LABELS = {
   hiphop:'Hip-Hop', rnb:'R&B', pop:'Pop', rock:'Rock', soul:'Soul',
@@ -226,6 +233,8 @@ export default function DiscoverPage() {
   const [forYouSongs, setForYouSongs]     = useState([]);
   const [forYouLoading, setForYouLoading] = useState(false);
   const [forYouFetched, setForYouFetched] = useState(false);
+  const [activeAudioEl, setActiveAudioEl] = useState(null);
+  const [playState, setPlayState]         = useState({ playing: false, currentTime: 0, duration: 0 });
 
   // Refs that don't trigger re-renders
   const pageRef            = useRef(0);
@@ -238,7 +247,10 @@ export default function DiscoverPage() {
   const audioRefs          = useRef({});
   const scrollContainerRef = useRef(null);
 
-  const activeSongs = activeTab === 'for_you' ? forYouSongs : songs;
+  // For You falls back to trending if the personalised fetch returns nothing
+  const activeSongs = activeTab === 'for_you'
+    ? (forYouSongs.length > 0 ? forYouSongs : songs)
+    : songs;
 
   /* ── Fetch a page of songs ─────────────────────────────────────────────── */
   const fetchPage = useCallback(async () => {
@@ -275,19 +287,20 @@ export default function DiscoverPage() {
       const r = await fetch(`${BACKEND_URL}/api/discover/for-you`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!r.ok) return;
-      const d = await r.json();
-      const s = d.songs || [];
-      setForYouSongs(s);
-      setCounts(prev => {
-        const n = { ...prev };
-        s.forEach(x => { n[x.variant_id] = x.like_count; });
-        return n;
-      });
-      setForYouFetched(true);
+      if (r.ok) {
+        const d = await r.json();
+        const s = d.songs || [];
+        setForYouSongs(s);
+        setCounts(prev => {
+          const n = { ...prev };
+          s.forEach(x => { n[x.variant_id] = x.like_count; });
+          return n;
+        });
+      }
     } catch (e) {
       console.error('for-you:', e);
     } finally {
+      setForYouFetched(true); // always mark done so we don't retry on every render
       setForYouLoading(false);
     }
   }, [token, forYouFetched]);
@@ -318,6 +331,7 @@ export default function DiscoverPage() {
             if (pa) { pa.pause(); pa.currentTime = 0; }
           }
           activeRef.current = idx;
+          setActiveAudioEl(aud || null);
 
           if (vid) { vid.muted = true; vid.play().catch(() => {}); }
           if (aud && !mutedRef.current) audioManager.play(aud, activeSongs[idx]?.variant_id);
@@ -347,6 +361,44 @@ export default function DiscoverPage() {
     Object.values(slideRefs.current).forEach(el => { if (el) obs.observe(el); });
     return () => obs.disconnect();
   }, [activeSongs, activeTab, fetchPage, token]);
+
+  /* ── Attach playback listeners when the active audio element changes ───── */
+  useEffect(() => {
+    const aud = activeAudioEl;
+    if (!aud) return;
+    const onTime  = () => setPlayState(p => ({ ...p, currentTime: aud.currentTime }));
+    const onMeta  = () => setPlayState(p => ({ ...p, duration: aud.duration || 0 }));
+    const onPlay  = () => setPlayState(p => ({ ...p, playing: true }));
+    const onPause = () => setPlayState(p => ({ ...p, playing: false }));
+    aud.addEventListener('timeupdate', onTime);
+    aud.addEventListener('loadedmetadata', onMeta);
+    aud.addEventListener('play', onPlay);
+    aud.addEventListener('pause', onPause);
+    setPlayState({ playing: !aud.paused, currentTime: aud.currentTime, duration: aud.duration || 0 });
+    return () => {
+      aud.removeEventListener('timeupdate', onTime);
+      aud.removeEventListener('loadedmetadata', onMeta);
+      aud.removeEventListener('play', onPlay);
+      aud.removeEventListener('pause', onPause);
+    };
+  }, [activeAudioEl]);
+
+  /* ── Playback controls ───────────────────────────────────────────────── */
+  const handlePlayPause = () => {
+    const aud = activeAudioEl;
+    if (!aud) return;
+    if (aud.paused) {
+      mutedRef.current = false;
+      setMuted(false);
+      audioManager.play(aud, activeSongs[activeRef.current]?.variant_id);
+    } else {
+      aud.pause();
+    }
+  };
+
+  const handleRewind  = () => { if (activeAudioEl) activeAudioEl.currentTime = Math.max(0, activeAudioEl.currentTime - 10); };
+  const handleForward = () => { if (activeAudioEl) activeAudioEl.currentTime = Math.min(activeAudioEl.duration || 0, activeAudioEl.currentTime + 10); };
+  const handleSeek    = (e) => { if (activeAudioEl) activeAudioEl.currentTime = Number(e.target.value); };
 
   /* ── Mute toggle ──────────────────────────────────────────────────────── */
   const toggleMute = () => {
@@ -505,15 +557,15 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {/* For You empty state */}
-        {activeTab === 'for_you' && !forYouLoading && forYouFetched && forYouSongs.length === 0 && (
+        {/* For You empty state — only shown if trending also has nothing */}
+        {activeTab === 'for_you' && !forYouLoading && forYouFetched && forYouSongs.length === 0 && songs.length === 0 && (
           <div style={{
             height: '100svh', scrollSnapAlign: 'start',
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32,
           }}>
             <p style={{ color: '#555', fontSize: 16, textAlign: 'center' }}>
-              Like some songs on Trending to get personalised picks ❤️
+              Nothing shared yet — be the first to drop a track 🎵
             </p>
           </div>
         )}
@@ -598,6 +650,65 @@ export default function DiscoverPage() {
           </div>
         )}
       </div>
+
+      {/* ── Playback controls bar ─────────────────────────────────────────── */}
+      {activeAudioEl && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200,
+          padding: '8px 16px 14px',
+          background: 'linear-gradient(to top, rgba(0,0,0,0.97) 60%, transparent 100%)',
+          pointerEvents: 'auto',
+        }}>
+          {/* Progress bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: CYAN, fontFamily: 'monospace', minWidth: 32, textAlign: 'right' }}>
+              {formatTime(playState.currentTime)}
+            </span>
+            <input
+              type="range"
+              min="0"
+              max={playState.duration || 0}
+              step="0.1"
+              value={playState.currentTime}
+              onChange={handleSeek}
+              style={{
+                flex: 1, height: 3, cursor: 'pointer', accentColor: CYAN,
+                background: playState.duration
+                  ? `linear-gradient(to right, ${CYAN} ${(playState.currentTime / playState.duration) * 100}%, rgba(0,240,255,0.15) ${(playState.currentTime / playState.duration) * 100}%)`
+                  : `rgba(0,240,255,0.15)`,
+                borderRadius: 2, outline: 'none', border: 'none',
+                appearance: 'none', WebkitAppearance: 'none',
+              }}
+            />
+            <span style={{ fontSize: 10, fontWeight: 700, color: `${CYAN}66`, fontFamily: 'monospace', minWidth: 32 }}>
+              {formatTime(playState.duration)}
+            </span>
+          </div>
+          {/* Control buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+            <button
+              onClick={handleRewind}
+              style={{ background: 'none', border: 'none', color: `${CYAN}bb`, fontSize: 20, cursor: 'pointer', padding: 4 }}
+            >⏪</button>
+            <button
+              onClick={handlePlayPause}
+              style={{
+                width: 44, height: 44, borderRadius: '50%',
+                background: playState.playing ? `${CYAN}22` : 'rgba(0,0,0,0.6)',
+                border: `1.5px solid ${CYAN}`,
+                color: CYAN, fontSize: 18, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: playState.playing ? `0 0 14px ${CYAN}55` : 'none',
+                transition: 'all 0.18s',
+              }}
+            >{playState.playing ? '⏸' : '▶'}</button>
+            <button
+              onClick={handleForward}
+              style={{ background: 'none', border: 'none', color: `${CYAN}bb`, fontSize: 20, cursor: 'pointer', padding: 4 }}
+            >⏩</button>
+          </div>
+        </div>
+      )}
 
       {/* Sign-up prompt modal — shown when non-logged-in user taps like */}
       {signupPrompt && (

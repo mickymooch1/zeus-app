@@ -3537,8 +3537,26 @@ async def log_discover_play(
 async def discover_for_you(current_user=Depends(auth.get_current_user)):
     """Personalised feed: public songs in genres the user has liked, ordered by popularity."""
     user_id = current_user["id"]
-    songs = db.get_for_you_songs(db.get_db_path(), user_id)
-    log.info("discover_for_you: user=%s returned=%d songs", user_id, len(songs))
+    db_path = db.get_db_path()
+
+    # Diagnostic counters — logged so we can see why the feed might be empty
+    _diag = sqlite3.connect(str(db_path))
+    try:
+        likes = _diag.execute(
+            "SELECT COUNT(*) FROM song_variant_likes WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        public_songs = _diag.execute(
+            "SELECT COUNT(*) FROM song_variants "
+            "WHERE is_public = 1 AND status = 'complete' AND mp3_url IS NOT NULL"
+        ).fetchone()[0]
+    finally:
+        _diag.close()
+
+    songs = db.get_for_you_songs(db_path, user_id)
+    log.info(
+        "discover_for_you: user=%s likes=%d public_songs=%d returned=%d",
+        user_id, likes, public_songs, len(songs),
+    )
     return {"songs": songs, "page": 0, "count": len(songs)}
 
 
