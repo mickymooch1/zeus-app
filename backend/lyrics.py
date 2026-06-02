@@ -215,6 +215,36 @@ _EXPLICIT_ADDENDUM = (
     "— only use explicit language where it genuinely fits the song."
 )
 
+_ROAST_SYSTEM = """You are the sharpest, funniest comedy songwriter alive — like a best man speech crossed with a roast. Your job is to write genuinely funny, warm, affectionate songs that take the mick out of someone.
+
+Output ONLY valid JSON with this exact shape:
+{{
+  "title": "Song Title Here",
+  "lyrics": "[Verse 1]\\nLine one...\\n[Chorus]\\nLine one..."
+}}
+
+Song structure to use: {structure}
+
+Rules:
+- Write a genuinely funny, playful song — the kind of banter you'd hear between close mates
+- Make it cheeky and affectionate, NOT cruel, nasty, or discriminatory
+- Never include anything genuinely hurtful, discriminatory, racist, sexist, or harmful
+- Use specific details from what you've been told about the person — generic jokes are lazy
+- Include at least one killer line that will make everyone in the room howl
+- The chorus should be a memorable punchline or catchphrase everyone will remember
+- Think best man speech energy — roasting with love, embarrassing but affectionate
+- Use playful exaggeration, gentle mockery of habits and quirks, funny observations
+- The song should make the subject laugh while being slightly embarrassed
+- 180-300 words total
+- No markdown, no commentary. JSON only."""
+
+_ROAST_VIBE_MODIFIERS: dict[str, str] = {
+    "gentle":   "Tone: gentle friendly banter — warm and affectionate teasing between close mates. Light-hearted and kind. The kind of thing you'd say straight to their face with a grin.",
+    "roast":    "Tone: proper roast — bold, cheeky, really going for it, pulling no punches on the funny stuff. More savage but still affectionate. Classic comedy roast energy.",
+    "birthday": "Tone: classic birthday piss-take — embarrassing stories, teasing about their age, legendary moments everyone remembers. Celebratory but totally taking the mick. Big crowd singalong energy.",
+    "staghen":  "Tone: stag/hen do banter — raucous, celebratory, sharing the most embarrassing stories to send them off in style. Big group energy, everyone's in on it, celebrating the end of their freedom.",
+}
+
 
 _KIDS_LANGUAGE_MAP = {
     # European
@@ -295,7 +325,7 @@ _REGULAR_LANGUAGE_MAP = {
 }
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None, roast_mode: bool = False, roast_name: str | None = None, roast_details: str | None = None, roast_vibe: str | None = None) -> dict:
     if instrumental:
         title = song_title or "Instrumental"
         conn = db._conn(db_path)
@@ -312,6 +342,60 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         return {"lyric_id": lyric_id, "lyrics": "[Instrumental]", "title": title}
 
     client = Anthropic()
+
+    if roast_mode and roast_name:
+        structure = random.choice(_SONG_STRUCTURES)
+        system = _ROAST_SYSTEM.format(structure=structure)
+        vibe_modifier = _ROAST_VIBE_MODIFIERS.get(roast_vibe or 'gentle', _ROAST_VIBE_MODIFIERS['gentle'])
+        user_message = (
+            f"Write a funny roast song about {roast_name}.\n"
+            f"About them: {(roast_details.strip() if roast_details else 'No details provided — invent generic funny stuff based on the name alone')}\n\n"
+            f"{vibe_modifier}\n\n"
+            "Make it genuinely funny — use specific details, not vague generic jokes. "
+            "The song should make the subject laugh while cringing slightly."
+        )
+        if genres:
+            user_message += f"\n\nGenre: {', '.join(genres)} — match the musical style, vocabulary and flow to this genre."
+        model = "claude-sonnet-4-6"
+        logger.info(
+            "generate_lyrics: roast mode — %s user=%s name=%r vibe=%r genres=%r",
+            model, user_id, roast_name, roast_vibe, genres,
+        )
+        try:
+            response = client.messages.create(
+                model=model,
+                max_tokens=1200,
+                temperature=1.0,
+                system=system,
+                messages=[{"role": "user", "content": user_message}],
+            )
+        except Exception:
+            logger.exception("generate_lyrics: roast %s API call failed — user=%s", model, user_id)
+            raise
+        raw = response.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```", 2)[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.exception("generate_lyrics: roast JSON parse failed — raw=%r", raw[:500])
+            raise
+        final_title = song_title or parsed["title"]
+        conn = db._conn(db_path)
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO lyrics (user_id, brief, lyrics_text, title) VALUES (?, ?, ?, ?)",
+                (user_id, brief, parsed["lyrics"], final_title),
+            )
+            lyric_id = cur.lastrowid
+            conn.commit()
+        finally:
+            conn.close()
+        return {"lyric_id": lyric_id, "lyrics": parsed["lyrics"], "title": final_title}
 
     if kids_story:
         model = "claude-sonnet-4-6"

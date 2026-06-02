@@ -906,6 +906,11 @@ export default function SongsPage() {
   // Kids Story Mode
   const [isKidsMode, setIsKidsMode]   = useState(false);
   const [kidsAccent, setKidsAccent]   = useState('');
+  // Roast Mode
+  const [isRoastMode, setIsRoastMode]   = useState(false);
+  const [roastName, setRoastName]       = useState('');
+  const [roastDetails, setRoastDetails] = useState('');
+  const [roastVibe, setRoastVibe]       = useState('gentle');
 
   // Custom lyrics mode
   const [useCustomLyrics, setUseCustomLyrics] = useState(false);
@@ -943,7 +948,9 @@ export default function SongsPage() {
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
   const cost           = selGenres.size;
   const canAfford      = isAdmin || (credits.balance >= cost && cost > 0);
-  const briefReady     = useCustomLyrics ? customLyrics.trim().length > 0 : true;
+  const briefReady     = isRoastMode
+    ? roastName.trim().length > 0
+    : (useCustomLyrics ? customLyrics.trim().length > 0 : true);
   const canGenerate    = briefReady && cost > 0 && canAfford && !generating;
   const creditExceeded = !isAdmin && cost > 0 && cost > credits.balance;
 
@@ -1067,7 +1074,7 @@ export default function SongsPage() {
   }, [animateCoverPref]);
 
   // Kids mode forces explicit off and the toggle hidden
-  useEffect(() => { if (isKidsMode) setExplicit(false); }, [isKidsMode]);
+  useEffect(() => { if (isKidsMode || isRoastMode) setExplicit(false); }, [isKidsMode, isRoastMode]);
 
   const handleExplicitToggle = () => {
     if (explicit) { setExplicit(false); return; }
@@ -1197,7 +1204,22 @@ export default function SongsPage() {
     }
     try {
       let body;
-      if (useCustomLyrics) {
+      if (isRoastMode) {
+        body = JSON.stringify({
+          brief: `Roast song about ${roastName.trim()}`,
+          genres: Array.from(selGenres),
+          song_title: songTitle.trim() || undefined,
+          animate_cover: animateCover,
+          is_roast: true,
+          roast_name: roastName.trim(),
+          roast_details: roastDetails.trim() || undefined,
+          roast_vibe: roastVibe,
+          ...(showAdvanced ? {
+            accent: accent || undefined,
+            model_version: modelVersion,
+          } : {}),
+        });
+      } else if (useCustomLyrics) {
         // Custom lyrics path: save lyrics first, then generate variants
         body = JSON.stringify({
           custom_lyrics: customLyrics.trim(),
@@ -1270,6 +1292,9 @@ export default function SongsPage() {
       setSelGenres(new Set());
       setInspiredBy('');
       setArtistDescriptors('');
+      setRoastName('');
+      setRoastDetails('');
+      setRoastVibe('gentle');
     } catch (e) {
       setError(e.message);
     } finally {
@@ -1765,8 +1790,8 @@ export default function SongsPage() {
               <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f0eeff', margin: 0 }}>
                 Create a Song
               </h1>
-              {/* Custom lyrics toggle */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flexShrink: 0 }}>
+              {/* Custom lyrics toggle — hidden in roast mode */}
+              {!isRoastMode && <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flexShrink: 0 }}>
                 <span style={{ fontSize: 12, color: useCustomLyrics ? '#a78bfa' : '#555', fontWeight: 500, transition: 'color 0.2s' }}>
                   Custom lyrics
                 </span>
@@ -1786,16 +1811,66 @@ export default function SongsPage() {
                     background: '#fff', transition: 'left 0.2s',
                   }} />
                 </div>
-              </label>
+              </label>}
             </div>
-            <p style={{ color: '#555', fontSize: 14, marginBottom: 22 }}>
+            {!isRoastMode && <p style={{ color: '#555', fontSize: 14, marginBottom: 22 }}>
               {useCustomLyrics
                 ? 'Paste your own lyrics — Suno will turn them into music.'
                 : 'Describe your song — Zeus writes the lyrics, Suno turns them into music.'}
-            </p>
+            </p>}
+
+            {/* Roast Mode fields */}
+            {isRoastMode && (
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>
+                  🎤 Who&apos;s It About?
+                </p>
+                <input
+                  type="text"
+                  value={roastName}
+                  onChange={(e) => setRoastName(e.target.value)}
+                  placeholder="Name (e.g. Dave, Uncle Terry, Big Mike)"
+                  maxLength={60}
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.30)', borderRadius: 10, padding: '10px 14px', color: '#f0eeff', fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 12, transition: 'border-color 0.2s' }}
+                />
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Tell Us About Them
+                </p>
+                <textarea
+                  value={roastDetails}
+                  onChange={(e) => setRoastDetails(e.target.value)}
+                  placeholder="Funny habits, legendary stories, what they're known for... (optional but the more you give us, the better the roast!)"
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.30)', borderRadius: 10, padding: '10px 14px', color: '#f0eeff', fontSize: 14, resize: 'vertical', fontFamily: 'inherit', outline: 'none', marginBottom: 14, transition: 'border-color 0.2s' }}
+                />
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>
+                  Pick the Vibe
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 4 }}>
+                  {[
+                    ['gentle',   '😄', 'Gentle Banter',     'Warm & affectionate'],
+                    ['roast',    '🔥', 'Proper Roast',       'Cheeky, going for it'],
+                    ['birthday', '🎂', 'Birthday Piss-take', 'Happy birthday 😬'],
+                    ['staghen',  '🍺', 'Stag / Hen Do',      'Raucous send-off'],
+                  ].map(([val, emoji, label, desc]) => (
+                    <button key={val} onClick={() => setRoastVibe(val)} style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
+                      padding: '10px 12px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s', textAlign: 'left',
+                      border: `2px solid ${roastVibe === val ? '#f87171' : 'rgba(248,113,113,0.25)'}`,
+                      background: roastVibe === val ? 'rgba(248,113,113,0.15)' : 'rgba(248,113,113,0.04)',
+                      boxShadow: roastVibe === val ? '0 0 14px rgba(248,113,113,0.25)' : 'none',
+                    }}>
+                      <span style={{ fontSize: 18, lineHeight: 1, marginBottom: 2 }}>{emoji}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: roastVibe === val ? '#f87171' : 'rgba(248,113,113,0.7)' }}>{label}</span>
+                      <span style={{ fontSize: 10, color: 'rgba(248,113,113,0.5)', lineHeight: 1.3 }}>{desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Brief OR custom lyrics textarea */}
-            {useCustomLyrics ? (
+            {!isRoastMode && (useCustomLyrics ? (
               <textarea
                 className="songs-textarea"
                 value={customLyrics}
@@ -1893,7 +1968,7 @@ export default function SongsPage() {
                 )}
               </div>
               </>
-            )}
+            ))}
 
             <input
               type="text"
@@ -2448,7 +2523,7 @@ export default function SongsPage() {
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
-              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); }}
+              onClick={() => { setIsKidsMode(v => !v); setIsRoastMode(false); setKidsAccent(''); }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                 background: isKidsMode ? 'rgba(251,191,36,0.10)' : 'rgba(251,191,36,0.04)',
@@ -2534,6 +2609,20 @@ export default function SongsPage() {
                 )}
               </div>
             )}
+
+            {/* ── Roast Mode ──────────────────────────────────────────── */}
+            <button
+              onClick={() => { setIsRoastMode(v => !v); setIsKidsMode(false); setRoastName(''); setRoastDetails(''); setRoastVibe('gentle'); }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                background: isRoastMode ? 'rgba(248,113,113,0.10)' : 'rgba(248,113,113,0.04)',
+                border: `1px solid ${isRoastMode ? 'rgba(248,113,113,0.70)' : 'rgba(248,113,113,0.25)'}`,
+                borderRadius: 8, padding: '9px 14px', cursor: 'pointer', marginBottom: 14,
+              }}
+            >
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#f87171', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🎤 Roast Mode — Funny Song</span>
+              <span style={{ marginLeft: 'auto', color: '#f87171', fontSize: 12, fontWeight: 600 }}>{isRoastMode ? '▲ On' : '▼ Off'}</span>
+            </button>
 
             {/* Cost preview */}
             {cost > 0 ? (

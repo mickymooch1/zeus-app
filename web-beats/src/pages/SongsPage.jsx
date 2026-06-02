@@ -1238,6 +1238,11 @@ export default function SongsPage() {
 
   // Kids Mode
   const [isKidsMode, setIsKidsMode]         = useState(false);
+  // Roast Mode
+  const [isRoastMode, setIsRoastMode]       = useState(false);
+  const [roastName, setRoastName]           = useState('');
+  const [roastDetails, setRoastDetails]     = useState('');
+  const [roastVibe, setRoastVibe]           = useState('gentle');
   const [kidsSubMode, setKidsSubMode]       = useState('song'); // 'song' | 'story'
   const [kidsAccent, setKidsAccent]         = useState('');     // Suno vocal accent (song mode)
   const [kidsNarratorVoice, setKidsNarratorVoice]   = useState('british');    // ElevenLabs narrator (story mode)
@@ -1276,7 +1281,13 @@ export default function SongsPage() {
   const cost           = isKidsMode ? 1 : selGenres.size;
   // Before credits load, optimistically allow — server rejects if truly insufficient
   const canAfford      = isAdmin || !creditsLoaded || (credits.balance >= cost && cost > 0);
-  const canGenerate    = cost > 0 && canAfford && !generating && (isKidsMode || !useCustomLyrics || customLyricsText.trim().length > 0);
+  const canGenerate    = cost > 0 && canAfford && !generating && (
+    isKidsMode
+      ? true
+      : isRoastMode
+        ? roastName.trim().length > 0
+        : (!useCustomLyrics || customLyricsText.trim().length > 0)
+  );
   if (process.env.NODE_ENV === 'development') {
     // eslint-disable-next-line no-console
     console.log('[Generate] disabled:', !canGenerate, { cost, creditsLoaded, balance: credits.balance, canAfford, generating, isKidsMode, useCustomLyrics });
@@ -1396,8 +1407,8 @@ export default function SongsPage() {
     fetchPlaylists();
   }, [fetchCredits, fetchLibrary, fetchPlaylists]);
 
-  // Kids mode forces explicit off and the toggle hidden
-  useEffect(() => { if (isKidsMode) setExplicit(false); }, [isKidsMode]);
+  // Kids mode and Roast mode force explicit off and hide the toggle
+  useEffect(() => { if (isKidsMode || isRoastMode) setExplicit(false); }, [isKidsMode, isRoastMode]);
 
   const handleExplicitToggle = () => {
     if (explicit) { setExplicit(false); return; }
@@ -1630,6 +1641,21 @@ export default function SongsPage() {
           story_language: kidsSubMode === 'story' ? (storyLanguage || 'english') : undefined,
         };
         if (process.env.NODE_ENV === 'development') console.log('Kids Mode request:', requestBody);
+      } else if (isRoastMode) {
+        requestBody = {
+          brief: `Roast song about ${roastName.trim()}`,
+          genres: Array.from(selGenres),
+          song_title: songTitle.trim() || undefined,
+          animate_cover: animateCover,
+          is_roast: true,
+          roast_name: roastName.trim(),
+          roast_details: roastDetails.trim() || undefined,
+          roast_vibe: roastVibe,
+          ...(showAdvanced ? {
+            accent: accent || undefined,
+            model_version: modelVersion,
+          } : {}),
+        };
       } else {
         console.log('animate_cover:', animateCover);
         if (genreBlend && genreB) console.log('Genre blend:', genreB, 'ratio:', blendRatio);
@@ -1690,6 +1716,9 @@ export default function SongsPage() {
       setUseCustomLyrics(false);
       setMainCharacter('');
       setStoryEvent('');
+      setRoastName('');
+      setRoastDetails('');
+      setRoastVibe('gentle');
     } catch (e) {
       setError(e.message);
     } finally {
@@ -2395,7 +2424,7 @@ export default function SongsPage() {
               {useCustomLyrics ? t('songs.subtitleOwn') : t('songs.subtitleAI')}
             </p>
 
-            {!isKidsMode && (<>
+            {!isKidsMode && !isRoastMode && (<>
             {/* Custom lyrics toggle */}
             <div style={{ marginBottom: 14, display: 'flex', gap: 8 }}>
               <button
@@ -2507,6 +2536,55 @@ export default function SongsPage() {
                   transition: 'border-color 0.2s',
                 }}
               />
+            )}
+
+            {isRoastMode && (
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>
+                  🎤 Who&apos;s It About?
+                </p>
+                <input
+                  type="text"
+                  value={roastName}
+                  onChange={(e) => setRoastName(e.target.value)}
+                  placeholder="Name (e.g. Dave, Uncle Terry, Big Mike)"
+                  maxLength={60}
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.30)', borderRadius: 10, padding: '10px 14px', color: '#f0eeff', fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 12, transition: 'border-color 0.2s' }}
+                />
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Tell Us About Them
+                </p>
+                <textarea
+                  value={roastDetails}
+                  onChange={(e) => setRoastDetails(e.target.value)}
+                  placeholder="Funny habits, legendary stories, what they&apos;re known for... (optional but the more you give us, the better the roast!)"
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.30)', borderRadius: 10, padding: '10px 14px', color: '#f0eeff', fontSize: 14, resize: 'vertical', fontFamily: 'inherit', outline: 'none', marginBottom: 14, transition: 'border-color 0.2s' }}
+                />
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>
+                  Pick the Vibe
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 4 }}>
+                  {[
+                    ['gentle',   '😄', 'Gentle Banter',     'Warm & affectionate'],
+                    ['roast',    '🔥', 'Proper Roast',       'Cheeky, going for it'],
+                    ['birthday', '🎂', 'Birthday Piss-take', 'Happy birthday 😬'],
+                    ['staghen',  '🍺', 'Stag / Hen Do',      'Raucous send-off'],
+                  ].map(([val, emoji, label, desc]) => (
+                    <button key={val} onClick={() => setRoastVibe(val)} style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
+                      padding: '10px 12px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s', textAlign: 'left',
+                      border: `2px solid ${roastVibe === val ? '#f87171' : 'rgba(248,113,113,0.25)'}`,
+                      background: roastVibe === val ? 'rgba(248,113,113,0.15)' : 'rgba(248,113,113,0.04)',
+                      boxShadow: roastVibe === val ? '0 0 14px rgba(248,113,113,0.25)' : 'none',
+                    }}>
+                      <span style={{ fontSize: 18, lineHeight: 1, marginBottom: 2 }}>{emoji}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: roastVibe === val ? '#f87171' : 'rgba(248,113,113,0.7)' }}>{label}</span>
+                      <span style={{ fontSize: 10, color: 'rgba(248,113,113,0.5)', lineHeight: 1.3 }}>{desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             <input
@@ -2977,7 +3055,7 @@ export default function SongsPage() {
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
-              onClick={() => { setIsKidsMode(v => !v); setKidsAccent(''); setKidsNarratorVoice('british'); setKidsChildVoice('younggirl'); setKidsCharacterVoice(''); setKidsSubMode('song'); setStoryLanguage('english'); }}
+              onClick={() => { setIsKidsMode(v => !v); setIsRoastMode(false); setKidsAccent(''); setKidsNarratorVoice('british'); setKidsChildVoice('younggirl'); setKidsCharacterVoice(''); setKidsSubMode('song'); setStoryLanguage('english'); }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                 background: isKidsMode ? 'rgba(251,191,36,0.10)' : 'rgba(251,191,36,0.04)',
@@ -3326,6 +3404,20 @@ export default function SongsPage() {
 
               </div>
             )}
+
+            {/* ── Roast / Funny Song Mode ─────────────────────────── */}
+            <button
+              onClick={() => { setIsRoastMode(v => !v); setIsKidsMode(false); setRoastName(''); setRoastDetails(''); setRoastVibe('gentle'); }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                background: isRoastMode ? 'rgba(248,113,113,0.10)' : 'rgba(248,113,113,0.04)',
+                border: `1px solid ${isRoastMode ? 'rgba(248,113,113,0.70)' : 'rgba(248,113,113,0.25)'}`,
+                borderRadius: 8, padding: '9px 14px', cursor: 'pointer', marginBottom: 14,
+              }}
+            >
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#f87171', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🎤 Roast Mode — Funny Song</span>
+              <span style={{ marginLeft: 'auto', color: '#f87171', fontSize: 12, fontWeight: 600 }}>{isRoastMode ? '▲ On' : '▼ Off'}</span>
+            </button>
 
             {cost > 0 ? (
               <p style={{ fontSize: 13, color: creditExceeded ? '#f87171' : '#666', marginBottom: 16, fontWeight: creditExceeded ? 600 : 400 }}>

@@ -1851,6 +1851,10 @@ class SongsGenerateRequest(BaseModel):
     character_voice: str | None = None   # other character voice key (dragon/villain etc.)
     child_voice: str | None = None       # child hero voice key — enables narrator+child+character 3-voice mode
     healing_frequency: str | None = None # e.g. "432" | "528" | "396" — appended to healingfrequency genre style
+    is_roast: bool = False               # Roast / Funny Song Mode — uses comedy prompt
+    roast_name: str | None = Field(default=None, max_length=120)   # who the song is about
+    roast_details: str | None = Field(default=None, max_length=800) # funny facts about them
+    roast_vibe: str | None = None        # "gentle" | "roast" | "birthday" | "staghen"
 
 
 _STORY_VOICES: dict[str, str] = {
@@ -1984,7 +1988,7 @@ async def songs_generate(
             )
         else:
             _genre_lang = _GENRE_LANGUAGE_MAP.get((list(body.genres)[0] if body.genres else ''), None)
-            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None, lyrics_language=_genre_lang)
+            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit) and not body.is_roast, instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None, lyrics_language=_genre_lang, roast_mode=bool(body.is_roast), roast_name=body.roast_name or None, roast_details=body.roast_details or None, roast_vibe=body.roast_vibe or 'gentle')
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
