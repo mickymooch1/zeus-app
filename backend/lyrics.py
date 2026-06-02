@@ -2,6 +2,7 @@ import json
 import logging
 import pathlib
 import random
+import re
 
 from anthropic import Anthropic
 
@@ -245,6 +246,49 @@ _ROAST_VIBE_MODIFIERS: dict[str, str] = {
     "staghen":  "Tone: stag/hen do banter — raucous, celebratory, sharing the most embarrassing stories to send them off in style. Big group energy, everyone's in on it, celebrating the end of their freedom.",
 }
 
+_ROAST_EXPLICIT_ADDENDUM = """
+Explicit mode is ON — you can use swearing and adult language for comedic effect.
+Make it a proper savage roast with cheeky swearing like a real best man's speech or a comedy roast night.
+Swearing is fine for comedic emphasis (bloody, piss-take, shit, bastard, bloody hell, sod off, etc).
+Use comedic swearing for a savage roast but NEVER use racial slurs, hate speech, or genuinely discriminatory language. Keep it cheeky banter, not bigotry.
+Still keep it playful banter between mates — funny not genuinely cruel.
+"""
+
+_ROAST_CLEAN_ADDENDUM = """
+Keep it clean — no swearing. Family-friendly banter and jokes.
+Use comedic roast humour without any profanity. Still cheeky and funny, just clean.
+NEVER use racial slurs, hate speech, or genuinely discriminatory language.
+"""
+
+# Racial slur filter — strips slurs before lyrics reach Suno or the DB.
+# Pattern uses word boundaries to avoid false positives on unrelated words.
+_SLUR_PATTERN = re.compile(
+    r'\b('
+    r'n[i1!][g9][g9][ae3]r[s]?|n[i1!][g9][g9][ae3]|n[i1!][g9][g9][ae3]r|'
+    r'f[a@]g[s]?|f[a@]gg[o0]t[s]?|'
+    r'ch[i1][nk][k]?[s]?|'
+    r'sp[i1][ck][k]?[s]?|'
+    r'k[i1]k[e3][s]?|'
+    r'w[e3]tb[a@]ck[s]?|'
+    r'tr[a@]nn[yi1][e3]?[s]?|'
+    r'r[e3]t[a@]rd[s]?|'
+    r'c[o0][o0]n[s]?|'
+    r'g[o0][o0]k[s]?|'
+    r'cr[a@]ck[e3]r[s]?|'
+    r'j[i1]g[a@]b[o0][o0][s]?|'
+    r'p[a@]ki[s]?|'
+    r'b[e3][a@]n[e3]r[s]?|'
+    r's[a@]mb[o0][s]?|'
+    r'c[a@]r[a@]b[o0][o0][s]?'
+    r')',
+    re.IGNORECASE,
+)
+
+
+def _strip_slurs(text: str) -> str:
+    """Replace any racial slurs in generated lyrics with ****."""
+    return _SLUR_PATTERN.sub('****', text)
+
 
 _KIDS_LANGUAGE_MAP = {
     # European
@@ -356,10 +400,14 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         )
         if genres:
             user_message += f"\n\nGenre: {', '.join(genres)} — match the musical style, vocabulary and flow to this genre."
+        if explicit:
+            user_message += _ROAST_EXPLICIT_ADDENDUM
+        else:
+            user_message += _ROAST_CLEAN_ADDENDUM
         model = "claude-sonnet-4-6"
         logger.info(
-            "generate_lyrics: roast mode — %s user=%s name=%r vibe=%r genres=%r",
-            model, user_id, roast_name, roast_vibe, genres,
+            "generate_lyrics: roast mode — %s user=%s name=%r vibe=%r genres=%r explicit=%s",
+            model, user_id, roast_name, roast_vibe, genres, explicit,
         )
         try:
             response = client.messages.create(
@@ -384,18 +432,19 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             logger.exception("generate_lyrics: roast JSON parse failed — raw=%r", raw[:500])
             raise
         final_title = song_title or parsed["title"]
+        safe_lyrics = _strip_slurs(parsed["lyrics"])
         conn = db._conn(db_path)
         try:
             cur = conn.cursor()
             cur.execute(
                 "INSERT INTO lyrics (user_id, brief, lyrics_text, title) VALUES (?, ?, ?, ?)",
-                (user_id, brief, parsed["lyrics"], final_title),
+                (user_id, brief, safe_lyrics, final_title),
             )
             lyric_id = cur.lastrowid
             conn.commit()
         finally:
             conn.close()
-        return {"lyric_id": lyric_id, "lyrics": parsed["lyrics"], "title": final_title}
+        return {"lyric_id": lyric_id, "lyrics": safe_lyrics, "title": final_title}
 
     if kids_story:
         model = "claude-sonnet-4-6"
