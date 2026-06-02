@@ -1,13 +1,14 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import {
   View, FlatList, StyleSheet, StatusBar,
-  KeyboardAvoidingView, Platform, Text, TouchableOpacity,
+  KeyboardAvoidingView, Platform, Text, TouchableOpacity, Share,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useZeusSocket } from '../hooks/useZeusSocket';
 import { MessageBubble } from '../components/MessageBubble';
 import { InputBar } from '../components/InputBar';
+import { OfflineBanner } from '../components/OfflineBanner';
 
 export function ChatScreen({ navigation, route }) {
   const { messages, streaming, sendMessage, newSession, loadSession } = useZeusSocket();
@@ -34,10 +35,24 @@ export function ChatScreen({ navigation, route }) {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   }, [navigation, newSession]);
 
+  const handleShare = useCallback(async () => {
+    try {
+      await Share.share({
+        message: 'Creating music with Zeus Beats — AI-powered music creation! ⚡',
+        title: 'Zeus Beats',
+      });
+    } catch {
+      // user cancelled
+    }
+  }, []);
+
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+          <TouchableOpacity onPress={handleShare} style={{ marginRight: 14 }}>
+            <Text style={{ color: '#a78bfa', fontSize: 16 }}>📤</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => { loadedSessionRef.current = null; newSession(); }}
             style={{ marginRight: 12 }}
@@ -49,13 +64,8 @@ export function ChatScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       ),
-      headerLeft: () => (
-        <TouchableOpacity onPress={() => navigation.navigate('Sessions')} style={{ marginLeft: 16 }}>
-          <Text style={{ color: '#a78bfa', fontSize: 20 }}>☰</Text>
-        </TouchableOpacity>
-      ),
     });
-  }, [navigation, newSession, handleLogout]);
+  }, [navigation, newSession, handleLogout, handleShare]);
 
   const renderMessage = useCallback(({ item, index }) => (
     <MessageBubble
@@ -84,6 +94,7 @@ export function ChatScreen({ navigation, route }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={headerHeight}
     >
+      <OfflineBanner />
       <StatusBar barStyle="light-content" backgroundColor="#0f0c29" />
       <FlatList
         ref={flatListRef}

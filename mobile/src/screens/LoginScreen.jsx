@@ -19,7 +19,7 @@ export function LoginScreen({ navigation }) {
   useEffect(() => {
     AsyncStorage.getItem('zeus_token').then(token => {
       if (token) {
-        navigation.reset({ index: 0, routes: [{ name: 'Chat' }] });
+        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
       } else {
         setLoading(false);
       }
@@ -48,9 +48,9 @@ export function LoginScreen({ navigation }) {
         return;
       }
       await AsyncStorage.setItem('zeus_token', data.token);
-      navigation.reset({ index: 0, routes: [{ name: 'Chat' }] });
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     } catch {
-      setError('Could not connect to the server. Check your backend URL in Sessions.');
+      setError('Could not connect to the server. Check your backend URL in Settings.');
     } finally {
       setSubmitting(false);
     }
