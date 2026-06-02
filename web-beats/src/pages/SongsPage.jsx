@@ -2537,6 +2537,7 @@ export default function SongsPage() {
                 }}
               />
             )}
+            </>)}
 
             {isRoastMode && (
               <div style={{ marginBottom: 16 }}>
@@ -3051,7 +3052,6 @@ export default function SongsPage() {
                 )}
               </div>
             )}
-            </>)}
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
