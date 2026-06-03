@@ -966,13 +966,6 @@ def _cmd_school_blast(city: str) -> str:
     msg = f"🏫 <b>School blast — {city}</b>\nFound: {len(results)} schools\nNew: {len(new_schools)}\n✅ Sent: {sent}"
     if failed:
         msg += f"\n❌ Failed: {failed}"
-    # Push to conversation history so AI remembers school blast context for follow-up questions
-    context_note = (
-        f"[system] Just ran school blast for {city}: found {len(results)} schools, "
-        f"emailed {sent} new ones. Emails: {[e for e, _ in new_schools[:10]]}"
-    )
-    _conversation_history.append({"role": "user", "content": f"school blast {city}"})
-    _conversation_history.append({"role": "assistant", "content": context_note})
     return msg
 
 
@@ -1176,10 +1169,122 @@ def _cmd_status() -> str:
         return f"❌ Status error: {exc}"
 
 
-# ── Conversation history ──────────────────────────────────────────────────────
+# ── Persistent conversation memory ───────────────────────────────────────────
 
-# Last 20 messages (10 user + 10 assistant turns) for per-session context.
-_conversation_history: deque = deque(maxlen=20)
+def _ensure_admin_tables() -> None:
+    """Create admin_conversation_history and admin_action_log if absent."""
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        try:
+            conn.executescript("""
+                CREATE TABLE IF NOT EXISTS admin_conversation_history (
+                    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                    chat_id  TEXT NOT NULL,
+                    role     TEXT NOT NULL,
+                    content  TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                CREATE INDEX IF NOT EXISTS idx_admin_conv_chat
+                    ON admin_conversation_history(chat_id, id DESC);
+
+                CREATE TABLE IF NOT EXISTS admin_action_log (
+                    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                    chat_id  TEXT NOT NULL,
+                    action   TEXT NOT NULL,
+                    summary  TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as exc:
+        log.error("_ensure_admin_tables: %s", exc)
+
+
+def _db_load_history(chat_id: str, limit: int = 20) -> list[dict]:
+    """Return the last `limit` messages for this chat, oldest first."""
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        try:
+            rows = conn.execute(
+                """SELECT role, content FROM admin_conversation_history
+                   WHERE chat_id = ? ORDER BY id DESC LIMIT ?""",
+                (chat_id, limit),
+            ).fetchall()
+        finally:
+            conn.close()
+        return [{"role": r[0], "content": r[1]} for r in reversed(rows)]
+    except Exception as exc:
+        log.warning("_db_load_history: %s", exc)
+        return []
+
+
+def _db_save_exchange(chat_id: str, user_msg: str, assistant_msg: str) -> None:
+    """Persist one user/assistant exchange to admin_conversation_history."""
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        try:
+            conn.execute(
+                "INSERT INTO admin_conversation_history (chat_id, role, content) VALUES (?, 'user', ?)",
+                (chat_id, user_msg),
+            )
+            conn.execute(
+                "INSERT INTO admin_conversation_history (chat_id, role, content) VALUES (?, 'assistant', ?)",
+                (chat_id, assistant_msg),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as exc:
+        log.warning("_db_save_exchange: %s", exc)
+
+
+def _db_log_action(chat_id: str, action: str, summary: str) -> None:
+    """Record an admin action to admin_action_log."""
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        try:
+            conn.execute(
+                "INSERT INTO admin_action_log (chat_id, action, summary) VALUES (?, ?, ?)",
+                (chat_id, action, summary),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        log.info("action_log: %s — %s", action, summary[:80])
+    except Exception as exc:
+        log.warning("_db_log_action: %s", exc)
+
+
+def _db_recent_actions(chat_id: str, limit: int = 10) -> str:
+    """Return a formatted string of recent actions for injection into the system prompt."""
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        try:
+            rows = conn.execute(
+                """SELECT action, summary, created_at FROM admin_action_log
+                   WHERE chat_id = ? ORDER BY id DESC LIMIT ?""",
+                (chat_id, limit),
+            ).fetchall()
+        finally:
+            conn.close()
+        if not rows:
+            return ""
+        return "\n".join(f"- [{r[2][:16]}] {r[0]}: {r[1]}" for r in rows)
+    except Exception as exc:
+        log.warning("_db_recent_actions: %s", exc)
+        return ""
 
 
 # ── AI natural language layer ─────────────────────────────────────────────────
@@ -1267,23 +1372,35 @@ Examples:
 """
 
 
-def _ai_parse(text: str) -> dict:
-    """Call Claude Haiku with conversation history to interpret admin message.
+def _ai_parse(text: str, chat_id: str = "") -> dict:
+    """Call Claude Haiku with persistent conversation history to interpret admin message.
 
     Returns a normalised action dict ready for _execute_action().
-    The AI now always returns {"type":"action",...} or {"type":"message","text":"..."}.
-    If it forgets and sends plain text, we relay that text directly rather than
-    showing a parse-error message.
+    History is loaded from and saved to SQLite so context survives restarts.
+    The AI returns {"type":"action",...} or {"type":"message","text":"..."}.
+    If it sends plain text instead of JSON, we relay that text directly.
     """
     raw = ""
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
-        messages = list(_conversation_history) + [{"role": "user", "content": text}]
+
+        # Load persistent history for this chat; fall back to empty list
+        history = _db_load_history(chat_id) if chat_id else []
+        messages = history + [{"role": "user", "content": text}]
+
+        # Inject recent action log into system prompt so the AI can answer
+        # "what did you send last time?" etc.
+        system = ADMIN_SYSTEM_PROMPT
+        if chat_id:
+            recent = _db_recent_actions(chat_id)
+            if recent:
+                system += f"\n\nRecent actions you have taken (most recent first):\n{recent}"
+
         resp = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=800,
-            system=ADMIN_SYSTEM_PROMPT,
+            system=system,
             messages=messages,
         )
         raw = resp.content[0].text.strip() if resp.content else ""
@@ -1302,8 +1419,9 @@ def _ai_parse(text: str) -> dict:
             if start != -1 and end > start:
                 raw = raw[start:end + 1]
 
-        _conversation_history.append({"role": "user", "content": text})
-        _conversation_history.append({"role": "assistant", "content": raw})
+        # Persist the exchange before parsing, so even partial responses are saved
+        if chat_id:
+            _db_save_exchange(chat_id, text, raw)
 
         parsed = json.loads(raw)
 
@@ -1323,8 +1441,8 @@ def _ai_parse(text: str) -> dict:
         log.warning("_ai_parse: JSON parse error — raw=%r — %s", raw[:300], exc)
         # AI sent plain text instead of JSON — relay it directly rather than error
         if raw:
-            _conversation_history.append({"role": "user", "content": text})
-            _conversation_history.append({"role": "assistant", "content": raw})
+            if chat_id:
+                _db_save_exchange(chat_id, text, raw)
             return {"action": "chat", "message": raw[:4000]}
         return {"action": "chat", "message": "Couldn't get a response, try again mate."}
     except Exception as exc:
@@ -1332,7 +1450,7 @@ def _ai_parse(text: str) -> dict:
         return {"action": "chat", "message": f"❌ AI error: {exc}"}
 
 
-def _execute_action(action: dict) -> str:
+def _execute_action(action: dict, chat_id: str = "") -> str:
     """Execute a parsed action dict and return a reply string (or sentinel)."""
     act = action.get("action", "chat")
 
@@ -1343,12 +1461,17 @@ def _execute_action(action: dict) -> str:
         return _cmd_logs()
 
     if act == "redeploy":
-        return _cmd_redeploy()
+        result = _cmd_redeploy()
+        if chat_id and result.startswith("🚀"):
+            _db_log_action(chat_id, "redeploy", "Triggered Railway redeploy")
+        return result
 
     if act == "post_channel":
         msg = action.get("message", "").strip()[:4096]
         if not msg:
             return "❌ No message to post"
+        if chat_id:
+            _db_log_action(chat_id, "post_channel", f"Posted to @zeusbeatsmusic: {msg[:120]}")
         return f"__POST__:{msg}"
 
     if act == "email_user":
@@ -1357,13 +1480,19 @@ def _execute_action(action: dict) -> str:
         body = action.get("body", "").strip()
         if not email:
             return "❌ No email address — ask Michael for it"
-        return _cmd_email_single(email, subject, body)
+        result = _cmd_email_single(email, subject, body)
+        if chat_id and "✅" in result:
+            _db_log_action(chat_id, "email_user", f"Sent email to {email} — subject: '{subject}'")
+        return result
 
     if act == "email_bulk":
         audience = action.get("audience", "all").lower()
         subject = action.get("subject", "A message from Zeus Beats").strip()
         body = action.get("body", "").strip()
-        return _cmd_email_bulk(audience, subject, body)
+        result = _cmd_email_bulk(audience, subject, body)
+        if chat_id and "✅" in result:
+            _db_log_action(chat_id, "email_bulk", f"Bulk email to {audience} users — subject: '{subject}'")
+        return result
 
     if act == "add_credits":
         email = action.get("email", "").strip()
@@ -1373,7 +1502,11 @@ def _execute_action(action: dict) -> str:
             return "❌ Invalid credit amount"
         if not email:
             return "❌ No email address — ask Michael for it"
-        return _cmd_db_credits(email, delta)
+        result = _cmd_db_credits(email, delta)
+        if chat_id and "✅" in result:
+            sign = "+" if delta >= 0 else ""
+            _db_log_action(chat_id, "add_credits", f"Gave {sign}{delta} song credits to {email}")
+        return result
 
     if act == "verify_email":
         email = action.get("email", "").strip()
@@ -1394,7 +1527,10 @@ def _execute_action(action: dict) -> str:
         return _cmd_db_user(email)
 
     if act == "refund_failures":
-        return _cmd_refund_failures()
+        result = _cmd_refund_failures()
+        if chat_id and "✅" in result:
+            _db_log_action(chat_id, "refund_failures", "Refunded song credits for failed songs in last 24h")
+        return result
 
     if act == "upgrade_user":
         email = action.get("email", "").strip()
@@ -1403,7 +1539,10 @@ def _execute_action(action: dict) -> str:
             return "❌ No email address"
         if not plan:
             return "❌ No plan specified"
-        return _cmd_upgrade_user(email, plan)
+        result = _cmd_upgrade_user(email, plan)
+        if chat_id and "✅" in result:
+            _db_log_action(chat_id, "upgrade_user", f"Upgraded {email} to plan '{plan}'")
+        return result
 
     if act == "recent_users":
         return _cmd_recent_users()
@@ -1435,12 +1574,15 @@ def _execute_action(action: dict) -> str:
 
 # ── Public parse entrypoint ──────────────────────────────────────────────────
 
-def parse_and_run(text: str) -> str:
+def parse_and_run(text: str, chat_id: str = "") -> str:
     """Parse admin command text, run it, return a reply string.
 
     Precision / dangerous commands use exact-match parsing to avoid AI
     misinterpretation (raw SQL, Railway vars, Stripe, post song N).
     Everything else goes through Claude Haiku for natural language handling.
+
+    chat_id is the Telegram chat ID (as a string) used to key persistent
+    conversation history and the action log.
 
     Special sentinels returned for async actions the caller must handle:
       __POST__:<message>
@@ -1487,11 +1629,17 @@ def parse_and_run(text: str) -> str:
         subject = m.group(1).strip()
         body = m.group(2).strip()
         log.info("broadcast: subject=%r body_len=%d", subject[:60], len(body))
-        return _cmd_email_bulk("all", subject, body)
+        result = _cmd_email_bulk("all", subject, body)
+        if chat_id and "✅" in result:
+            _db_log_action(chat_id, "email_bulk", f"Broadcast to all users — subject: '{subject}'")
+        return result
 
     # refund failures — exact command; NL variants go through the AI layer
     if re.match(r'^refund\s+failures?$', t, re.IGNORECASE):
-        return _cmd_refund_failures()
+        result = _cmd_refund_failures()
+        if chat_id and "✅" in result:
+            _db_log_action(chat_id, "refund_failures", "Refunded song credits for failed songs in last 24h")
+        return result
 
     # post song VARIANT_ID — numeric ID must be exact
     m = re.match(r'^post\s+song\s+(\d+)$', t, re.IGNORECASE)
@@ -1501,12 +1649,20 @@ def parse_and_run(text: str) -> str:
     # school email EMAIL — send outreach to a single school
     m = re.match(r'^school\s+email\s+(\S+@\S+)$', t, re.IGNORECASE)
     if m:
-        return _cmd_school_email(m.group(1).strip())
+        email = m.group(1).strip()
+        result = _cmd_school_email(email)
+        if chat_id and "✅" in result:
+            _db_log_action(chat_id, "school_email", f"School outreach email sent to {email}")
+        return result
 
     # school blast CITY — find and email all schools in a city
     m = re.match(r'^school\s+blast\s+(.+)$', t, re.IGNORECASE)
     if m:
-        return _cmd_school_blast(m.group(1).strip())
+        city = m.group(1).strip()
+        result = _cmd_school_blast(city)
+        if chat_id and ("✅" in result or "Sent:" in result):
+            _db_log_action(chat_id, "school_blast", f"School blast for {city}: {result[:120]}")
+        return result
 
     # school list — show all contacted schools
     if re.match(r'^school\s+list$', t, re.IGNORECASE):
@@ -1514,13 +1670,16 @@ def parse_and_run(text: str) -> str:
 
     # school followup — follow up with schools contacted >7 days ago
     if re.match(r'^school\s+followup?$', t, re.IGNORECASE):
-        return _cmd_school_followup()
+        result = _cmd_school_followup()
+        if chat_id and "✅" in result:
+            _db_log_action(chat_id, "school_followup", f"School follow-up sent: {result[:120]}")
+        return result
 
     # ── Everything else → Claude Haiku natural language ───────────────────────
     log.info("telegram_admin: routing to AI — %r", t[:80])
-    action = _ai_parse(t)
+    action = _ai_parse(t, chat_id)
     log.info("telegram_admin: AI action=%r", action)
-    return _execute_action(action)
+    return _execute_action(action, chat_id)
 
 
 # ── Log buffer setup ─────────────────────────────────────────────────────────
@@ -1534,10 +1693,11 @@ class _LogBufferHandler(logging.Handler):
 
 
 def install_log_buffer() -> None:
-    """Attach ring-buffer handler to root logger. Call once at app startup."""
+    """Attach ring-buffer handler to root logger and ensure admin DB tables exist."""
     handler = _LogBufferHandler()
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s",
                                            datefmt="%H:%M:%S"))
     handler.setLevel(logging.INFO)
     logging.getLogger().addHandler(handler)
+    _ensure_admin_tables()
     log.info("telegram_admin: log buffer installed")

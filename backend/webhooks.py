@@ -1109,7 +1109,7 @@ async def telegram_admin_webhook(request: Request):
     if admin_uid_str and str(from_id) == admin_uid_str:
         logger.info("telegram_admin: command from admin uid=%s: %r", from_id, text[:80])
         import telegram_admin as _tg_admin
-        result = _tg_admin.parse_and_run(text)
+        result = _tg_admin.parse_and_run(text, chat_id=str(chat_id))
 
         if result.startswith("__POST__:"):
             msg = result[len("__POST__:"):]
