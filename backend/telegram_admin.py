@@ -1209,30 +1209,38 @@ Your capabilities:
 - tell_claude_code — queue a message for Claude Code review
 - feature_request — log a feature idea
 
-Respond with ONLY a JSON object — no extra text, no markdown fences.
+RESPONSE FORMAT — CRITICAL:
+Always respond with ONLY a single JSON object. No markdown fences, no extra text before or after.
+Every response must have a "type" field — either "action" or "message".
+Use \\n for newlines inside JSON strings; never put raw line breaks inside a JSON string.
 
-Action schemas:
-{"action": "status"}
-{"action": "logs"}
-{"action": "redeploy"}
-{"action": "post_channel", "message": "..."}
-{"action": "email_user", "email": "...", "subject": "...", "body": "..."}
-{"action": "email_bulk", "audience": "all|free|paid", "subject": "...", "body": "..."}
-{"action": "add_credits", "email": "...", "amount": 10}
-{"action": "upgrade_user", "email": "...", "plan": "music_starter|music_pro|music_agency|pro|agency|enterprise"}
-{"action": "verify_email", "email": "..."}
-{"action": "unverify_email", "email": "..."}
-{"action": "user_details", "email": "..."}
-{"action": "refund_failures"}
-{"action": "recent_users"}
-{"action": "revenue"}
-{"action": "top_genres"}
-{"action": "tell_claude_code", "message": "..."}
-{"action": "feature_request", "description": "..."}
-{"action": "chat", "message": "..."}
+For executing a command:
+{"type": "action", "action": "<action_name>", ...other fields...}
+
+For a clarifying question, banter, or any reply to show Michael:
+{"type": "message", "text": "Your reply here"}
+
+Action schemas (all include "type": "action"):
+{"type": "action", "action": "status"}
+{"type": "action", "action": "logs"}
+{"type": "action", "action": "redeploy"}
+{"type": "action", "action": "post_channel", "message": "..."}
+{"type": "action", "action": "email_user", "email": "...", "subject": "...", "body": "..."}
+{"type": "action", "action": "email_bulk", "audience": "all|free|paid", "subject": "...", "body": "..."}
+{"type": "action", "action": "add_credits", "email": "...", "amount": 10}
+{"type": "action", "action": "upgrade_user", "email": "...", "plan": "music_starter|music_pro|music_agency|pro|agency|enterprise"}
+{"type": "action", "action": "verify_email", "email": "..."}
+{"type": "action", "action": "unverify_email", "email": "..."}
+{"type": "action", "action": "user_details", "email": "..."}
+{"type": "action", "action": "refund_failures"}
+{"type": "action", "action": "recent_users"}
+{"type": "action", "action": "revenue"}
+{"type": "action", "action": "top_genres"}
+{"type": "action", "action": "tell_claude_code", "message": "..."}
+{"type": "action", "action": "feature_request", "description": "..."}
 
 Rules:
-- Use "chat" for banter, confirmations, or when you need more info.
+- Use {"type":"message","text":"..."} for banter, confirmations, or when you need more info.
 - Use conversation history to resolve "him", "her", "that user" etc.
 - For post_channel, write the full ready-to-post message with emojis.
 - For email actions, write proper subject + body in Zeus Beats brand voice.
@@ -1240,27 +1248,32 @@ Rules:
 - For upgrade_user: plan must be one of the exact plan keys listed above.
 
 Examples:
-"give laky120@yahoo.com 20 more songs" → {"action": "add_credits", "email": "laky120@yahoo.com", "amount": 20}
-"anne is on free, give her music starter" → {"action": "upgrade_user", "email": "cummins.anne@yahoo.co.uk", "plan": "music_starter"}
-"how's everything going" → {"action": "status"}
-"check the logs" → {"action": "logs"}
-"redeploy" → {"action": "redeploy"}
-"post on the channel that we have new genres" → {"action": "post_channel", "message": "🎵 New genres just dropped on Zeus Beats!\\n\\nFresh sounds added — go create your next hit now 🚀\\n\\nzeusbeats.com"}
-"what's the latest signup" → {"action": "recent_users"}
-"refund failed songs today" → {"action": "refund_failures"}
-"email all users about the new playlist feature" → {"action": "email_bulk", "audience": "all", "subject": "New: AI Playlist Builder on Zeus Beats 🎵", "body": "We've just launched AI playlists — ask Zeus to build you a playlist from your songs.\\n\\nLog in and try it now!"}
-"verify dom@email.com" → {"action": "verify_email", "email": "dom@email.com"}
-"what was today's revenue" → {"action": "revenue"}
-"tell me about user X" → {"action": "user_details", "email": "X"}
-"give him 20 more" → use email from conversation context, then {"action": "add_credits", "email": "...", "amount": 20}
-"log a feature: dark mode for the app" → {"action": "feature_request", "description": "Dark mode for the app"}
-"tell claude code to fix the stems button on mobile" → {"action": "tell_claude_code", "message": "Fix the stems button on mobile — not tapping properly on small screens"}
+"give laky120@yahoo.com 20 more songs" → {"type": "action", "action": "add_credits", "email": "laky120@yahoo.com", "amount": 20}
+"anne is on free, give her music starter" → {"type": "action", "action": "upgrade_user", "email": "cummins.anne@yahoo.co.uk", "plan": "music_starter"}
+"how's everything going" → {"type": "action", "action": "status"}
+"check the logs" → {"type": "action", "action": "logs"}
+"redeploy" → {"type": "action", "action": "redeploy"}
+"post on the channel that we have new genres" → {"type": "action", "action": "post_channel", "message": "🎵 New genres just dropped on Zeus Beats!\\n\\nFresh sounds added — go create your next hit now 🚀\\n\\nzeusbeats.com"}
+"what's the latest signup" → {"type": "action", "action": "recent_users"}
+"refund failed songs today" → {"type": "action", "action": "refund_failures"}
+"email all users about the new playlist feature" → {"type": "action", "action": "email_bulk", "audience": "all", "subject": "New: AI Playlist Builder on Zeus Beats 🎵", "body": "We've just launched AI playlists — ask Zeus to build you a playlist from your songs.\\n\\nLog in and try it now!"}
+"verify dom@email.com" → {"type": "action", "action": "verify_email", "email": "dom@email.com"}
+"what was today's revenue" → {"type": "action", "action": "revenue"}
+"tell me about user X" → {"type": "action", "action": "user_details", "email": "X"}
+"give him 20 more" → use email from conversation context, then {"type": "action", "action": "add_credits", "email": "...", "amount": 20}
+"log a feature: dark mode for the app" → {"type": "action", "action": "feature_request", "description": "Dark mode for the app"}
+"tell claude code to fix the stems button on mobile" → {"type": "action", "action": "tell_claude_code", "message": "Fix the stems button on mobile — not tapping properly on small screens"}
+"email the schools again" → {"type": "message", "text": "Which schools do you mean, mate — the ones we already blasted, or a new city?"}
 """
 
 
 def _ai_parse(text: str) -> dict:
     """Call Claude Haiku with conversation history to interpret admin message.
-    Returns a parsed action dict; falls back to a chat error on failure.
+
+    Returns a normalised action dict ready for _execute_action().
+    The AI now always returns {"type":"action",...} or {"type":"message","text":"..."}.
+    If it forgets and sends plain text, we relay that text directly rather than
+    showing a parse-error message.
     """
     raw = ""
     try:
@@ -1291,10 +1304,29 @@ def _ai_parse(text: str) -> dict:
 
         _conversation_history.append({"role": "user", "content": text})
         _conversation_history.append({"role": "assistant", "content": raw})
-        return json.loads(raw)
+
+        parsed = json.loads(raw)
+
+        # New envelope: {"type":"message","text":"..."} → relay as chat
+        if parsed.get("type") == "message":
+            return {"action": "chat", "message": parsed.get("text", "").strip()}
+
+        # New envelope: {"type":"action","action":"...",...} → strip type, execute
+        if parsed.get("type") == "action":
+            parsed.pop("type")
+            return parsed
+
+        # Old format without type field — still works as-is
+        return parsed
+
     except json.JSONDecodeError as exc:
         log.warning("_ai_parse: JSON parse error — raw=%r — %s", raw[:300], exc)
-        return {"action": "chat", "message": f"❌ Couldn't parse AI response. Raw: {raw[:100]!r}"}
+        # AI sent plain text instead of JSON — relay it directly rather than error
+        if raw:
+            _conversation_history.append({"role": "user", "content": text})
+            _conversation_history.append({"role": "assistant", "content": raw})
+            return {"action": "chat", "message": raw[:4000]}
+        return {"action": "chat", "message": "Couldn't get a response, try again mate."}
     except Exception as exc:
         log.warning("_ai_parse failed — %s", exc)
         return {"action": "chat", "message": f"❌ AI error: {exc}"}
