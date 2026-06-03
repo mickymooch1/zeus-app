@@ -9,7 +9,7 @@ export default function TermsPage() {
       </div>
       <main className="content-page page">
         <h1 className="content-title">Terms &amp; Conditions</h1>
-        <p className="content-meta">Last updated: 28 May 2026</p>
+        <p className="content-meta">Last updated: 3 June 2026</p>
 
         <section className="content-section">
           <h2>1. Acceptance of Terms</h2>
@@ -453,6 +453,32 @@ export default function TermsPage() {
           <p>
             We encourage you to review these Terms periodically. The "Last updated" date at the
             top of this page indicates when the Terms were most recently revised.
+          </p>
+        </section>
+        <section className="content-section">
+          <h2>19. Music Rights and Commercial Use</h2>
+          <p>
+            Songs and audio you generate using Zeus Beats are created using third-party AI music
+            generation services. While you are free to use your generated songs for personal,
+            creative, and non-commercial purposes, Zeus Beats does not guarantee that you hold
+            full commercial ownership or licensing rights to generated tracks.
+          </p>
+          <p>
+            If you wish to use a generated song commercially — including but not limited to
+            distribution on streaming platforms (such as Spotify, Apple Music, or YouTube), use
+            in advertising, paid content, or resale — you do so at your own risk and are
+            responsible for ensuring you have the necessary rights. Commercial use may be subject
+            to the terms of the underlying AI music providers, and we make no warranty that such
+            rights are granted to you.
+          </p>
+          <p>
+            You agree not to use Zeus Beats to generate songs that imitate or clone the voice of
+            any real, identifiable person or recording artist without their explicit consent, or
+            that infringe any third party's copyright or other rights.
+          </p>
+          <p>
+            Zeus Beats accepts no liability for any claim, takedown, or loss arising from your
+            commercial use or distribution of generated songs.
           </p>
         </section>
       </main>
