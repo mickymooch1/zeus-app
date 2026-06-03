@@ -861,6 +861,79 @@ def _cmd_school_email(to: str, school_name: str = "") -> str:
     return f"✅ School email sent to <code>{to}</code>"
 
 
+def _cmd_web_search(query: str) -> str:
+    """Search the web via Serper.dev and return formatted results for synthesis."""
+    serper_key = os.environ.get("SERPER_API_KEY", "").strip()
+    if not serper_key:
+        return "❌ SERPER_API_KEY not set in Railway variables"
+    try:
+        resp = requests.post(
+            "https://google.serper.dev/search",
+            headers={"X-API-KEY": serper_key, "Content-Type": "application/json"},
+            json={"q": query, "gl": "gb", "hl": "en", "num": 8},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        log.warning("_cmd_web_search: Serper failed for %r: %s", query, exc)
+        return f"❌ Search failed: {exc}"
+
+    parts = []
+    ab = data.get("answerBox", {})
+    if ab.get("answer"):
+        parts.append(f"Direct answer: {ab['answer']}")
+    elif ab.get("snippet"):
+        parts.append(f"Direct answer: {ab['snippet']}")
+    kg = data.get("knowledgeGraph", {})
+    if kg.get("description"):
+        parts.append(f"Knowledge graph: {kg['description']}")
+    for item in data.get("organic", [])[:5]:
+        title = item.get("title", "")
+        url = item.get("link", "")
+        snippet = item.get("snippet", "")
+        if title and snippet:
+            parts.append(f"• {title}\n  {snippet}\n  {url}")
+    return "\n\n".join(parts) if parts else "No results found"
+
+
+_SEARCH_SYNTHESIS_PROMPT = (
+    "You are Porick, Michael's admin assistant for Zeus Beats. "
+    "Answer his question using the web search results provided. "
+    "Be direct and conversational — you're his mate. "
+    "Include relevant URLs when useful. Keep it under 300 words. "
+    "Plain text only — no JSON."
+)
+
+
+def _ai_answer_with_search(question: str, query: str, search_results: str, chat_id: str = "") -> str:
+    """Second AI call: synthesise search results into a conversational answer."""
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+        user_content = (
+            f"I searched for: {query}\n\n"
+            f"Search results:\n{search_results}\n\n"
+            f"My original question: {question}\n\n"
+            "Please give me a useful answer based on these results."
+        )
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=600,
+            system=_SEARCH_SYNTHESIS_PROMPT,
+            messages=[{"role": "user", "content": user_content}],
+        )
+        answer = resp.content[0].text.strip() if resp.content else "Couldn't synthesise an answer, mate."
+        if chat_id:
+            _db_save_exchange(chat_id, question, answer)
+        return answer
+    except Exception as exc:
+        log.warning("_ai_answer_with_search: %s", exc)
+        if chat_id:
+            _db_save_exchange(chat_id, question, search_results)
+        return search_results
+
+
 def _serper_find_school_emails(city: str) -> list[tuple[str, str]]:
     """Search Serper for school email addresses in a city.
 
@@ -1313,6 +1386,7 @@ Your capabilities:
 - top_genres — most popular genres this week
 - tell_claude_code — queue a message for Claude Code review
 - feature_request — log a feature idea
+- web_search — search the web for current info (use when you need up-to-date facts)
 
 RESPONSE FORMAT — CRITICAL:
 Always respond with ONLY a single JSON object. No markdown fences, no extra text before or after.
@@ -1343,6 +1417,7 @@ Action schemas (all include "type": "action"):
 {"type": "action", "action": "top_genres"}
 {"type": "action", "action": "tell_claude_code", "message": "..."}
 {"type": "action", "action": "feature_request", "description": "..."}
+{"type": "action", "action": "web_search", "query": "..."}
 
 Rules:
 - Use {"type":"message","text":"..."} for banter, confirmations, or when you need more info.
@@ -1369,6 +1444,8 @@ Examples:
 "log a feature: dark mode for the app" → {"type": "action", "action": "feature_request", "description": "Dark mode for the app"}
 "tell claude code to fix the stems button on mobile" → {"type": "action", "action": "tell_claude_code", "message": "Fix the stems button on mobile — not tapping properly on small screens"}
 "email the schools again" → {"type": "message", "text": "Which schools do you mean, mate — the ones we already blasted, or a new city?"}
+"what's Suno pricing now" → {"type": "action", "action": "web_search", "query": "Suno AI music pricing 2026"}
+"who's the CEO of Spotify" → {"type": "action", "action": "web_search", "query": "Spotify CEO 2026"}
 """
 
 
@@ -1419,22 +1496,26 @@ def _ai_parse(text: str, chat_id: str = "") -> dict:
             if start != -1 and end > start:
                 raw = raw[start:end + 1]
 
-        # Persist the exchange before parsing, so even partial responses are saved
-        if chat_id:
-            _db_save_exchange(chat_id, text, raw)
-
         parsed = json.loads(raw)
 
         # New envelope: {"type":"message","text":"..."} → relay as chat
         if parsed.get("type") == "message":
+            if chat_id:
+                _db_save_exchange(chat_id, text, parsed.get("text", "").strip())
             return {"action": "chat", "message": parsed.get("text", "").strip()}
 
         # New envelope: {"type":"action","action":"...",...} → strip type, execute
         if parsed.get("type") == "action":
+            action_name = parsed.get("action", "")
             parsed.pop("type")
+            # web_search: skip save here — _ai_answer_with_search saves the synthesised answer
+            if action_name != "web_search" and chat_id:
+                _db_save_exchange(chat_id, text, raw)
             return parsed
 
         # Old format without type field — still works as-is
+        if chat_id:
+            _db_save_exchange(chat_id, text, raw)
         return parsed
 
     except json.JSONDecodeError as exc:
@@ -1679,6 +1760,15 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
     log.info("telegram_admin: routing to AI — %r", t[:80])
     action = _ai_parse(t, chat_id)
     log.info("telegram_admin: AI action=%r", action)
+
+    # web_search: run search then synthesise answer via second Haiku call
+    if action.get("action") == "web_search":
+        query = action.get("query", t).strip()
+        search_results = _cmd_web_search(query)
+        if search_results.startswith("❌"):
+            return search_results
+        return _ai_answer_with_search(t, query, search_results, chat_id)
+
     return _execute_action(action, chat_id)
 
 
