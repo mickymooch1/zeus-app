@@ -5,6 +5,7 @@ import { NowPlayingProvider, useNowPlaying } from './contexts/NowPlayingContext'
 import { ProtectedRoute } from './components/ProtectedRoute';
 import CookieBanner from './components/CookieBanner';
 import NowPlayingBar from './components/NowPlayingBar';
+import AddToHomeScreenBanner from './components/AddToHomeScreenBanner';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 import './index.css';
 
@@ -44,6 +45,7 @@ function AppInner() {
   return (
     <>
       <CookieBanner />
+      <AddToHomeScreenBanner />
       {currentSong?.mp3_url && <NowPlayingBar />}
     </>
   );
