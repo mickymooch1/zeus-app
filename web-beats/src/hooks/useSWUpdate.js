@@ -16,7 +16,7 @@ export function useSWUpdate() {
       .then(reg => {
         registration = reg;
         // Poll for updates every 30 minutes so long-running tabs pick up deploys
-        const timer = setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
+        const timer = setInterval(() => reg.update().catch(() => {}), 24 * 60 * 60 * 1000);
         // Clean up timer when component unmounts
         reg._zbUpdateTimer = timer;
       })
