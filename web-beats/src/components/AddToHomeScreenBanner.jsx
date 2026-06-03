@@ -5,16 +5,61 @@ const STORAGE_KEY = 'zb_a2hs_dismissed';
 function isIosSafari() {
   const ua = navigator.userAgent;
   const isIos = /iphone|ipad|ipod/i.test(ua);
-  // Safari on iOS: has "Safari" in UA, does NOT have "CriOS", "FxiOS", "OPiOS"
   const isSafari = /safari/i.test(ua) && !/crios|fxios|opios|edgios/i.test(ua);
-  // Exclude WebViews: no standalone check needed here, handled below
-  // Exclude the Zeus Beats native WebView wrapper (navigator.standalone is undefined in WebView)
+  // Exclude the Zeus Beats native WebView (and any other WKWebView/UIWebView wrappers)
   const isInWebView = !ua.includes('Safari') || ua.includes('wv') || ua.includes('WebView');
   return isIos && isSafari && !isInWebView;
 }
 
 function isStandalone() {
   return window.navigator.standalone === true;
+}
+
+// The exact Safari share icon: upward arrow rising from a rounded box
+function SafariShareIcon() {
+  return (
+    <svg
+      width="16" height="20" viewBox="0 0 16 20" fill="none"
+      aria-hidden="true"
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
+    >
+      {/* Upward arrow shaft + head */}
+      <path
+        d="M8 13V2M8 2L5 5M8 2l3 3"
+        stroke="#00f0ff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"
+      />
+      {/* Box bottom */}
+      <path
+        d="M4 8H2.5A1.5 1.5 0 001 9.5v8A1.5 1.5 0 002.5 19h11a1.5 1.5 0 001.5-1.5v-8A1.5 1.5 0 0013.5 8H12"
+        stroke="#00f0ff" strokeWidth="1.5" strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+// Chevron arrow that bounces downward (points toward Safari's toolbar)
+function BouncingArrow() {
+  return (
+    <>
+      <style>{`
+        @keyframes zbBounce {
+          0%,100% { transform: translateY(0); opacity: 0.5; }
+          50%      { transform: translateY(5px); opacity: 1; }
+        }
+      `}</style>
+      <svg
+        width="22" height="13" viewBox="0 0 22 13" fill="none"
+        style={{ animation: 'zbBounce 1.2s ease-in-out infinite', display: 'block' }}
+        aria-hidden="true"
+      >
+        <path
+          d="M2 2l9 9 9-9"
+          stroke="rgba(0,240,255,0.55)" strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round"
+        />
+      </svg>
+    </>
+  );
 }
 
 export default function AddToHomeScreenBanner() {
@@ -24,7 +69,6 @@ export default function AddToHomeScreenBanner() {
     if (isStandalone()) return;
     if (!isIosSafari()) return;
     if (sessionStorage.getItem(STORAGE_KEY)) return;
-    // Small delay so it doesn't fire before page content loads
     const t = setTimeout(() => setVisible(true), 2500);
     return () => clearTimeout(t);
   }, []);
@@ -37,34 +81,50 @@ export default function AddToHomeScreenBanner() {
   if (!visible) return null;
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.banner}>
-        <button onClick={dismiss} style={styles.close} aria-label="Dismiss">✕</button>
-        <div style={styles.row}>
-          <span style={styles.icon}>⚡</span>
-          <div style={styles.text}>
-            <strong style={styles.title}>Add Zeus Beats to Home Screen</strong>
-            <span style={styles.body}>
-              Tap{' '}
-              <span style={styles.shareIcon} aria-label="Share">
-                {/* iOS share icon SVG */}
-                <svg width="14" height="18" viewBox="0 0 14 18" fill="none" style={{ verticalAlign: 'middle', marginBottom: 1 }}>
-                  <path d="M7 12V1M7 1L4 4M7 1l3 3" stroke="#00f0ff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                  <rect x="1" y="6" width="12" height="11" rx="2" stroke="#00f0ff" strokeWidth="1.4"/>
-                </svg>
-              </span>
-              {' '}then <strong>Add to Home Screen</strong> for the full app experience.
-            </span>
-          </div>
+    <div style={s.overlay}>
+      <div style={s.banner}>
+
+        {/* Dismiss */}
+        <button onClick={dismiss} style={s.close} aria-label="Dismiss banner">✕</button>
+
+        {/* Title row */}
+        <div style={s.titleRow}>
+          <span style={s.bolt}>⚡</span>
+          <span style={s.title}>Install Zeus Beats</span>
         </div>
-        {/* Arrow pointing down to bottom share bar */}
-        <div style={styles.arrow} />
+
+        {/* Steps */}
+        <ol style={s.list}>
+          <li style={s.item}>
+            <span style={s.num}>1</span>
+            <span style={s.itemText}>
+              Tap the{' '}
+              <span style={s.chip}>
+                <SafariShareIcon />
+                <span style={s.chipLabel}>Share</span>
+              </span>
+              {' '}button at the bottom of Safari
+            </span>
+          </li>
+          <li style={s.item}>
+            <span style={s.num}>2</span>
+            <span style={s.itemText}>
+              Tap <span style={s.highlight}>"Add to Home Screen"</span>
+            </span>
+          </li>
+        </ol>
+
+        {/* Bouncing arrow pointing down toward Safari toolbar */}
+        <div style={s.arrowWrap}>
+          <BouncingArrow />
+        </div>
+
       </div>
     </div>
   );
 }
 
-const styles = {
+const s = {
   overlay: {
     position: 'fixed',
     bottom: 0,
@@ -73,69 +133,108 @@ const styles = {
     zIndex: 9999,
     display: 'flex',
     justifyContent: 'center',
-    padding: '0 12px 12px',
+    padding: '0 12px 10px',
     pointerEvents: 'none',
   },
   banner: {
-    background: 'rgba(10,10,24,0.97)',
-    border: '1px solid rgba(0,240,255,0.25)',
-    borderRadius: 16,
-    padding: '14px 16px 18px',
+    background: 'rgba(8,8,20,0.97)',
+    border: '1px solid rgba(0,240,255,0.22)',
+    borderRadius: 18,
+    padding: '16px 16px 12px',
     maxWidth: 375,
     width: '100%',
-    boxShadow: '0 -4px 32px rgba(0,0,0,0.6)',
-    position: 'relative',
+    boxShadow: '0 -4px 36px rgba(0,0,0,0.65)',
     pointerEvents: 'auto',
+    position: 'relative',
   },
   close: {
     position: 'absolute',
-    top: 10,
-    right: 12,
+    top: 11,
+    right: 13,
     background: 'none',
     border: 'none',
-    color: '#555',
-    fontSize: 14,
-    cursor: 'pointer',
-    padding: 4,
+    color: '#4a5568',
+    fontSize: 15,
     lineHeight: 1,
+    cursor: 'pointer',
+    padding: '2px 4px',
   },
-  row: {
+  titleRow: {
     display: 'flex',
-    alignItems: 'flex-start',
-    gap: 12,
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    paddingRight: 24,
   },
-  icon: {
-    fontSize: 28,
+  bolt: {
+    fontSize: 20,
     lineHeight: 1,
     flexShrink: 0,
   },
-  text: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    paddingRight: 20,
-  },
   title: {
     color: '#e2e8f0',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 700,
-    lineHeight: 1.3,
+    letterSpacing: 0.1,
   },
-  body: {
+  list: {
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 9,
+  },
+  item: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+  num: {
+    width: 20,
+    height: 20,
+    borderRadius: '50%',
+    background: 'rgba(0,240,255,0.12)',
+    border: '1px solid rgba(0,240,255,0.3)',
+    color: '#00f0ff',
+    fontSize: 11,
+    fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  itemText: {
     color: '#94a3b8',
     fontSize: 13,
-    lineHeight: 1.5,
+    lineHeight: 1.45,
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '0 5px',
   },
-  shareIcon: {
+  chip: {
     display: 'inline-flex',
     alignItems: 'center',
+    gap: 4,
+    background: 'rgba(0,240,255,0.08)',
+    border: '1px solid rgba(0,240,255,0.25)',
+    borderRadius: 6,
+    padding: '2px 6px',
+    verticalAlign: 'middle',
   },
-  arrow: {
-    width: 14,
-    height: 14,
-    borderRight: '2px solid rgba(0,240,255,0.3)',
-    borderBottom: '2px solid rgba(0,240,255,0.3)',
-    transform: 'rotate(45deg)',
-    margin: '10px auto 0',
+  chipLabel: {
+    color: '#00f0ff',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  highlight: {
+    color: '#e2e8f0',
+    fontWeight: 600,
+  },
+  arrowWrap: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginTop: 10,
   },
 };
