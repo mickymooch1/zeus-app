@@ -613,15 +613,13 @@ async def apiframe_webhook(request: Request):
             )
             return {"ok": True, "status": "already_processed"}
 
-    # Failed: mark variant failed, do NOT refund (Apiframe credits are non-refundable
-    # once the job is accepted — the credit was already deducted from the user's balance,
-    # so we leave that as-is and just record the failure)
     if event == "failed" or job_status == "FAILED":
         error_msg = body.get("error") or body.get("message") or body.get("error_message") or "unknown error"
         logger.error("Apiframe FAILED variant_id=%d error=%s", variant_id, error_msg)
         conn = sqlite3.connect(DB_PATH)
         try:
             cur = conn.cursor()
+            _ref_row = cur.execute("SELECT user_id, status FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
             cur.execute(
                 "UPDATE song_variants SET status = 'failed' WHERE id = ?",
                 (variant_id,),
@@ -629,6 +627,8 @@ async def apiframe_webhook(request: Request):
             conn.commit()
         finally:
             conn.close()
+        if _ref_row and _ref_row[1] != 'failed' and _ref_row[0]:
+            _refund_song_credit(variant_id, _ref_row[0], "FAILED")
         try:
             import alerts as _alerts
             _ec = sqlite3.connect(DB_PATH)
@@ -663,10 +663,13 @@ async def apiframe_webhook(request: Request):
         logger.error("Completed webhook missing/invalid result: %r", body)
         conn = sqlite3.connect(DB_PATH)
         try:
+            _ref_row = conn.execute("SELECT user_id, status FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
             conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
             conn.commit()
         finally:
             conn.close()
+        if _ref_row and _ref_row[1] != 'failed' and _ref_row[0]:
+            _refund_song_credit(variant_id, _ref_row[0], "no_result")
         return {"ok": True, "status": "no_result"}
 
     tracks = result.get("tracks", [])
@@ -674,10 +677,13 @@ async def apiframe_webhook(request: Request):
         logger.error("Completed webhook has no tracks: %r", result)
         conn = sqlite3.connect(DB_PATH)
         try:
+            _ref_row = conn.execute("SELECT user_id, status FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
             conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
             conn.commit()
         finally:
             conn.close()
+        if _ref_row and _ref_row[1] != 'failed' and _ref_row[0]:
+            _refund_song_credit(variant_id, _ref_row[0], "no_tracks")
         return {"ok": True, "status": "no_tracks"}
 
     # Atomic claim: take a SQLite write-reservation lock so only ONE concurrent
@@ -788,6 +794,8 @@ async def apiframe_webhook(request: Request):
             conn.commit()
         finally:
             conn.close()
+        if orig and orig[1]:
+            _refund_song_credit(variant_id, orig[1], "small_file")
         try:
             import zeus_ops_agent as _ops
             _ops.on_song_failed(variant_id)
