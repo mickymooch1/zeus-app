@@ -418,7 +418,7 @@ def ensure_promo_codes() -> None:
         coupon = stripe.Coupon.create(
             percent_off=50,
             duration="once",
-            name="Product Hunt Launch — 50% off first month",
+            name="Product Hunt — 50% off first month",
             metadata={"source": "producthunt", "code": "PRODUCTHUNT50"},
         )
         expires_at = int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp())
