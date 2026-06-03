@@ -1150,6 +1150,14 @@ async def telegram_admin_webhook(request: Request):
     return {"ok": True}
 
 
+def _refund_song_credit(variant_id: int, user_id: str, reason: str) -> None:
+    try:
+        _db.increment_song_credits(DB_PATH, user_id, 1)
+        logger.info("Credit refunded: variant_id=%d user_id=%s reason=%s", variant_id, user_id, reason)
+    except Exception:
+        logger.exception("Failed to refund credit: variant_id=%d user_id=%s", variant_id, user_id)
+
+
 @router.post("/webhooks/cometapi")
 async def cometapi_webhook(request: Request):
     """Callback handler for CometAPI persona-based song generations."""
@@ -1180,10 +1188,13 @@ async def cometapi_webhook(request: Request):
         logger.error("CometAPI webhook FAILED for variant_id=%d body=%r", variant_id, body)
         conn = sqlite3.connect(DB_PATH)
         try:
+            _ref_row = conn.execute("SELECT user_id, status FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
             conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
             conn.commit()
         finally:
             conn.close()
+        if _ref_row and _ref_row[1] != 'failed' and _ref_row[0]:
+            _refund_song_credit(variant_id, _ref_row[0], "FAILED")
         return {"ok": True, "status": "failed"}
 
     if status != "SUCCESS":
@@ -1210,10 +1221,13 @@ async def cometapi_webhook(request: Request):
     if not tracks:
         conn = sqlite3.connect(DB_PATH)
         try:
+            _ref_row = conn.execute("SELECT user_id FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
             conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
             conn.commit()
         finally:
             conn.close()
+        if _ref_row and _ref_row[0]:
+            _refund_song_credit(variant_id, _ref_row[0], "no_data")
         return {"ok": True, "status": "no_data"}
 
     track = tracks[0]
@@ -1224,10 +1238,13 @@ async def cometapi_webhook(request: Request):
         logger.error("CometAPI webhook: no audio_url in data: %r", track)
         conn = sqlite3.connect(DB_PATH)
         try:
+            _ref_row = conn.execute("SELECT user_id FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
             conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
             conn.commit()
         finally:
             conn.close()
+        if _ref_row and _ref_row[0]:
+            _refund_song_credit(variant_id, _ref_row[0], "no_audio_url")
         return {"ok": True, "status": "no_audio_url"}
 
     # Fetch variant metadata for cover art + animation
@@ -1271,6 +1288,8 @@ async def cometapi_webhook(request: Request):
             _fail_conn.commit()
         finally:
             _fail_conn.close()
+        if orig and orig[1]:
+            _refund_song_credit(variant_id, orig[1], "download_failed")
         return {"ok": True, "status": "download_failed"}
 
     if os.path.getsize(local_path) < 100_000:
@@ -1281,6 +1300,8 @@ async def cometapi_webhook(request: Request):
             conn.commit()
         finally:
             conn.close()
+        if orig and orig[1]:
+            _refund_song_credit(variant_id, orig[1], "small_file")
         return {"ok": True, "status": "small_file"}
 
     public_mp3_url = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
@@ -1348,10 +1369,13 @@ async def goapi_webhook(request: Request):
         logger.error("GoAPI webhook FAILED for variant_id=%d body=%r", variant_id, body)
         conn = sqlite3.connect(DB_PATH)
         try:
+            _ref_row = conn.execute("SELECT user_id, status FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
             conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
             conn.commit()
         finally:
             conn.close()
+        if _ref_row and _ref_row[1] != 'failed' and _ref_row[0]:
+            _refund_song_credit(variant_id, _ref_row[0], "FAILED")
         return {"ok": True, "status": "failed"}
 
     if status_lower not in ("success", "completed", "succeed"):
@@ -1376,10 +1400,13 @@ async def goapi_webhook(request: Request):
         logger.error("GoAPI webhook: no audio_url found in clips — data=%r", data)
         conn = sqlite3.connect(DB_PATH)
         try:
+            _ref_row = conn.execute("SELECT user_id, status FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
             conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
             conn.commit()
         finally:
             conn.close()
+        if _ref_row and _ref_row[1] != 'failed' and _ref_row[0]:
+            _refund_song_credit(variant_id, _ref_row[0], "no_audio_url")
         return {"ok": True, "status": "no_audio_url"}
 
     # Atomic claim — prevent duplicate deliveries from processing twice
@@ -1439,6 +1466,8 @@ async def goapi_webhook(request: Request):
             _fail_conn.commit()
         finally:
             _fail_conn.close()
+        if orig and orig[1]:
+            _refund_song_credit(variant_id, orig[1], "download_failed")
         return {"ok": True, "status": "download_failed"}
 
     if os.path.getsize(local_path) < 100_000:
@@ -1449,6 +1478,8 @@ async def goapi_webhook(request: Request):
             conn.commit()
         finally:
             conn.close()
+        if orig and orig[1]:
+            _refund_song_credit(variant_id, orig[1], "small_file")
         return {"ok": True, "status": "small_file"}
 
     public_mp3_url = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
