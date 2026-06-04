@@ -284,35 +284,32 @@ def ph_monitor() -> None:
         ph_change = ph_votes - (_ph_last_votes or ph_votes)
         _ph_last_votes = ph_votes
 
-    parts = ["🚀 <b>Product Hunt — 30min update</b>"]
-    if slug:
-        if ph_votes is not None:
-            change_str = f" (<b>+{ph_change}</b>)" if ph_change > 0 else ""
-            parts.append(f"⬆️ Upvotes: <b>{ph_votes}</b>{change_str}")
-        else:
-            parts.append("⬆️ Upvotes: couldn't fetch (check PRODUCTHUNT_SLUG)")
-    else:
-        parts.append("⬆️ Upvotes: set PRODUCTHUNT_SLUG env var to track")
+    # Only alert when something actually happened — new signups or upvote movement.
+    # Silent when nothing changed so Michael isn't pinged every 30 min for "0 new".
+    has_news = new_signups > 0 or ph_change > 0
+    log.info(
+        "ph_monitor: votes=%s ph_change=%d new_signups=%d total=%d has_news=%s",
+        ph_votes, ph_change, new_signups, total_signups, has_news,
+    )
+    if not has_news:
+        return
 
+    parts = ["🚀 <b>Product Hunt update</b>"]
+    if ph_votes is not None:
+        change_str = f" (<b>+{ph_change}</b>)" if ph_change > 0 else ""
+        parts.append(f"⬆️ Upvotes: <b>{ph_votes}</b>{change_str}")
     if new_signups > 0:
-        parts.append(f"🆕 New signups (30 min): <b>+{new_signups}</b> 🔥")
-    else:
-        parts.append("🆕 New signups (30 min): 0")
+        parts.append(f"🆕 New signups: <b>+{new_signups}</b> 🔥")
     parts.append(f"👥 Total users: <b>{total_signups}</b>")
 
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = _admin_chat_id()
     if token and chat_id:
-        msg = "\n".join(parts)
         requests.post(
             f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"},
+            json={"chat_id": chat_id, "text": "\n".join(parts), "parse_mode": "HTML"},
             timeout=10,
         )
-    log.info(
-        "ph_monitor: votes=%s new_signups=%d total=%d",
-        ph_votes, new_signups, total_signups,
-    )
 
 
 # ── Welcome email ─────────────────────────────────────────────────────────────
