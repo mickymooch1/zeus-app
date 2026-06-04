@@ -2,7 +2,7 @@
 zeus_ops_agent.py — Autonomous operations agent for Zeus Beats.
 
 Scheduled jobs (registered in scheduler.py):
-  health_check()   — every 30 min
+  health_check()   — daily at 9am UTC
                        • auto-fix songs stuck pending/generating > 15 min (mark failed + refund credit)
                        • check fal.ai balance — alert if < $5
                        • check Apiframe credits — alert if < 100
@@ -89,7 +89,7 @@ def _fix_stuck_songs() -> list[str]:
 
 
 def health_check() -> None:
-    """Run every 30 min.
+    """Run daily at 9am UTC.
 
     Fixes stuck songs, checks provider balances, alerts Michael if anything
     needs attention.

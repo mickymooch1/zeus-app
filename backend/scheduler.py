@@ -59,10 +59,10 @@ def init_scheduler(history_store) -> None:
 
     _scheduler.add_job(
         _ops.health_check,
-        trigger=IntervalTrigger(minutes=30),
+        trigger=_CronTrigger(hour=9, minute=0, timezone="UTC"),
         id="__health_check__",
         replace_existing=True,
-        misfire_grace_time=600,
+        misfire_grace_time=3600,
     )
     _scheduler.add_job(
         _ops.daily_report,
