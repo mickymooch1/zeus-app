@@ -3038,7 +3038,7 @@ export default function SongsPage() {
             )}
 
             {/* ── Zeus Baby Beats ─────────────────────────────────── */}
-            <button
+            {user?.account_type !== 'school' && <button
               onClick={() => setShowKidsPinGate(true)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
@@ -3050,7 +3050,7 @@ export default function SongsPage() {
               }}
             >
               🧸 Zeus Baby Beats
-            </button>
+            </button>}
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
@@ -4045,7 +4045,7 @@ export default function SongsPage() {
         </div>
       )}
 
-      {showKidsPinGate && token && (
+      {showKidsPinGate && token && user?.account_type !== 'school' && (
         <Suspense fallback={null}>
           <KidsPinGateLoader
             token={token}

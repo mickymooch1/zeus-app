@@ -411,23 +411,20 @@ def ensure_promo_codes() -> None:
             log.info("billing: Created FIRST_MONTH_50 coupon (50%% off first month, auto-applied to all new subscriptions)")
 
         # ── PRODUCTHUNT50 — manual promo code for Product Hunt launch ───────────
+        # References the FIRST_MONTH_50 coupon (same 50%-off benefit, separate tracking)
         existing = stripe.PromotionCode.list(code="PRODUCTHUNT50", limit=1)
         if existing.data:
             log.info("billing: PRODUCTHUNT50 promo code already exists — skipping creation")
             return
-        coupon = stripe.Coupon.create(
-            percent_off=50,
-            duration="once",
-            name="Product Hunt — 50% off first month",
-            metadata={"source": "producthunt", "code": "PRODUCTHUNT50"},
-        )
         expires_at = int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp())
         promo = stripe.PromotionCode.create(
-            coupon=coupon.id,
-            code="PRODUCTHUNT50",
-            expires_at=expires_at,
-            max_redemptions=500,
-            metadata={"plan": "music_pro", "source": "producthunt"},
+            **{
+                "coupon": "FIRST_MONTH_50",
+                "code": "PRODUCTHUNT50",
+                "expires_at": expires_at,
+                "max_redemptions": 500,
+                "metadata": {"plan": "music_pro", "source": "producthunt"},
+            }
         )
         log.info(
             "billing: Created PRODUCTHUNT50 promo code id=%s (50%% off first month, expires %s)",

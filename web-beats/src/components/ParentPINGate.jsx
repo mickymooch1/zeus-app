@@ -4,7 +4,7 @@ import '../kids.css';
 
 // hasPIN: whether the user already has a PIN stored (from user.has_kids_pin)
 // action: 'enter' (going into kids) | 'exit' (leaving kids)
-export default function ParentPINGate({ token, hasPIN = true, action = 'enter', onSuccess, onCancel }) {
+export default function ParentPINGate({ token, hasPIN = false, action = 'enter', onSuccess, onCancel }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
@@ -68,7 +68,11 @@ export default function ParentPINGate({ token, hasPIN = true, action = 'enter', 
         onSuccess();
       } else {
         const d = await res.json().catch(() => ({}));
-        setError(d.detail || 'Could not save PIN — try again');
+        if (res.status === 403) {
+          setError('School accounts access Baby Beats directly — no PIN needed');
+        } else {
+          setError(d.detail || 'Could not save PIN — try again');
+        }
         setPin('');
         setFirstPin('');
         setCreateStep('create');
@@ -96,7 +100,11 @@ export default function ParentPINGate({ token, hasPIN = true, action = 'enter', 
       } else {
         const d = await res.json().catch(() => ({}));
         setShake(true);
-        setError(d.detail || 'Incorrect PIN — try again');
+        if (res.status === 403) {
+          setError('School accounts access Baby Beats directly — no PIN needed');
+        } else {
+          setError(d.detail || 'Incorrect PIN — try again');
+        }
         setPin('');
         setTimeout(() => setShake(false), 500);
       }
