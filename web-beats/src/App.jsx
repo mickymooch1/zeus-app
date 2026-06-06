@@ -1,11 +1,14 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { lazy, Suspense, useState } from 'react';
+import { BrowserRouter, Route, Routes, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { NowPlayingProvider, useNowPlaying } from './contexts/NowPlayingContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
+import { useAuth } from './contexts/AuthContext';
+import { ProtectedRoute, SchoolSafeRoute } from './components/ProtectedRoute';
 import CookieBanner from './components/CookieBanner';
 import NowPlayingBar from './components/NowPlayingBar';
 import { UpdateToast } from './components/UpdateToast';
+import KidsShell from './components/KidsShell';
+import ParentPINGate from './components/ParentPINGate';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 import './index.css';
 
@@ -31,7 +34,49 @@ const DiscoverSongPage   = lazy(() => import('./pages/DiscoverSongPage'));
 const PlaylistPage       = lazy(() => import('./pages/PlaylistPage'));
 const TutorialPage       = lazy(() => import('./pages/TutorialPage'));
 const DownloadPage       = lazy(() => import('./pages/DownloadPage'));
-const ResetPINPage       = lazy(() => import('./pages/ResetPINPage'));
+const ResetPINPage           = lazy(() => import('./pages/ResetPINPage'));
+const KidsHomePage           = lazy(() => import('./pages/kids/KidsHomePage'));
+const KidsSongMode           = lazy(() => import('./pages/kids/KidsSongMode'));
+const KidsStoryMode          = lazy(() => import('./pages/kids/KidsStoryMode'));
+const KidsSongsListPage      = lazy(() => import('./pages/kids/KidsSongsListPage'));
+const SchoolRegisterPage     = lazy(() => import('./pages/SchoolRegisterPage'));
+
+function KidsProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="spinner-page"><div className="spinner" /></div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.account_type === 'school') return children;
+  if (sessionStorage.getItem('kidsMode') !== '1') return <Navigate to="/songs" replace />;
+  return children;
+}
+
+function KidsShellWrapper() {
+  const { user, token } = useAuth();
+  const navigate = useNavigate();
+  const [showPin, setShowPin] = useState(false);
+  const isSchool = user?.account_type === 'school';
+
+  const handleExit = () => {
+    sessionStorage.removeItem('kidsMode');
+    navigate('/songs');
+  };
+
+  return (
+    <>
+      <KidsShell showExitBtn={!isSchool} onExitClick={() => setShowPin(true)}>
+        <Outlet />
+      </KidsShell>
+      {showPin && (
+        <ParentPINGate
+          token={token}
+          action="exit"
+          onSuccess={handleExit}
+          onCancel={() => setShowPin(false)}
+        />
+      )}
+    </>
+  );
+}
 
 const fallback = (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0b0b14', gap: 16 }}>
@@ -75,9 +120,9 @@ export default function App() {
             <Route
               path="/songs"
               element={
-                <ProtectedRoute>
+                <SchoolSafeRoute>
                   <SongsPage />
-                </ProtectedRoute>
+                </SchoolSafeRoute>
               }
             />
             <Route path="/songs/share/:variantId" element={<SongSharePage />} />
@@ -86,45 +131,61 @@ export default function App() {
             <Route
               path="/billing"
               element={
-                <ProtectedRoute>
+                <SchoolSafeRoute>
                   <BillingPage />
-                </ProtectedRoute>
+                </SchoolSafeRoute>
               }
             />
             <Route
               path="/search"
               element={
-                <ProtectedRoute>
+                <SchoolSafeRoute>
                   <SearchPage />
-                </ProtectedRoute>
+                </SchoolSafeRoute>
               }
             />
             <Route
               path="/mixer"
               element={
-                <ProtectedRoute>
+                <SchoolSafeRoute>
                   <MixerPage />
-                </ProtectedRoute>
+                </SchoolSafeRoute>
               }
             />
             <Route
               path="/admin"
               element={
-                <ProtectedRoute>
+                <SchoolSafeRoute>
                   <AdminBeats />
-                </ProtectedRoute>
+                </SchoolSafeRoute>
               }
             />
             <Route
               path="/playlists"
               element={
-                <ProtectedRoute>
+                <SchoolSafeRoute>
                   <PlaylistPage />
-                </ProtectedRoute>
+                </SchoolSafeRoute>
               }
             />
             <Route path="/tutorial" element={<TutorialPage />} />
             <Route path="/download" element={<DownloadPage />} />
+
+            {/* ── Zeus Baby Beats ────────────────────────────────── */}
+            <Route path="/schools" element={<SchoolRegisterPage />} />
+            <Route
+              path="/kids"
+              element={
+                <KidsProtectedRoute>
+                  <KidsShellWrapper />
+                </KidsProtectedRoute>
+              }
+            >
+              <Route index element={<KidsHomePage />} />
+              <Route path="song" element={<KidsSongMode />} />
+              <Route path="story" element={<KidsStoryMode />} />
+              <Route path="songs" element={<KidsSongsListPage />} />
+            </Route>
           </Routes>
         </Suspense>
       </BrowserRouter>
