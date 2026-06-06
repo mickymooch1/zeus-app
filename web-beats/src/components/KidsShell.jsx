@@ -1,5 +1,13 @@
+import { useLocation, useNavigate } from 'react-router-dom';
 import '../kids.css';
 import KidsSpaceBackground from './KidsSpaceBackground';
+
+const NAV = [
+  { path: '/kids',       icon: '🏠', label: 'Home'    },
+  { path: '/kids/song',  icon: '🎵', label: 'Song'    },
+  { path: '/kids/story', icon: '📖', label: 'Story'   },
+  { path: '/kids/songs', icon: '📚', label: 'Library' },
+];
 
 function Ziggy({ size = 56 }) {
   return (
@@ -18,9 +26,13 @@ function Ziggy({ size = 56 }) {
 }
 
 export default function KidsShell({ children, showExitBtn = false, onExitClick }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   return (
     <div className="kids-shell" style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
       <KidsSpaceBackground />
+
       <header style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '16px 20px', gap: 12, position: 'relative', zIndex: 1,
@@ -49,9 +61,43 @@ export default function KidsShell({ children, showExitBtn = false, onExitClick }
         {children}
       </main>
 
-      <footer style={{ textAlign: 'center', padding: '12px 20px', fontSize: 12, color: 'rgba(255,255,255,0.55)', position: 'relative', zIndex: 1 }}>
-        Zeus Kids Beats ⚡ — Safe songs &amp; stories for little ones
-      </footer>
+      {/* Persistent bottom nav — always reachable, StoryPlayer (z-index:200) slides over it */}
+      <nav style={{
+        position: 'relative', zIndex: 1, flexShrink: 0,
+        display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+        padding: '8px 0 max(10px, env(safe-area-inset-bottom))',
+        background: 'rgba(255,255,255,0.07)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.12)',
+      }}>
+        {NAV.map(({ path, icon, label }) => {
+          const active = location.pathname === path;
+          return (
+            <button
+              key={path}
+              onClick={() => navigate(path)}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                gap: 3, background: 'none', border: 'none', cursor: 'pointer',
+                padding: '4px 18px', borderRadius: 12,
+                fontFamily: 'Nunito, ui-rounded, system-ui, sans-serif',
+                transition: 'opacity 0.15s, transform 0.15s',
+                opacity: active ? 1 : 0.55,
+                transform: active ? 'scale(1.12)' : 'scale(1)',
+              }}
+            >
+              <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+              <span style={{
+                fontSize: 10, fontWeight: 800,
+                color: active ? '#fbd155' : 'rgba(255,255,255,0.9)',
+                letterSpacing: '0.3px',
+              }}>
+                {label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

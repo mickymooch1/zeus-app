@@ -180,8 +180,8 @@ export default function KidsStoryMode() {
   };
 
   const label = (text, sub) => (
-    <p style={{ fontWeight: 800, fontSize: 13, color: '#1a2b4a', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>
-      {text}{sub && <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 12, color: '#94a3b8', marginLeft: 6 }}>{sub}</span>}
+    <p style={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>
+      {text}{sub && <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginLeft: 6 }}>{sub}</span>}
     </p>
   );
 
@@ -192,7 +192,7 @@ export default function KidsStoryMode() {
       </button>
 
       <h2 style={{ margin: '0 0 4px', fontSize: 22 }}>What's the story about? 📖</h2>
-      <p style={{ margin: '0 0 18px', color: '#64748b', fontSize: 14 }}>Pick a theme and we'll tell a magical story!</p>
+      <p style={{ margin: '0 0 18px', color: 'rgba(255,255,255,0.75)', fontSize: 14 }}>Pick a theme and we'll tell a magical story!</p>
 
       {/* Story Theme */}
       {label('🌈 Story Theme')}
@@ -261,8 +261,8 @@ export default function KidsStoryMode() {
 
       {/* Character Voice (optional) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <p style={{ fontWeight: 800, fontSize: 13, color: '#1a2b4a', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>🎭 Character Voice</p>
-        <span style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>optional — 3-voice mode</span>
+        <p style={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>🎭 Character Voice</p>
+        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>optional — 3-voice mode</span>
         {charVoice && (
           <button onClick={() => setCharVoice('')} style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(244,114,182,0.4)', borderRadius: 6, color: '#f472b6', fontSize: 10, cursor: 'pointer', padding: '2px 8px' }}>
             ✕ None

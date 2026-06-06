@@ -97,10 +97,10 @@ export default function KidsSongMode() {
       </button>
 
       <h2 style={{ margin: '0 0 4px', fontSize: 22 }}>What kind of song? 🎶</h2>
-      <p style={{ margin: '0 0 18px', color: '#64748b', fontSize: 14 }}>Pick a theme and style — we'll make it!</p>
+      <p style={{ margin: '0 0 18px', color: 'rgba(255,255,255,0.75)', fontSize: 14 }}>Pick a theme and style — we'll make it!</p>
 
       {/* Theme */}
-      <p style={{ fontWeight: 800, fontSize: 13, color: '#1a2b4a', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>🌈 Theme</p>
+      <p style={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>🌈 Theme</p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginBottom: 22 }}>
         {THEMES.map((t, i) => (
           <button key={i} className={`kids-tile${theme === i ? ' selected' : ''}`} onClick={() => setTheme(i)}>
@@ -111,7 +111,7 @@ export default function KidsSongMode() {
       </div>
 
       {/* Music Style */}
-      <p style={{ fontWeight: 800, fontSize: 13, color: '#1a2b4a', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>🎵 Music Style</p>
+      <p style={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>🎵 Music Style</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 22 }}>
         {MUSIC_STYLES.map(s => (
           <button key={s.value} onClick={() => setMusicStyle(s.value)} style={{
@@ -126,7 +126,7 @@ export default function KidsSongMode() {
       </div>
 
       {/* Age Range */}
-      <p style={{ fontWeight: 800, fontSize: 13, color: '#1a2b4a', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>👶 Age Range</p>
+      <p style={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>👶 Age Range</p>
       <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
         {AGE_RANGES.map(a => (
           <button key={a.value} onClick={() => setAge(a.value)} style={{
@@ -142,7 +142,7 @@ export default function KidsSongMode() {
       </div>
 
       {/* Accent */}
-      <p style={{ fontWeight: 800, fontSize: 13, color: '#1a2b4a', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px' }}>🎤 Singing Accent</p>
+      <p style={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px' }}>🎤 Singing Accent</p>
       <select
         value={accent}
         onChange={e => setAccent(e.target.value)}
@@ -154,7 +154,7 @@ export default function KidsSongMode() {
       </select>
 
       {/* Character */}
-      <p style={{ fontWeight: 800, fontSize: 13, color: '#1a2b4a', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px' }}>
+      <p style={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px' }}>
         🦁 Main Character{' '}
         <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 12, color: '#94a3b8' }}>(optional)</span>
       </p>

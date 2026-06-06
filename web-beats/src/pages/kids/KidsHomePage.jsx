@@ -10,8 +10,8 @@ export default function KidsHomePage() {
       padding: '24px 20px', gap: 24,
       textAlign: 'center',
     }}>
-      <p style={{ fontSize: 'clamp(16px, 3vw, 20px)', color: '#64748b', margin: 0, fontWeight: 600 }}>
-        What would you like to make today? ✨
+      <p style={{ fontSize: 'clamp(16px, 3vw, 20px)', color: 'rgba(255,255,255,0.85)', margin: 0, fontWeight: 700 }}>
+        What would you like to do today? ✨
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, width: '100%', maxWidth: 320 }}>
@@ -30,20 +30,14 @@ export default function KidsHomePage() {
         >
           📖 Hear a Story!
         </button>
-      </div>
 
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
-        {['🌟','⭐','✨','🎵','🎶','💛','🌈'].map((e, i) => (
-          <span key={i} style={{
-            position: 'absolute',
-            fontSize: `${14 + (i * 4) % 18}px`,
-            left: `${(i * 13 + 5) % 90}%`,
-            top: `${(i * 17 + 10) % 80}%`,
-            opacity: 0.25,
-            animation: `ziggyBounce ${2 + i * 0.4}s ease-in-out infinite`,
-            animationDelay: `${i * 0.3}s`,
-          }}>{e}</span>
-        ))}
+        <button
+          className="kids-btn kids-btn-mint"
+          style={{ width: '100%' }}
+          onClick={() => navigate('/kids/songs')}
+        >
+          📚 My Songs
+        </button>
       </div>
     </div>
   );
