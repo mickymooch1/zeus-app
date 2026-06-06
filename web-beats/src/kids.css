@@ -6,18 +6,97 @@
 
 .kids-shell {
   min-height: 100dvh;
-  background: linear-gradient(160deg, #fff9e6 0%, #e0f4ff 60%, #fce4f0 100%);
+  background: linear-gradient(175deg, #12083c 0%, #251270 28%, #422aaa 55%, #7040d8 80%, #9060f0 100%);
   font-family: 'Nunito', ui-rounded, system-ui, sans-serif;
-  color: #1a2b4a;
+  color: #ffffff;
   position: relative;
   overflow-x: hidden;
+}
+
+/* ── Kids space background layers ────────────────────────── */
+.kids-space-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    /* Pink nebula — upper centre */
+    radial-gradient(ellipse 65% 35% at 50% 15%, rgba(244,114,182,0.22) 0%, transparent 70%),
+    /* Purple nebula — lower left */
+    radial-gradient(ellipse 55% 40% at 5% 75%, rgba(167,139,250,0.28) 0%, transparent 65%),
+    /* Cyan sparkle — right */
+    radial-gradient(ellipse 40% 30% at 92% 45%, rgba(125,211,252,0.18) 0%, transparent 65%),
+    /* Mint glow — bottom */
+    radial-gradient(ellipse 50% 25% at 55% 95%, rgba(110,231,183,0.15) 0%, transparent 65%);
+}
+.kids-stars-canvas {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+}
+
+/* ── Cartoon planets ─────────────────────────────────────── */
+.kids-planet {
+  position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+}
+
+/* Yellow/orange — top-right corner, large, with ring */
+.kids-planet-yellow {
+  width: clamp(100px, 17vw, 160px);
+  height: clamp(100px, 17vw, 160px);
+  top: -22px; right: -18px;
+  background: radial-gradient(circle at 33% 28%, #fffccc 0%, #ffd700 32%, #ff9800 66%, #e05800 100%);
+  box-shadow: 0 0 55px rgba(255,180,0,0.6), 0 0 110px rgba(255,120,0,0.25), inset -10px -10px 28px rgba(0,0,0,0.25);
+  animation: kids-planet-bob 8s ease-in-out infinite;
+}
+/* Saturn-style ring */
+.kids-planet-yellow::after {
+  content: '';
+  position: absolute; top: 50%; left: -20%;
+  width: 140%; height: 32%;
+  border-radius: 50%;
+  border: clamp(7px, 1.4vw, 14px) solid rgba(255,210,80,0.52);
+  transform: translateY(-50%) scaleY(0.35);
+  pointer-events: none;
+}
+
+/* Pink/rose — bottom-left */
+.kids-planet-pink {
+  width: clamp(68px, 11vw, 105px);
+  height: clamp(68px, 11vw, 105px);
+  bottom: 70px; left: -14px;
+  background: radial-gradient(circle at 32% 28%, #ffe4f5 0%, #ff9cc8 40%, #ff4fa3 78%, #d42a78 100%);
+  box-shadow: 0 0 42px rgba(255,80,190,0.55), inset -6px -6px 18px rgba(0,0,0,0.22);
+  animation: kids-planet-bob 10s ease-in-out infinite reverse;
+}
+
+/* Teal/blue — mid-right edge */
+.kids-planet-blue {
+  width: clamp(46px, 7vw, 76px);
+  height: clamp(46px, 7vw, 76px);
+  top: 40%; right: 4px;
+  background: radial-gradient(circle at 33% 28%, #d0f6ff 0%, #5dd4f8 42%, #18b0e0 78%, #0c7ab0 100%);
+  box-shadow: 0 0 32px rgba(20,180,230,0.55), inset -5px -5px 14px rgba(0,0,0,0.22);
+  animation: kids-planet-bob 13s ease-in-out infinite;
+  animation-delay: -5s;
+}
+
+/* Tiny green — upper-left area */
+.kids-planet-green {
+  width: clamp(30px, 5vw, 50px);
+  height: clamp(30px, 5vw, 50px);
+  top: 22%; left: 12px;
+  background: radial-gradient(circle at 33% 28%, #d4fce8 0%, #6ee7b7 45%, #10b981 80%, #047857 100%);
+  box-shadow: 0 0 22px rgba(16,185,129,0.5), inset -4px -4px 10px rgba(0,0,0,0.22);
+  animation: kids-planet-bob 9s ease-in-out infinite;
+  animation-delay: -2s;
+}
+
+@keyframes kids-planet-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%       { transform: translateY(-12px) rotate(2deg); }
 }
 
 /* ── Typography ──────────────────────────────────────────── */
 .kids-shell h1, .kids-shell h2, .kids-shell h3 {
   font-family: 'Nunito', ui-rounded, system-ui, sans-serif;
   font-weight: 900;
-  color: #1a2b4a;
+  color: #ffffff;
 }
 
 /* ── Buttons ─────────────────────────────────────────────── */

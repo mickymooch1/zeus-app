@@ -1,4 +1,5 @@
 import '../kids.css';
+import KidsSpaceBackground from './KidsSpaceBackground';
 
 function Ziggy({ size = 56 }) {
   return (
@@ -19,9 +20,10 @@ function Ziggy({ size = 56 }) {
 export default function KidsShell({ children, showExitBtn = false, onExitClick }) {
   return (
     <div className="kids-shell" style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+      <KidsSpaceBackground />
       <header style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '16px 20px', gap: 12, position: 'relative',
+        padding: '16px 20px', gap: 12, position: 'relative', zIndex: 1,
       }}>
         <Ziggy size={48} />
         <h1 style={{ margin: 0, fontSize: 'clamp(22px, 5vw, 32px)', fontWeight: 900, lineHeight: 1 }}>
@@ -43,11 +45,11 @@ export default function KidsShell({ children, showExitBtn = false, onExitClick }
         )}
       </header>
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
         {children}
       </main>
 
-      <footer style={{ textAlign: 'center', padding: '12px 20px', fontSize: 12, color: '#94a3b8' }}>
+      <footer style={{ textAlign: 'center', padding: '12px 20px', fontSize: 12, color: 'rgba(255,255,255,0.55)', position: 'relative', zIndex: 1 }}>
         Zeus Kids Beats ⚡ — Safe songs &amp; stories for little ones
       </footer>
     </div>

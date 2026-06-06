@@ -90,7 +90,7 @@ function StoryPlayer({ item, onClose }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
-      background: 'linear-gradient(160deg, #fff9e6 0%, #e0f4ff 60%, #fce4f0 100%)',
+      background: 'linear-gradient(175deg, #12083c 0%, #251270 28%, #422aaa 55%, #7040d8 80%, #9060f0 100%)',
       display: 'flex', flexDirection: 'column',
       fontFamily: "'Nunito', ui-rounded, system-ui, sans-serif",
       overflow: 'hidden',
@@ -111,9 +111,9 @@ function StoryPlayer({ item, onClose }) {
           ← Library
         </button>
         <div style={{
-          marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#94a3b8',
-          background: isStory ? 'rgba(167,139,250,0.15)' : 'rgba(251,209,85,0.2)',
-          border: `1px solid ${isStory ? 'rgba(167,139,250,0.3)' : 'rgba(251,209,85,0.4)'}`,
+          marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.85)',
+          background: isStory ? 'rgba(167,139,250,0.3)' : 'rgba(251,209,85,0.25)',
+          border: `1px solid ${isStory ? 'rgba(167,139,250,0.5)' : 'rgba(251,209,85,0.5)'}`,
           borderRadius: 12, padding: '4px 10px',
         }}>
           {isStory ? '📖 Story' : '🎵 Song'}
@@ -152,7 +152,7 @@ function StoryPlayer({ item, onClose }) {
       <div style={{ textAlign: 'center', padding: '14px 24px 0', flexShrink: 0 }}>
         <h2 style={{
           margin: 0, fontSize: hasSubtitles ? 18 : 22, fontWeight: 900,
-          color: '#1a2b4a', lineHeight: 1.2,
+          color: '#ffffff', lineHeight: 1.2,
         }}>
           {item.title || (isStory ? 'My Story' : 'My Song')}
         </h2>
@@ -209,7 +209,7 @@ function StoryPlayer({ item, onClose }) {
       <div style={{ flexShrink: 0, padding: '0 24px 32px' }}>
         {/* Progress bar */}
         <div style={{ marginBottom: 6 }}>
-          <div style={{ position: 'relative', height: 6, borderRadius: 6, background: 'rgba(0,0,0,0.08)', marginBottom: 4 }}>
+          <div style={{ position: 'relative', height: 6, borderRadius: 6, background: 'rgba(255,255,255,0.18)', marginBottom: 4 }}>
             <div style={{
               position: 'absolute', left: 0, top: 0, bottom: 0,
               width: `${pct}%`, borderRadius: 6,
@@ -228,7 +228,7 @@ function StoryPlayer({ item, onClose }) {
               }}
             />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>
             <span>{fmtTime(currentTime)}</span>
             <span>{fmtTime(duration)}</span>
           </div>
@@ -355,7 +355,7 @@ export default function KidsSongsListPage() {
         </div>
 
         {loading && (
-          <p style={{ color: '#64748b', textAlign: 'center', fontFamily: 'Nunito, sans-serif' }}>
+          <p style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', fontFamily: 'Nunito, sans-serif' }}>
             Loading your songs... ✨
           </p>
         )}
@@ -363,7 +363,7 @@ export default function KidsSongsListPage() {
         {!loading && items.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
             <div style={{ fontSize: 56, marginBottom: 12 }}>🎵</div>
-            <p style={{ color: '#64748b', fontWeight: 600, fontFamily: 'Nunito, sans-serif' }}>
+            <p style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontFamily: 'Nunito, sans-serif' }}>
               No songs yet! Go make your first one.
             </p>
             <button className="kids-btn kids-btn-primary" onClick={() => navigate('/kids')} style={{ marginTop: 16 }}>
