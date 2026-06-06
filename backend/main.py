@@ -2146,127 +2146,121 @@ async def songs_generate(
 
     lyric_id = lyric_result["lyric_id"]
 
-    # ElevenLabs TTS narration — Story sub-mode only
+    # ElevenLabs TTS narration — Story sub-mode only; costs 1 regular song credit (not premium)
     story_audio_url = None
     subtitles_url = None
     if _is_story:
         _el_key = os.environ.get("ELEVENLABS_API_KEY", "")
-        if _el_key and lyric_result.get("lyrics"):
-            _has_credit = db.check_and_deduct_premium_credit(db_path, user_id)
-            if _has_credit:
-                try:
-                    _story_text = lyric_result["lyrics"].strip()
-                    _narrator_voice_id = _STORY_VOICES.get((body.accent or '').lower(), 'ZEt85AU1ui8Rr8FxNslW')
-                    _char_voice_key  = (body.character_voice or '').lower()
-                    _child_voice_key = (body.child_voice or '').lower()
-                    _char_voice_id   = _STORY_VOICES.get(_char_voice_key,  _narrator_voice_id)
-                    _child_voice_id  = _STORY_VOICES.get(_child_voice_key, _narrator_voice_id)
-                    _use_char  = bool(body.character_voice and _char_voice_key in _STORY_VOICES)
-                    _use_child = bool(body.child_voice and _child_voice_key in _STORY_VOICES)
-                    _use_multi = _use_char or _use_child
+        if not _el_key or not lyric_result.get("lyrics"):
+            raise HTTPException(status_code=500, detail="Story narration is unavailable right now — please try again")
+        try:
+            _story_text = lyric_result["lyrics"].strip()
+            _narrator_voice_id = _STORY_VOICES.get((body.accent or '').lower(), 'ZEt85AU1ui8Rr8FxNslW')
+            _char_voice_key  = (body.character_voice or '').lower()
+            _child_voice_key = (body.child_voice or '').lower()
+            _char_voice_id   = _STORY_VOICES.get(_char_voice_key,  _narrator_voice_id)
+            _child_voice_id  = _STORY_VOICES.get(_child_voice_key, _narrator_voice_id)
+            _use_char  = bool(body.character_voice and _char_voice_key in _STORY_VOICES)
+            _use_child = bool(body.child_voice and _child_voice_key in _STORY_VOICES)
+            _use_multi = _use_char or _use_child
 
-                    # Build speaker → voice_id map; unknown tags fall back to narrator
-                    _voice_map = {'NARRATOR': _narrator_voice_id}
-                    if _use_child:
-                        _voice_map['CHILD'] = _child_voice_id
-                        _voice_map['HERO']  = _child_voice_id  # alias
-                    if _use_char:
-                        _voice_map['CHARACTER'] = _char_voice_id
+            # Build speaker → voice_id map; unknown tags fall back to narrator
+            _voice_map = {'NARRATOR': _narrator_voice_id}
+            if _use_child:
+                _voice_map['CHILD'] = _child_voice_id
+                _voice_map['HERO']  = _child_voice_id  # alias
+            if _use_char:
+                _voice_map['CHARACTER'] = _char_voice_id
 
-                    _story_dir = pathlib.Path("/data/stories")
-                    _story_dir.mkdir(parents=True, exist_ok=True)
-                    _tts_params = {"model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}}
+            _story_dir = pathlib.Path("/data/stories")
+            _story_dir.mkdir(parents=True, exist_ok=True)
+            _tts_params = {"model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}}
 
-                    if _use_multi:
-                        # MULTI-VOICE: parse segments → TTS each → FFmpeg concat
-                        _segments = _parse_story_segments(_story_text)
-                        log.info("STORY MULTI-VOICE: narrator=%s child=%s character=%s segments=%d user=%s",
-                                 _narrator_voice_id, _child_voice_id if _use_child else 'n/a',
-                                 _char_voice_id if _use_char else 'n/a', len(_segments), user_id)
-                        _clip_paths = []
-                        _all_ok = bool(_segments)
-                        async with httpx.AsyncClient(timeout=30.0) as _el_client:
-                            for _i, _seg in enumerate(_segments):
-                                _seg_vid = _voice_map.get(_seg['speaker'], _narrator_voice_id)
-                                _seg_resp = await _el_client.post(
-                                    f"https://api.elevenlabs.io/v1/text-to-speech/{_seg_vid}",
-                                    headers={"xi-api-key": _el_key, "Content-Type": "application/json"},
-                                    json={"text": _seg['text'], **_tts_params},
-                                )
-                                if _seg_resp.status_code == 200:
-                                    _clip_path = str(_story_dir / f"{lyric_id}_{_i}.mp3")
-                                    pathlib.Path(_clip_path).write_bytes(_seg_resp.content)
-                                    _clip_paths.append(_clip_path)
-                                else:
-                                    log.warning("multi-voice: segment %d ElevenLabs %d user=%s", _i, _seg_resp.status_code, user_id)
-                                    _all_ok = False
-                                    break
-                        if _clip_paths and _all_ok:
-                            _out = str(_story_dir / f"{lyric_id}.mp3")
-                            if _ffmpeg_concat_mp3(_clip_paths, _out):
-                                story_audio_url = f"/files/stories/{lyric_id}.mp3"
-                                log.info("multi-voice TTS: ok segments=%d user=%s lyric_id=%s", len(_segments), user_id, lyric_id)
-                            else:
-                                log.warning("multi-voice TTS: FFmpeg concat failed user=%s lyric_id=%s", user_id, lyric_id)
-                        elif not _all_ok:
-                            db.increment_premium_credits(db_path, user_id, 1)
-                        # clean up segment clips
-                        for _p in _clip_paths:
-                            try: pathlib.Path(_p).unlink()
-                            except OSError: pass
-                    else:
-                        # SINGLE-VOICE: whole story through one narrator voice
-                        _seg_data = lyric_result.get("segments")
-                        _foreign = bool(_seg_data and (body.story_language or 'english').lower() != 'english')
-                        _el_tts_url = (
-                            f"https://api.elevenlabs.io/v1/text-to-speech/{_narrator_voice_id}/with-timestamps"
-                            if _foreign else
-                            f"https://api.elevenlabs.io/v1/text-to-speech/{_narrator_voice_id}"
+            if _use_multi:
+                # MULTI-VOICE: parse segments → TTS each → FFmpeg concat
+                _segments = _parse_story_segments(_story_text)
+                log.info("STORY MULTI-VOICE: narrator=%s child=%s character=%s segments=%d user=%s",
+                         _narrator_voice_id, _child_voice_id if _use_child else 'n/a',
+                         _char_voice_id if _use_char else 'n/a', len(_segments), user_id)
+                _clip_paths = []
+                _all_ok = bool(_segments)
+                async with httpx.AsyncClient(timeout=30.0) as _el_client:
+                    for _i, _seg in enumerate(_segments):
+                        _seg_vid = _voice_map.get(_seg['speaker'], _narrator_voice_id)
+                        _seg_resp = await _el_client.post(
+                            f"https://api.elevenlabs.io/v1/text-to-speech/{_seg_vid}",
+                            headers={"xi-api-key": _el_key, "Content-Type": "application/json"},
+                            json={"text": _seg['text'], **_tts_params},
                         )
-                        log.info("STORY SINGLE-VOICE: voice_id=%s text_len=%d foreign=%s user=%s", _narrator_voice_id, len(_story_text), _foreign, user_id)
-                        async with httpx.AsyncClient(timeout=30.0) as _el_client:
-                            _tts_resp = await _el_client.post(
-                                _el_tts_url,
-                                headers={"xi-api-key": _el_key, "Content-Type": "application/json"},
-                                json={"text": _story_text, **_tts_params},
-                            )
-                        if _tts_resp.status_code == 200:
-                            if _foreign:
-                                _ts_json = _tts_resp.json()
-                                _audio_bytes = base64.b64decode(_ts_json["audio_base64"])
-                                (_story_dir / f"{lyric_id}.mp3").write_bytes(_audio_bytes)
-                                story_audio_url = f"/files/stories/{lyric_id}.mp3"
-                                log.info("single-voice TTS (with-timestamps): ok user=%s lyric_id=%s bytes=%d", user_id, lyric_id, len(_audio_bytes))
-                                _alignment = _ts_json.get("alignment", {})
-                                _cues = _build_subtitle_cues(
-                                    _seg_data, _story_text,
-                                    _alignment.get("characters", []),
-                                    _alignment.get("character_start_times_seconds", []),
-                                    _alignment.get("character_end_times_seconds", []),
-                                )
-                                if _cues:
-                                    (_story_dir / f"{lyric_id}_subtitles.json").write_text(
-                                        json.dumps(_cues), encoding="utf-8"
-                                    )
-                                    subtitles_url = f"/files/stories/{lyric_id}_subtitles.json"
-                                    log.info("subtitles: built %d cues user=%s lyric_id=%s", len(_cues), user_id, lyric_id)
-                                else:
-                                    log.warning("subtitles: no cues built user=%s lyric_id=%s", user_id, lyric_id)
-                            else:
-                                (_story_dir / f"{lyric_id}.mp3").write_bytes(_tts_resp.content)
-                                story_audio_url = f"/files/stories/{lyric_id}.mp3"
-                                log.info("single-voice TTS: ok user=%s lyric_id=%s bytes=%d", user_id, lyric_id, len(_tts_resp.content))
+                        if _seg_resp.status_code == 200:
+                            _clip_path = str(_story_dir / f"{lyric_id}_{_i}.mp3")
+                            pathlib.Path(_clip_path).write_bytes(_seg_resp.content)
+                            _clip_paths.append(_clip_path)
                         else:
-                            db.increment_premium_credits(db_path, user_id, 1)
-                            log.warning("single-voice TTS: ElevenLabs error %d user=%s", _tts_resp.status_code, user_id)
-                except Exception:
-                    log.exception("kids_story TTS: failed user=%s lyric_id=%s", user_id, lyric_id)
-                    try:
-                        db.increment_premium_credits(db_path, user_id, 1)
-                    except Exception:
-                        pass
+                            log.warning("multi-voice: segment %d ElevenLabs %d user=%s", _i, _seg_resp.status_code, user_id)
+                            _all_ok = False
+                            break
+                if _clip_paths and _all_ok:
+                    _out = str(_story_dir / f"{lyric_id}.mp3")
+                    if _ffmpeg_concat_mp3(_clip_paths, _out):
+                        story_audio_url = f"/files/stories/{lyric_id}.mp3"
+                        log.info("multi-voice TTS: ok segments=%d user=%s lyric_id=%s", len(_segments), user_id, lyric_id)
+                    else:
+                        log.warning("multi-voice TTS: FFmpeg concat failed user=%s lyric_id=%s", user_id, lyric_id)
+                # clean up segment clips
+                for _p in _clip_paths:
+                    try: pathlib.Path(_p).unlink()
+                    except OSError: pass
             else:
-                log.info("kids_story TTS: skipped — no premium credits user=%s", user_id)
+                # SINGLE-VOICE: whole story through one narrator voice
+                _seg_data = lyric_result.get("segments")
+                _foreign = bool(_seg_data and (body.story_language or 'english').lower() != 'english')
+                _el_tts_url = (
+                    f"https://api.elevenlabs.io/v1/text-to-speech/{_narrator_voice_id}/with-timestamps"
+                    if _foreign else
+                    f"https://api.elevenlabs.io/v1/text-to-speech/{_narrator_voice_id}"
+                )
+                log.info("STORY SINGLE-VOICE: voice_id=%s text_len=%d foreign=%s user=%s", _narrator_voice_id, len(_story_text), _foreign, user_id)
+                async with httpx.AsyncClient(timeout=30.0) as _el_client:
+                    _tts_resp = await _el_client.post(
+                        _el_tts_url,
+                        headers={"xi-api-key": _el_key, "Content-Type": "application/json"},
+                        json={"text": _story_text, **_tts_params},
+                    )
+                if _tts_resp.status_code == 200:
+                    if _foreign:
+                        _ts_json = _tts_resp.json()
+                        _audio_bytes = base64.b64decode(_ts_json["audio_base64"])
+                        (_story_dir / f"{lyric_id}.mp3").write_bytes(_audio_bytes)
+                        story_audio_url = f"/files/stories/{lyric_id}.mp3"
+                        log.info("single-voice TTS (with-timestamps): ok user=%s lyric_id=%s bytes=%d", user_id, lyric_id, len(_audio_bytes))
+                        _alignment = _ts_json.get("alignment", {})
+                        _cues = _build_subtitle_cues(
+                            _seg_data, _story_text,
+                            _alignment.get("characters", []),
+                            _alignment.get("character_start_times_seconds", []),
+                            _alignment.get("character_end_times_seconds", []),
+                        )
+                        if _cues:
+                            (_story_dir / f"{lyric_id}_subtitles.json").write_text(
+                                json.dumps(_cues), encoding="utf-8"
+                            )
+                            subtitles_url = f"/files/stories/{lyric_id}_subtitles.json"
+                            log.info("subtitles: built %d cues user=%s lyric_id=%s", len(_cues), user_id, lyric_id)
+                        else:
+                            log.warning("subtitles: no cues built user=%s lyric_id=%s", user_id, lyric_id)
+                    else:
+                        (_story_dir / f"{lyric_id}.mp3").write_bytes(_tts_resp.content)
+                        story_audio_url = f"/files/stories/{lyric_id}.mp3"
+                        log.info("single-voice TTS: ok user=%s lyric_id=%s bytes=%d", user_id, lyric_id, len(_tts_resp.content))
+                else:
+                    log.warning("single-voice TTS: ElevenLabs error %d user=%s", _tts_resp.status_code, user_id)
+        except Exception:
+            log.exception("kids_story TTS: failed user=%s lyric_id=%s", user_id, lyric_id)
+            raise HTTPException(status_code=500, detail="Story narration failed — please try again")
+        if not story_audio_url:
+            log.warning("kids_story TTS: no audio produced user=%s lyric_id=%s", user_id, lyric_id)
+            raise HTTPException(status_code=500, detail="Story narration failed — please try again")
 
     # STORY MODE EARLY RETURN — pure ElevenLabs narration, do NOT call Suno
     if _is_story:
