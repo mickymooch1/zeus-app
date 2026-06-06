@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BACKEND_URL } from '../brand';
+import '../kids.css';
 
 // hasPIN: whether the user already has a PIN stored (from user.has_kids_pin)
 // action: 'enter' (going into kids) | 'exit' (leaving kids)
@@ -93,8 +94,9 @@ export default function ParentPINGate({ token, hasPIN = true, action = 'enter', 
       if (res.ok) {
         onSuccess();
       } else {
+        const d = await res.json().catch(() => ({}));
         setShake(true);
-        setError('Oops! Try again 😊');
+        setError(d.detail || 'Incorrect PIN — try again');
         setPin('');
         setTimeout(() => setShake(false), 500);
       }

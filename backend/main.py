@@ -981,9 +981,10 @@ async def kids_pin_set(body: KidsPINSetRequest, current_user: dict = Depends(aut
         raise HTTPException(status_code=400, detail="PIN must be exactly 4 digits")
     db_path = db.get_db_path()
     existing_hash = db.get_kids_pin_hash(db_path, current_user["id"])
-    log.info("PIN action: user=%s has_pin=%s action=set", current_user["id"], existing_hash is not None)
+    log.info("PIN SET called: user=%s pin_length=%d already_has_pin=%s", current_user["id"], len(body.pin), existing_hash is not None)
     pin_hash = auth.hash_password(body.pin)
     db.set_kids_pin(db_path, current_user["id"], pin_hash)
+    log.info("PIN SET success: saved hash for user=%s", current_user["id"])
     return {"ok": True}
 
 
@@ -993,10 +994,13 @@ async def kids_pin_verify(body: KidsPINVerifyRequest, current_user: dict = Depen
         raise HTTPException(status_code=403, detail="School accounts do not use a PIN")
     db_path = db.get_db_path()
     stored_hash = db.get_kids_pin_hash(db_path, current_user["id"])
-    log.info("PIN action: user=%s has_pin=%s action=verify", current_user["id"], stored_hash is not None)
+    log.info("PIN VERIFY called: user=%s has_existing_hash=%s", current_user["id"], stored_hash is not None)
     if not stored_hash:
+        log.warning("PIN VERIFY failed: no hash stored for user=%s", current_user["id"])
         raise HTTPException(status_code=404, detail="No PIN set — please set a PIN in account settings first")
-    if not auth.verify_password(body.pin, stored_hash):
+    match = auth.verify_password(body.pin, stored_hash)
+    log.info("PIN VERIFY result: user=%s match=%s", current_user["id"], match)
+    if not match:
         raise HTTPException(status_code=401, detail="Incorrect PIN")
     return {"ok": True}
 
