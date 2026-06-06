@@ -15,6 +15,8 @@ export default function KidsSongsListPage() {
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState(null);
   const audioRef = useRef(null);
+  const subsCache = useRef({});           // variant_id → subtitle cues array
+  const [activeSub, setActiveSub] = useState(null);   // current subtitle text
 
   const fetchLibrary = useCallback(async () => {
     if (!token) return;
@@ -38,7 +40,7 @@ export default function KidsSongsListPage() {
 
       const flat = groups
         .flat()
-        .filter(v => v.status === 'complete' && (v.mp3_url || v.story_audio_url))
+        .filter(v => v.status === 'complete' && v.mp3_url)
         .sort((a, b) => b.variant_id - a.variant_id);
 
       setItems(flat);
@@ -51,19 +53,43 @@ export default function KidsSongsListPage() {
 
   useEffect(() => { fetchLibrary(); }, [fetchLibrary]);
 
-  const handlePlay = (item) => {
-    const url = resolveUrl(item.mp3_url || item.story_audio_url);
+  const handlePlay = async (item) => {
+    const url = resolveUrl(item.mp3_url);
     if (!url) return;
 
     if (playingId === item.variant_id) {
       audioRef.current?.pause();
       setPlayingId(null);
+      setActiveSub(null);
       return;
     }
     if (audioRef.current) audioRef.current.pause();
+    setActiveSub(null);
+
+    // Load subtitle cues if not cached
+    let cues = subsCache.current[item.variant_id];
+    if (!cues && item.subtitles_url) {
+      try {
+        const sr = await fetch(resolveUrl(item.subtitles_url));
+        if (sr.ok) {
+          cues = await sr.json();
+          subsCache.current[item.variant_id] = cues;
+        }
+      } catch (_) {}
+    }
+
     const a = new Audio(url);
-    a.onended = () => setPlayingId(null);
+    a.onended = () => { setPlayingId(null); setActiveSub(null); };
     a.onpause = () => setPlayingId(null);
+
+    if (cues && cues.length) {
+      a.ontimeupdate = () => {
+        const t = a.currentTime;
+        const sub = cues.find(s => t >= s.start && t < s.end);
+        setActiveSub(sub ? sub.text : null);
+      };
+    }
+
     a.play().catch(() => {});
     audioRef.current = a;
     setPlayingId(item.variant_id);
@@ -107,13 +133,13 @@ export default function KidsSongsListPage() {
         {items.map(item => {
           const playing = playingId === item.variant_id;
           const story = isStory(item);
-          const hasAudio = !!(item.mp3_url || item.story_audio_url);
+          const sub = playing && activeSub ? activeSub : null;
 
           return (
             <div
               key={item.variant_id}
               className="kids-card"
-              style={{ padding: 0, overflow: 'hidden', cursor: hasAudio ? 'pointer' : 'default' }}
+              style={{ padding: 0, overflow: 'hidden', cursor: 'pointer' }}
               onClick={() => handlePlay(item)}
             >
               {/* Cover art */}
@@ -160,8 +186,28 @@ export default function KidsSongsListPage() {
                   border: `1px solid ${playing ? (story ? '#a78bfa' : '#fbd155') : 'rgba(0,0,0,0.08)'}`,
                   fontSize: 18,
                 }}>
-                  {!hasAudio ? '⏳' : playing ? '⏸️' : '▶️'}
+                  {playing ? '⏸️' : '▶️'}
                 </div>
+
+                {/* Karaoke subtitle — only shows for foreign-language stories while playing */}
+                {sub && (
+                  <div style={{
+                    marginTop: 8,
+                    padding: '6px 8px',
+                    borderRadius: 8,
+                    background: 'rgba(167,139,250,0.12)',
+                    border: '1px solid rgba(167,139,250,0.25)',
+                    fontSize: 11,
+                    fontFamily: 'Nunito, sans-serif',
+                    fontWeight: 700,
+                    color: '#5b21b6',
+                    textAlign: 'center',
+                    lineHeight: 1.35,
+                    minHeight: 28,
+                  }}>
+                    {sub}
+                  </div>
+                )}
               </div>
             </div>
           );

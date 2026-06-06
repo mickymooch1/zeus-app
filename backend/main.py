@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import httpx
 import json
 import logging
@@ -2031,6 +2032,36 @@ def _ffmpeg_concat_mp3(clip_paths: list[str], output_path: str) -> bool:
             pass
 
 
+def _build_subtitle_cues(segments: list, full_text: str, chars: list, char_starts: list, char_ends: list) -> list | None:
+    """Map foreign-language story segments to audio timestamps using ElevenLabs character alignment.
+    Returns list of {start, end, text} dicts (English text), or None on failure."""
+    if not (segments and chars and char_starts and char_ends):
+        return None
+    cues = []
+    pos = 0
+    for seg in segments:
+        seg_text = (seg.get("text") or "").strip()
+        eng_text = (seg.get("english") or "").strip()
+        if not seg_text or not eng_text:
+            continue
+        idx = full_text.find(seg_text, pos)
+        if idx == -1:
+            idx = full_text.find(seg_text)
+        if idx == -1:
+            log.warning("_build_subtitle_cues: segment text not found in full_text: %r", seg_text[:60])
+            continue
+        start_char = idx
+        end_char = idx + len(seg_text) - 1
+        pos = idx + len(seg_text)
+        if start_char < len(char_starts) and end_char < len(char_ends):
+            cues.append({
+                "start": round(char_starts[start_char], 3),
+                "end": round(char_ends[end_char], 3),
+                "text": eng_text,
+            })
+    return cues if cues else None
+
+
 @app.post("/api/songs/generate")
 @limiter.limit("10/minute", key_func=_user_key)
 async def songs_generate(
@@ -2114,6 +2145,7 @@ async def songs_generate(
 
     # ElevenLabs TTS narration — Story sub-mode only
     story_audio_url = None
+    subtitles_url = None
     if _is_story:
         _el_key = os.environ.get("ELEVENLABS_API_KEY", "")
         if _el_key and lyric_result.get("lyrics"):
@@ -2181,17 +2213,46 @@ async def songs_generate(
                             except OSError: pass
                     else:
                         # SINGLE-VOICE: whole story through one narrator voice
-                        log.info("STORY SINGLE-VOICE: voice_id=%s text_len=%d user=%s", _narrator_voice_id, len(_story_text), user_id)
+                        _seg_data = lyric_result.get("segments")
+                        _foreign = bool(_seg_data and (body.story_language or 'english').lower() != 'english')
+                        _el_tts_url = (
+                            f"https://api.elevenlabs.io/v1/text-to-speech/{_narrator_voice_id}/with-timestamps"
+                            if _foreign else
+                            f"https://api.elevenlabs.io/v1/text-to-speech/{_narrator_voice_id}"
+                        )
+                        log.info("STORY SINGLE-VOICE: voice_id=%s text_len=%d foreign=%s user=%s", _narrator_voice_id, len(_story_text), _foreign, user_id)
                         async with httpx.AsyncClient(timeout=30.0) as _el_client:
                             _tts_resp = await _el_client.post(
-                                f"https://api.elevenlabs.io/v1/text-to-speech/{_narrator_voice_id}",
+                                _el_tts_url,
                                 headers={"xi-api-key": _el_key, "Content-Type": "application/json"},
                                 json={"text": _story_text, **_tts_params},
                             )
                         if _tts_resp.status_code == 200:
-                            (_story_dir / f"{lyric_id}.mp3").write_bytes(_tts_resp.content)
-                            story_audio_url = f"/files/stories/{lyric_id}.mp3"
-                            log.info("single-voice TTS: ok user=%s lyric_id=%s bytes=%d", user_id, lyric_id, len(_tts_resp.content))
+                            if _foreign:
+                                _ts_json = _tts_resp.json()
+                                _audio_bytes = base64.b64decode(_ts_json["audio_base64"])
+                                (_story_dir / f"{lyric_id}.mp3").write_bytes(_audio_bytes)
+                                story_audio_url = f"/files/stories/{lyric_id}.mp3"
+                                log.info("single-voice TTS (with-timestamps): ok user=%s lyric_id=%s bytes=%d", user_id, lyric_id, len(_audio_bytes))
+                                _alignment = _ts_json.get("alignment", {})
+                                _cues = _build_subtitle_cues(
+                                    _seg_data, _story_text,
+                                    _alignment.get("characters", []),
+                                    _alignment.get("character_start_times_seconds", []),
+                                    _alignment.get("character_end_times_seconds", []),
+                                )
+                                if _cues:
+                                    (_story_dir / f"{lyric_id}_subtitles.json").write_text(
+                                        json.dumps(_cues), encoding="utf-8"
+                                    )
+                                    subtitles_url = f"/files/stories/{lyric_id}_subtitles.json"
+                                    log.info("subtitles: built %d cues user=%s lyric_id=%s", len(_cues), user_id, lyric_id)
+                                else:
+                                    log.warning("subtitles: no cues built user=%s lyric_id=%s", user_id, lyric_id)
+                            else:
+                                (_story_dir / f"{lyric_id}.mp3").write_bytes(_tts_resp.content)
+                                story_audio_url = f"/files/stories/{lyric_id}.mp3"
+                                log.info("single-voice TTS: ok user=%s lyric_id=%s bytes=%d", user_id, lyric_id, len(_tts_resp.content))
                         else:
                             db.increment_premium_credits(db_path, user_id, 1)
                             log.warning("single-voice TTS: ElevenLabs error %d user=%s", _tts_resp.status_code, user_id)
@@ -2213,9 +2274,9 @@ async def songs_generate(
                 _sv_conn.execute("UPDATE song_credits SET balance = balance - 1 WHERE user_id = ?", (user_id,))
             _sv_conn.execute(
                 "INSERT INTO song_variants "
-                "(lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover, mp3_url) "
-                "VALUES (?, ?, 'kids_story', 'kids_story', 'complete', 1, 0, ?)",
-                (lyric_id, user_id, story_audio_url),
+                "(lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover, mp3_url, subtitles_url) "
+                "VALUES (?, ?, 'kids_story', 'kids_story', 'complete', 1, 0, ?, ?)",
+                (lyric_id, user_id, story_audio_url, subtitles_url),
             )
             _sv_id = _sv_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             _sv_conn.commit()
@@ -2576,6 +2637,7 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
                 "music_video_url": v.get("music_video_url"),
                 "is_favourite": bool(v.get("is_favourite", 0)),
                 "is_public": bool(v.get("is_public", 0)),
+                "subtitles_url": v.get("subtitles_url"),
             }
             for v in (variants or [])
         ],

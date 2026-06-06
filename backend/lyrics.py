@@ -459,11 +459,18 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             else:
                 system = _KIDS_STORY_SYSTEM
             _story_lang = _KIDS_LANGUAGE_MAP.get((story_language or 'english').lower())
-            if _story_lang and (story_language or 'english').lower() != 'english':
+            _is_single_voice = not (character_voice or child_voice)
+            _need_translation = bool(_story_lang and (story_language or 'english').lower() != 'english' and _is_single_voice)
+            if _need_translation:
                 kids_prompt += (
                     f"\n\nIMPORTANT: Write the story ENTIRELY in {_story_lang}. "
                     f"Use natural, child-friendly {_story_lang} vocabulary and phrasing throughout. "
-                    "Do not include any English text."
+                    "Do not include any English text in the 'lyrics' field.\n\n"
+                    "Also add a 'segments' key: an array where each item has 'text' (one sentence "
+                    f"in {_story_lang}, exactly as it appears in 'lyrics') and 'english' "
+                    "(the English translation of that sentence). "
+                    "All segment texts concatenated (with single spaces between them) must equal the full 'lyrics' text. "
+                    'Example segment: {"text": "Il était une fois une petite licorne.", "english": "Once upon a time there was a little unicorn."}'
                 )
         else:  # song mode
             structure = random.choice([
@@ -513,7 +520,12 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             conn.commit()
         finally:
             conn.close()
-        return {"lyric_id": lyric_id, "lyrics": parsed["lyrics"], "title": final_title}
+        return {
+            "lyric_id": lyric_id,
+            "lyrics": parsed["lyrics"],
+            "title": final_title,
+            "segments": parsed.get("segments") if _need_translation else None,
+        }
 
     structure = random.choice(_SONG_STRUCTURES)
     mood = random.choice(_MOODS)
