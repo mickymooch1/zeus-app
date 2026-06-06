@@ -9,7 +9,7 @@ export default function PrivacyPage() {
       </div>
       <main className="content-page page">
         <h1 className="content-title">Privacy Policy</h1>
-        <p className="content-meta">Last updated: 3 April 2026</p>
+        <p className="content-meta">Last updated: 6 June 2026</p>
 
         <section className="content-section">
           <h2>1. Introduction</h2>
@@ -243,7 +243,16 @@ export default function PrivacyPage() {
         </section>
 
         <section className="content-section">
-          <h2>11. Contact &amp; Data Controller</h2>
+          <h2>11. Children's Data (Zeus Baby Beats)</h2>
+          <p>Zeus Baby Beats is our child-safe music and storytelling mode designed for use in schools and family settings. We take children's privacy extremely seriously.</p>
+          <p><strong>No individual child data is collected.</strong> Zeus Baby Beats school accounts are managed by adult teachers. Children do not have individual logins or personal profiles. All songs and stories created belong to the teacher's account, not to any individual child.</p>
+          <p>School accounts store only: the teacher's name, school name, email address, and year group. No child names, ages, or personal identifiers are stored.</p>
+          <p>Zeus Beats is not directed at children under 13 for individual account registration. School accounts are operated by adult teachers who are responsible for their class's use of the platform under their own consent.</p>
+          <p>If you have questions about children's data, contact us at <a href="mailto:privacy@zeusbeats.com" className="auth-link">privacy@zeusbeats.com</a>.</p>
+        </section>
+
+        <section className="content-section">
+          <h2>12. Contact &amp; Data Controller</h2>
           <p>
             Zeus Beats Ltd is the data controller for personal
             data processed through the Service. Zeus Beats Ltd is registered with the
