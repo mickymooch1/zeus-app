@@ -122,7 +122,7 @@ export default function NowPlayingBar() {
         {/* Row 1: art + title + transport controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           {currentSong.image_url
-            ? <img src={currentSong.image_url} alt="" style={{ width: 36, height: 36, borderRadius: 5, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,240,255,0.2)' }} />
+            ? <img src={currentSong.image_url} alt="" className="cover-ken-burns cover-glow-pulse" style={{ width: 36, height: 36, borderRadius: 5, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,240,255,0.2)' }} />
             : <div style={{ width: 36, height: 36, borderRadius: 5, background: 'rgba(124,58,237,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>♫</div>
           }
           <div style={{ minWidth: 0, flex: 1 }}>
@@ -162,7 +162,7 @@ export default function NowPlayingBar() {
       {/* Thumb + info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: '0 0 200px', maxWidth: 200 }}>
         {currentSong.image_url
-          ? <img src={currentSong.image_url} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,240,255,0.2)' }} />
+          ? <img src={currentSong.image_url} alt="" className="cover-ken-burns cover-glow-pulse" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,240,255,0.2)' }} />
           : <div style={{ width: 40, height: 40, borderRadius: 6, background: 'rgba(124,58,237,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>♫</div>
         }
         <div style={{ minWidth: 0 }}>

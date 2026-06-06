@@ -62,7 +62,7 @@ const SongSlide = memo(function SongSlide({
         flexShrink: 0,
       }}
     >
-      {/* Background: animated cover or still image */}
+      {/* Background: HD video (premium) or Ken Burns on static cover (default) */}
       {music_video_url ? (
         <video
           ref={onVideoRef}
@@ -83,6 +83,7 @@ const SongSlide = memo(function SongSlide({
         <img
           src={cover_url}
           alt=""
+          className="cover-ken-burns"
           style={{
             position: 'absolute', inset: 0,
             width: '100%', height: '100%',
@@ -599,7 +600,7 @@ export default function DiscoverPage() {
           />
         ))}
 
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes videoFade { 0% { opacity: 1; } 85% { opacity: 1; } 95% { opacity: 0.3; } 100% { opacity: 1; } } .discover-video { animation: videoFade 5s ease-in-out infinite; }`}</style>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
         {activeTab === 'trending' && loading && (
           <div style={{

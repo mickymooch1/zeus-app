@@ -349,6 +349,24 @@ body {
   50% { transform: translateY(-30px) scale(1.05); }
 }
 
+/* ── Cover art: Ken Burns + glow pulse ───────────────────── */
+@keyframes kenBurns {
+  0%   { transform: scale(1)    translate(0,    0);    }
+  50%  { transform: scale(1.15) translate(-2%, -2%);   }
+  100% { transform: scale(1)    translate(0,    0);    }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(0,240,255,0.3); }
+  50%      { box-shadow: 0 0 40px rgba(255,0,153,0.4); }
+}
+.cover-ken-burns {
+  animation: kenBurns 30s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform;
+}
+.cover-ken-burns:hover { filter: brightness(1.08); }
+.cover-glow-pulse { animation: glowPulse 4s ease-in-out infinite; }
+
 /* ── Landing page ────────────────────────────────────────── */
 .landing {
   background: #000000; min-height: 100vh;

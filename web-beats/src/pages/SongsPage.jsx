@@ -123,30 +123,8 @@ const PAGE_CSS = `
 .song-card-anim:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,240,255,0.12); }
 .dl-btn:hover { box-shadow: 0 0 16px rgba(124,58,237,0.5) !important; }
 .fav-star-btn:hover { transform: scale(1.2); }
-@keyframes videoFade {
-  0%   { opacity: 1; }
-  85%  { opacity: 1; }
-  95%  { opacity: 0.3; }
-  100% { opacity: 1; }
-}
-.cover-video { transition: filter 0.2s; animation: videoFade 5s ease-in-out infinite; }
+.cover-video { transition: filter 0.2s; }
 .cover-video:hover { filter: brightness(1.12); }
-@keyframes cover-float {
-  0%, 100% { transform: scale(1) translateY(0px); }
-  50% { transform: scale(1.03) translateY(-4px); }
-}
-@keyframes cover-shimmer {
-  0% { filter: brightness(1) saturate(1); }
-  50% { filter: brightness(1.1) saturate(1.2); }
-  100% { filter: brightness(1) saturate(1); }
-}
-@keyframes cover-glow {
-  0%, 100% { box-shadow: 0 0 10px rgba(0,240,255,0.3); }
-  50% { box-shadow: 0 0 25px rgba(0,240,255,0.7); }
-}
-.cover-art-live {
-  animation: cover-float 4s ease-in-out infinite, cover-shimmer 3s ease-in-out infinite, cover-glow 3s ease-in-out infinite;
-}
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 15px rgba(0,240,255,0.3), inset 0 0 15px rgba(0,240,255,0.03); border-color: #00f0ff; }
   50%       { box-shadow: 0 0 28px rgba(0,240,255,0.55), inset 0 0 20px rgba(0,240,255,0.06); border-color: #66f9ff; }
@@ -343,7 +321,7 @@ const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }
     <div className="song-card-anim" style={S.card}>
       <div style={{ position: 'relative' }}>
         {variant.image_url ? (
-          <img src={variant.image_url} alt={title} style={S.artBox} />
+          <img src={variant.image_url} alt={title} style={S.artBox} className="cover-ken-burns" />
         ) : (
           <div style={{ ...S.artBox, ...S.artPlaceholder }}>
             <span style={{ fontSize: 40, opacity: 0.2 }}>📖</span>
@@ -712,7 +690,7 @@ const SongCard = memo(function SongCard({
             onError={(e) => { console.error('[MusicVideo] load error for variant', variant.variant_id, displayMusicVideoUrl, e.nativeEvent); setVideoErr(true); }}
           />
         ) : variant.image_url ? (
-          <img src={variant.image_url} alt={title} style={S.artBox} className="cover-art-live" />
+          <img src={variant.image_url} alt={title} style={S.artBox} className="cover-ken-burns" />
         ) : (
           <div style={{ ...S.artBox, ...S.artPlaceholder }}>
             <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
@@ -725,17 +703,17 @@ const SongCard = memo(function SongCard({
               position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
               display: 'inline-block',
               background: 'rgba(0,0,0,0.78)',
-              border: '1px solid rgba(0,240,255,0.35)',
+              border: '1px solid rgba(255,0,153,0.4)',
               borderRadius: 20,
               padding: '3px 10px',
               fontSize: 11,
               fontWeight: 600,
-              color: '#00f0ff',
+              color: '#ff0099',
               textDecoration: 'none',
               whiteSpace: 'nowrap',
               letterSpacing: '0.02em',
             }}
-          >🎬 Upgrade for animated cover art</a>
+          >🎬 Upgrade for HD Video Animation</a>
         )}
         {!isFailed && (
           <button

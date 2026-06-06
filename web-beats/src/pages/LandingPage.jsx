@@ -130,7 +130,7 @@ export default function LandingPage() {
                 <div className="feat-tags"><span>38+ Genres</span><span>Custom Lyrics</span><span>AI Vocals</span><span>Instrumental Mode</span></div>
               </div>
               <div className="feat-card"><span className="feat-icon">🎸</span><h3>38+ Genres</h3><p>Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&amp;B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline and 20+ more.</p></div>
-              <div className="feat-card"><span className="feat-icon">🎨</span><h3>Animated Cover Art</h3><p>Powered by Kling AI — static or animated artwork, genre-matched to every song, generated automatically at creation time.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎨</span><h3>Cinematic Cover Art</h3><p>Every cover gets a smooth Ken Burns cinematic motion effect — free for all users. Upgrade to HD Video Animation powered by Kling AI for true video covers.</p></div>
               <div className="feat-card"><span className="feat-icon">🎬</span><h3>Avatar Lip-Sync Videos</h3><p>AI performer sings your track in HD video. Perfect for YouTube, Instagram Reels, and music promotion.</p></div>
               <div className="feat-card"><span className="feat-icon">🎚️</span><h3>Genre Blending</h3><p>Combine two genres for a unique hybrid sound — Grime-Trap, Afro-Soul, or any mix you imagine. DJ-style genre switching included.</p></div>
               <div className="feat-card"><span className="feat-icon">🎛️</span><h3>DJ Mixer</h3><p>Mix your songs together and record your set — a built-in DJ deck for blending your AI tracks.</p></div>
@@ -222,7 +222,7 @@ export default function LandingPage() {
                 <div className="t-line"><span className="t-zeus">zeus</span> <span>Writing lyrics... soulful, heartbreak theme, hook ready</span></div>
                 <div className="t-line"><span className="t-sys">▶</span> <span>Producing track...</span> <span className="t-ok">done</span></div>
                 <div className="t-line"><span className="t-sys">▶</span> <span>Generating cover art...</span> <span className="t-ok">done</span></div>
-                <div className="t-line"><span className="t-sys">▶</span> <span>Animating cover art...</span> <span className="t-ok">done</span></div>
+                <div className="t-line"><span className="t-sys">▶</span> <span>Applying cinematic motion...</span> <span className="t-ok">done</span></div>
                 <div className="t-line"><span className="t-zeus">zeus</span> <span>"Let You Go" is ready — 3:28, R&amp;B 🎵</span></div>
                 <div className="t-line t-gap"><span className="t-user">you</span> <span>[clicked Upload to YouTube]</span></div>
                 <div className="t-line"><span className="t-sys">▶</span> <span>Publishing to your channel...</span> <span className="t-ok">live ✓</span></div>
@@ -405,7 +405,7 @@ export default function LandingPage() {
                   </Link>
                 ))}
               </div>
-              <p style={{ fontSize: 12, color: '#555', marginTop: 10 }}>Use for animated cover art or stem separation · Credits never expire</p>
+              <p style={{ fontSize: 12, color: '#555', marginTop: 10 }}>Use for HD Video Animation or stem separation · Credits never expire</p>
             </div>
           </div>
 
@@ -451,7 +451,7 @@ export default function LandingPage() {
               <ul className="plan-features">
                 <li>✓ 3 songs to get started</li>
                 <li>✓ All 38+ genres</li>
-                <li>✓ Static cover art</li>
+                <li>✓ Cinematic Motion Covers</li>
                 <li>✓ Discover feed access</li>
                 <li>❌ No stems</li>
               </ul>
@@ -527,13 +527,13 @@ export default function LandingPage() {
             What are Premium Credits?
           </h2>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', marginBottom: 40, lineHeight: 1.7 }}>
-            Premium credits unlock advanced features — use them for animated cover art or stem separation, your choice.
+            Premium credits unlock advanced features — use them for HD Video Animation or stem separation, your choice.
           </p>
           <div style={{ display: 'flex', gap: 20, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 40 }}>
             <div style={{ flex: '1 1 240px', maxWidth: 280, padding: '28px 24px', borderRadius: 16, border: '1px solid rgba(255,0,153,0.3)', background: 'rgba(255,0,153,0.05)', textAlign: 'left' }}>
               <div style={{ fontSize: 28, marginBottom: 12 }}>🎬</div>
-              <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 15, fontWeight: 700, color: '#ff0099', marginBottom: 8 }}>Animated Cover Art</h3>
-              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, margin: 0 }}>Bring your cover to life with Kling AI animation — cinematic motion matched to your genre.</p>
+              <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 15, fontWeight: 700, color: '#ff0099', marginBottom: 8 }}>HD Video Animation</h3>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, margin: 0 }}>Bring your cover to life with Kling AI — true HD video matched to your genre. (Cinematic motion covers are free for everyone.)</p>
             </div>
             <div style={{ flex: '1 1 240px', maxWidth: 280, padding: '28px 24px', borderRadius: 16, border: '1px solid rgba(255,0,153,0.3)', background: 'rgba(255,0,153,0.05)', textAlign: 'left' }}>
               <div style={{ fontSize: 28, marginBottom: 12 }}>🎚️</div>

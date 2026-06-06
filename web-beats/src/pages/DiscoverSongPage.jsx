@@ -158,7 +158,7 @@ export default function DiscoverSongPage() {
         />
       )}
 
-      {/* Full-screen background: animated cover or still image */}
+      {/* Full-screen background: HD video (premium) or Ken Burns on static cover (default) */}
       {song?.music_video_url ? (
         <video
           src={song.music_video_url}
@@ -177,6 +177,7 @@ export default function DiscoverSongPage() {
         <img
           src={song.cover_url}
           alt={song.title}
+          className="cover-ken-burns"
           style={{
             position: 'absolute', inset: 0,
             width: '100%', height: '100%',

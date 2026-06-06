@@ -13,7 +13,7 @@ const DEFAULT_PLANS = {
       'YouTube upload',
       'Song download & share',
       'All 20+ genres & styles',
-      'AI cover art',
+      'Cinematic Motion Covers (free)',
     ],
   },
   music_pro: {
@@ -25,7 +25,7 @@ const DEFAULT_PLANS = {
       '3 avatar lip-sync videos/month',
       'Song download & share',
       'All 20+ genres & styles',
-      'AI cover art',
+      'Cinematic Motion Covers (free)',
     ],
   },
   music_agency: {
@@ -37,7 +37,8 @@ const DEFAULT_PLANS = {
       '10 avatar lip-sync videos/month',
       'Song download & share',
       'All 20+ genres & styles',
-      'AI cover art',
+      'Cinematic Motion Covers (free)',
+      'HD Video Animation (1 premium credit)',
       'Facebook posting',
     ],
   },
