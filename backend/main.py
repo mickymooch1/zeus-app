@@ -3249,7 +3249,13 @@ async def youtube_auth(
     _fail = f"{_yt_frontend(origin)}/songs?youtube=error"
 
     _gid = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-    log.info("youtube_auth: origin=%r client_id_set=%s", origin, bool(_gid))
+    log.info(
+        "youtube_auth: user=%s email=%s plan=%r has_existing_token=%s origin=%r client_id_set=%s",
+        current_user.get("id"), current_user.get("email"),
+        current_user.get("subscription_plan"),
+        bool(current_user.get("youtube_refresh_token")),
+        origin, bool(_gid),
+    )
 
     if not youtube_uploader.youtube_enabled():
         log.error("youtube_auth: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET missing from env")
@@ -3346,10 +3352,15 @@ async def upload_to_youtube(
 
     is_admin = bool(current_user.get("is_admin", 0))
     plan = current_user.get("subscription_plan")
+    has_yt_token = bool(current_user.get("youtube_refresh_token"))
+    log.info(
+        "youtube_upload: user=%s email=%s plan=%r has_youtube_token=%s variant_id=%s",
+        current_user.get("id"), current_user.get("email"), plan, has_yt_token, variant_id,
+    )
     if not is_admin and plan not in _YOUTUBE_PLANS:
         raise HTTPException(status_code=403, detail="YouTube upload requires Agency plan or above")
 
-    if not current_user.get("youtube_refresh_token"):
+    if not has_yt_token:
         raise HTTPException(status_code=400, detail="YouTube not connected — visit /api/youtube/auth first")
 
     if body.privacy not in ("public", "unlisted", "private"):

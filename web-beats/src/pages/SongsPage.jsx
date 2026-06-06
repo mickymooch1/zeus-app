@@ -1839,13 +1839,15 @@ export default function SongsPage() {
   }, [token, publicVariants]);
 
   const handleYouTubeClick = useCallback((variant, titleArg) => {
+    console.log('YouTube upload clicked — canYouTube:', canYouTube, 'connected:', youtubeConnected, 'plan:', credits.plan, 'variant:', variant?.variant_id);
     if (!canYouTube) return;
     if (!youtubeConnected) {
+      console.log('YouTube not connected — redirecting to OAuth');
       window.location.href = `${BACKEND_URL}/api/youtube/auth?token=${token}&origin=beats`;
       return;
     }
     setYtModal({ ...variant, title: titleArg || variant.title });
-  }, [canYouTube, youtubeConnected, token]);
+  }, [canYouTube, youtubeConnected, token, credits.plan]);
 
   const handleGetStems = async (variantId) => {
     try {
@@ -2387,16 +2389,19 @@ export default function SongsPage() {
           )}
           {ytConnectedParam === 'error' && (
             <div style={{
-              background: 'rgba(251,191,36,0.08)',
-              border: '1px solid rgba(251,191,36,0.25)',
+              background: 'rgba(251,191,36,0.1)',
+              border: '2px solid rgba(251,191,36,0.5)',
               borderRadius: 10,
-              padding: '12px 18px',
+              padding: '14px 18px',
               marginBottom: 24,
               color: '#fbbf24',
               fontWeight: 600,
               fontSize: 14,
             }}>
-              {t('songs.ytConnectedFail')}
+              ⚠️ {t('songs.ytConnectedFail')}
+              <div style={{ fontSize: 12, fontWeight: 400, marginTop: 6, color: 'rgba(251,191,36,0.85)' }}>
+                If you're seeing this on a different account, the Google OAuth app may still be in testing mode — only approved test accounts can connect. Contact the app owner to add your Google account as a test user.
+              </div>
             </div>
           )}
 
