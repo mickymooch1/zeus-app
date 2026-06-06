@@ -716,6 +716,14 @@ _BLOCKED_EMAIL_DOMAINS: frozenset = frozenset({
     "anonbox.net", "mailexpire.com", "spaml.com", "spammotel.com", "spaml.de",
 })
 
+# Domains that auto-verify as genuine school accounts
+_SCHOOL_DOMAINS = {".sch.uk", ".edu", ".ac.uk", ".school", ".k12.us", ".k12"}
+
+
+def _is_school_domain(email: str) -> bool:
+    domain = email.split("@")[-1].lower() if "@" in email else ""
+    return any(domain.endswith(s) for s in _SCHOOL_DOMAINS)
+
 
 class RegisterRequest(BaseModel):
     email: str
@@ -725,6 +733,15 @@ class RegisterRequest(BaseModel):
     app: str = "ai"
     referral: str | None = None
     fingerprint: str | None = None
+
+
+class SchoolRegisterRequest(BaseModel):
+    school_name: str
+    teacher_name: str
+    email: str
+    password: str
+    year_group: str
+    country: str = "UK"
 
 
 class LoginRequest(BaseModel):
@@ -890,6 +907,54 @@ async def register(request: Request, body: RegisterRequest):
     import zeus_ops_agent as _ops
     _ops.on_new_signup(user["id"], user["email"])
 
+    return {"token": token, "user": safe_user}
+
+
+@app.post("/auth/register/school")
+@limiter.limit("5/minute")
+async def register_school(request: Request, body: SchoolRegisterRequest):
+    if not body.email or "@" not in body.email:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    if len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if not body.school_name.strip():
+        raise HTTPException(status_code=400, detail="School name is required")
+
+    db_path = db.get_db_path()
+    if db.get_user_by_email(db_path, body.email):
+        raise HTTPException(status_code=409, detail="An account with that email already exists")
+
+    password_hash = auth.hash_password(body.password)
+    now = datetime.now(timezone.utc).isoformat()
+
+    user = db.create_user(
+        db_path,
+        email=body.email,
+        password_hash=password_hash,
+        name=body.teacher_name.strip(),
+        tc_accepted_at=now,
+    )
+    db.update_user(db_path, user["id"], account_type="school", artist_name=body.school_name.strip())
+
+    verified = _is_school_domain(body.email)
+    db.set_school_verified(db_path, user["id"], verified)
+
+    db.ensure_free_song_credits(db_path, user["id"], balance=20, monthly_allowance=20)
+
+    if not verified:
+        try:
+            from telegram_admin import parse_and_run
+            parse_and_run(
+                f"New school signup needs review: {body.email} (school: {body.school_name}). "
+                f"Personal email domain — please verify it's a real school.",
+                chat_id="",
+            )
+        except Exception:
+            log.warning("register_school: could not send Telegram alert for %s", body.email)
+
+    token = auth.create_token(user["id"], user["email"], is_admin=False)
+    safe_user = {k: v for k, v in db.get_user_by_id(db_path, user["id"]).items() if k != "password_hash"}
+    log.info("register_school: new school account email=%s verified=%s", body.email, verified)
     return {"token": token, "user": safe_user}
 
 
