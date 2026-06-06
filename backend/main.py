@@ -2177,25 +2177,32 @@ async def songs_generate(
             _tts_params = {"model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}}
 
             if _use_multi:
-                # MULTI-VOICE: parse segments → TTS each → FFmpeg concat
+                # MULTI-VOICE: parse segments → TTS each with timestamps → FFmpeg concat
                 _segments = _parse_story_segments(_story_text)
-                log.info("STORY MULTI-VOICE: narrator=%s child=%s character=%s segments=%d user=%s",
+                _is_mv_foreign = (body.story_language or 'english').lower() != 'english'
+                _mv_claude_segs = lyric_result.get("segments") or []  # English translations from Claude
+                log.info("STORY MULTI-VOICE: narrator=%s child=%s character=%s segments=%d foreign=%s user=%s",
                          _narrator_voice_id, _child_voice_id if _use_child else 'n/a',
-                         _char_voice_id if _use_char else 'n/a', len(_segments), user_id)
+                         _char_voice_id if _use_char else 'n/a', len(_segments), _is_mv_foreign, user_id)
                 _clip_paths = []
+                _clip_durations: list[float] = []  # per-clip duration from EL timestamps
                 _all_ok = bool(_segments)
                 async with httpx.AsyncClient(timeout=30.0) as _el_client:
                     for _i, _seg in enumerate(_segments):
                         _seg_vid = _voice_map.get(_seg['speaker'], _narrator_voice_id)
                         _seg_resp = await _el_client.post(
-                            f"https://api.elevenlabs.io/v1/text-to-speech/{_seg_vid}",
+                            f"https://api.elevenlabs.io/v1/text-to-speech/{_seg_vid}/with-timestamps",
                             headers={"xi-api-key": _el_key, "Content-Type": "application/json"},
                             json={"text": _seg['text'], **_tts_params},
                         )
                         if _seg_resp.status_code == 200:
+                            _seg_json = _seg_resp.json()
+                            _clip_bytes = base64.b64decode(_seg_json["audio_base64"])
                             _clip_path = str(_story_dir / f"{lyric_id}_{_i}.mp3")
-                            pathlib.Path(_clip_path).write_bytes(_seg_resp.content)
+                            pathlib.Path(_clip_path).write_bytes(_clip_bytes)
                             _clip_paths.append(_clip_path)
+                            _ends = _seg_json.get("alignment", {}).get("character_end_times_seconds", [])
+                            _clip_durations.append(_ends[-1] if _ends else 0.0)
                         else:
                             log.warning("multi-voice: segment %d ElevenLabs %d user=%s", _i, _seg_resp.status_code, user_id)
                             _all_ok = False
@@ -2205,6 +2212,27 @@ async def songs_generate(
                     if _ffmpeg_concat_mp3(_clip_paths, _out):
                         story_audio_url = f"/files/stories/{lyric_id}.mp3"
                         log.info("multi-voice TTS: ok segments=%d user=%s lyric_id=%s", len(_segments), user_id, lyric_id)
+                        # Build subtitle cues for foreign-language multi-voice stories
+                        if _is_mv_foreign and _mv_claude_segs and _clip_durations:
+                            _mv_cues = []
+                            _mv_offset = 0.0
+                            for _mv_i, (_mv_tts_seg, _mv_dur) in enumerate(zip(_segments, _clip_durations)):
+                                _mv_trans = _mv_claude_segs[_mv_i] if _mv_i < len(_mv_claude_segs) else None
+                                _mv_eng = (_mv_trans or {}).get("english", "").strip()
+                                if _mv_eng:
+                                    _mv_cues.append({
+                                        "start": round(_mv_offset, 3),
+                                        "end":   round(_mv_offset + _mv_dur, 3),
+                                        "original": _mv_tts_seg["text"],
+                                        "text":     _mv_eng,
+                                    })
+                                _mv_offset += _mv_dur
+                            if _mv_cues:
+                                (_story_dir / f"{lyric_id}_subtitles.json").write_text(
+                                    json.dumps(_mv_cues), encoding="utf-8"
+                                )
+                                subtitles_url = f"/files/stories/{lyric_id}_subtitles.json"
+                                log.info("multi-voice subtitles: %d cues user=%s lyric_id=%s", len(_mv_cues), user_id, lyric_id)
                     else:
                         log.warning("multi-voice TTS: FFmpeg concat failed user=%s lyric_id=%s", user_id, lyric_id)
                 # clean up segment clips
@@ -2214,7 +2242,7 @@ async def songs_generate(
             else:
                 # SINGLE-VOICE: whole story through one narrator voice
                 _seg_data = lyric_result.get("segments")
-                _foreign = bool(_seg_data and (body.story_language or 'english').lower() != 'english')
+                _foreign = (body.story_language or 'english').lower() != 'english'
                 _el_tts_url = (
                     f"https://api.elevenlabs.io/v1/text-to-speech/{_narrator_voice_id}/with-timestamps"
                     if _foreign else

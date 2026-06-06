@@ -462,9 +462,9 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             _story_lang = _KIDS_LANGUAGE_MAP.get((story_language or 'english').lower())
             _is_single_voice = not (character_voice or child_voice)
             _is_foreign_lang = bool(_story_lang and (story_language or 'english').lower() != 'english')
-            # _need_translation: True only for single-voice + foreign — that's when subtitle segments are generated.
-            # Multi-voice uses [NARRATOR]/[CHILD]/[CHARACTER] tags so segments aren't compatible.
-            _need_translation = _is_foreign_lang and _is_single_voice
+            # Request translation segments for ALL foreign stories (single- and multi-voice)
+            # so the frontend can display synced English subtitles regardless of voice mode.
+            _need_translation = _is_foreign_lang
             logger.info(
                 "generate_lyrics: kids_story language=%r mapped=%r foreign=%s single_voice=%s need_segments=%s",
                 story_language, _story_lang, _is_foreign_lang, _is_single_voice, _need_translation,
@@ -477,13 +477,15 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
                     "Do not include any English text in the 'lyrics' field.\n\n"
                 )
                 if _need_translation:
-                    # Single-voice only: also request per-sentence translation segments for subtitle display.
+                    # Request per-utterance translation segments for subtitle display.
+                    # For multi-voice stories, each segment = one [SPEAKER] utterance (text without the tag).
+                    # For single-voice, each segment = one sentence.
                     kids_prompt += (
-                        "Also add a 'segments' key: an array where each item has 'text' (one sentence "
-                        f"in {_story_lang}, exactly as it appears in 'lyrics') and 'english' "
-                        "(the English translation of that sentence). "
-                        "All segment texts concatenated (with single spaces between them) must equal the full 'lyrics' text. "
-                        'Example segment: {"text": "Il était une fois une petite licorne.", "english": "Once upon a time there was a little unicorn."}'
+                        "Also add a 'segments' key: an array with one entry per utterance or sentence, "
+                        "in story order. Each entry must have 'text' (the utterance in "
+                        f"{_story_lang}, exactly as it appears in 'lyrics' after any [SPEAKER] tag) "
+                        "and 'english' (the English translation of that utterance). "
+                        'Example: {"text": "Il était une fois une petite licorne.", "english": "Once upon a time there was a little unicorn."}'
                     )
         else:  # song mode
             structure = random.choice([
