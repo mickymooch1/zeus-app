@@ -90,6 +90,7 @@ export default function KidsStoryMode() {
   const [heroVoice, setHeroVoice]     = useState('younggirl');
   const [charVoice, setCharVoice]     = useState('');
   const [language, setLanguage]       = useState('english');
+  const [bilingual, setBilingual]     = useState(true);
   const [mainCharacter, setMainChar]  = useState('');
   const [storyEvent, setStoryEvent]   = useState('');
   const [generating, setGenerating]   = useState(false);
@@ -97,6 +98,7 @@ export default function KidsStoryMode() {
   const [previewingVoice, setPreviewingVoice] = useState(null);
   const previewAudioRef = useRef(null);
 
+  const isForeignLang = language !== 'english';
   const canGenerate = theme !== null;
 
   const handleVoicePreview = (voiceKey) => {
@@ -154,6 +156,7 @@ export default function KidsStoryMode() {
           child_voice: heroVoice,
           character_voice: charVoice || undefined,
           story_language: language,
+          bilingual_mode: isForeignLang ? bilingual : false,
           explicit: false,
         }),
       });
@@ -297,6 +300,37 @@ export default function KidsStoryMode() {
           </button>
         ))}
       </div>
+
+      {/* Bilingual Mode — shown only for foreign language stories */}
+      {isForeignLang && (
+        <div style={{ marginBottom: 22 }}>
+          {label('🌍 Bilingual Mode', '(learn as you listen)')}
+          <button
+            onClick={() => setBilingual(b => !b)}
+            style={{
+              width: '100%', padding: '12px 16px', borderRadius: 14, cursor: 'pointer',
+              border: `2px solid ${bilingual ? 'rgba(69,183,209,0.7)' : 'rgba(0,0,0,0.1)'}`,
+              background: bilingual ? 'rgba(69,183,209,0.15)' : 'rgba(255,255,255,0.7)',
+              fontFamily: 'Nunito, sans-serif', fontWeight: 700, fontSize: 13,
+              color: bilingual ? '#0369a1' : '#64748b',
+              display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
+            }}
+          >
+            <span style={{ fontSize: 20 }}>{bilingual ? '🎧' : '🗣️'}</span>
+            <span>
+              {bilingual
+                ? `Each sentence spoken in ${LANGUAGES.find(l => l[0] === language)?.[2] ?? 'the language'}, then in English`
+                : `${LANGUAGES.find(l => l[0] === language)?.[2] ?? 'Foreign language'} only (no English translation)`}
+            </span>
+            <span style={{
+              marginLeft: 'auto', fontSize: 10, fontWeight: 800, letterSpacing: 0.5,
+              color: bilingual ? '#0ea5e9' : '#94a3b8',
+            }}>
+              {bilingual ? 'ON' : 'OFF'}
+            </span>
+          </button>
+        </div>
+      )}
 
       {error &&<p style={{ color: '#ef4444', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>{error}</p>}
 

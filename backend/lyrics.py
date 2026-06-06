@@ -369,7 +369,7 @@ _REGULAR_LANGUAGE_MAP = {
 }
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None, roast_mode: bool = False, roast_name: str | None = None, roast_details: str | None = None, roast_vibe: str | None = None) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None, roast_mode: bool = False, roast_name: str | None = None, roast_details: str | None = None, roast_vibe: str | None = None, bilingual_mode: bool = False) -> dict:
     _need_translation = False  # initialised here so all code paths have a value
     if instrumental:
         title = song_title or "Instrumental"
@@ -451,6 +451,103 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         model = "claude-sonnet-4-6"
         if kids_mode == 'story':
             kids_prompt = brief.strip() if brief.strip() else "Write a fun, magical adventure story for young children."
+            _story_lang = _KIDS_LANGUAGE_MAP.get((story_language or 'english').lower())
+            _is_single_voice = not (character_voice or child_voice)
+            _is_foreign_lang = bool(_story_lang and (story_language or 'english').lower() != 'english')
+            _bilingual = bilingual_mode and _is_foreign_lang
+            _need_translation = _is_foreign_lang and not _bilingual
+            logger.info(
+                "generate_lyrics: kids_story language=%r mapped=%r foreign=%s single_voice=%s need_segments=%s bilingual=%s",
+                story_language, _story_lang, _is_foreign_lang, _is_single_voice, _need_translation, _bilingual,
+            )
+
+            if _bilingual:
+                # ── BILINGUAL PATH — one Claude call, returns early ─────────────────
+                _bl_has_hero = bool(child_voice)
+                _bl_has_char = bool(character_voice)
+                if _bl_has_hero or _bl_has_char:
+                    _bl_speakers = ["NARRATOR"] + (["HERO"] if _bl_has_hero else []) + (["CHARACTER"] if _bl_has_char else [])
+                    _bl_speaker_str = ", ".join(_bl_speakers)
+                    _bl_hero_rule = "\n- HERO: the child hero speaking or reacting" if _bl_has_hero else ""
+                    _bl_char_rule = "\n- CHARACTER: the other character (creature, villain etc.) speaking" if _bl_has_char else ""
+                    _bl_second_spk = _bl_speakers[1] if len(_bl_speakers) > 1 else "NARRATOR"
+                    system = (
+                        f"You are a warm, imaginative children's storyteller. Write a short enchanting bilingual "
+                        f"children's story in {_story_lang} and English, using multiple voices.\n\n"
+                        f"Output ONLY valid JSON with this exact shape:\n"
+                        f'{{\n  "title": "Story Title Here",\n  "lines": [\n'
+                        f'    {{"speaker": "NARRATOR", "foreign": "Sentence in {_story_lang}.", "english": "English translation."}},\n'
+                        f'    {{"speaker": "{_bl_second_spk}", "foreign": "Exclamation!", "english": "English!"}}\n'
+                        f'  ]\n}}\n\n'
+                        f"Speaker rules:\n"
+                        f"- EVERY line must have a speaker: {_bl_speaker_str}\n"
+                        f"- NARRATOR: narration, scene-setting, transitions{_bl_hero_rule}{_bl_char_rule}\n"
+                        f"- Aim for 14 to 18 lines; roughly half NARRATOR, rest split between voices\n\n"
+                        f"Story rules:\n"
+                        f"- Each line in both {_story_lang} (foreign) and English (english)\n"
+                        f"- Short, clear sentences — one idea per line, ideal for speaking aloud\n"
+                        f"- Clear arc: beginning (characters and setting), middle (gentle challenge), end (warm happy resolution)\n"
+                        f"- Simple vocabulary a young child can picture; always end warmly\n"
+                        f"- No scary or violent themes. No markdown, no commentary. JSON only."
+                    )
+                else:
+                    system = (
+                        f"You are a warm, imaginative children's storyteller. Write a short enchanting bilingual "
+                        f"children's story in {_story_lang} and English.\n\n"
+                        f"Output ONLY valid JSON with this exact shape:\n"
+                        f'{{\n  "title": "Story Title Here",\n  "lines": [\n'
+                        f'    {{"foreign": "Sentence in {_story_lang}.", "english": "English translation."}},\n'
+                        f'    {{"foreign": "Another sentence.", "english": "Another translation."}}\n'
+                        f'  ]\n}}\n\n'
+                        f"Rules:\n"
+                        f"- Write 14 to 18 lines — short, speakable sentences ideal for a child to hear\n"
+                        f"- Each line: the sentence in {_story_lang} (foreign) and its English translation (english)\n"
+                        f"- One idea per line; keep sentences short and simple\n"
+                        f"- Clear arc: beginning (character and setting), middle (gentle adventure), end (warm happy resolution)\n"
+                        f"- Simple, vivid vocabulary a young child can picture; always end warmly\n"
+                        f"- No scary or violent themes. No markdown, no commentary. JSON only."
+                    )
+                try:
+                    _bl_resp = client.messages.create(
+                        model=model, max_tokens=2000, temperature=1.0,
+                        system=system,
+                        messages=[{"role": "user", "content": kids_prompt}],
+                    )
+                except Exception:
+                    logger.exception("generate_lyrics: bilingual %s API call failed — user=%s", model, user_id)
+                    raise
+                _bl_raw = _bl_resp.content[0].text.strip()
+                if _bl_raw.startswith("```"):
+                    _bl_raw = _bl_raw.split("```", 2)[1]
+                    if _bl_raw.startswith("json"):
+                        _bl_raw = _bl_raw[4:]
+                    _bl_raw = _bl_raw.strip()
+                try:
+                    _bl_parsed = json.loads(_bl_raw)
+                except json.JSONDecodeError:
+                    logger.exception("generate_lyrics: bilingual JSON parse failed — raw=%r", _bl_raw[:500])
+                    raise
+                _bilingual_lines = _bl_parsed.get("lines") or []
+                final_title = song_title or _bl_parsed.get("title") or "Bilingual Story"
+                _foreign_lyrics = "\n".join(ln.get("foreign", "") for ln in _bilingual_lines if ln.get("foreign"))
+                conn = db._conn(db_path)
+                try:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "INSERT INTO lyrics (user_id, brief, lyrics_text, title, kids_story) VALUES (?, ?, ?, ?, 1)",
+                        (user_id, brief, _foreign_lyrics or "bilingual", final_title),
+                    )
+                    lyric_id = cur.lastrowid
+                    conn.commit()
+                finally:
+                    conn.close()
+                logger.info(
+                    "generate_lyrics: bilingual story ok — %d lines user=%s lyric_id=%s",
+                    len(_bilingual_lines), user_id, lyric_id,
+                )
+                return {"lyric_id": lyric_id, "lyrics": _foreign_lyrics, "title": final_title, "bilingual_lines": _bilingual_lines}
+
+            # ── NON-BILINGUAL: select system prompt ──────────────────────────────
             if character_voice and child_voice:
                 system = _KIDS_STORY_THREE_VOICE_SYSTEM   # [NARRATOR]/[CHILD]/[CHARACTER]
             elif child_voice:
@@ -459,16 +556,6 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
                 system = _KIDS_STORY_MULTI_VOICE_SYSTEM   # [NARRATOR]/[CHARACTER] (legacy 2-voice)
             else:
                 system = _KIDS_STORY_SYSTEM
-            _story_lang = _KIDS_LANGUAGE_MAP.get((story_language or 'english').lower())
-            _is_single_voice = not (character_voice or child_voice)
-            _is_foreign_lang = bool(_story_lang and (story_language or 'english').lower() != 'english')
-            # Request translation segments for ALL foreign stories (single- and multi-voice)
-            # so the frontend can display synced English subtitles regardless of voice mode.
-            _need_translation = _is_foreign_lang
-            logger.info(
-                "generate_lyrics: kids_story language=%r mapped=%r foreign=%s single_voice=%s need_segments=%s",
-                story_language, _story_lang, _is_foreign_lang, _is_single_voice, _need_translation,
-            )
             if _is_foreign_lang:
                 # Instruct Claude to write the story in the target language only.
                 # Translations are fetched in a separate second call so neither call gets truncated.

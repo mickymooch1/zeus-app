@@ -27,7 +27,10 @@ function StoryPlayer({ item, onClose }) {
   const isStory = item.genre_tag === 'kids_story';
   const hasSubtitles = isStory && !!item.subtitles_url;
 
-  // Load audio + subtitles on mount
+  // Detect bilingual format: entries have foreign_start instead of start
+  const isBilingual = !!(cues && cues.length > 0 && 'foreign_start' in cues[0]);
+
+  // Load audio + subtitles/bilingual-lines on mount
   useEffect(() => {
     const url = resolveUrl(item.mp3_url);
     if (!url) return;
@@ -42,7 +45,7 @@ function StoryPlayer({ item, onClose }) {
     // Play immediately
     a.play().then(() => setIsPlaying(true)).catch(() => {});
 
-    // Load subtitles
+    // Load subtitles / bilingual lines
     if (item.subtitles_url) {
       fetch(resolveUrl(item.subtitles_url))
         .then(r => r.ok ? r.json() : null)
@@ -58,12 +61,21 @@ function StoryPlayer({ item, onClose }) {
     };
   }, [item]);
 
-  // Track active cue — only update, never clear (keeps last sentence visible)
+  // Track active cue for old subtitle format (never clear — keeps last sentence visible)
   useEffect(() => {
-    if (!cues || !cues.length) return;
+    if (!cues || !cues.length || isBilingual) return;
     const cue = cues.find(s => currentTime >= s.start && currentTime < s.end);
     if (cue) setActiveCue(cue);
-  }, [currentTime, cues]);
+  }, [currentTime, cues, isBilingual]);
+
+  // For bilingual: derive active pair and whether English has been revealed yet
+  const activePair = isBilingual
+    ? (cues.find((c, i) => {
+        const nextStart = cues[i + 1]?.foreign_start ?? Infinity;
+        return currentTime >= c.foreign_start && currentTime < nextStart;
+      }) ?? null)
+    : null;
+  const showEnglish = activePair ? currentTime >= activePair.english_start : false;
 
   const togglePlay = () => {
     const a = audioRef.current;
@@ -124,7 +136,7 @@ function StoryPlayer({ item, onClose }) {
                 cursor: 'pointer', fontFamily: 'inherit',
               }}
             >
-              🌍 {showSubtitles ? 'Hide' : 'Show'} subtitles
+              🌍 {showSubtitles ? 'Hide' : 'Show'} text
             </button>
           )}
           <div style={{
@@ -176,7 +188,7 @@ function StoryPlayer({ item, onClose }) {
         </h2>
       </div>
 
-      {/* Subtitle panel — foreign language stories only */}
+      {/* Text panel — bilingual or old-subtitle stories */}
       {hasSubtitles && showSubtitles && (
         <div style={{
           flex: 1, margin: '14px 20px 8px', borderRadius: 20,
@@ -187,35 +199,61 @@ function StoryPlayer({ item, onClose }) {
           alignItems: 'center', justifyContent: 'center',
           padding: '20px 24px', overflow: 'hidden', position: 'relative',
         }}>
-          {activeCue ? (
-            <>
-              {/* Foreign language text — highlighted, large */}
-              <div style={{
-                fontSize: 22, fontWeight: 800, color: '#1a2b4a',
-                textAlign: 'center', lineHeight: 1.45,
-                padding: '12px 16px', borderRadius: 14,
-                background: 'rgba(251,209,85,0.25)',
-                border: '2px solid rgba(251,209,85,0.6)',
-                boxShadow: '0 0 0 4px rgba(251,209,85,0.12)',
-                marginBottom: 18, width: '100%', boxSizing: 'border-box',
-              }}>
-                {activeCue.original}
-              </div>
-              {/* English translation */}
-              <div style={{
-                fontSize: 17, fontWeight: 700, color: '#475569',
-                textAlign: 'center', lineHeight: 1.5,
-                padding: '0 8px',
-              }}>
-                {activeCue.text}
-              </div>
-            </>
+          {isBilingual ? (
+            activePair ? (
+              <>
+                {/* Foreign text — always visible once line starts */}
+                <div style={{
+                  fontSize: 20, fontWeight: 800, color: '#1a2b4a',
+                  textAlign: 'center', lineHeight: 1.45,
+                  padding: '12px 16px', borderRadius: 14,
+                  background: 'rgba(251,209,85,0.25)',
+                  border: '2px solid rgba(251,209,85,0.6)',
+                  boxShadow: '0 0 0 4px rgba(251,209,85,0.12)',
+                  marginBottom: 14, width: '100%', boxSizing: 'border-box',
+                }}>
+                  {activePair.foreign}
+                </div>
+                {/* English translation — revealed when English clip starts */}
+                <div style={{
+                  fontSize: 16, fontWeight: 700, color: '#475569',
+                  textAlign: 'center', lineHeight: 1.5,
+                  padding: '0 8px', minHeight: 28,
+                  opacity: showEnglish ? 1 : 0,
+                  transition: 'opacity 0.4s ease',
+                }}>
+                  {activePair.english}
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 32, color: 'rgba(167,139,250,0.4)', textAlign: 'center' }}>📖</div>
+            )
           ) : (
-            <div style={{
-              fontSize: 32, color: 'rgba(167,139,250,0.4)', textAlign: 'center',
-            }}>
-              📖
-            </div>
+            activeCue ? (
+              <>
+                {/* Foreign language text — highlighted, large */}
+                <div style={{
+                  fontSize: 22, fontWeight: 800, color: '#1a2b4a',
+                  textAlign: 'center', lineHeight: 1.45,
+                  padding: '12px 16px', borderRadius: 14,
+                  background: 'rgba(251,209,85,0.25)',
+                  border: '2px solid rgba(251,209,85,0.6)',
+                  boxShadow: '0 0 0 4px rgba(251,209,85,0.12)',
+                  marginBottom: 18, width: '100%', boxSizing: 'border-box',
+                }}>
+                  {activeCue.original}
+                </div>
+                {/* English translation */}
+                <div style={{
+                  fontSize: 17, fontWeight: 700, color: '#475569',
+                  textAlign: 'center', lineHeight: 1.5, padding: '0 8px',
+                }}>
+                  {activeCue.text}
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 32, color: 'rgba(167,139,250,0.4)', textAlign: 'center' }}>📖</div>
+            )
           )}
         </div>
       )}

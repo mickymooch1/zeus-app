@@ -1968,6 +1968,7 @@ class SongsGenerateRequest(BaseModel):
     roast_name: str | None = Field(default=None, max_length=120)   # who the song is about
     roast_details: str | None = Field(default=None, max_length=800) # funny facts about them
     roast_vibe: str | None = None        # "gentle" | "roast" | "birthday" | "staghen"
+    bilingual_mode: bool = False         # Kids story: interleave foreign + English clips per line
 
 
 _STORY_VOICES: dict[str, str] = {
@@ -2155,7 +2156,7 @@ async def songs_generate(
             )
         else:
             _genre_lang = _GENRE_LANGUAGE_MAP.get((list(body.genres)[0] if body.genres else ''), None)
-            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None, lyrics_language=_genre_lang, roast_mode=bool(body.is_roast), roast_name=body.roast_name or None, roast_details=body.roast_details or None, roast_vibe=body.roast_vibe or 'gentle')
+            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None, lyrics_language=_genre_lang, roast_mode=bool(body.is_roast), roast_name=body.roast_name or None, roast_details=body.roast_details or None, roast_vibe=body.roast_vibe or 'gentle', bilingual_mode=bool(body.bilingual_mode))
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
@@ -2192,7 +2193,73 @@ async def songs_generate(
             _story_dir.mkdir(parents=True, exist_ok=True)
             _tts_params = {"model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}}
 
-            if _use_multi:
+            _bilingual = bool(body.bilingual_mode) and (body.story_language or 'english').lower() != 'english'
+            _bilingual_lines = lyric_result.get("bilingual_lines") or []
+
+            if _bilingual and _bilingual_lines:
+                # BILINGUAL MODE: each line → foreign clip (speaker voice) + English clip (narrator)
+                _clip_paths = []
+                _clip_timings: list[dict] = []
+                _bl_offset = 0.0
+                _bl_ok = True
+                async with httpx.AsyncClient(timeout=30.0) as _el_client:
+                    for _bl_i, _bl_line in enumerate(_bilingual_lines):
+                        _bl_spk = _bl_line.get("speaker", "NARRATOR")
+                        _bl_ft  = (_bl_line.get("foreign") or "").strip()
+                        _bl_et  = (_bl_line.get("english") or "").strip()
+                        if not _bl_ft or not _bl_et:
+                            continue
+                        _bl_fv = _voice_map.get(_bl_spk, _narrator_voice_id)
+                        # Fetch foreign and English clips concurrently
+                        _bl_fr, _bl_er = await asyncio.gather(
+                            _el_client.post(
+                                f"https://api.elevenlabs.io/v1/text-to-speech/{_bl_fv}",
+                                headers={"xi-api-key": _el_key, "Content-Type": "application/json"},
+                                json={"text": _bl_ft, **_tts_params},
+                            ),
+                            _el_client.post(
+                                f"https://api.elevenlabs.io/v1/text-to-speech/{_narrator_voice_id}",
+                                headers={"xi-api-key": _el_key, "Content-Type": "application/json"},
+                                json={"text": _bl_et, **_tts_params},
+                            ),
+                        )
+                        if _bl_fr.status_code != 200 or _bl_er.status_code != 200:
+                            log.warning("bilingual: line %d EL status foreign=%d english=%d user=%s",
+                                        _bl_i, _bl_fr.status_code, _bl_er.status_code, user_id)
+                            _bl_ok = False
+                            break
+                        _bl_fp = str(_story_dir / f"{lyric_id}_{_bl_i}f.mp3")
+                        _bl_ep = str(_story_dir / f"{lyric_id}_{_bl_i}e.mp3")
+                        pathlib.Path(_bl_fp).write_bytes(_bl_fr.content)
+                        pathlib.Path(_bl_ep).write_bytes(_bl_er.content)
+                        _bl_fd = _get_mp3_duration(_bl_fp)
+                        _bl_ed = _get_mp3_duration(_bl_ep)
+                        _clip_paths.extend([_bl_fp, _bl_ep])
+                        _clip_timings.append({
+                            "foreign_start": round(_bl_offset, 3),
+                            "foreign_end":   round(_bl_offset + _bl_fd, 3),
+                            "english_start": round(_bl_offset + _bl_fd, 3),
+                            "english_end":   round(_bl_offset + _bl_fd + _bl_ed, 3),
+                            "foreign": _bl_ft,
+                            "english": _bl_et,
+                        })
+                        _bl_offset += _bl_fd + _bl_ed
+                if _clip_paths and _bl_ok:
+                    _bl_out = str(_story_dir / f"{lyric_id}.mp3")
+                    if _ffmpeg_concat_mp3(_clip_paths, _bl_out):
+                        story_audio_url = f"/files/stories/{lyric_id}.mp3"
+                        log.info("bilingual TTS: ok lines=%d user=%s lyric_id=%s", len(_clip_timings), user_id, lyric_id)
+                        if _clip_timings:
+                            (_story_dir / f"{lyric_id}_subtitles.json").write_text(
+                                json.dumps(_clip_timings), encoding="utf-8"
+                            )
+                            subtitles_url = f"/files/stories/{lyric_id}_subtitles.json"
+                    else:
+                        log.warning("bilingual TTS: FFmpeg failed user=%s lyric_id=%s", user_id, lyric_id)
+                for _p in _clip_paths:
+                    try: pathlib.Path(_p).unlink()
+                    except OSError: pass
+            elif _use_multi:
                 # MULTI-VOICE: parse segments → TTS each with timestamps → FFmpeg concat
                 _segments = _parse_story_segments(_story_text)
                 _is_mv_foreign = (body.story_language or 'english').lower() != 'english'
