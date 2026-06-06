@@ -385,18 +385,14 @@ def create_stripe_customer(user: dict) -> str | None:
 
 
 def ensure_promo_codes() -> None:
-    """Create Stripe coupons/promo codes at startup. Idempotent — safe to re-run.
+    """Create Stripe coupons at startup. Idempotent — safe to re-run.
 
     FIRST_MONTH_50: auto-applied coupon (50% off first month) on all new subscriptions.
-    PRODUCTHUNT50:  manual promo code for Product Hunt launch (50% off, 30-day window).
     """
     if not stripe_enabled():
         return
     try:
-        from datetime import datetime, timezone, timedelta
         stripe = _get_stripe()
-
-        # ── FIRST_MONTH_50 — auto-applied coupon with stable custom ID ──────────
         try:
             stripe.Coupon.retrieve("FIRST_MONTH_50")
             log.info("billing: FIRST_MONTH_50 coupon already exists — skipping creation")
@@ -409,28 +405,6 @@ def ensure_promo_codes() -> None:
                 metadata={"source": "auto_applied"},
             )
             log.info("billing: Created FIRST_MONTH_50 coupon (50%% off first month, auto-applied to all new subscriptions)")
-
-        # ── PRODUCTHUNT50 — manual promo code for Product Hunt launch ───────────
-        # References the FIRST_MONTH_50 coupon (same 50%-off benefit, separate tracking)
-        existing = stripe.PromotionCode.list(code="PRODUCTHUNT50", limit=1)
-        if existing.data:
-            log.info("billing: PRODUCTHUNT50 promo code already exists — skipping creation")
-            return
-        expires_at = int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp())
-        promo = stripe.PromotionCode.create(
-            **{
-                "coupon": "FIRST_MONTH_50",
-                "code": "PRODUCTHUNT50",
-                "expires_at": expires_at,
-                "max_redemptions": 500,
-                "metadata": {"plan": "music_pro", "source": "producthunt"},
-            }
-        )
-        log.info(
-            "billing: Created PRODUCTHUNT50 promo code id=%s (50%% off first month, expires %s)",
-            promo.id,
-            datetime.fromtimestamp(expires_at, tz=timezone.utc).strftime("%Y-%m-%d"),
-        )
     except Exception as exc:
         log.warning("billing: ensure_promo_codes failed: %s", exc)
 
