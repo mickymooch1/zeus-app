@@ -119,8 +119,8 @@ const PAGE_CSS = `
 .songs-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
 @media (min-width: 640px)  { .songs-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 1024px) { .songs-grid { grid-template-columns: repeat(3, 1fr); } }
-.song-card-anim { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.song-card-anim:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,240,255,0.12); }
+.song-card-anim { transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.28s ease, border-color 0.2s ease; }
+.song-card-anim:hover { transform: translateY(-5px); box-shadow: 0 16px 48px rgba(0,0,0,0.55), 0 0 24px rgba(0,240,255,0.14); border-color: rgba(0,240,255,0.25) !important; }
 .dl-btn:hover { box-shadow: 0 0 16px rgba(124,58,237,0.5) !important; }
 .fav-star-btn:hover { transform: scale(1.2); }
 .cover-video { transition: filter 0.2s; }

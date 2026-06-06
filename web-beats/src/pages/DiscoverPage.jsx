@@ -200,29 +200,38 @@ const SongSlide = memo(function SongSlide({
 });
 
 function ActionBtn({ onClick, icon, label, active, activeColor }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <button
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         background: 'none', border: 'none', cursor: 'pointer',
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
         padding: 0,
+        transform: hovered ? 'scale(1.12)' : 'scale(1)',
+        transition: 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)',
       }}
     >
       <div style={{
-        width: 44, height: 44,
+        width: 48, height: 48,
         borderRadius: '50%',
-        background: active ? `${activeColor}22` : 'rgba(0,0,0,0.45)',
-        border: `1.5px solid ${active ? activeColor : 'rgba(255,255,255,0.25)'}`,
+        background: active ? `${activeColor}28` : hovered ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        border: `1.5px solid ${active ? activeColor : hovered ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.22)'}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 20,
-        transition: 'all 0.2s',
-        boxShadow: active ? `0 0 12px ${activeColor}55` : 'none',
+        transition: 'all 0.2s ease',
+        boxShadow: active
+          ? `0 0 20px ${activeColor}66, 0 0 40px ${activeColor}22`
+          : hovered ? '0 4px 16px rgba(0,0,0,0.45)' : 'none',
       }}>
         {icon}
       </div>
       {label && (
-        <span style={{ color: active ? activeColor : 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600 }}>
+        <span style={{ color: active ? activeColor : hovered ? '#ffffff' : 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600 }}>
           {label}
         </span>
       )}

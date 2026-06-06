@@ -232,7 +232,12 @@ body {
   background: var(--accent-gradient);
   color: #fff; padding: 10px 20px;
 }
-.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-primary:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(0,240,255,0.5), 0 8px 24px rgba(0,240,255,0.25);
+  filter: brightness(1.08);
+}
 .btn-outline {
   background: transparent;
   border: 1px solid rgba(0, 240, 255, 0.5);
@@ -330,10 +335,12 @@ body {
 }
 .auth-card {
   background: rgba(255,255,255,0.04);
-  border: 1px solid var(--border); border-radius: 20px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0,240,255,0.15); border-radius: 20px;
   padding: 40px; width: 100%; max-width: 420px;
   position: relative; z-index: 1;
-  box-shadow: 0 0 0 1px rgba(0,240,255,0.1), 0 24px 60px rgba(0,0,0,0.4);
+  box-shadow: 0 0 0 1px rgba(0,240,255,0.1), 0 32px 80px rgba(0,0,0,0.5), 0 0 40px rgba(0,240,255,0.05);
 }
 .auth-card--wide { max-width: 480px; }
 .auth-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
@@ -493,8 +500,16 @@ body {
 .billing-page-inner { position: relative; z-index: 1; }
 .billing-title { font-size: 32px; font-weight: 800; margin-bottom: 32px; }
 .billing-card {
-  background: var(--surface); border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
   border-radius: 16px; padding: 28px; margin-bottom: 24px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.billing-card:hover {
+  border-color: rgba(0,240,255,0.22);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 .billing-card-header {
   display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
@@ -506,9 +521,18 @@ body {
 .billing-upgrade-section { margin-bottom: 32px; }
 .billing-upgrade-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .billing-upgrade-card {
-  background: var(--surface); border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
   border-radius: 14px; padding: 24px;
   display: flex; flex-direction: column; gap: 12px;
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.billing-upgrade-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0,240,255,0.25);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.4), 0 0 20px rgba(0,240,255,0.08);
 }
 .billing-upgrade-price { font-size: 28px; font-weight: 800; }
 .billing-upgrade-desc { color: var(--text-dim); font-size: 13px; line-height: 1.6; flex: 1; }
@@ -532,6 +556,41 @@ body {
   background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52,211,153,0.3);
   border-radius: 8px; padding: 12px 16px; color: #34d399;
   font-size: 13px; margin-bottom: 20px;
+}
+
+/* ── Glass card utility ──────────────────────────────────── */
+.glass-card {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0,240,255,0.12);
+  border-radius: 16px;
+}
+
+/* ── Card lift hover utility ─────────────────────────────── */
+.card-lift {
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.28s ease;
+}
+.card-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.45), 0 0 24px rgba(0,240,255,0.1);
+}
+
+/* ── Skeleton loading shimmer ────────────────────────────── */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.09) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: 6px;
 }
 
 /* ── Spinner ─────────────────────────────────────────────── */
@@ -656,10 +715,12 @@ body {
   right: 0;
   min-width: 200px;
   z-index: 300;
-  background: #0d0d1a;
-  border: 1px solid #00f0ff;
-  border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(0,240,255,0.12);
+  background: rgba(10,10,20,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0,240,255,0.35);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 24px rgba(0,240,255,0.1);
   display: flex;
   flex-direction: column;
   overflow: hidden;
