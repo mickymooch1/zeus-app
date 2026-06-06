@@ -1,0 +1,186 @@
+/* ── Zeus Baby Beats — light theme ──────────────────────────
+   Scoped to .kids-shell. Never leaks into adult UI.
+   ──────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+.kids-shell {
+  min-height: 100dvh;
+  background: linear-gradient(160deg, #fff9e6 0%, #e0f4ff 60%, #fce4f0 100%);
+  font-family: 'Nunito', ui-rounded, system-ui, sans-serif;
+  color: #1a2b4a;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* ── Typography ──────────────────────────────────────────── */
+.kids-shell h1, .kids-shell h2, .kids-shell h3 {
+  font-family: 'Nunito', ui-rounded, system-ui, sans-serif;
+  font-weight: 900;
+  color: #1a2b4a;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.kids-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 72px;
+  min-width: 260px;
+  border-radius: 36px;
+  border: none;
+  font-family: 'Nunito', ui-rounded, system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  padding: 0 32px;
+  letter-spacing: 0.01em;
+}
+.kids-btn:hover { transform: scale(1.05); }
+.kids-btn:active { transform: scale(0.97); }
+
+.kids-btn-primary {
+  background: linear-gradient(135deg, #fbd155 0%, #ffa726 100%);
+  color: #1a2b4a;
+  box-shadow: 0 6px 24px rgba(251,209,85,0.5);
+}
+.kids-btn-primary:hover { box-shadow: 0 10px 32px rgba(251,209,85,0.65); }
+
+.kids-btn-coral {
+  background: linear-gradient(135deg, #ff6b9d 0%, #ff4081 100%);
+  color: #fff;
+  box-shadow: 0 6px 24px rgba(255,107,157,0.45);
+}
+.kids-btn-coral:hover { box-shadow: 0 10px 32px rgba(255,107,157,0.6); }
+
+.kids-btn-mint {
+  background: linear-gradient(135deg, #4ecdc4 0%, #26a69a 100%);
+  color: #fff;
+  box-shadow: 0 6px 24px rgba(78,205,196,0.45);
+}
+.kids-btn-ghost {
+  background: rgba(255,255,255,0.7);
+  color: #45b7d1;
+  border: 2px solid #45b7d1;
+  box-shadow: none;
+}
+
+/* ── Theme tiles (emoji pickers) ─────────────────────────── */
+.kids-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 88px;
+  height: 88px;
+  border-radius: 20px;
+  border: 3px solid transparent;
+  background: rgba(255,255,255,0.8);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  font-size: 32px;
+}
+.kids-tile span { font-size: 11px; font-weight: 700; color: #1a2b4a; }
+.kids-tile:hover { transform: scale(1.08); }
+.kids-tile.selected {
+  border-color: #fbd155;
+  background: rgba(251,209,85,0.18);
+  box-shadow: 0 0 0 4px rgba(251,209,85,0.25);
+}
+
+/* ── PIN pad ─────────────────────────────────────────────── */
+.kids-pin-dot {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  transition: background 0.15s;
+}
+.kids-pin-dot.filled { background: #fbd155; }
+
+.kids-pin-key {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  border: 2px solid rgba(69,183,209,0.4);
+  background: rgba(255,255,255,0.85);
+  font-family: 'Nunito', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  color: #1a2b4a;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.1s;
+  display: flex; align-items: center; justify-content: center;
+}
+.kids-pin-key:hover { transform: scale(1.08); background: rgba(69,183,209,0.12); }
+.kids-pin-key:active { transform: scale(0.94); }
+
+/* ── Cards ───────────────────────────────────────────────── */
+.kids-card {
+  background: rgba(255,255,255,0.85);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+/* ── Form inputs ─────────────────────────────────────────── */
+.kids-input {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 2px solid rgba(69,183,209,0.35);
+  background: rgba(255,255,255,0.9);
+  font-family: 'Nunito', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a2b4a;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.kids-input:focus { border-color: #45b7d1; }
+
+.kids-select {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 2px solid rgba(69,183,209,0.35);
+  background: rgba(255,255,255,0.9);
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a2b4a;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+}
+
+/* ── Ziggy bounce ────────────────────────────────────────── */
+@keyframes ziggyBounce {
+  0%, 100% { transform: translateY(0); }
+  40%       { transform: translateY(-12px); }
+  60%       { transform: translateY(-6px); }
+}
+.ziggy-bounce { animation: ziggyBounce 2s ease-in-out infinite; }
+
+/* ── Rainbow shimmer on title ────────────────────────────── */
+@keyframes rainbowShift {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.kids-rainbow-text {
+  background: linear-gradient(90deg, #ff6b9d, #fbd155, #4ecdc4, #45b7d1, #a78bfa, #ff6b9d);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: rainbowShift 4s linear infinite;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .kids-btn { min-width: 220px; font-size: 18px; min-height: 64px; }
+  .kids-tile { width: 76px; height: 76px; font-size: 28px; }
+  .kids-pin-key { width: 64px; height: 64px; font-size: 22px; }
+}
