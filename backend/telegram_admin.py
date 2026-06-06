@@ -56,6 +56,7 @@ Just talk to me naturally, mate! Examples:
 <code>school blast CITY</code> — find schools in city and email them all
 <code>school list</code> — all schools contacted with status
 <code>school followup</code> — follow up with schools >7 days, no reply
+<code>make school EMAIL</code> — set account_type='school' for testing
 <code>help</code>"""
 
 
@@ -270,6 +271,28 @@ def _cmd_db_unverify_email(email: str) -> str:
         if rows_changed:
             log.info("db unverify email: unverified %s", email)
             return f"✅ Email unverified for <code>{email}</code>"
+        return f"❓ No user found with email <code>{email}</code>"
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
+def _cmd_make_school(email: str) -> str:
+    """Set account_type='school' for a user by email (testing only)."""
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        try:
+            conn.execute(
+                "UPDATE users SET account_type = 'school' WHERE lower(email) = lower(?)", (email,)
+            )
+            rows_changed = conn.execute("SELECT changes()").fetchone()[0]
+            conn.commit()
+        finally:
+            conn.close()
+        if rows_changed:
+            log.info("make school: set account_type=school for %s", email)
+            return f"✅ <code>{email}</code> is now a school account — they'll land on /kids after next login"
         return f"❓ No user found with email <code>{email}</code>"
     except Exception as exc:
         return f"❌ DB error: {exc}"
@@ -1754,6 +1777,15 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
         result = _cmd_school_followup()
         if chat_id and "✅" in result:
             _db_log_action(chat_id, "school_followup", f"School follow-up sent: {result[:120]}")
+        return result
+
+    # make school EMAIL — set account_type='school' for testing
+    m = re.match(r'^make\s+school\s+(\S+@\S+)$', t, re.IGNORECASE)
+    if m:
+        email = m.group(1).strip()
+        result = _cmd_make_school(email)
+        if chat_id and "✅" in result:
+            _db_log_action(chat_id, "make_school", f"Set account_type=school for {email}")
         return result
 
     # ── Everything else → Claude Haiku natural language ───────────────────────
