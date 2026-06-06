@@ -3037,7 +3037,7 @@ export default function SongsPage() {
               </div>
             )}
 
-            {/* ── Zeus Baby Beats ─────────────────────────────────── */}
+            {/* ── Zeus Kids Beats ─────────────────────────────────── */}
             {user?.account_type !== 'school' && <button
               onClick={() => setShowKidsPinGate(true)}
               style={{
@@ -3049,7 +3049,7 @@ export default function SongsPage() {
                 transition: 'background 0.2s', marginBottom: 10, width: '100%',
               }}
             >
-              🧸 Zeus Baby Beats
+              ⚡ Zeus Kids Beats
             </button>}
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}

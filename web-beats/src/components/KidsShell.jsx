@@ -25,8 +25,8 @@ export default function KidsShell({ children, showExitBtn = false, onExitClick }
       }}>
         <Ziggy size={48} />
         <h1 style={{ margin: 0, fontSize: 'clamp(22px, 5vw, 32px)', fontWeight: 900, lineHeight: 1 }}>
-          <span className="kids-rainbow-text">Zeus Baby Beats</span>
-          <span style={{ marginLeft: 8 }}>🧸</span>
+          <span className="kids-rainbow-text">Zeus Kids Beats</span>
+          <span style={{ marginLeft: 8 }}>⚡</span>
         </h1>
         {showExitBtn && (
           <button
@@ -48,7 +48,7 @@ export default function KidsShell({ children, showExitBtn = false, onExitClick }
       </main>
 
       <footer style={{ textAlign: 'center', padding: '12px 20px', fontSize: 12, color: '#94a3b8' }}>
-        Zeus Baby Beats 🧸 — Safe songs &amp; stories for little ones
+        Zeus Kids Beats ⚡ — Safe songs &amp; stories for little ones
       </footer>
     </div>
   );

@@ -69,7 +69,7 @@ export default function ParentPINGate({ token, hasPIN = false, action = 'enter',
       } else {
         const d = await res.json().catch(() => ({}));
         if (res.status === 403) {
-          setError('School accounts access Baby Beats directly — no PIN needed');
+          setError('School accounts access Kids Beats directly — no PIN needed');
         } else {
           setError(d.detail || 'Could not save PIN — try again');
         }
@@ -101,7 +101,7 @@ export default function ParentPINGate({ token, hasPIN = false, action = 'enter',
         const d = await res.json().catch(() => ({}));
         setShake(true);
         if (res.status === 403) {
-          setError('School accounts access Baby Beats directly — no PIN needed');
+          setError('School accounts access Kids Beats directly — no PIN needed');
         } else {
           setError(d.detail || 'Incorrect PIN — try again');
         }
@@ -122,9 +122,9 @@ export default function ParentPINGate({ token, hasPIN = false, action = 'enter',
 
   const subtitle = isCreating
     ? (createStep === 'create'
-        ? 'Choose a 4-digit PIN — you\'ll need it to enter and exit Zeus Baby Beats'
+        ? 'Choose a 4-digit PIN — you\'ll need it to enter and exit Zeus Kids Beats'
         : 'Enter your PIN again to confirm')
-    : (action === 'exit' ? 'Enter your PIN to return to Zeus Beats' : 'Enter your PIN to open Zeus Baby Beats');
+    : (action === 'exit' ? 'Enter your PIN to return to Zeus Beats' : 'Enter your PIN to open Zeus Kids Beats');
 
   return (
     <div style={{

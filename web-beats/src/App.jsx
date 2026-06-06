@@ -172,7 +172,7 @@ export default function App() {
             <Route path="/tutorial" element={<TutorialPage />} />
             <Route path="/download" element={<DownloadPage />} />
 
-            {/* ── Zeus Baby Beats ────────────────────────────────── */}
+            {/* ── Zeus Kids Beats ────────────────────────────────── */}
             <Route path="/schools" element={<SchoolRegisterPage />} />
             <Route
               path="/kids"
