@@ -2054,6 +2054,7 @@ async def songs_generate(
 
     db_path = db.get_db_path()
     user_id = current_user["id"]
+    log.info("Generate request: user=%s body=%s", user_id, body.dict())
 
     # School accounts: enforce safe content regardless of request
     if current_user.get("account_type") == "school":

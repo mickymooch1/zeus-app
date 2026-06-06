@@ -42,8 +42,9 @@ export default function KidsSongMode() {
             ? `A fun kids song about ${character.trim()} with a ${THEMES[theme].label.toLowerCase()} theme`
             : `A fun kids song with a ${THEMES[theme].label.toLowerCase()} theme`,
           genres: THEMES[theme].genres,
+          kids_story: true,
           kids_mode: 'song',
-          age_range: age,
+          kids_age_range: age,
           explicit: false,
         }),
       });

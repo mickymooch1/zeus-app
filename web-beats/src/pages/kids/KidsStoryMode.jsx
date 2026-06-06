@@ -48,8 +48,10 @@ export default function KidsStoryMode() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           brief: `A magical ${THEMES[theme].label.toLowerCase()} story for children`,
+          genres: ['childrens', 'storytelling'],
+          kids_story: true,
           kids_mode: 'story',
-          age_range: age,
+          kids_age_range: age,
           story_language: language,
           explicit: false,
         }),
