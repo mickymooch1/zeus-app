@@ -2806,6 +2806,279 @@ async def list_kids_songs(current_user: dict = Depends(auth.get_current_user)):
     return {"items": items}
 
 
+# ── Kids Language Lessons ──────────────────────────────────────────────────
+
+_LANGUAGE_VOCAB: dict[str, dict[str, list[tuple[str, str]]]] = {
+    "french": {
+        "days": [
+            ("Lundi", "Monday"), ("Mardi", "Tuesday"), ("Mercredi", "Wednesday"),
+            ("Jeudi", "Thursday"), ("Vendredi", "Friday"), ("Samedi", "Saturday"), ("Dimanche", "Sunday"),
+        ],
+        "numbers": [
+            ("Un", "One"), ("Deux", "Two"), ("Trois", "Three"), ("Quatre", "Four"), ("Cinq", "Five"),
+            ("Six", "Six"), ("Sept", "Seven"), ("Huit", "Eight"), ("Neuf", "Nine"), ("Dix", "Ten"),
+            ("Onze", "Eleven"), ("Douze", "Twelve"), ("Treize", "Thirteen"), ("Quatorze", "Fourteen"),
+            ("Quinze", "Fifteen"), ("Seize", "Sixteen"), ("Dix-sept", "Seventeen"),
+            ("Dix-huit", "Eighteen"), ("Dix-neuf", "Nineteen"), ("Vingt", "Twenty"),
+        ],
+        "colours": [
+            ("Rouge", "Red"), ("Bleu", "Blue"), ("Vert", "Green"), ("Jaune", "Yellow"),
+            ("Orange", "Orange"), ("Violet", "Purple"), ("Rose", "Pink"), ("Noir", "Black"),
+            ("Blanc", "White"), ("Marron", "Brown"),
+        ],
+        "animals": [
+            ("Le chien", "Dog"), ("Le chat", "Cat"), ("L'oiseau", "Bird"), ("Le poisson", "Fish"),
+            ("Le lapin", "Rabbit"), ("La vache", "Cow"), ("Le cheval", "Horse"), ("Le cochon", "Pig"),
+            ("L'éléphant", "Elephant"), ("Le lion", "Lion"),
+        ],
+        "food": [
+            ("La pomme", "Apple"), ("La banane", "Banana"), ("Le pain", "Bread"),
+            ("Le lait", "Milk"), ("L'eau", "Water"), ("Le fromage", "Cheese"),
+            ("La pizza", "Pizza"), ("Les carottes", "Carrots"), ("Le gâteau", "Cake"),
+            ("Les fraises", "Strawberries"),
+        ],
+        "greetings": [
+            ("Bonjour", "Hello"), ("Au revoir", "Goodbye"), ("S'il vous plaît", "Please"),
+            ("Merci", "Thank you"), ("Oui", "Yes"), ("Non", "No"),
+            ("Comment tu t'appelles?", "What is your name?"), ("Je m'appelle...", "My name is..."),
+        ],
+        "family": [
+            ("La maman", "Mum"), ("Le papa", "Dad"), ("La soeur", "Sister"), ("Le frère", "Brother"),
+            ("La grand-mère", "Grandma"), ("Le grand-père", "Grandpa"),
+            ("La famille", "Family"), ("Le bébé", "Baby"),
+        ],
+        "weather": [
+            ("Le soleil", "Sun"), ("La pluie", "Rain"), ("Le vent", "Wind"), ("La neige", "Snow"),
+            ("Le nuage", "Cloud"), ("Il fait chaud", "It's hot"), ("Il fait froid", "It's cold"),
+            ("Il fait beau", "It's sunny"),
+        ],
+    },
+    "spanish": {
+        "days": [
+            ("Lunes", "Monday"), ("Martes", "Tuesday"), ("Miércoles", "Wednesday"),
+            ("Jueves", "Thursday"), ("Viernes", "Friday"), ("Sábado", "Saturday"), ("Domingo", "Sunday"),
+        ],
+        "numbers": [
+            ("Uno", "One"), ("Dos", "Two"), ("Tres", "Three"), ("Cuatro", "Four"), ("Cinco", "Five"),
+            ("Seis", "Six"), ("Siete", "Seven"), ("Ocho", "Eight"), ("Nueve", "Nine"), ("Diez", "Ten"),
+            ("Once", "Eleven"), ("Doce", "Twelve"), ("Trece", "Thirteen"), ("Catorce", "Fourteen"),
+            ("Quince", "Fifteen"), ("Dieciséis", "Sixteen"), ("Diecisiete", "Seventeen"),
+            ("Dieciocho", "Eighteen"), ("Diecinueve", "Nineteen"), ("Veinte", "Twenty"),
+        ],
+        "colours": [
+            ("Rojo", "Red"), ("Azul", "Blue"), ("Verde", "Green"), ("Amarillo", "Yellow"),
+            ("Naranja", "Orange"), ("Morado", "Purple"), ("Rosa", "Pink"), ("Negro", "Black"),
+            ("Blanco", "White"), ("Marrón", "Brown"),
+        ],
+        "animals": [
+            ("El perro", "Dog"), ("El gato", "Cat"), ("El pájaro", "Bird"), ("El pez", "Fish"),
+            ("El conejo", "Rabbit"), ("La vaca", "Cow"), ("El caballo", "Horse"), ("El cerdo", "Pig"),
+            ("El elefante", "Elephant"), ("El león", "Lion"),
+        ],
+        "food": [
+            ("La manzana", "Apple"), ("El plátano", "Banana"), ("El pan", "Bread"),
+            ("La leche", "Milk"), ("El agua", "Water"), ("El queso", "Cheese"),
+            ("La pizza", "Pizza"), ("Las zanahorias", "Carrots"), ("El pastel", "Cake"),
+            ("Las fresas", "Strawberries"),
+        ],
+        "greetings": [
+            ("Hola", "Hello"), ("Adiós", "Goodbye"), ("Por favor", "Please"),
+            ("Gracias", "Thank you"), ("Sí", "Yes"), ("No", "No"),
+            ("¿Cómo te llamas?", "What is your name?"), ("Me llamo...", "My name is..."),
+        ],
+        "family": [
+            ("La mamá", "Mum"), ("El papá", "Dad"), ("La hermana", "Sister"), ("El hermano", "Brother"),
+            ("La abuela", "Grandma"), ("El abuelo", "Grandpa"),
+            ("La familia", "Family"), ("El bebé", "Baby"),
+        ],
+        "weather": [
+            ("El sol", "Sun"), ("La lluvia", "Rain"), ("El viento", "Wind"), ("La nieve", "Snow"),
+            ("La nube", "Cloud"), ("Hace calor", "It's hot"), ("Hace frío", "It's cold"),
+            ("Hace buen tiempo", "It's nice weather"),
+        ],
+    },
+    "german": {
+        "days": [
+            ("Montag", "Monday"), ("Dienstag", "Tuesday"), ("Mittwoch", "Wednesday"),
+            ("Donnerstag", "Thursday"), ("Freitag", "Friday"), ("Samstag", "Saturday"), ("Sonntag", "Sunday"),
+        ],
+        "numbers": [
+            ("Eins", "One"), ("Zwei", "Two"), ("Drei", "Three"), ("Vier", "Four"), ("Fünf", "Five"),
+            ("Sechs", "Six"), ("Sieben", "Seven"), ("Acht", "Eight"), ("Neun", "Nine"), ("Zehn", "Ten"),
+            ("Elf", "Eleven"), ("Zwölf", "Twelve"), ("Dreizehn", "Thirteen"), ("Vierzehn", "Fourteen"),
+            ("Fünfzehn", "Fifteen"), ("Sechzehn", "Sixteen"), ("Siebzehn", "Seventeen"),
+            ("Achtzehn", "Eighteen"), ("Neunzehn", "Nineteen"), ("Zwanzig", "Twenty"),
+        ],
+        "colours": [
+            ("Rot", "Red"), ("Blau", "Blue"), ("Grün", "Green"), ("Gelb", "Yellow"),
+            ("Orange", "Orange"), ("Lila", "Purple"), ("Rosa", "Pink"), ("Schwarz", "Black"),
+            ("Weiß", "White"), ("Braun", "Brown"),
+        ],
+        "animals": [
+            ("Der Hund", "Dog"), ("Die Katze", "Cat"), ("Der Vogel", "Bird"), ("Der Fisch", "Fish"),
+            ("Das Kaninchen", "Rabbit"), ("Die Kuh", "Cow"), ("Das Pferd", "Horse"),
+            ("Das Schwein", "Pig"), ("Der Elefant", "Elephant"), ("Der Löwe", "Lion"),
+        ],
+        "food": [
+            ("Der Apfel", "Apple"), ("Die Banane", "Banana"), ("Das Brot", "Bread"),
+            ("Die Milch", "Milk"), ("Das Wasser", "Water"), ("Der Käse", "Cheese"),
+            ("Die Pizza", "Pizza"), ("Die Karotten", "Carrots"), ("Der Kuchen", "Cake"),
+            ("Die Erdbeeren", "Strawberries"),
+        ],
+        "greetings": [
+            ("Hallo", "Hello"), ("Auf Wiedersehen", "Goodbye"), ("Bitte", "Please"),
+            ("Danke", "Thank you"), ("Ja", "Yes"), ("Nein", "No"),
+            ("Wie heißt du?", "What is your name?"), ("Ich heiße...", "My name is..."),
+        ],
+        "family": [
+            ("Die Mama", "Mum"), ("Der Papa", "Dad"), ("Die Schwester", "Sister"),
+            ("Der Bruder", "Brother"), ("Die Oma", "Grandma"), ("Der Opa", "Grandpa"),
+            ("Die Familie", "Family"), ("Das Baby", "Baby"),
+        ],
+        "weather": [
+            ("Die Sonne", "Sun"), ("Der Regen", "Rain"), ("Der Wind", "Wind"), ("Der Schnee", "Snow"),
+            ("Die Wolke", "Cloud"), ("Es ist heiß", "It's hot"), ("Es ist kalt", "It's cold"),
+            ("Das Wetter ist schön", "The weather is nice"),
+        ],
+    },
+    "italian": {
+        "days": [
+            ("Lunedì", "Monday"), ("Martedì", "Tuesday"), ("Mercoledì", "Wednesday"),
+            ("Giovedì", "Thursday"), ("Venerdì", "Friday"), ("Sabato", "Saturday"), ("Domenica", "Sunday"),
+        ],
+        "numbers": [
+            ("Uno", "One"), ("Due", "Two"), ("Tre", "Three"), ("Quattro", "Four"), ("Cinque", "Five"),
+            ("Sei", "Six"), ("Sette", "Seven"), ("Otto", "Eight"), ("Nove", "Nine"), ("Dieci", "Ten"),
+            ("Undici", "Eleven"), ("Dodici", "Twelve"), ("Tredici", "Thirteen"), ("Quattordici", "Fourteen"),
+            ("Quindici", "Fifteen"), ("Sedici", "Sixteen"), ("Diciassette", "Seventeen"),
+            ("Diciotto", "Eighteen"), ("Diciannove", "Nineteen"), ("Venti", "Twenty"),
+        ],
+        "colours": [
+            ("Rosso", "Red"), ("Blu", "Blue"), ("Verde", "Green"), ("Giallo", "Yellow"),
+            ("Arancione", "Orange"), ("Viola", "Purple"), ("Rosa", "Pink"), ("Nero", "Black"),
+            ("Bianco", "White"), ("Marrone", "Brown"),
+        ],
+        "animals": [
+            ("Il cane", "Dog"), ("Il gatto", "Cat"), ("L'uccello", "Bird"), ("Il pesce", "Fish"),
+            ("Il coniglio", "Rabbit"), ("La mucca", "Cow"), ("Il cavallo", "Horse"),
+            ("Il maiale", "Pig"), ("L'elefante", "Elephant"), ("Il leone", "Lion"),
+        ],
+        "food": [
+            ("La mela", "Apple"), ("La banana", "Banana"), ("Il pane", "Bread"),
+            ("Il latte", "Milk"), ("L'acqua", "Water"), ("Il formaggio", "Cheese"),
+            ("La pizza", "Pizza"), ("Le carote", "Carrots"), ("La torta", "Cake"),
+            ("Le fragole", "Strawberries"),
+        ],
+        "greetings": [
+            ("Ciao", "Hello"), ("Arrivederci", "Goodbye"), ("Per favore", "Please"),
+            ("Grazie", "Thank you"), ("Sì", "Yes"), ("No", "No"),
+            ("Come ti chiami?", "What is your name?"), ("Mi chiamo...", "My name is..."),
+        ],
+        "family": [
+            ("La mamma", "Mum"), ("Il papà", "Dad"), ("La sorella", "Sister"),
+            ("Il fratello", "Brother"), ("La nonna", "Grandma"), ("Il nonno", "Grandpa"),
+            ("La famiglia", "Family"), ("Il bambino", "Baby"),
+        ],
+        "weather": [
+            ("Il sole", "Sun"), ("La pioggia", "Rain"), ("Il vento", "Wind"), ("La neve", "Snow"),
+            ("La nuvola", "Cloud"), ("Fa caldo", "It's hot"), ("Fa freddo", "It's cold"),
+            ("Fa bel tempo", "It's nice weather"),
+        ],
+    },
+}
+
+
+class KidsLanguageBody(BaseModel):
+    language: str   # "french" | "spanish" | "german" | "italian"
+    topic: str      # "days" | "numbers" | "colours" | "animals" | "food" | "greetings" | "family" | "weather"
+
+
+@app.post("/api/kids/language")
+async def kids_language_lesson(body: KidsLanguageBody, current_user: dict = Depends(auth.get_current_user)):
+    """Generate a bilingual vocabulary lesson: foreign word → English, stitched MP3.
+    Results are cached per language+topic — same lesson audio is served without re-generating."""
+    user_id = str(current_user["id"])
+    lang = body.language.lower().strip()
+    topic = body.topic.lower().strip()
+
+    vocab = _LANGUAGE_VOCAB.get(lang, {}).get(topic)
+    if not vocab:
+        raise HTTPException(status_code=400, detail=f"Unknown language '{lang}' or topic '{topic}'")
+
+    el_key = os.environ.get("ELEVENLABS_API_KEY", "")
+    if not el_key:
+        raise HTTPException(status_code=500, detail="TTS unavailable")
+
+    lesson_dir = pathlib.Path("/data/language")
+    lesson_dir.mkdir(parents=True, exist_ok=True)
+
+    # Cache by lang+topic — no per-user generation (vocabulary is identical for all users)
+    cache_key = f"{lang}_{topic}"
+    cached_audio = lesson_dir / f"{cache_key}.mp3"
+    cached_words = lesson_dir / f"{cache_key}_words.json"
+
+    if cached_audio.exists() and cached_words.exists():
+        log.info("kids/language: cache hit lang=%s topic=%s user=%s", lang, topic, user_id)
+        words = json.loads(cached_words.read_text(encoding="utf-8"))
+        return {"audio_url": f"/files/language/{cache_key}.mp3", "words": words}
+
+    log.info("kids/language: generating lang=%s topic=%s words=%d user=%s", lang, topic, len(vocab), user_id)
+    narrator_voice_id = "ZEt85AU1ui8Rr8FxNslW"  # britishwoman — eleven_multilingual_v2 handles all languages
+    tts_params = {"model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.8, "similarity_boost": 0.75}}
+
+    clip_paths: list[str] = []
+    word_timings: list[dict] = []
+    offset = 0.0
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as el_client:
+            for i, (foreign, english) in enumerate(vocab):
+                f_resp, e_resp = await asyncio.gather(
+                    el_client.post(
+                        f"https://api.elevenlabs.io/v1/text-to-speech/{narrator_voice_id}",
+                        headers={"xi-api-key": el_key, "Content-Type": "application/json"},
+                        json={"text": foreign, **tts_params},
+                    ),
+                    el_client.post(
+                        f"https://api.elevenlabs.io/v1/text-to-speech/{narrator_voice_id}",
+                        headers={"xi-api-key": el_key, "Content-Type": "application/json"},
+                        json={"text": english, **tts_params},
+                    ),
+                )
+                if f_resp.status_code != 200 or e_resp.status_code != 200:
+                    log.warning("kids/language: EL error word=%d foreign=%d english=%d user=%s",
+                                i, f_resp.status_code, e_resp.status_code, user_id)
+                    raise HTTPException(status_code=500, detail="Audio generation failed — please try again")
+                f_path = str(lesson_dir / f"{cache_key}_{i}f.mp3")
+                e_path = str(lesson_dir / f"{cache_key}_{i}e.mp3")
+                pathlib.Path(f_path).write_bytes(f_resp.content)
+                pathlib.Path(e_path).write_bytes(e_resp.content)
+                f_dur = _get_mp3_duration(f_path)
+                e_dur = _get_mp3_duration(e_path)
+                clip_paths.extend([f_path, e_path])
+                word_timings.append({
+                    "foreign_start": round(offset, 3),
+                    "foreign_end":   round(offset + f_dur, 3),
+                    "english_start": round(offset + f_dur, 3),
+                    "english_end":   round(offset + f_dur + e_dur, 3),
+                    "foreign": foreign,
+                    "english": english,
+                })
+                offset += f_dur + e_dur
+
+        if not _ffmpeg_concat_mp3(clip_paths, str(cached_audio)):
+            raise HTTPException(status_code=500, detail="Audio assembly failed — please try again")
+
+        cached_words.write_text(json.dumps(word_timings), encoding="utf-8")
+        log.info("kids/language: generated ok lang=%s topic=%s words=%d user=%s", lang, topic, len(word_timings), user_id)
+    finally:
+        for p in clip_paths:
+            try: pathlib.Path(p).unlink()
+            except OSError: pass
+
+    return {"audio_url": f"/files/language/{cache_key}.mp3", "words": word_timings}
+
+
 @app.get("/api/songs/variants/{variant_id}/public")
 async def get_song_variant_public(variant_id: int):
     """Public (no auth) endpoint for the share page. Only returns completed variants."""
@@ -5032,6 +5305,10 @@ app.mount("/files/images", _StaticFiles(directory=str(_image_storage)), name="im
 _story_storage = pathlib.Path("/data/stories")
 _story_storage.mkdir(parents=True, exist_ok=True)
 app.mount("/files/stories", _StaticFiles(directory=str(_story_storage)), name="stories")
+
+_language_storage = pathlib.Path("/data/language")
+_language_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/language", _StaticFiles(directory=str(_language_storage)), name="language")
 
 _voice_preview_storage = pathlib.Path("/data/voice-previews")
 _voice_preview_storage.mkdir(parents=True, exist_ok=True)

@@ -38,6 +38,14 @@ export default function KidsHomePage() {
         >
           📚 My Songs
         </button>
+
+        <button
+          className="kids-btn kids-btn-primary"
+          style={{ width: '100%', background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', boxShadow: '0 4px 18px rgba(167,139,250,0.45)' }}
+          onClick={() => navigate('/kids/language')}
+        >
+          🌍 Learn a Language!
+        </button>
       </div>
     </div>
   );

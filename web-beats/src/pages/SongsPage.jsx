@@ -1170,8 +1170,9 @@ export default function SongsPage() {
   const [ytStatus, setYtStatus]   = useState({});
   const [ytUrls, setYtUrls]       = useState({});
   const [ytErrors, setYtErrors]   = useState({});
-  const [ytModal, setYtModal]     = useState(null);
-  const [ytPrivacy, setYtPrivacy] = useState('unlisted');
+  const [ytModal, setYtModal]         = useState(null);
+  const [ytPrivacy, setYtPrivacy]     = useState('unlisted');
+  const [ytUpgradePrompt, setYtUpgradePrompt] = useState(false);
 
   const [inspiredBy, setInspiredBy]               = useState('');
   const [artistDescriptors, setArtistDescriptors] = useState(() => [location.state?.prefillStyle || '', location.state?.prefillMood || ''].filter(Boolean).join(', '));
@@ -1840,7 +1841,10 @@ export default function SongsPage() {
 
   const handleYouTubeClick = useCallback((variant, titleArg) => {
     console.log('YouTube upload clicked — canYouTube:', canYouTube, 'connected:', youtubeConnected, 'plan:', credits.plan, 'variant:', variant?.variant_id);
-    if (!canYouTube) return;
+    if (!canYouTube) {
+      setYtUpgradePrompt(true);
+      return;
+    }
     if (!youtubeConnected) {
       console.log('YouTube not connected — redirecting to OAuth');
       window.location.href = `${BACKEND_URL}/api/youtube/auth?token=${token}&origin=beats`;
@@ -3728,6 +3732,30 @@ export default function SongsPage() {
           )}
         </div>
       </div>
+
+      {ytUpgradePrompt && (
+        <div onClick={() => setYtUpgradePrompt(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#12121e', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 20, padding: '32px 28px 28px', width: '100%', maxWidth: 380, textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📺</div>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#e2d9f3', marginBottom: 10 }}>YouTube Upload is a Premium Feature</h3>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.6, marginBottom: 6 }}>
+              Upload your songs straight to YouTube with one click.
+            </p>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.6, marginBottom: 24 }}>
+              Upgrade to <strong style={{ color: '#a78bfa' }}>Music Starter (£9/mo)</strong> or higher to unlock YouTube upload.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setYtUpgradePrompt(false)} style={{ flex: 1, padding: '12px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#888', fontSize: 14, cursor: 'pointer' }}>Not now</button>
+              <button
+                onClick={() => { setYtUpgradePrompt(false); window.location.href = '/billing'; }}
+                style={{ flex: 2, padding: '12px 0', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Upgrade →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {ytModal && (
         <div onClick={() => setYtModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>

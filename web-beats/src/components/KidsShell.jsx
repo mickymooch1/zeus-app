@@ -3,10 +3,11 @@ import '../kids.css';
 import KidsSpaceBackground from './KidsSpaceBackground';
 
 const NAV = [
-  { path: '/kids',       icon: '🏠', label: 'Home'    },
-  { path: '/kids/song',  icon: '🎵', label: 'Song'    },
-  { path: '/kids/story', icon: '📖', label: 'Story'   },
-  { path: '/kids/songs', icon: '📚', label: 'Library' },
+  { path: '/kids',          icon: '🏠', label: 'Home'     },
+  { path: '/kids/song',     icon: '🎵', label: 'Song'     },
+  { path: '/kids/story',    icon: '📖', label: 'Story'    },
+  { path: '/kids/songs',    icon: '📚', label: 'Library'  },
+  { path: '/kids/language', icon: '🌍', label: 'Language' },
 ];
 
 function Ziggy({ size = 56 }) {

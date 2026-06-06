@@ -40,6 +40,7 @@ const KidsHomePage           = lazy(() => import('./pages/kids/KidsHomePage'));
 const KidsSongMode           = lazy(() => import('./pages/kids/KidsSongMode'));
 const KidsStoryMode          = lazy(() => import('./pages/kids/KidsStoryMode'));
 const KidsSongsListPage      = lazy(() => import('./pages/kids/KidsSongsListPage'));
+const KidsLanguagePage       = lazy(() => import('./pages/kids/KidsLanguagePage'));
 const SchoolRegisterPage     = lazy(() => import('./pages/SchoolRegisterPage'));
 
 function KidsProtectedRoute({ children }) {
@@ -188,6 +189,7 @@ export default function App() {
               <Route path="song" element={<KidsSongMode />} />
               <Route path="story" element={<KidsStoryMode />} />
               <Route path="songs" element={<KidsSongsListPage />} />
+              <Route path="language" element={<KidsLanguagePage />} />
             </Route>
           </Routes>
         </Suspense>
