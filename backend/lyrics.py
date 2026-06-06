@@ -370,6 +370,7 @@ _REGULAR_LANGUAGE_MAP = {
 
 
 def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None, roast_mode: bool = False, roast_name: str | None = None, roast_details: str | None = None, roast_vibe: str | None = None) -> dict:
+    _need_translation = False  # initialised here so all code paths have a value
     if instrumental:
         title = song_title or "Instrumental"
         conn = db._conn(db_path)
