@@ -703,6 +703,13 @@ app.add_middleware(
 )
 
 
+def _safe_user(user: dict) -> dict:
+    """Strip sensitive fields and normalise kids PIN hash → has_kids_pin bool."""
+    out = {k: v for k, v in user.items() if k not in ("password_hash", "kids_pin_hash")}
+    out["has_kids_pin"] = bool(user.get("kids_pin_hash"))
+    return out
+
+
 # ── Pydantic request models ───────────────────────────────────────────────────
 
 _BLOCKED_EMAIL_DOMAINS: frozenset = frozenset({
@@ -904,7 +911,7 @@ async def register(request: Request, body: RegisterRequest):
         db.record_device_fingerprint(db_path, fp_hash, user["id"])
 
     token = auth.create_token(user["id"], user["email"], is_admin=bool(user.get("is_admin", 0)))
-    safe_user = {k: v for k, v in user.items() if k != "password_hash"}
+    safe_user = _safe_user(user)
 
     # Send verification email
     _send_verification_email(user, body.app)
@@ -961,7 +968,7 @@ async def register_school(request: Request, body: SchoolRegisterRequest):
             log.warning("register_school: could not send Telegram alert for %s", body.email)
 
     token = auth.create_token(user["id"], user["email"], is_admin=False)
-    safe_user = {k: v for k, v in db.get_user_by_id(db_path, user["id"]).items() if k != "password_hash"}
+    safe_user = _safe_user(db.get_user_by_id(db_path, user["id"]))
     log.info("register_school: new school account email=%s verified=%s", body.email, verified)
     return {"token": token, "user": safe_user}
 
@@ -973,6 +980,8 @@ async def kids_pin_set(body: KidsPINSetRequest, current_user: dict = Depends(aut
     if not body.pin or not body.pin.isdigit() or len(body.pin) != 4:
         raise HTTPException(status_code=400, detail="PIN must be exactly 4 digits")
     db_path = db.get_db_path()
+    existing_hash = db.get_kids_pin_hash(db_path, current_user["id"])
+    log.info("PIN action: user=%s has_pin=%s action=set", current_user["id"], existing_hash is not None)
     pin_hash = auth.hash_password(body.pin)
     db.set_kids_pin(db_path, current_user["id"], pin_hash)
     return {"ok": True}
@@ -984,6 +993,7 @@ async def kids_pin_verify(body: KidsPINVerifyRequest, current_user: dict = Depen
         raise HTTPException(status_code=403, detail="School accounts do not use a PIN")
     db_path = db.get_db_path()
     stored_hash = db.get_kids_pin_hash(db_path, current_user["id"])
+    log.info("PIN action: user=%s has_pin=%s action=verify", current_user["id"], stored_hash is not None)
     if not stored_hash:
         raise HTTPException(status_code=404, detail="No PIN set — please set a PIN in account settings first")
     if not auth.verify_password(body.pin, stored_hash):
@@ -1092,7 +1102,7 @@ async def login(request: Request, body: LoginRequest):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = auth.create_token(user["id"], user["email"], is_admin=bool(user.get("is_admin", 0)))
-    safe_user = {k: v for k, v in user.items() if k != "password_hash"}
+    safe_user = _safe_user(user)
 
     return {"token": token, "user": safe_user}
 
@@ -1100,7 +1110,7 @@ async def login(request: Request, body: LoginRequest):
 @app.get("/auth/me")
 async def me(current_user: dict = Depends(auth.get_current_user)):
     from datetime import datetime, timedelta, timezone
-    safe_user = {k: v for k, v in current_user.items() if k != "password_hash"}
+    safe_user = _safe_user(current_user)
     created_at = safe_user.get("created_at", "")
     try:
         created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))

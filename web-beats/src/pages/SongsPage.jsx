@@ -413,8 +413,8 @@ const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }
 });
 
 const LazyPINGate = lazy(() => import('../components/ParentPINGate'));
-function KidsPinGateLoader({ token, onSuccess, onCancel }) {
-  return <LazyPINGate token={token} action="enter" onSuccess={onSuccess} onCancel={onCancel} />;
+function KidsPinGateLoader({ token, hasPIN, onSuccess, onCancel }) {
+  return <LazyPINGate token={token} hasPIN={hasPIN} action="enter" onSuccess={onSuccess} onCancel={onCancel} />;
 }
 
 const SongCard = memo(function SongCard({
@@ -4049,6 +4049,7 @@ export default function SongsPage() {
         <Suspense fallback={null}>
           <KidsPinGateLoader
             token={token}
+            hasPIN={!!user?.has_kids_pin}
             onSuccess={() => {
               sessionStorage.setItem('kidsMode', '1');
               window.location.href = '/kids';

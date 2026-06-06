@@ -69,6 +69,7 @@ function KidsShellWrapper() {
       {showPin && (
         <ParentPINGate
           token={token}
+          hasPIN={!!user?.has_kids_pin}
           action="exit"
           onSuccess={handleExit}
           onCancel={() => setShowPin(false)}
