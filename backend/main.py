@@ -2059,7 +2059,8 @@ def _build_subtitle_cues(segments: list, full_text: str, chars: list, char_start
             cues.append({
                 "start": round(char_starts[start_char], 3),
                 "end": round(char_ends[end_char], 3),
-                "text": eng_text,
+                "original": seg_text,   # spoken foreign-language text
+                "text": eng_text,       # English translation
             })
     return cues if cues else None
 
