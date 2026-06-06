@@ -470,23 +470,13 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
                 story_language, _story_lang, _is_foreign_lang, _is_single_voice, _need_translation,
             )
             if _is_foreign_lang:
-                # Always instruct Claude to write in the target language, regardless of voice mode.
+                # Instruct Claude to write the story in the target language only.
+                # Translations are fetched in a separate second call so neither call gets truncated.
                 kids_prompt += (
                     f"\n\nIMPORTANT: Write the story ENTIRELY in {_story_lang}. "
                     f"Use natural, child-friendly {_story_lang} vocabulary and phrasing throughout. "
                     "Do not include any English text in the 'lyrics' field.\n\n"
                 )
-                if _need_translation:
-                    # Request per-utterance translation segments for subtitle display.
-                    # For multi-voice stories, each segment = one [SPEAKER] utterance (text without the tag).
-                    # For single-voice, each segment = one sentence.
-                    kids_prompt += (
-                        "Also add a 'segments' key: an array with one entry per utterance or sentence, "
-                        "in story order. Each entry must have 'text' (the utterance in "
-                        f"{_story_lang}, exactly as it appears in 'lyrics' after any [SPEAKER] tag) "
-                        "and 'english' (the English translation of that utterance). "
-                        'Example: {"text": "Il était une fois une petite licorne.", "english": "Once upon a time there was a little unicorn."}'
-                    )
         else:  # song mode
             structure = random.choice([
                 "[Verse 1], [Chorus], [Verse 2], [Chorus], [Outro]",
@@ -501,10 +491,12 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             "generate_lyrics: kids_%s mode — calling %s user=%s brief=%r",
             kids_mode, model, user_id, brief[:200],
         )
+
+        # ── Call 1: Generate the story / song ─────────────────────────────────
         try:
             response = client.messages.create(
                 model=model,
-                max_tokens=800,
+                max_tokens=1500,
                 temperature=1.0,
                 system=system,
                 messages=[{"role": "user", "content": kids_prompt}],
@@ -522,8 +514,51 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             parsed = json.loads(raw)
         except json.JSONDecodeError:
             logger.exception("generate_lyrics: kids_story JSON parse failed — raw=%r", raw[:500])
-            raise
+            raise  # bubbles up as 500; no DB insert has happened so no credit charged
+
         final_title = song_title or parsed["title"]
+
+        # ── Call 2 (foreign stories only): Translate utterances for subtitles ──
+        # Done as a separate call so the story JSON never gets truncated by token limits.
+        segments = None
+        if _need_translation:
+            try:
+                _trans_prompt = (
+                    f"Here is a children's story in {_story_lang}:\n\n"
+                    f"{parsed['lyrics']}\n\n"
+                    "Return ONLY a JSON object with a single \"segments\" key. "
+                    "The value is an array with one entry per utterance or sentence, in story order. "
+                    "Each entry: \"text\" (the utterance exactly as it appears in the story, "
+                    "without any [SPEAKER] tag prefix) and \"english\" (the English translation). "
+                    "Cover every utterance. No other keys.\n"
+                    "Example: {\"segments\": [{\"text\": \"Il était une fois une licorne.\", "
+                    "\"english\": \"Once upon a time there was a unicorn.\"}]}"
+                )
+                _trans_resp = client.messages.create(
+                    model=model,
+                    max_tokens=2000,
+                    temperature=0.2,
+                    messages=[{"role": "user", "content": _trans_prompt}],
+                )
+                _trans_raw = _trans_resp.content[0].text.strip()
+                if _trans_raw.startswith("```"):
+                    _trans_raw = _trans_raw.split("```", 2)[1]
+                    if _trans_raw.startswith("json"):
+                        _trans_raw = _trans_raw[4:]
+                    _trans_raw = _trans_raw.strip()
+                _trans_parsed = json.loads(_trans_raw)
+                segments = _trans_parsed.get("segments") or None
+                logger.info(
+                    "generate_lyrics: translation call ok — %d segments user=%s",
+                    len(segments or []), user_id,
+                )
+            except Exception:
+                logger.warning(
+                    "generate_lyrics: translation call failed — story will have no subtitles user=%s",
+                    user_id, exc_info=True,
+                )
+                segments = None  # story still works, just no subtitles
+
         conn = db._conn(db_path)
         try:
             cur = conn.cursor()
@@ -539,7 +574,7 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             "lyric_id": lyric_id,
             "lyrics": parsed["lyrics"],
             "title": final_title,
-            "segments": parsed.get("segments") if _need_translation else None,
+            "segments": segments,
         }
 
     structure = random.choice(_SONG_STRUCTURES)
