@@ -1,4 +1,4 @@
-﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { memo, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
 import { useTranslation } from 'react-i18next';
@@ -411,6 +411,11 @@ const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }
     </div>
   );
 });
+
+const LazyPINGate = lazy(() => import('../components/ParentPINGate'));
+function KidsPinGateLoader({ token, onSuccess, onCancel }) {
+  return <LazyPINGate token={token} action="enter" onSuccess={onSuccess} onCancel={onCancel} />;
+}
 
 const SongCard = memo(function SongCard({
   variant, title, artistName, activeWsRef,
@@ -1216,6 +1221,7 @@ export default function SongsPage() {
 
   // Kids Mode
   const [isKidsMode, setIsKidsMode]         = useState(false);
+  const [showKidsPinGate, setShowKidsPinGate] = useState(false);
   // Roast Mode
   const [isRoastMode, setIsRoastMode]       = useState(false);
   const [roastName, setRoastName]           = useState('');
@@ -3031,6 +3037,21 @@ export default function SongsPage() {
               </div>
             )}
 
+            {/* ── Zeus Baby Beats ─────────────────────────────────── */}
+            <button
+              onClick={() => setShowKidsPinGate(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 16px', borderRadius: 20, cursor: 'pointer',
+                background: 'rgba(251,209,85,0.10)',
+                border: '1px solid rgba(251,209,85,0.5)',
+                color: '#fbbf24', fontSize: 13, fontWeight: 700,
+                transition: 'background 0.2s', marginBottom: 10, width: '100%',
+              }}
+            >
+              🧸 Zeus Baby Beats
+            </button>
+
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
               onClick={() => { setIsKidsMode(v => !v); setIsRoastMode(false); setKidsAccent(''); setKidsNarratorVoice('british'); setKidsChildVoice('younggirl'); setKidsCharacterVoice(''); setKidsSubMode('song'); setStoryLanguage('english'); }}
@@ -4022,6 +4043,19 @@ export default function SongsPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {showKidsPinGate && token && (
+        <Suspense fallback={null}>
+          <KidsPinGateLoader
+            token={token}
+            onSuccess={() => {
+              sessionStorage.setItem('kidsMode', '1');
+              window.location.href = '/kids';
+            }}
+            onCancel={() => setShowKidsPinGate(false)}
+          />
+        </Suspense>
       )}
     </>
   );
