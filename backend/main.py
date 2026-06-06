@@ -2034,6 +2034,22 @@ def _ffmpeg_concat_mp3(clip_paths: list[str], output_path: str) -> bool:
             pass
 
 
+def _get_mp3_duration(path: str) -> float:
+    """Return actual duration in seconds of an MP3 file using ffprobe.
+    More accurate than ElevenLabs character timestamps which don't include trailing silence."""
+    try:
+        result = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+             '-of', 'default=noprint_wrappers=1:nokey=1', path],
+            capture_output=True, timeout=10,
+        )
+        if result.returncode == 0:
+            return float(result.stdout.strip())
+    except Exception:
+        pass
+    return 0.0
+
+
 def _build_subtitle_cues(segments: list, full_text: str, chars: list, char_starts: list, char_ends: list) -> list | None:
     """Map foreign-language story segments to audio timestamps using ElevenLabs character alignment.
     Returns list of {start, end, text} dicts (English text), or None on failure."""
@@ -2201,8 +2217,9 @@ async def songs_generate(
                             _clip_path = str(_story_dir / f"{lyric_id}_{_i}.mp3")
                             pathlib.Path(_clip_path).write_bytes(_clip_bytes)
                             _clip_paths.append(_clip_path)
-                            _ends = _seg_json.get("alignment", {}).get("character_end_times_seconds", [])
-                            _clip_durations.append(_ends[-1] if _ends else 0.0)
+                            # Use actual MP3 duration (ffprobe) — more accurate than EL character
+                            # timestamps which don't include the trailing silence EL appends.
+                            _clip_durations.append(_get_mp3_duration(_clip_path))
                         else:
                             log.warning("multi-voice: segment %d ElevenLabs %d user=%s", _i, _seg_resp.status_code, user_id)
                             _all_ok = False

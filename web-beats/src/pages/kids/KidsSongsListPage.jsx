@@ -22,6 +22,7 @@ function StoryPlayer({ item, onClose }) {
   const [duration, setDuration] = useState(0);
   const [activeCue, setActiveCue] = useState(null);
   const [cues, setCues] = useState(null);
+  const [showSubtitles, setShowSubtitles] = useState(true);
   const audioRef = useRef(null);
   const isStory = item.genre_tag === 'kids_story';
   const hasSubtitles = isStory && !!item.subtitles_url;
@@ -110,13 +111,30 @@ function StoryPlayer({ item, onClose }) {
         >
           ← Library
         </button>
-        <div style={{
-          marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.85)',
-          background: isStory ? 'rgba(167,139,250,0.3)' : 'rgba(251,209,85,0.25)',
-          border: `1px solid ${isStory ? 'rgba(167,139,250,0.5)' : 'rgba(251,209,85,0.5)'}`,
-          borderRadius: 12, padding: '4px 10px',
-        }}>
-          {isStory ? '📖 Story' : '🎵 Song'}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {hasSubtitles && (
+            <button
+              onClick={() => setShowSubtitles(s => !s)}
+              style={{
+                background: showSubtitles ? 'rgba(167,139,250,0.35)' : 'rgba(255,255,255,0.15)',
+                border: `1px solid ${showSubtitles ? 'rgba(167,139,250,0.7)' : 'rgba(255,255,255,0.25)'}`,
+                borderRadius: 12, padding: '4px 10px',
+                fontSize: 11, fontWeight: 700,
+                color: showSubtitles ? '#e9d5ff' : 'rgba(255,255,255,0.6)',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              🌍 {showSubtitles ? 'Hide' : 'Show'} subtitles
+            </button>
+          )}
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.85)',
+            background: isStory ? 'rgba(167,139,250,0.3)' : 'rgba(251,209,85,0.25)',
+            border: `1px solid ${isStory ? 'rgba(167,139,250,0.5)' : 'rgba(251,209,85,0.5)'}`,
+            borderRadius: 12, padding: '4px 10px',
+          }}>
+            {isStory ? '📖 Story' : '🎵 Song'}
+          </div>
         </div>
       </div>
 
@@ -127,7 +145,7 @@ function StoryPlayer({ item, onClose }) {
             src={item.image_url}
             alt={item.title}
             style={{
-              width: '100%', maxWidth: hasSubtitles ? 200 : 280,
+              width: '100%', maxWidth: (hasSubtitles && showSubtitles) ? 200 : 280,
               aspectRatio: '1/1', objectFit: 'cover',
               borderRadius: 24, boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
               display: 'block',
@@ -135,10 +153,10 @@ function StoryPlayer({ item, onClose }) {
           />
         ) : (
           <div style={{
-            width: hasSubtitles ? 200 : 280, aspectRatio: '1/1',
+            width: (hasSubtitles && showSubtitles) ? 200 : 280, aspectRatio: '1/1',
             borderRadius: 24, boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: hasSubtitles ? 72 : 96,
+            fontSize: (hasSubtitles && showSubtitles) ? 72 : 96,
             background: isStory
               ? 'linear-gradient(135deg, #a78bfa 0%, #f472b6 100%)'
               : 'linear-gradient(135deg, #fbd155 0%, #ff6b6b 100%)',
@@ -151,7 +169,7 @@ function StoryPlayer({ item, onClose }) {
       {/* Title */}
       <div style={{ textAlign: 'center', padding: '14px 24px 0', flexShrink: 0 }}>
         <h2 style={{
-          margin: 0, fontSize: hasSubtitles ? 18 : 22, fontWeight: 900,
+          margin: 0, fontSize: (hasSubtitles && showSubtitles) ? 18 : 22, fontWeight: 900,
           color: '#ffffff', lineHeight: 1.2,
         }}>
           {item.title || (isStory ? 'My Story' : 'My Song')}
@@ -159,7 +177,7 @@ function StoryPlayer({ item, onClose }) {
       </div>
 
       {/* Subtitle panel — foreign language stories only */}
-      {hasSubtitles && (
+      {hasSubtitles && showSubtitles && (
         <div style={{
           flex: 1, margin: '14px 20px 8px', borderRadius: 20,
           background: 'rgba(255,255,255,0.75)',
@@ -203,7 +221,7 @@ function StoryPlayer({ item, onClose }) {
       )}
 
       {/* Spacer for non-subtitle stories/songs */}
-      {!hasSubtitles && <div style={{ flex: 1 }} />}
+      {!(hasSubtitles && showSubtitles) && <div style={{ flex: 1 }} />}
 
       {/* Controls area */}
       <div style={{ flexShrink: 0, padding: '0 24px 32px' }}>
