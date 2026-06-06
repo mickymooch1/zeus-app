@@ -26,6 +26,7 @@ const NARRATOR_VOICES = [
   ['scouse',     '🎸',  'Scouse',      'Liverpool'],
   ['irish',      '🍀',  'Irish',       'Musical'],
   ['scottish',   '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
+  ['jamaican',   '🇯🇲', 'Jamaican',    'Caribbean'],
 ];
 
 const HERO_VOICES = [
@@ -41,15 +42,16 @@ const HERO_VOICES = [
 ];
 
 const CHARACTER_VOICES = [
-  ['dragon',  '🐉',   'Dragon',   'Fierce'],
-  ['villain', '😈',   'Villain',  'Menacing'],
-  ['fairy',   '🧚',   'Fairy',    'Magical'],
-  ['cranky',  '👴',   'Cranky',   'Old man'],
-  ['pirate',  '🏴‍☠️',  'Pirate',   'Swashbuckling'],
-  ['wizard',  '🧙',   'Wizard',   'Wise'],
-  ['raspy',   '👹',   'Raspy',    'Scary'],
-  ['gnarly',  '🤙',   'Gnarly',   'Wild'],
-  ['cockney', '🎩',   'Cockney',  'London'],
+  ['dragon',   '🐉',   'Dragon',   'Fierce'],
+  ['villain',  '😈',   'Villain',  'Menacing'],
+  ['fairy',    '🧚',   'Fairy',    'Magical'],
+  ['cranky',   '👴',   'Cranky',   'Old man'],
+  ['pirate',   '🏴‍☠️',  'Pirate',   'Swashbuckling'],
+  ['wizard',   '🧙',   'Wizard',   'Wise'],
+  ['raspy',    '👹',   'Raspy',    'Scary'],
+  ['gnarly',   '🤙',   'Gnarly',   'Wild'],
+  ['cockney',  '🎩',   'Cockney',  'London'],
+  ['jamaican', '🇯🇲',  'Jamaican', 'Caribbean'],
 ];
 
 const MUSIC_STYLES = [

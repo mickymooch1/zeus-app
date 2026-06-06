@@ -1979,6 +1979,7 @@ _STORY_VOICES: dict[str, str] = {
     'scouse':     'QskpmzLHRFPTEOkFlnAI',
     'irish':      'E8tAm6nkbW2yKYAJLVXH',
     'scottish':   'InE4naNnowIxWA78Z5kE',
+    'jamaican':   '6VgigPFWF0sNZy1BthVg',  # pirate voice — closest Caribbean-sounding in existing library
     'cockney':    'ytcsltLTtCHxNn1vC76H',
     # Character voices
     'cranky':     'MKlLqCItoCkvdhrxgtLv',
