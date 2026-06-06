@@ -744,6 +744,14 @@ class SchoolRegisterRequest(BaseModel):
     country: str = "UK"
 
 
+class KidsPINSetRequest(BaseModel):
+    pin: str
+
+
+class KidsPINVerifyRequest(BaseModel):
+    pin: str
+
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -956,6 +964,31 @@ async def register_school(request: Request, body: SchoolRegisterRequest):
     safe_user = {k: v for k, v in db.get_user_by_id(db_path, user["id"]).items() if k != "password_hash"}
     log.info("register_school: new school account email=%s verified=%s", body.email, verified)
     return {"token": token, "user": safe_user}
+
+
+@app.post("/kids/pin/set")
+async def kids_pin_set(body: KidsPINSetRequest, current_user: dict = Depends(auth.get_current_user)):
+    if current_user.get("account_type") == "school":
+        raise HTTPException(status_code=403, detail="School accounts do not use a PIN")
+    if not body.pin or not body.pin.isdigit() or len(body.pin) != 4:
+        raise HTTPException(status_code=400, detail="PIN must be exactly 4 digits")
+    db_path = db.get_db_path()
+    pin_hash = auth.hash_password(body.pin)
+    db.set_kids_pin(db_path, current_user["id"], pin_hash)
+    return {"ok": True}
+
+
+@app.post("/kids/pin/verify")
+async def kids_pin_verify(body: KidsPINVerifyRequest, current_user: dict = Depends(auth.get_current_user)):
+    if current_user.get("account_type") == "school":
+        raise HTTPException(status_code=403, detail="School accounts do not use a PIN")
+    db_path = db.get_db_path()
+    stored_hash = db.get_kids_pin_hash(db_path, current_user["id"])
+    if not stored_hash:
+        raise HTTPException(status_code=404, detail="No PIN set — please set a PIN in account settings first")
+    if not auth.verify_password(body.pin, stored_hash):
+        raise HTTPException(status_code=401, detail="Incorrect PIN")
+    return {"ok": True}
 
 
 def _send_verification_email(user: dict, app: str = "ai") -> None:
@@ -2007,6 +2040,10 @@ async def songs_generate(
 
     db_path = db.get_db_path()
     user_id = current_user["id"]
+
+    # School accounts: enforce safe content regardless of request
+    if current_user.get("account_type") == "school":
+        body.explicit = False
 
     if body.genre_b:
         log.info("Genre blend request: genre_b=%s blend_ratio=%s user_id=%s", body.genre_b, body.blend_ratio, user_id)
@@ -4902,6 +4939,8 @@ class _CoverSongRequest(BaseModel):
 @app.post("/api/songs/variants/{variant_id}/stems", status_code=202)
 async def request_stems(variant_id: int, current_user=Depends(auth.get_current_user)):
     """Submit a stem separation job for a variant the user owns. Costs 1 premium credit."""
+    if current_user.get("account_type") == "school":
+        raise HTTPException(status_code=403, detail="Stem separation is not available on school accounts")
     db_path = db.get_db_path()
     variant = db.get_song_variant_by_id(db_path, variant_id)
     if not variant or variant["user_id"] != current_user["id"]:
