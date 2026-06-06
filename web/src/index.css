@@ -34,12 +34,39 @@ html, body { overflow-x: hidden; }
 }
 
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse 140% 90% at 50% -8%, #0c1133 0%, #060912 52%, #000000 100%);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* ── Space background layers (SpaceBackground.jsx) ───────── */
+.space-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 42% at 8% 22%, rgba(76,29,149,0.32) 0%, transparent 65%),
+    radial-gradient(ellipse 48% 34% at 91% 74%, rgba(0,240,255,0.10) 0%, transparent 65%),
+    radial-gradient(ellipse 38% 28% at 55% 90%, rgba(255,0,153,0.09) 0%, transparent 65%),
+    radial-gradient(ellipse 34% 24% at 80% 14%, rgba(99,102,241,0.15) 0%, transparent 65%),
+    radial-gradient(circle 160px at -50px -60px, rgba(88,28,135,0.60) 0%, rgba(49,10,102,0.75) 38%, rgba(20,4,50,0.5) 62%, transparent 80%),
+    radial-gradient(circle 110px at calc(100% + 35px) calc(100% + 25px), rgba(0,30,50,0.85) 0%, rgba(0,240,255,0.18) 50%, transparent 75%);
+}
+.space-stars {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ── Pages: transparent so space shows through ───────────── */
+.landing, .auth-page, .pricing-page, .content-page-wrap,
+.billing-page, .dashboard-page, .tasks-page, .admin-page,
+.websites-page, .songs-page { background: transparent !important; }
 
 /* ── Layout ──────────────────────────────── */
 .app { display: flex; height: 100vh; }

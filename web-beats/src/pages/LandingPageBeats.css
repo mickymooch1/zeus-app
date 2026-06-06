@@ -8,11 +8,11 @@
 .lp *, .lp *::before, .lp *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 .lp {
-  --bg: #000000;
-  --bg2: #080808;
-  --bg3: #0a0a0a;
-  --surface: #0d0d0d;
-  --surface2: #111111;
+  --bg: transparent;
+  --bg2: rgba(4,4,8,0.55);
+  --bg3: rgba(8,8,12,0.50);
+  --surface: rgba(13,13,20,0.70);
+  --surface2: rgba(18,18,26,0.75);
   --border: rgba(0,240,255,0.12);
   --border-hover: rgba(0,240,255,0.4);
   --purple: #00f0ff;

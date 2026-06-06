@@ -34,12 +34,47 @@ html, body { overflow-x: hidden; }
 }
 
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse 140% 90% at 50% -8%, #0c1133 0%, #060912 52%, #000000 100%);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* ── Space background layers (SpaceBackground.jsx) ───────── */
+.space-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    /* Purple nebula — top-left */
+    radial-gradient(ellipse 55% 42% at 8% 22%, rgba(76,29,149,0.32) 0%, transparent 65%),
+    /* Cyan nebula — bottom-right */
+    radial-gradient(ellipse 48% 34% at 91% 74%, rgba(0,240,255,0.10) 0%, transparent 65%),
+    /* Pink nebula — bottom-center */
+    radial-gradient(ellipse 38% 28% at 55% 90%, rgba(255,0,153,0.09) 0%, transparent 65%),
+    /* Indigo nebula — top-right */
+    radial-gradient(ellipse 34% 24% at 80% 14%, rgba(99,102,241,0.15) 0%, transparent 65%),
+    /* Planet 1 — large purple/violet, top-left corner */
+    radial-gradient(circle 160px at -50px -60px, rgba(88,28,135,0.60) 0%, rgba(49,10,102,0.75) 38%, rgba(20,4,50,0.5) 62%, transparent 80%),
+    /* Planet 2 — small teal, bottom-right corner */
+    radial-gradient(circle 110px at calc(100% + 35px) calc(100% + 25px), rgba(0,30,50,0.85) 0%, rgba(0,240,255,0.18) 50%, transparent 75%);
+}
+.space-stars {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ── Pages: transparent so space shows through ───────────── */
+.dashboard-page { background: transparent !important; }
+.billing-page   { background: transparent !important; }
+.pricing-page   { background: transparent !important; }
+.content-page-wrap { background: transparent !important; }
+.spinner-page   { background: rgba(0,0,0,0.7) !important; }
 
 /* ── Layout ──────────────────────────────── */
 .app { display: flex; height: 100vh; }
@@ -331,7 +366,7 @@ body {
 /* ── Auth pages ──────────────────────────────────────────── */
 .auth-page {
   min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 40px 16px; background: #000000; position: relative; overflow-y: auto;
+  padding: 40px 16px; background: transparent; position: relative; overflow-y: auto;
 }
 .auth-card {
   background: rgba(255,255,255,0.04);

@@ -9,6 +9,7 @@ import NowPlayingBar from './components/NowPlayingBar';
 import { UpdateToast } from './components/UpdateToast';
 import KidsShell from './components/KidsShell';
 import ParentPINGate from './components/ParentPINGate';
+import SpaceBackground from './components/SpaceBackground';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 import './index.css';
 
@@ -102,6 +103,7 @@ export default function App() {
     <AuthProvider>
       <NowPlayingProvider>
       <BrowserRouter>
+        <SpaceBackground />
         <AppInner />
         <Suspense fallback={fallback}>
           <Routes>
