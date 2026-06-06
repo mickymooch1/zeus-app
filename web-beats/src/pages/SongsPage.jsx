@@ -1290,11 +1290,17 @@ export default function SongsPage() {
 
   const fetchLibrary = useCallback(async () => {
     try {
+      console.log('[SongsPage] Fetching library, token present:', !!token);
       const r = await fetch(`${BACKEND_URL}/api/lyrics`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!r.ok) return;
+      console.log('[SongsPage] /api/lyrics status:', r.status);
+      if (!r.ok) {
+        console.log('[SongsPage] /api/lyrics failed — body:', await r.text().catch(() => '(unreadable)'));
+        return;
+      }
       const { lyrics } = await r.json();
+      console.log('[SongsPage] lyrics count:', lyrics?.length, 'ids:', lyrics?.map(l => l.id));
       const groups = await Promise.all(
         (lyrics || []).map(async (lyric) => {
           const vr = await fetch(`${BACKEND_URL}/api/lyrics/${lyric.id}/variants`, {

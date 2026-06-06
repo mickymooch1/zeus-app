@@ -2601,7 +2601,9 @@ async def songs_generate(
 @app.get("/api/lyrics")
 async def list_lyrics(current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()
-    lyrics = db.list_lyrics_for_user(db_path, current_user["id"])
+    user_id = current_user["id"]
+    lyrics = db.list_lyrics_for_user(db_path, user_id)
+    log.info("list_lyrics: user=%s returning %d lyrics", user_id, len(lyrics))
     return {"lyrics": lyrics}
 
 

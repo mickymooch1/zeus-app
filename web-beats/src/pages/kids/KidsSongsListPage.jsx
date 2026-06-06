@@ -299,8 +299,9 @@ export default function KidsSongsListPage() {
   const [nowPlaying, setNowPlaying] = useState(null);
 
   const fetchLibrary = useCallback(async () => {
-    if (!token) return;
+    if (!token) { setLoading(false); return; }
     try {
+      console.log('[KidsSongs] Fetching from /api/kids/songs...');
       const r = await fetch(`${BACKEND_URL}/api/kids/songs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
