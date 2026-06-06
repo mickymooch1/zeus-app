@@ -303,6 +303,9 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 user_id     TEXT,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""",
+            "ALTER TABLE users ADD COLUMN account_type TEXT NOT NULL DEFAULT 'standard'",
+            "ALTER TABLE users ADD COLUMN kids_pin_hash TEXT",
+            "ALTER TABLE users ADD COLUMN school_verified INTEGER NOT NULL DEFAULT 0",
         ]:
             try:
                 conn.execute(_migration)
@@ -470,6 +473,21 @@ def update_user(db_path: pathlib.Path, user_id: str, **fields) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def set_kids_pin(db_path: pathlib.Path, user_id: str, pin_hash: str) -> None:
+    """Store a bcrypt-hashed 4-digit PIN for kids mode."""
+    update_user(db_path, user_id, kids_pin_hash=pin_hash)
+
+
+def get_kids_pin_hash(db_path: pathlib.Path, user_id: str) -> str | None:
+    """Return the stored PIN hash, or None if not set."""
+    user = get_user_by_id(db_path, user_id)
+    return user.get("kids_pin_hash") if user else None
+
+
+def set_school_verified(db_path: pathlib.Path, user_id: str, verified: bool) -> None:
+    update_user(db_path, user_id, school_verified=1 if verified else 0)
 
 
 def set_sound_persona(
