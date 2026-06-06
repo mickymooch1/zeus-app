@@ -1977,10 +1977,11 @@ _STORY_VOICES: dict[str, str] = {
     'newzealand': 'BHhU6fTKdSX6bN7T1tpz',
     'indian':     'nwXBqbMKJWkQdYCbhxqZ',
     'scouse':     'QskpmzLHRFPTEOkFlnAI',
-    'irish':      'E8tAm6nkbW2yKYAJLVXH',
-    'scottish':   'InE4naNnowIxWA78Z5kE',
-    'jamaican':   '6VgigPFWF0sNZy1BthVg',  # pirate voice — closest Caribbean-sounding in existing library
-    'cockney':    'ytcsltLTtCHxNn1vC76H',
+    'irish':         'E8tAm6nkbW2yKYAJLVXH',
+    'scottish':      'InE4naNnowIxWA78Z5kE',
+    'jamaican':      'Q9Vh1SycNbxygVIup9vI',  # Jamaican woman narrator
+    'britishwoman':  'ZEt85AU1ui8Rr8FxNslW',  # British woman narrator — new default
+    'cockney':       'ytcsltLTtCHxNn1vC76H',
     # Character voices
     'cranky':     'MKlLqCItoCkvdhrxgtLv',
     'villain':    'TDTTIZEngvvWARkECefs',
@@ -2154,7 +2155,7 @@ async def songs_generate(
             if _has_credit:
                 try:
                     _story_text = lyric_result["lyrics"].strip()
-                    _narrator_voice_id = _STORY_VOICES.get((body.accent or '').lower(), 'WUyjxM8OTY6l8LhTmdkq')
+                    _narrator_voice_id = _STORY_VOICES.get((body.accent or '').lower(), 'ZEt85AU1ui8Rr8FxNslW')
                     _char_voice_key  = (body.character_voice or '').lower()
                     _child_voice_key = (body.child_voice or '').lower()
                     _char_voice_id   = _STORY_VOICES.get(_char_voice_key,  _narrator_voice_id)

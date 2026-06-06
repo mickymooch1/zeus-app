@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { BACKEND_URL } from '../../brand';
@@ -19,14 +19,14 @@ const AGE_RANGES = [
 ];
 
 const NARRATOR_VOICES = [
-  ['british',    '🇬🇧', 'British',     'Default'],
-  ['australian', '🦘',  'Australian',  'Warm'],
-  ['newzealand', '🇳🇿', 'New Zealand', 'Clear'],
-  ['indian',     '🇮🇳', 'Indian',      'Rich'],
-  ['scouse',     '🎸',  'Scouse',      'Liverpool'],
-  ['irish',      '🍀',  'Irish',       'Musical'],
-  ['scottish',   '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
-  ['jamaican',   '🇯🇲', 'Jamaican',    'Caribbean'],
+  ['britishwoman', '🇬🇧', 'British ♀',   'Default'],
+  ['jamaican',     '🇯🇲', 'Jamaican ♀',  'Caribbean'],
+  ['australian',   '🦘',  'Australian',  'Warm'],
+  ['newzealand',   '🇳🇿', 'New Zealand', 'Clear'],
+  ['indian',       '🇮🇳', 'Indian',      'Rich'],
+  ['scouse',       '🎸',  'Scouse',      'Liverpool'],
+  ['irish',        '🍀',  'Irish',       'Musical'],
+  ['scottish',     '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
 ];
 
 const HERO_VOICES = [
@@ -78,12 +78,23 @@ const voiceBtn = (active, borderColor, bgColor) => ({
   width: '100%', fontFamily: 'Nunito, sans-serif',
 });
 
+const previewDot = (active, color) => ({
+  position: 'absolute', top: 3, right: 3,
+  width: 18, height: 18, borderRadius: '50%',
+  border: `1px solid ${color}`,
+  background: active ? color : 'rgba(255,255,255,0.8)',
+  color: active ? '#fff' : color,
+  fontSize: 7, cursor: 'pointer',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  padding: 0, transition: 'all 0.15s', lineHeight: 1,
+});
+
 export default function KidsStoryMode() {
   const { token } = useAuth();
   const navigate = useNavigate();
   const [theme, setTheme]             = useState(null);
   const [age, setAge]                 = useState('little_ones');
-  const [narrator, setNarrator]       = useState('british');
+  const [narrator, setNarrator]       = useState('britishwoman');
   const [heroVoice, setHeroVoice]     = useState('younggirl');
   const [charVoice, setCharVoice]     = useState('');
   const [language, setLanguage]       = useState('english');
@@ -92,14 +103,44 @@ export default function KidsStoryMode() {
   const [storyEvent, setStoryEvent]   = useState('');
   const [generating, setGenerating]   = useState(false);
   const [error, setError]             = useState('');
+  const [previewingVoice, setPreviewingVoice] = useState(null);
+  const previewAudioRef = useRef(null);
 
   const canGenerate = theme !== null;
   const selectedStyle = MUSIC_STYLES.find(s => s.value === musicStyle) ?? MUSIC_STYLES[0];
+
+  const handleVoicePreview = (voiceKey) => {
+    if (previewingVoice === voiceKey && previewAudioRef.current) {
+      previewAudioRef.current.onpause = null;
+      previewAudioRef.current.pause();
+      previewAudioRef.current = null;
+      setPreviewingVoice(null);
+      return;
+    }
+    if (previewAudioRef.current) {
+      previewAudioRef.current.onpause = null;
+      previewAudioRef.current.pause();
+      previewAudioRef.current = null;
+    }
+    const url = `${BACKEND_URL}/files/voice-previews/${voiceKey}.mp3`;
+    const audio = new Audio(url);
+    audio.onpause = () => { setPreviewingVoice(null); previewAudioRef.current = null; };
+    audio.onended = () => { setPreviewingVoice(null); previewAudioRef.current = null; };
+    previewAudioRef.current = audio;
+    setPreviewingVoice(voiceKey);
+    audio.play().catch(() => {});
+  };
 
   const handleGenerate = async () => {
     if (!canGenerate || generating) return;
     setGenerating(true);
     setError('');
+    if (previewAudioRef.current) {
+      previewAudioRef.current.onpause = null;
+      previewAudioRef.current.pause();
+      previewAudioRef.current = null;
+      setPreviewingVoice(null);
+    }
     try {
       const brief = [
         `A ${STORY_THEMES[theme].label.toLowerCase()} story for children`,
@@ -191,11 +232,18 @@ export default function KidsStoryMode() {
       {label('📖 Narrator Voice')}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 22 }}>
         {NARRATOR_VOICES.map(([val, emoji, name, desc]) => (
-          <button key={val} onClick={() => setNarrator(val)} style={voiceBtn(narrator === val, '#fbd155', 'rgba(251,209,85,0.2)')}>
-            <span style={{ fontSize: 20 }}>{emoji}</span>
-            <span style={{ fontSize: 11, fontWeight: narrator === val ? 800 : 600, color: narrator === val ? '#b45309' : '#475569' }}>{name}</span>
-            <span style={{ fontSize: 9, color: '#94a3b8' }}>{desc}</span>
-          </button>
+          <div key={val} style={{ position: 'relative' }}>
+            <button onClick={() => setNarrator(val)} style={voiceBtn(narrator === val, '#fbd155', 'rgba(251,209,85,0.2)')}>
+              <span style={{ fontSize: 20 }}>{emoji}</span>
+              <span style={{ fontSize: 11, fontWeight: narrator === val ? 800 : 600, color: narrator === val ? '#b45309' : '#475569' }}>{name}</span>
+              <span style={{ fontSize: 9, color: '#94a3b8' }}>{desc}</span>
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleVoicePreview(val); }}
+              title="Preview voice"
+              style={previewDot(previewingVoice === val, '#f59e0b')}
+            >{previewingVoice === val ? '⏸' : '▶'}</button>
+          </div>
         ))}
       </div>
 
@@ -228,11 +276,18 @@ export default function KidsStoryMode() {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 22 }}>
         {CHARACTER_VOICES.map(([val, emoji, name, desc]) => (
-          <button key={val} onClick={() => setCharVoice(v => v === val ? '' : val)} style={voiceBtn(charVoice === val, '#f472b6', 'rgba(244,114,182,0.18)')}>
-            <span style={{ fontSize: 20 }}>{emoji}</span>
-            <span style={{ fontSize: 11, fontWeight: charVoice === val ? 800 : 600, color: charVoice === val ? '#be185d' : '#475569' }}>{name}</span>
-            <span style={{ fontSize: 9, color: '#94a3b8' }}>{desc}</span>
-          </button>
+          <div key={val} style={{ position: 'relative' }}>
+            <button onClick={() => setCharVoice(v => v === val ? '' : val)} style={voiceBtn(charVoice === val, '#f472b6', 'rgba(244,114,182,0.18)')}>
+              <span style={{ fontSize: 20 }}>{emoji}</span>
+              <span style={{ fontSize: 11, fontWeight: charVoice === val ? 800 : 600, color: charVoice === val ? '#be185d' : '#475569' }}>{name}</span>
+              <span style={{ fontSize: 9, color: '#94a3b8' }}>{desc}</span>
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleVoicePreview(val); }}
+              title="Preview voice"
+              style={previewDot(previewingVoice === val, '#f472b6')}
+            >{previewingVoice === val ? '⏸' : '▶'}</button>
+          </div>
         ))}
       </div>
 
