@@ -301,30 +301,19 @@ export default function KidsSongsListPage() {
   const fetchLibrary = useCallback(async () => {
     if (!token) return;
     try {
-      const r = await fetch(`${BACKEND_URL}/api/lyrics`, {
+      const r = await fetch(`${BACKEND_URL}/api/kids/songs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!r.ok) { setLoading(false); return; }
-      const { lyrics } = await r.json();
-
-      const groups = await Promise.all(
-        (lyrics || []).map(async (lyric) => {
-          const vr = await fetch(`${BACKEND_URL}/api/lyrics/${lyric.id}/variants`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!vr.ok) return [];
-          const d = await vr.json();
-          return (d.variants || []).map(v => ({ ...v, title: lyric.title, lyric_id: lyric.id }));
-        })
-      );
-
-      const flat = groups
-        .flat()
-        .filter(v => v.status === 'complete' && v.mp3_url)
-        .sort((a, b) => b.variant_id - a.variant_id);
-
-      setItems(flat);
-    } catch (_) {
+      if (!r.ok) {
+        console.log('Kids songs fetch failed:', r.status, r.statusText);
+        setLoading(false);
+        return;
+      }
+      const data = await r.json();
+      console.log('Kids songs fetched:', data);
+      setItems(data.items || []);
+    } catch (err) {
+      console.log('Kids songs fetch error:', err);
       setItems([]);
     } finally {
       setLoading(false);

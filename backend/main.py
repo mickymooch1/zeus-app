@@ -2647,6 +2647,57 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
     }
 
 
+@app.get("/api/kids/songs")
+async def list_kids_songs(current_user: dict = Depends(auth.get_current_user)):
+    """Kids-only content list — server-side filtered for safety.
+
+    Returns completed song/story variants where the lyric was created in kids mode
+    (lyrics.kids_story=1), the variant has genre_tag='kids_story' (stories), or the
+    style_prompt contains "children's song" (existing Suno kids songs pre-dating the column).
+    Adult songs are NEVER returned regardless of what the client sends.
+    """
+    db_path = db.get_db_path()
+    user_id = current_user["id"]
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                sv.id            AS variant_id,
+                sv.lyric_id,
+                sv.genre_tag,
+                sv.status,
+                sv.mp3_url,
+                sv.image_url,
+                sv.duration_seconds,
+                sv.subtitles_url,
+                sv.take_number,
+                l.title
+            FROM song_variants sv
+            JOIN lyrics l ON sv.lyric_id = l.id
+            WHERE sv.user_id = ?
+              AND sv.status = 'complete'
+              AND sv.mp3_url IS NOT NULL
+              AND sv.mp3_url != ''
+              AND (
+                  l.kids_story = 1
+                  OR sv.genre_tag = 'kids_story'
+                  OR sv.style_prompt LIKE '%children''s song%'
+              )
+            ORDER BY sv.id DESC
+            """,
+            (user_id,),
+        ).fetchall()
+        items = [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+    log.info("kids/songs: user=%s returned %d items", user_id, len(items))
+    return {"items": items}
+
+
 @app.get("/api/songs/variants/{variant_id}/public")
 async def get_song_variant_public(variant_id: int):
     """Public (no auth) endpoint for the share page. Only returns completed variants."""

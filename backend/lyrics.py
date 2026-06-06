@@ -514,7 +514,7 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         try:
             cur = conn.cursor()
             cur.execute(
-                "INSERT INTO lyrics (user_id, brief, lyrics_text, title) VALUES (?, ?, ?, ?)",
+                "INSERT INTO lyrics (user_id, brief, lyrics_text, title, kids_story) VALUES (?, ?, ?, ?, 1)",
                 (user_id, brief, parsed["lyrics"], final_title),
             )
             lyric_id = cur.lastrowid
