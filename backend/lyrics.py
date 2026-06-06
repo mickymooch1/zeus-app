@@ -461,18 +461,30 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
                 system = _KIDS_STORY_SYSTEM
             _story_lang = _KIDS_LANGUAGE_MAP.get((story_language or 'english').lower())
             _is_single_voice = not (character_voice or child_voice)
-            _need_translation = bool(_story_lang and (story_language or 'english').lower() != 'english' and _is_single_voice)
-            if _need_translation:
+            _is_foreign_lang = bool(_story_lang and (story_language or 'english').lower() != 'english')
+            # _need_translation: True only for single-voice + foreign — that's when subtitle segments are generated.
+            # Multi-voice uses [NARRATOR]/[CHILD]/[CHARACTER] tags so segments aren't compatible.
+            _need_translation = _is_foreign_lang and _is_single_voice
+            logger.info(
+                "generate_lyrics: kids_story language=%r mapped=%r foreign=%s single_voice=%s need_segments=%s",
+                story_language, _story_lang, _is_foreign_lang, _is_single_voice, _need_translation,
+            )
+            if _is_foreign_lang:
+                # Always instruct Claude to write in the target language, regardless of voice mode.
                 kids_prompt += (
                     f"\n\nIMPORTANT: Write the story ENTIRELY in {_story_lang}. "
                     f"Use natural, child-friendly {_story_lang} vocabulary and phrasing throughout. "
                     "Do not include any English text in the 'lyrics' field.\n\n"
-                    "Also add a 'segments' key: an array where each item has 'text' (one sentence "
-                    f"in {_story_lang}, exactly as it appears in 'lyrics') and 'english' "
-                    "(the English translation of that sentence). "
-                    "All segment texts concatenated (with single spaces between them) must equal the full 'lyrics' text. "
-                    'Example segment: {"text": "Il était une fois une petite licorne.", "english": "Once upon a time there was a little unicorn."}'
                 )
+                if _need_translation:
+                    # Single-voice only: also request per-sentence translation segments for subtitle display.
+                    kids_prompt += (
+                        "Also add a 'segments' key: an array where each item has 'text' (one sentence "
+                        f"in {_story_lang}, exactly as it appears in 'lyrics') and 'english' "
+                        "(the English translation of that sentence). "
+                        "All segment texts concatenated (with single spaces between them) must equal the full 'lyrics' text. "
+                        'Example segment: {"text": "Il était une fois une petite licorne.", "english": "Once upon a time there was a little unicorn."}'
+                    )
         else:  # song mode
             structure = random.choice([
                 "[Verse 1], [Chorus], [Verse 2], [Chorus], [Outro]",

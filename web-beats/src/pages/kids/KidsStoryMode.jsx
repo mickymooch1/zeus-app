@@ -54,14 +54,6 @@ const CHARACTER_VOICES = [
   ['jamaican', '🇯🇲',  'Jamaican', 'Caribbean'],
 ];
 
-const MUSIC_STYLES = [
-  { value: 'piano',    emoji: '🎹', label: 'Gentle Piano',  genres: ['classical'] },
-  { value: 'acoustic', emoji: '🎸', label: 'Soft Acoustic', genres: ['acoustic'] },
-  { value: 'nursery',  emoji: '🎠', label: 'Nursery Tune',  genres: ['acoustic'] },
-  { value: 'funpop',   emoji: '🎵', label: 'Light Pop',     genres: ['pop'] },
-  { value: 'reggae',   emoji: '🏝️', label: 'Soft Reggae',  genres: ['reggae'] },
-];
-
 const LANGUAGES = [
   ['english', '🇬🇧', 'English'],
   ['french',  '🇫🇷', 'French'],
@@ -98,7 +90,6 @@ export default function KidsStoryMode() {
   const [heroVoice, setHeroVoice]     = useState('younggirl');
   const [charVoice, setCharVoice]     = useState('');
   const [language, setLanguage]       = useState('english');
-  const [musicStyle, setMusicStyle]   = useState('piano');
   const [mainCharacter, setMainChar]  = useState('');
   const [storyEvent, setStoryEvent]   = useState('');
   const [generating, setGenerating]   = useState(false);
@@ -107,7 +98,6 @@ export default function KidsStoryMode() {
   const previewAudioRef = useRef(null);
 
   const canGenerate = theme !== null;
-  const selectedStyle = MUSIC_STYLES.find(s => s.value === musicStyle) ?? MUSIC_STYLES[0];
 
   const handleVoicePreview = (voiceKey) => {
     if (previewingVoice === voiceKey && previewAudioRef.current) {
@@ -156,7 +146,7 @@ export default function KidsStoryMode() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           brief,
-          genres: selectedStyle.genres,
+          genres: ['acoustic'],
           kids_story: true,
           kids_mode: 'story',
           kids_age_range: age,
@@ -308,24 +298,7 @@ export default function KidsStoryMode() {
         ))}
       </div>
 
-      {/* Background Music */}
-      {label('🎵 Background Music')}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 26 }}>
-        {MUSIC_STYLES.map(s => (
-          <button key={s.value} onClick={() => setMusicStyle(s.value)} style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            padding: '10px 4px 8px', gap: 4, borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-            border: `2px solid ${musicStyle === s.value ? '#c084fc' : 'rgba(0,0,0,0.1)'}`,
-            background: musicStyle === s.value ? 'rgba(192,132,252,0.15)' : 'rgba(255,255,255,0.7)',
-            fontFamily: 'Nunito, sans-serif',
-          }}>
-            <span style={{ fontSize: 22 }}>{s.emoji}</span>
-            <span style={{ fontSize: 10, fontWeight: musicStyle === s.value ? 800 : 600, color: musicStyle === s.value ? '#7c3aed' : '#475569', textAlign: 'center', lineHeight: 1.2 }}>{s.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {error && <p style={{ color: '#ef4444', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>{error}</p>}
+      {error &&<p style={{ color: '#ef4444', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>{error}</p>}
 
       <button
         className="kids-btn kids-btn-coral"
