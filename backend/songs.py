@@ -11,10 +11,11 @@ import requests
 INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency'})
 
 GENRE_MODEL_OVERRIDES: dict[str, str] = {
-    'ragga':    'V5_5',
-    'bhangra':  'V5_5',
-    'rastadub': 'V5_5',
-    'deeproots': 'V5_5',
+    'ragga':       'V5_5',
+    'bhangra':     'V5_5',
+    'rastadub':    'V5_5',
+    'deeproots':   'V5_5',
+    'purebassline': 'V5_5',
 }
 
 RANDOM_PRODUCTION = [
@@ -69,6 +70,7 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "afroswing":     "afroswing singer performing smoothly, relaxed romantic movement, warm golden lighting, stylish urban setting",
     "rastadub":      "rasta dub musician performing spiritually, slow rhythmic movement, warm golden lighting, dreadlocks moving gently, peaceful powerful energy",
     "deeprotbassline": "UK bassline DJ mixing, hands on decks, intense focused energy, dark club lighting, heavy bass atmosphere",
+    "purebassline":    "UK bassline DJ performing, bouncy energetic 4x4 movement, deep blue purple club lighting, high energy dancefloor atmosphere",
     "jazz":            "jazz saxophonist playing expressively, swaying with the music, warm amber club lighting, smooth sophisticated movement, fingers moving on keys",
     "swing":           "swing jazz band performing energetically, lively big band movement, warm vintage stage lighting, upbeat swing era performance",
     "vocaljazz":       "jazz vocalist singing intimately at microphone, smooth emotional delivery, warm amber lighting, sophisticated jazz club atmosphere",

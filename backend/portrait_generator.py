@@ -51,6 +51,7 @@ GENRE_PORTRAIT_PROMPTS = {
     "afroswing":      "Black British musician, professional portrait photo, afroswing artist, clear frontal face, warm golden studio lighting, smooth confident expression, photorealistic",
     "rastadub":       "Black Jamaican musician, professional portrait photo, rasta dub artist with dreadlocks, clear frontal face, warm golden studio lighting, spiritual peaceful expression, photorealistic",
     "deeprotbassline": "professional portrait photo, UK bassline DJ, clear frontal face, dark purple club lighting, intense focused expression, photorealistic",
+    "purebassline":    "UK bassline DJ producer, professional portrait photo, clear frontal face, energetic club lighting, confident expression, Northern UK dance music aesthetic, photorealistic",
     "jazz":            "professional portrait photo, jazz musician with saxophone, clear frontal face, warm amber club lighting, cool sophisticated expression, photorealistic",
     "swing":           "jazz musician in vintage suit, professional portrait photo, clear frontal face, warm vintage stage lighting, charismatic expression, 1940s aesthetic, photorealistic",
     "vocaljazz":       "jazz vocalist at vintage microphone, professional portrait photo, clear frontal face, warm intimate stage lighting, soulful expression, classic jazz aesthetic, photorealistic",
