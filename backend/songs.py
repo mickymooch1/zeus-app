@@ -790,23 +790,24 @@ GENRE_VARIATION_POOLS: dict[str, dict[str, list[str]]] = {
 
 
 def _pick_creative_variation(genre: str) -> str:
-    """Pick one item from structure, energy, and production pools for this genre.
+    """Pick one style tag from the energy and production pools for this genre.
 
-    Returns a comma-joined string to append to the style prompt.
+    Omits 'structure' — those are prose sentences that confuse Suno's style parser.
+    Energy and production entries are short comma-friendly tags that compose cleanly
+    with the base genre preset.
     Uses genre-specific pools where available; falls back to _DEFAULT_VARIATIONS.
     Logs the picks so each generation is traceable in the logs.
     """
     base_genre = genre.split("__")[0] if "__" in genre else genre
     pools = GENRE_VARIATION_POOLS.get(base_genre, _DEFAULT_VARIATIONS)
     picks: dict[str, str] = {}
-    for category in ("structure", "energy", "production"):
+    for category in ("energy", "production"):
         if category in pools:
             picks[category] = random.choice(pools[category])
     logger.info(
-        "CREATIVE_VARIATION genre=%r source=%s structure=%r energy=%r production=%r",
+        "CREATIVE_VARIATION genre=%r source=%s energy=%r production=%r",
         base_genre,
         "genre_pool" if base_genre in GENRE_VARIATION_POOLS else "default_pool",
-        picks.get("structure"),
         picks.get("energy"),
         picks.get("production"),
     )
