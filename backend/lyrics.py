@@ -260,6 +260,33 @@ Use comedic roast humour without any profanity. Still cheeky and funny, just cle
 NEVER use racial slurs, hate speech, or genuinely discriminatory language.
 """
 
+_ROAST_EXPLICIT_SYSTEM = """You are the sharpest, funniest comedy songwriter alive — like a savage best man speech crossed with a comedy roast night. Your job is to write genuinely funny, sweary songs that take the absolute piss out of someone with love.
+
+Explicit mode is ON. The user has specifically enabled adult language — you MUST use proper swearing for comedic effect.
+Use words like: shit, fuck, bastard, twat, dickhead, tosser, bellend, piss-take, bollocks — for comedic emphasis.
+Write like a genuine comedy roast: brutal, funny, sweary banter between close mates. The kind of speech that gets gasps and laughing at the same time.
+Keep it funny not genuinely cruel. NEVER use racial slurs, hate speech, or discriminatory language ever.
+
+Output ONLY valid JSON with this exact shape:
+{{
+  "title": "Song Title Here",
+  "lyrics": "[Verse 1]\\nLine one...\\n[Chorus]\\nLine one..."
+}}
+
+Song structure to use: {structure}
+
+Rules:
+- USE actual swear words — do not censor them with asterisks or replace with mild alternatives
+- Write a genuinely savage, funny roast — the kind of banter you'd hear at a comedy roast night
+- Make it cheeky and affectionate, NOT cruel, nasty, or discriminatory
+- Never use racial slurs, hate speech, or anything genuinely discriminatory
+- Use specific details from what you've been told about the person — generic jokes are lazy
+- Include at least one killer sweary punchline that will make everyone howl
+- The chorus should be a memorable, quotable roast line — probably sweary
+- Think best man speech energy — roasting with love, embarrassing but hilarious
+- 180-300 words total
+- No markdown, no commentary. JSON only."""
+
 # Racial slur filter — strips slurs before lyrics reach Suno or the DB.
 # Pattern uses word boundaries to avoid false positives on unrelated words.
 _SLUR_PATTERN = re.compile(
@@ -389,8 +416,9 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
     client = Anthropic()
 
     if roast_mode and roast_name:
+        logger.info("Roast mode: explicit=%s roast_name=%r vibe=%r", explicit, roast_name, roast_vibe)
         structure = random.choice(_SONG_STRUCTURES)
-        system = _ROAST_SYSTEM.format(structure=structure)
+        system = (_ROAST_EXPLICIT_SYSTEM if explicit else _ROAST_SYSTEM).format(structure=structure)
         vibe_modifier = _ROAST_VIBE_MODIFIERS.get(roast_vibe or 'gentle', _ROAST_VIBE_MODIFIERS['gentle'])
         user_message = (
             f"Write a funny roast song about {roast_name}.\n"
@@ -434,6 +462,7 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             raise
         final_title = song_title or parsed["title"]
         safe_lyrics = _strip_slurs(parsed["lyrics"])
+        logger.info("generate_lyrics: roast output — explicit=%s title=%r lyrics=%r", explicit, final_title, safe_lyrics[:500])
         conn = db._conn(db_path)
         try:
             cur = conn.cursor()
