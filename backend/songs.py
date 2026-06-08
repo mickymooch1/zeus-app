@@ -18,16 +18,799 @@ GENRE_MODEL_OVERRIDES: dict[str, str] = {
     'purebassline': 'V5_5',
 }
 
-RANDOM_PRODUCTION = [
-    "with unexpected key change",
-    "with a dramatic breakdown",
-    "with call and response vocals",
-    "with an extended outro",
-    "with a spoken word section",
-    "with double time flow",
-    "with a slow intro building to full energy",
-    "with stripped back verses and huge chorus",
-]
+# ── Cross-genre fallback variation pools ──────────────────────────────────────
+# Used for any genre not listed in GENRE_VARIATION_POOLS below.
+_DEFAULT_VARIATIONS: dict[str, list[str]] = {
+    "structure": [
+        "stripped-back intro building to full energy",
+        "straight into the hook from bar one",
+        "slow emotional build to an anthemic chorus",
+        "dynamic mid-song breakdown then big finale",
+        "sparse verse erupting into massive final chorus",
+        "call-and-response structure throughout",
+        "extended instrumental bridge before the last hook",
+        "quiet intro layering up to rich full arrangement",
+    ],
+    "energy": [
+        "high energy throughout",
+        "moody and atmospheric",
+        "uplifting and euphoric",
+        "raw and gritty",
+        "dark brooding tension",
+        "warm and intimate",
+        "dreamy hypnotic groove",
+        "urgent and relentless",
+    ],
+    "production": [
+        "rich layered production with harmonic depth",
+        "minimal spacious mix with room to breathe",
+        "vintage analogue warmth",
+        "modern polished commercial sound",
+        "reverb-drenched expansive atmosphere",
+        "punchy dry in-your-face mix",
+        "wide stereo cinematic sound",
+        "lo-fi textured character",
+    ],
+}
+
+# ── Per-genre variation pools ─────────────────────────────────────────────────
+# One item is picked from each category per generation and appended to the style.
+# Genres not listed fall back to _DEFAULT_VARIATIONS.
+GENRE_VARIATION_POOLS: dict[str, dict[str, list[str]]] = {
+    "drumandbass": {
+        "structure": [
+            "rolling intro building to a heavy amen drop",
+            "straight into the breakbeat from bar one",
+            "liquid intro flowing into deep rolling DnB",
+            "dark atmospheric build with a neurofunk bass drop",
+            "slow wind-up erupting into relentless DnB drums",
+        ],
+        "energy": [
+            "high-octane dancefloor energy",
+            "dark atmospheric liquid vibes",
+            "neurofunk tension and aggression",
+            "jump-up bouncy rave energy",
+            "deep rolling hypnotic groove",
+        ],
+        "production": [
+            "crisp punchy drums with deep Reese bass",
+            "sampled jazz break with heavy sub bass weight",
+            "distorted industrial texture and metallic snare",
+            "wide stereo amen break with tight rolling bassline",
+            "glassy synth stabs over sub-heavy bass",
+        ],
+    },
+    "jungle": {
+        "structure": [
+            "ragga intro chopping into a furious amen break",
+            "straight into the break from bar one",
+            "bass-heavy dub intro before the jungle rush",
+            "slow reggae introduction dropping into full jungle chaos",
+        ],
+        "energy": [
+            "chaotic frenzied rave energy",
+            "deep rolling spiritual jungle",
+            "dark underground early-90s rawness",
+            "euphoric uplifting jungle vibes",
+        ],
+        "production": [
+            "chopped Amen break with heavy sub bass",
+            "layered breakbeats with Jamaican dub echo",
+            "raw lo-fi analogue rave production",
+            "sliced jungle percussion with reggae samples",
+        ],
+    },
+    "grime": {
+        "structure": [
+            "aggressive intro straight into gritty bars",
+            "sparse icy beat building to intense MCing",
+            "cold dark intro exploding into rapid-fire flow",
+            "beat switch mid-track with harder breakdown",
+        ],
+        "energy": [
+            "intense aggressive street energy",
+            "icy cold dark threatening tension",
+            "raw relentless underground grime",
+            "rapid-fire delivery with menacing atmosphere",
+        ],
+        "production": [
+            "dark icy synth stabs over pounding 808",
+            "sparse minimalist grime production",
+            "heavy sub bass with clipped hard snares",
+            "chopped vocal samples over cold dark synths",
+        ],
+    },
+    "ukdrill": {
+        "structure": [
+            "dark intro straight into menacing drill bars",
+            "ambient piano intro dropping into heavy 808 drill",
+            "sliding melody intro building to aggressive verse",
+            "beat switch with contrasting melodic bridge",
+        ],
+        "energy": [
+            "menacing cold street energy",
+            "brooding South London darkness",
+            "aggressive threatening atmosphere",
+            "haunting melodic darkness",
+        ],
+        "production": [
+            "rolling 808 with sliding chromatic bass notes",
+            "dark piano sample over trap hi-hats",
+            "ominous string stabs over heavy kick pattern",
+            "minimal sinister production with reverb snare",
+        ],
+    },
+    "ukgarage": {
+        "structure": [
+            "smooth intro rolling into a 2-step groove",
+            "straight into the skippy rhythm from bar one",
+            "pitched vocal intro building to a garage peak",
+            "laid-back verse dropping into a punchy chorus",
+        ],
+        "energy": [
+            "smooth late-night London underground cool",
+            "bouncy infectious dancefloor groove",
+            "romantic and sultry",
+            "high-energy euphoric club peak",
+        ],
+        "production": [
+            "skippy 2-step drums with deep sidechain bass",
+            "pitched vocal chops over shuffled hi-hats",
+            "warm sub bass with crisp garage drum pattern",
+            "polished UK garage production with lush fills",
+        ],
+    },
+    "hiphop": {
+        "structure": [
+            "boom bap intro rolling into a confident verse",
+            "straight into the hook then a lyrical verse",
+            "atmospheric intro building into a hip-hop groove",
+            "classic verse-chorus-bridge structure",
+            "extended rap verse with a minimal hook",
+        ],
+        "energy": [
+            "confident street energy",
+            "introspective late-night mood",
+            "uplifting and motivational",
+            "raw gritty underground feel",
+            "smooth cool laid-back groove",
+        ],
+        "production": [
+            "punchy boom bap drums with warm soul sample",
+            "deep 808 bass with crisp snare snap",
+            "dusty looped sample with layered percussion",
+            "live drum break with a melodic piano hook",
+            "soulful piano loop over heavy kick pattern",
+        ],
+    },
+    "trap": {
+        "structure": [
+            "dark intro melting into a heavy 808 groove",
+            "straight into the 808 from the first bar",
+            "melodic intro building to a hard-hitting verse",
+            "slow tense intro exploding into full trap energy",
+        ],
+        "energy": [
+            "dark menacing street energy",
+            "melodic introspective late-night mood",
+            "aggressive hard-hitting power",
+            "moody atmospheric brooding feel",
+        ],
+        "production": [
+            "distorted 808 sub with fast hi-hat triplets",
+            "atmospheric synth pads under heavy trap drums",
+            "dark minor piano loop with rolling 808",
+            "layered 808 stacks with a crisp clap",
+        ],
+    },
+    "eastcoasthiphop": {
+        "structure": [
+            "jazz sample intro rolling into boom bap verse",
+            "straight into lyrical bars over punchy drums",
+            "soulful hook intro then an extended rap verse",
+            "boom bap verse building to a melodic bridge",
+        ],
+        "energy": [
+            "confident lyrical New York energy",
+            "introspective underground seriousness",
+            "smooth cool sophistication",
+            "raw authentic street credibility",
+        ],
+        "production": [
+            "looped jazz sample with punchy snare and kick",
+            "dusty vinyl texture with chopped walking bass",
+            "soulful horn sample over boom bap drums",
+            "warm SP-1200 drum texture with deep bass loop",
+        ],
+    },
+    "house": {
+        "structure": [
+            "four-bar rolling intro building to a soulful drop",
+            "straight into the groove with warm piano from bar one",
+            "atmospheric pad intro blooming into full house",
+            "minimal intro slowly layering to full club energy",
+            "organ-led intro with a euphoric chord drop",
+        ],
+        "energy": [
+            "uplifting euphoric dancefloor energy",
+            "deep soulful warm house groove",
+            "late-night underground club feel",
+            "pure joy and celebration",
+            "hypnotic rolling deep house",
+        ],
+        "production": [
+            "warm Rhodes piano with deep rolling sub bass",
+            "lush gospel chord stabs with Hammond organ",
+            "crisp Chicago house drum machine with sub bass",
+            "filtered synth pads with tight 4x4 kick",
+            "soulful vocal chops over warm house chords",
+        ],
+    },
+    "techno": {
+        "structure": [
+            "industrial intro grinding into a relentless drop",
+            "minimal kick-only intro layering into full techno",
+            "hypnotic loop slowly adding elements over 4 minutes",
+            "dark atmospheric intro erupting into hard techno",
+        ],
+        "energy": [
+            "relentless industrial dancefloor energy",
+            "dark hypnotic underground trance",
+            "cold mechanical precision",
+            "intense euphoric rave peak",
+        ],
+        "production": [
+            "hard distorted kick with squelching acid bassline",
+            "minimal metallic percussion with deep sub bass",
+            "dark resonant synth stabs over pounding kick",
+            "industrial noise texture with relentless groove",
+        ],
+    },
+    "technhouse": {
+        "structure": [
+            "rolling minimal intro building to a groovy drop",
+            "straight into the bass hook from bar one",
+            "hypnotic loop gradually layering instrumentation",
+            "stripped-back late-night intro growing to full energy",
+        ],
+        "energy": [
+            "cool underground club groove",
+            "hypnotic late-night floor filler",
+            "dark sophisticated underground energy",
+            "smooth flowing dancefloor warmth",
+        ],
+        "production": [
+            "rolling bass hook with crisp minimal percussion",
+            "filtered acid riff over tight drum machine",
+            "deep organic bass with subtle hi-hat texture",
+            "groove-driven minimal mix with wide stereo field",
+        ],
+    },
+    "bassline": {
+        "structure": [
+            "heavy bass intro slamming into the 4x4 groove",
+            "straight into the bassline and kick from bar one",
+            "pitched vocal intro dropping into a Sheffield floor filler",
+            "slow bass filter opening over 8 bars to full energy",
+        ],
+        "energy": [
+            "raw underground Sheffield rave energy",
+            "bouncy hypnotic dancefloor groove",
+            "hard-hitting Northern rave intensity",
+            "euphoric club peak energy",
+        ],
+        "production": [
+            "heavy warped sub bass with organ stab accents",
+            "punchy 4x4 kick with wobbling sidechain bass",
+            "raw analogue synth bass with clipped hat patterns",
+            "deep sub pressure with percussive top-line stabs",
+        ],
+    },
+    "niche": {
+        "structure": [
+            "pitched vocal intro dropping into the niche groove",
+            "straight into the Yorkshire club floor filler",
+            "slow bass intro building to a bouncy niche peak",
+            "call-and-response between female vocal and bassline",
+        ],
+        "energy": [
+            "euphoric Yorkshire club energy",
+            "cheeky bouncy Sheffield warehouse vibe",
+            "raw underground rave intensity",
+            "infectious high-energy crowd floor filler",
+        ],
+        "production": [
+            "pitched-up female vocal chops over heavy sub",
+            "speed garage bassline with bouncy organ stab",
+            "raw niche production with punchy 4x4 kick",
+            "filtered bass swell building over 4 bars",
+        ],
+    },
+    "deeprotbassline": {
+        "structure": [
+            "deep bass intro building to a Nottingham bassline drop",
+            "straight into the rolling sub from bar one",
+            "atmospheric intro filtering in the heavy bass slowly",
+            "slow hypnotic build to a euphoric bassline peak",
+        ],
+        "energy": [
+            "deep hypnotic underground groove",
+            "euphoric dancefloor intensity",
+            "dark rolling bass weight",
+            "relentless 4x4 pressure",
+        ],
+        "production": [
+            "deep rolling sub with chopped vocal hooks",
+            "UK garage-influenced bassline production",
+            "warm analogue sub with tight drum machine",
+            "filtered bass evolving and morphing throughout",
+        ],
+    },
+    "purebassline": {
+        "structure": [
+            "organ stab intro slamming into heavy 4x4 bassline",
+            "straight into the pumping Sheffield groove from bar one",
+            "vocal chop intro building to a massive bass drop",
+            "stripped bass and kick intro layering into full production",
+        ],
+        "energy": [
+            "euphoric Northern England rave peak",
+            "bouncy infectious Sheffield dancefloor groove",
+            "hard-hitting underground club intensity",
+            "uplifting high-energy bass music",
+        ],
+        "production": [
+            "warped LFO modulated sub with organ stabs",
+            "pitched R&B vocal chops over punchy 4x4 kick",
+            "speed garage bassline with crisp shuffled hats",
+            "heavy sidechain bass pressure with euphoric stabs",
+        ],
+    },
+    "reggae": {
+        "structure": [
+            "one-drop intro building to a skanking groove",
+            "straight into the off-beat rhythm and bassline",
+            "dub intro echoing into a full reggae arrangement",
+            "conscious intro building to a rootsy chorus",
+        ],
+        "energy": [
+            "relaxed tropical dancefloor vibes",
+            "conscious spiritual feeling",
+            "joyful celebratory energy",
+            "deep roots meditative groove",
+        ],
+        "production": [
+            "warm analogue bass with crisp off-beat skank",
+            "vintage studio dub echo production",
+            "heavy one-drop drum with warm bass pressure",
+            "layered harmony vocals over rootsy instrumentation",
+        ],
+    },
+    "rootsreggae": {
+        "structure": [
+            "spiritual intro building to a conscious roots groove",
+            "deep one-drop intro with bass coming in slowly",
+            "dub instrumental intro fading into vocals",
+            "meditative intro building to a conscious message",
+        ],
+        "energy": [
+            "deep spiritual consciousness",
+            "peaceful righteous energy",
+            "heavy roots meditation",
+            "joyful Rastafarian celebration",
+        ],
+        "production": [
+            "vintage Studio One style analogue production",
+            "heavy one-drop with deep rolling bass",
+            "warm room reverb with subtle tape saturation",
+            "layered roots harmonies over organic rhythm section",
+        ],
+    },
+    "loversrock": {
+        "structure": [
+            "romantic intro easing into a smooth lovers groove",
+            "straight into the sensual melody from bar one",
+            "gentle guitar intro blooming into a lush arrangement",
+            "sparse verse building to a rich warm chorus",
+        ],
+        "energy": [
+            "sweet romantic intimacy",
+            "sensual late-night warmth",
+            "bittersweet emotional longing",
+            "joyful loving celebration",
+        ],
+        "production": [
+            "warm soft guitar over a smooth bassline",
+            "lush string arrangement with Caribbean warmth",
+            "vintage lovers rock with gentle reverb",
+            "smooth organ fills and soft percussion",
+        ],
+    },
+    "rastadub": {
+        "structure": [
+            "deep dub intro with echo slowly building",
+            "straight into the heavy rolling groove",
+            "slow roots intro dissolving into deep dub",
+            "conscious verse with echoing dub breakdown",
+        ],
+        "energy": [
+            "deep spiritual Rastafarian consciousness",
+            "heavy meditative dub groove",
+            "peaceful righteous power",
+            "dark rolling dub pressure",
+        ],
+        "production": [
+            "heavy echo and reverb on every element",
+            "deep rolling dub bass with spring reverb",
+            "warm analogue tape with cavernous room sound",
+            "sound system sub bass with echoing dub effects",
+        ],
+    },
+    "rnb": {
+        "structure": [
+            "atmospheric intro dissolving into a smooth R&B groove",
+            "straight into the hook with lush production",
+            "sparse verse building to a rich layered chorus",
+            "slow seductive intro building to an emotional peak",
+        ],
+        "energy": [
+            "smooth sultry late-night mood",
+            "confident powerful expression",
+            "emotional intimate vulnerability",
+            "uplifting feel-good groove",
+        ],
+        "production": [
+            "lush layered vocal harmonies over soft drums",
+            "warm bass-forward production with Rhodes keys",
+            "contemporary R&B with crisp programmed drums",
+            "silky smooth production with gentle synth pads",
+        ],
+    },
+    "soul": {
+        "structure": [
+            "gospel-inspired intro building to a soulful peak",
+            "straight into the emotional hook from bar one",
+            "sparse piano intro flowering into full soul arrangement",
+            "call-and-response vocals with horn section",
+        ],
+        "energy": [
+            "deeply emotional heartfelt delivery",
+            "uplifting church gospel energy",
+            "raw vulnerable soulful expression",
+            "celebratory joyful soul vibes",
+        ],
+        "production": [
+            "warm brass section with Hammond organ",
+            "live rhythm section with lush strings",
+            "vintage soul production with deep bass and horns",
+            "layered gospel harmonies over warm arrangement",
+        ],
+    },
+    "blues": {
+        "structure": [
+            "slow 12-bar intro building to an expressive guitar solo",
+            "straight into the gritty blues groove",
+            "sparse acoustic intro building to a full electric arrangement",
+            "quiet verse building to a powerful emotional peak",
+        ],
+        "energy": [
+            "raw emotional heartbreak",
+            "deep brooding sorrow",
+            "defiant resilient blues spirit",
+            "joyful shuffling boogie energy",
+        ],
+        "production": [
+            "raw electric guitar with warm amp tone",
+            "sparse arrangement with breathing room",
+            "vintage recording with subtle tape saturation",
+            "live feel with improvised guitar texture",
+        ],
+    },
+    "jazz": {
+        "structure": [
+            "relaxed intro building to a swinging jazz groove",
+            "straight into the melody then free improvisation",
+            "cool intro trading between piano and saxophone",
+            "slow ballad evolving into an up-tempo swing",
+        ],
+        "energy": [
+            "cool sophisticated elegance",
+            "swinging joyful energy",
+            "introspective late-night mood",
+            "fiery bebop intensity",
+        ],
+        "production": [
+            "warm upright bass with brushed drums",
+            "intimate small-group close-mic production",
+            "cool restrained spacing and melodic economy",
+            "rich chord voicings with melodic improvisation",
+        ],
+    },
+    "swing": {
+        "structure": [
+            "big band intro building to full swing energy",
+            "straight into the swinging groove from bar one",
+            "quiet brass intro erupting into full orchestra",
+            "verse trading between vocalist and ensemble",
+        ],
+        "energy": [
+            "pure joyful 1940s dancefloor energy",
+            "sophisticated ballroom elegance",
+            "playful upbeat swing charm",
+            "fiery hot swing intensity",
+        ],
+        "production": [
+            "full big band brass with walking bass",
+            "tight swing rhythm section with brushed snare",
+            "warm vintage recording with ensemble dynamics",
+            "layered brass voicings over swinging rhythm",
+        ],
+    },
+    "vocaljazz": {
+        "structure": [
+            "intimate piano intro leading into crooned verse",
+            "straight into the vocal melody from bar one",
+            "slow ballad intro building to an emotional chorus",
+            "trading chorus between vocalist and piano",
+        ],
+        "energy": [
+            "intimate late-night sophistication",
+            "warmly emotional and tender",
+            "cool confident velvet delivery",
+            "bittersweet romantic longing",
+        ],
+        "production": [
+            "warm close-mic vocal with piano and upright bass",
+            "subtle room reverb on intimate jazz trio",
+            "vintage tape warmth with brushed drum texture",
+            "lush chord voicings under smooth vocal melody",
+        ],
+    },
+    "pop": {
+        "structure": [
+            "pre-chorus intro building to a massive anthemic hook",
+            "straight into the catchy hook from bar one",
+            "emotional sparse verse exploding into euphoric chorus",
+            "slow verse building to a huge stadium chorus",
+        ],
+        "energy": [
+            "euphoric uplifting arena energy",
+            "emotional heartfelt intimacy",
+            "infectious feel-good happiness",
+            "dramatic cinematic pop power",
+        ],
+        "production": [
+            "polished layered synths with wide chorus effect",
+            "organic live instruments under a glossy pop mix",
+            "bright saturated production with lush harmonies",
+            "cinematic strings with punchy pop drums",
+        ],
+    },
+    "edm": {
+        "structure": [
+            "long energy build over 32 bars to a massive drop",
+            "short punchy build straight into the main drop",
+            "emotional breakdown before a euphoric final drop",
+            "rolling groove intro building to a progressive peak",
+        ],
+        "energy": [
+            "pure festival main-stage euphoria",
+            "dark underground warehouse intensity",
+            "emotional peak-hour anthem feel",
+            "driving energetic peak-time energy",
+        ],
+        "production": [
+            "massive supersawing lead synth over four-on-floor",
+            "plucked melodic lead with deep sidechain bass",
+            "atmospheric emotional pads with powerful drop",
+            "layered synth stacks with wide reverb FX",
+        ],
+    },
+    "synthwave": {
+        "structure": [
+            "slow pulsing 80s intro building to a neon peak",
+            "straight into the retro groove from the first bar",
+            "cinematic intro fading into a dreamy cruise",
+            "atmospheric build to a euphoric retro-futurist peak",
+        ],
+        "energy": [
+            "cool neon-lit nocturnal drive",
+            "euphoric retro-futurist excitement",
+            "dark dystopian tension",
+            "warm nostalgic 80s emotion",
+        ],
+        "production": [
+            "pulsing arpeggiated synth with gated reverb drum",
+            "wide chorus synth leads over driving bass synth",
+            "warm analog synth with vintage drum machine",
+            "cinematic synth pads with layered melodic arps",
+        ],
+    },
+    "afrobeats": {
+        "structure": [
+            "percussion intro building to a full Afrobeats groove",
+            "straight into the infectious rhythm from bar one",
+            "talking drum intro blooming into joyful chorus",
+            "sparse intro layering up to a rich percussive peak",
+        ],
+        "energy": [
+            "infectious joyful celebratory energy",
+            "smooth romantic Afropop warmth",
+            "driving rhythmic dancefloor power",
+            "soulful emotional expression",
+        ],
+        "production": [
+            "layered talking drums with warm bass and guitar hook",
+            "afrobeats percussion stack with melodic guitar riff",
+            "bright punchy melody with Afro drum pattern",
+            "warm tropical production with layered percussion",
+        ],
+    },
+    "amapiano": {
+        "structure": [
+            "log drum intro building to a full amapiano groove",
+            "straight into the deep piano house from bar one",
+            "sparse piano intro layering into smooth amapiano",
+            "jazzy intro flowing into a smooth log-step rhythm",
+        ],
+        "energy": [
+            "smooth sophisticated South African cool",
+            "deep hypnotic dancefloor groove",
+            "joyful uplifting log-step energy",
+            "late-night understated cool",
+        ],
+        "production": [
+            "log drum pattern with warm jazz piano chords",
+            "deep bass with percussive log step and piano",
+            "smooth amapiano mix with subtle reverb piano",
+            "layered piano hooks over rhythmic log drum",
+        ],
+    },
+    "metal": {
+        "structure": [
+            "slow heavy riff intro building to a crushing drop",
+            "straight into the wall of guitars from bar one",
+            "clean guitar intro shattering into full metal power",
+            "slow dark verse building to a massive breakdown",
+        ],
+        "energy": [
+            "crushing aggressive heavy power",
+            "relentless high-speed intensity",
+            "dark brooding heavy atmosphere",
+            "triumphant epic metal grandeur",
+        ],
+        "production": [
+            "heavily distorted guitar with double kick thunder",
+            "tight rhythm section with massive guitar wall",
+            "dark downtuned guitar tone with deep kick",
+            "layered guitar harmonics with powerful fills",
+        ],
+    },
+    "rock": {
+        "structure": [
+            "clean guitar intro building to a powerful rock surge",
+            "straight into the anthemic hook from bar one",
+            "slow verse building to an explosive chorus",
+            "instrumental intro evolving into full band arrangement",
+        ],
+        "energy": [
+            "powerful anthemic stadium energy",
+            "raw gritty garage rock spirit",
+            "emotional driving intensity",
+            "euphoric uplifting rock triumph",
+        ],
+        "production": [
+            "thick guitar wall with punchy live drums",
+            "dry close-mic guitars with natural room drum sound",
+            "layered guitar harmonies with powerful bass",
+            "tight band production with dynamic range",
+        ],
+    },
+    "trapsoul": {
+        "structure": [
+            "atmospheric intro dissolving into a dark R&B groove",
+            "straight into the emotional hook from bar one",
+            "sparse piano intro building to rich trap soul",
+            "slow burn verse erupting into an emotional peak",
+        ],
+        "energy": [
+            "dark emotional late-night mood",
+            "sensual brooding intimacy",
+            "raw vulnerable heartbreak",
+            "smooth melancholic beauty",
+        ],
+        "production": [
+            "dark 808 bass under lush R&B vocal production",
+            "atmospheric synth pads with trap percussion",
+            "emotional piano melody over rolling 808",
+            "dreamy reverb-heavy production with sub bass",
+        ],
+    },
+    "gospel": {
+        "structure": [
+            "quiet devotional intro building to a joyful choir peak",
+            "straight into full choir energy from bar one",
+            "solo voice intro building to a congregational chorus",
+            "call-and-response building to a euphoric peak",
+        ],
+        "energy": [
+            "joyful uplifting church celebration",
+            "deeply spiritual emotional power",
+            "powerful congregational unity",
+            "intimate devotional worship",
+        ],
+        "production": [
+            "full choir harmonies with Hammond organ",
+            "live band with powerful gospel drums",
+            "layered vocal harmonies with warm organ pads",
+            "intimate piano and close-mic vocal warmth",
+        ],
+    },
+    "meditation": {
+        "structure": [
+            "gently evolving drone building to peaceful fullness",
+            "still and sustained from beginning to end",
+            "slow gentle bloom from silence to warmth",
+            "flowing ambient texture with gradual evolution",
+        ],
+        "energy": [
+            "deeply serene and tranquil",
+            "softly expansive and open",
+            "gentle healing warmth",
+            "peaceful meditative stillness",
+        ],
+        "production": [
+            "soft layered synth pads with singing bowls",
+            "warm drone texture with subtle nature sounds",
+            "gentle reverb-rich ambient soundscape",
+            "spacious minimalist healing atmosphere",
+        ],
+    },
+    "healingfrequency": {
+        "structure": [
+            "sustained resonant tone slowly blooming",
+            "still healing soundscape with gentle evolution",
+            "slow gradual build of harmonic frequencies",
+            "pure sustained drone with subtle overtones",
+        ],
+        "energy": [
+            "deeply healing and restorative",
+            "pure serene wellness energy",
+            "gentle sacred stillness",
+            "calming therapeutic warmth",
+        ],
+        "production": [
+            "pure singing bowl resonance with ambient pads",
+            "soft solfeggio tones with gentle nature texture",
+            "warm harmonic drone with crystal bowl overtones",
+            "spacious sacred geometry sound bath",
+        ],
+    },
+}
+
+
+def _pick_creative_variation(genre: str) -> str:
+    """Pick one item from structure, energy, and production pools for this genre.
+
+    Returns a comma-joined string to append to the style prompt.
+    Uses genre-specific pools where available; falls back to _DEFAULT_VARIATIONS.
+    Logs the picks so each generation is traceable in the logs.
+    """
+    base_genre = genre.split("__")[0] if "__" in genre else genre
+    pools = GENRE_VARIATION_POOLS.get(base_genre, _DEFAULT_VARIATIONS)
+    picks: dict[str, str] = {}
+    for category in ("structure", "energy", "production"):
+        if category in pools:
+            picks[category] = random.choice(pools[category])
+    logger.info(
+        "CREATIVE_VARIATION genre=%r source=%s structure=%r energy=%r production=%r",
+        base_genre,
+        "genre_pool" if base_genre in GENRE_VARIATION_POOLS else "default_pool",
+        picks.get("structure"),
+        picks.get("energy"),
+        picks.get("production"),
+    )
+    return ", ".join(picks.values())
 
 logger = logging.getLogger("zeus.songs")
 
@@ -518,7 +1301,7 @@ def generate_multiple_variants(
         if safe_inspired_by:
             style = f"{style}, {safe_inspired_by}"
         if not kids_story:
-            style = f"{style}, {random.choice(RANDOM_PRODUCTION)}"
+            style = f"{style}, {_pick_creative_variation(genre)}"
         # Blend songs use section-tag structure (~700+ chars) so they need a higher cap.
         # Single-genre stays at 500. Both stay under Apiframe's own 1000-char limit.
         hard_cap = 900 if genre_b else 500
