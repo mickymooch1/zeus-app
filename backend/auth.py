@@ -13,7 +13,7 @@ from db import get_db_path, get_db_path_dep, get_user_by_id
 
 SECRET_KEY = os.environ.get("JWT_SECRET", "zeus-dev-secret-CHANGE-IN-PROD-NOW")
 ALGORITHM = "HS256"
-TOKEN_EXPIRE_DAYS = 7
+TOKEN_EXPIRE_DAYS = 60
 
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

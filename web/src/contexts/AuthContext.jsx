@@ -23,8 +23,11 @@ export function AuthProvider({ children }) {
       .then(async (res) => {
         if (res.ok) {
           const data = await res.json();
+          // Server may return a refreshed token — store it to slide the expiry forward
+          const freshToken = data.token || storedToken;
+          if (data.token) localStorage.setItem(TOKEN_KEY, freshToken);
+          setToken(freshToken);
           setUser(data);
-          setToken(storedToken);
         } else {
           localStorage.removeItem(TOKEN_KEY);
           setToken(null);
@@ -32,7 +35,7 @@ export function AuthProvider({ children }) {
         }
       })
       .catch(() => {
-        // Network error — keep token but clear user for now
+        // Network error — keep existing token; user stays logged in when back online
         setToken(storedToken);
       })
       .finally(() => setLoading(false));

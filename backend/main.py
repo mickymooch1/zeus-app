@@ -1122,6 +1122,12 @@ async def me(current_user: dict = Depends(auth.get_current_user)):
         safe_user["is_new_user"] = (datetime.now(timezone.utc) - created_dt) < timedelta(hours=24)
     except Exception:
         safe_user["is_new_user"] = False
+    # Issue a fresh token on every /auth/me so active users never get logged out
+    safe_user["token"] = auth.create_token(
+        current_user["id"],
+        current_user["email"],
+        is_admin=bool(current_user.get("is_admin", 0)),
+    )
     return safe_user
 
 
