@@ -353,6 +353,7 @@ export default function KidsSongsListPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [nowPlaying, setNowPlaying] = useState(null);
+  const [search, setSearch] = useState('');
 
   const fetchLibrary = useCallback(async () => {
     if (!token) { setLoading(false); return; }
@@ -381,6 +382,15 @@ export default function KidsSongsListPage() {
 
   const isStory = (item) => item.genre_tag === 'kids_story';
 
+  const filteredItems = items.filter((item) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      item.title?.toLowerCase().includes(q) ||
+      (isStory(item) ? 'story' : 'song').includes(q)
+    );
+  });
+
   return (
     <>
       {/* Full-screen player overlay */}
@@ -390,7 +400,7 @@ export default function KidsSongsListPage() {
 
       {/* Library */}
       <div style={{ flex: 1, padding: '16px 20px 80px', maxWidth: 600, margin: '0 auto', width: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>Your Songs &amp; Stories 🎵</h2>
           <button
             onClick={() => navigate('/kids')}
@@ -399,6 +409,44 @@ export default function KidsSongsListPage() {
             ← Home
           </button>
         </div>
+
+        {/* Search bar */}
+        {items.length > 0 && (
+          <div style={{ position: 'relative', marginBottom: 18 }}>
+            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none' }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Search songs and stories…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '10px 36px 10px 36px',
+                borderRadius: 12,
+                border: '2px solid rgba(167,139,250,0.3)',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#1a2b4a',
+                fontSize: 14,
+                fontFamily: 'Nunito, sans-serif',
+                fontWeight: 600,
+                outline: 'none',
+                transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => { e.target.style.borderColor = '#a78bfa'; }}
+              onBlur={(e) => { e.target.style.borderColor = 'rgba(167,139,250,0.3)'; }}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', color: '#888', fontSize: 16,
+                  cursor: 'pointer', padding: '0 4px', lineHeight: 1,
+                }}
+              >✕</button>
+            )}
+          </div>
+        )}
 
         {loading && (
           <p style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', fontFamily: 'Nunito, sans-serif' }}>
@@ -418,8 +466,14 @@ export default function KidsSongsListPage() {
           </div>
         )}
 
+        {!loading && search && filteredItems.length === 0 && (
+          <p style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', fontFamily: 'Nunito, sans-serif', padding: '32px 0' }}>
+            No songs found for &ldquo;{search}&rdquo; 🔍
+          </p>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 16 }}>
-          {items.map(item => {
+          {filteredItems.map(item => {
             const story = isStory(item);
             return (
               <div

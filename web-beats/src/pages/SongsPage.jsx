@@ -116,6 +116,8 @@ const PAGE_CSS = `
   50%       { box-shadow: 0 0 0 7px rgba(239,68,68,0); }
 }
 .mic-btn-listening { animation: micPulse 1s ease-in-out infinite !important; }
+.songs-search-input { outline: none; }
+.songs-search-input:focus { border-color: #00f0ff !important; box-shadow: 0 0 0 2px rgba(0,240,255,0.18), 0 0 14px rgba(0,240,255,0.12) !important; }
 .songs-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
 @media (min-width: 640px)  { .songs-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 1024px) { .songs-grid { grid-template-columns: repeat(3, 1fr); } }
@@ -1208,6 +1210,7 @@ export default function SongsPage() {
   const [favourites, setFavourites]       = useState(new Set());
   const [publicVariants, setPublicVariants] = useState(new Set());
   const [activeTab, setActiveTab] = useState('all');
+  const [search, setSearch] = useState('');
 
   const [stemsData, setStemsData] = useState({});
   const stemsPollRef = useRef({});
@@ -2176,11 +2179,20 @@ export default function SongsPage() {
   const barColor = isAdmin ? '#a78bfa' : (pct > 30 ? '#a78bfa' : pct > 10 ? '#fbbf24' : '#f87171');
 
   const activeLyricId   = activeJob?.lyric_id;
-  const filteredLibrary = useMemo(
-    () => library.filter((v) => v.lyric_id !== activeLyricId),
-    [library, activeLyricId]
-  );
-  const [visibleCount, setVisibleCount] = useState(10);
+  const filteredLibrary = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return library
+      .filter((v) => v.lyric_id !== activeLyricId)
+      .filter((v) => !q ||
+        v.title?.toLowerCase().includes(q) ||
+        v.genre_tag?.toLowerCase().includes(q) ||
+        gLabel(v.genre_tag).toLowerCase().includes(q) ||
+        v.brief?.toLowerCase().includes(q)
+      );
+  }, [library, activeLyricId, search]);
+
+  const MAX_RENDERED = 30;
+  const [windowStart, setWindowStart] = useState(0);
 
   const tabFilteredLibrary = useMemo(() => {
     if (activeTab === 'favourites') return filteredLibrary.filter(v => favourites.has(v.variant_id));
@@ -2189,11 +2201,11 @@ export default function SongsPage() {
   }, [filteredLibrary, activeTab, favourites]);
 
   const visibleLibrary = useMemo(
-    () => tabFilteredLibrary.slice(0, visibleCount),
-    [tabFilteredLibrary, visibleCount]
+    () => tabFilteredLibrary.slice(windowStart, windowStart + MAX_RENDERED),
+    [tabFilteredLibrary, windowStart]
   );
 
-  useEffect(() => { setVisibleCount(10); }, [activeTab]);
+  useEffect(() => { setWindowStart(0); }, [activeTab, search]);
 
   return (
     <>
@@ -3626,7 +3638,7 @@ export default function SongsPage() {
 
           {filteredLibrary.length > 0 && (
             <section>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', margin: 0 }}>{t('songs.yourSongs')}</h2>
                 <button
                   onClick={() => setNewPlModal(true)}
@@ -3639,14 +3651,53 @@ export default function SongsPage() {
                   + New Playlist
                 </button>
               </div>
-              {activeTab === 'favourites' && tabFilteredLibrary.length === 0 && (
+
+              {/* Search bar */}
+              <div style={{ position: 'relative', marginBottom: 18 }}>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none', color: '#555' }}>🔍</span>
+                <input
+                  className="songs-search-input"
+                  type="text"
+                  placeholder="Search songs, genres, descriptions…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    padding: '10px 36px 10px 36px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(0,240,255,0.2)',
+                    background: 'rgba(0,0,0,0.4)',
+                    color: '#e2d9f3',
+                    fontSize: 14,
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                  }}
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    style={{
+                      position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', color: '#555', fontSize: 16,
+                      cursor: 'pointer', padding: '0 4px', lineHeight: 1,
+                    }}
+                    title="Clear search"
+                  >✕</button>
+                )}
+              </div>
+
+              {activeTab === 'favourites' && tabFilteredLibrary.length === 0 && !search && (
                 <p style={{ color: '#444', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>
                   {t('songs.tabs.noFavourites')}
                 </p>
               )}
-              {activeTab === 'recent' && tabFilteredLibrary.length === 0 && (
+              {activeTab === 'recent' && tabFilteredLibrary.length === 0 && !search && (
                 <p style={{ color: '#444', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>
                   {t('songs.tabs.noRecent')}
+                </p>
+              )}
+              {search && tabFilteredLibrary.length === 0 && (
+                <p style={{ color: '#555', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>
+                  No songs found for &ldquo;{search}&rdquo;
                 </p>
               )}
               <div className="songs-grid" style={S.grid}>
@@ -3703,23 +3754,35 @@ export default function SongsPage() {
                   )
                 ))}
               </div>
-              {visibleCount < tabFilteredLibrary.length && (
-                <button
-                  onClick={() => setVisibleCount((c) => c + 10)}
-                  style={{
-                    display: 'block',
-                    margin: '24px auto 0',
-                    padding: '10px 28px',
-                    borderRadius: 8,
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    background: 'transparent',
-                    color: '#666',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {t('songs.loadMore', { count: tabFilteredLibrary.length - visibleCount })}
-                </button>
+              {tabFilteredLibrary.length > MAX_RENDERED && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 24 }}>
+                  <button
+                    onClick={() => setWindowStart((s) => Math.max(0, s - 10))}
+                    disabled={windowStart === 0}
+                    style={{
+                      padding: '9px 20px', borderRadius: 8,
+                      border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
+                      color: windowStart === 0 ? '#333' : '#888', fontSize: 13, cursor: windowStart === 0 ? 'default' : 'pointer',
+                    }}
+                  >
+                    ← Newer
+                  </button>
+                  <span style={{ fontSize: 12, color: '#444' }}>
+                    {windowStart + 1}–{Math.min(windowStart + MAX_RENDERED, tabFilteredLibrary.length)} of {tabFilteredLibrary.length}
+                  </span>
+                  <button
+                    onClick={() => setWindowStart((s) => Math.min(s + 10, tabFilteredLibrary.length - MAX_RENDERED))}
+                    disabled={windowStart + MAX_RENDERED >= tabFilteredLibrary.length}
+                    style={{
+                      padding: '9px 20px', borderRadius: 8,
+                      border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
+                      color: windowStart + MAX_RENDERED >= tabFilteredLibrary.length ? '#333' : '#888',
+                      fontSize: 13, cursor: windowStart + MAX_RENDERED >= tabFilteredLibrary.length ? 'default' : 'pointer',
+                    }}
+                  >
+                    Older →
+                  </button>
+                </div>
               )}
             </section>
           )}
