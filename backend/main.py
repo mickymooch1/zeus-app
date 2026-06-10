@@ -1609,18 +1609,22 @@ async def billing_status(current_user: dict = Depends(auth.get_current_user)):
 async def stripe_webhook(request: Request):
     payload = await request.body()
     sig = request.headers.get("stripe-signature", "")
+    log.info("Stripe webhook hit: /billing/webhook payload_bytes=%d sig_present=%s", len(payload), bool(sig))
 
     if not billing.stripe_enabled():
+        log.error("Stripe webhook: billing not configured (STRIPE_SECRET_KEY missing)")
         raise HTTPException(status_code=503, detail="Billing not configured")
 
     try:
         billing.handle_webhook(payload, sig)
     except ValueError as exc:
+        log.error("Stripe webhook 400: %s", exc)
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        log.exception("Webhook handling error")
+        log.exception("Stripe webhook 500: unhandled error")
         raise HTTPException(status_code=500, detail="Webhook processing failed")
 
+    log.info("Stripe webhook /billing/webhook: processed successfully")
     return {"received": True}
 
 
@@ -1628,18 +1632,22 @@ async def stripe_webhook(request: Request):
 async def stripe_webhook_v2(request: Request):
     payload = await request.body()
     sig = request.headers.get("stripe-signature", "")
+    log.info("Stripe webhook hit: /webhook/stripe payload_bytes=%d sig_present=%s", len(payload), bool(sig))
 
     if not billing.stripe_enabled():
+        log.error("Stripe webhook: billing not configured (STRIPE_SECRET_KEY missing)")
         raise HTTPException(status_code=503, detail="Billing not configured")
 
     try:
         billing.handle_webhook(payload, sig)
     except ValueError as exc:
+        log.error("Stripe webhook 400: %s", exc)
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        log.exception("Webhook handling error")
+        log.exception("Stripe webhook 500: unhandled error")
         raise HTTPException(status_code=500, detail="Webhook processing failed")
 
+    log.info("Stripe webhook /webhook/stripe: processed successfully")
     return {"received": True}
 
 

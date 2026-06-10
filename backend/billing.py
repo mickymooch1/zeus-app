@@ -416,15 +416,18 @@ def handle_webhook(payload: bytes, sig: str) -> None:
     """
     stripe = _get_stripe()
 
+    log.info("handle_webhook: payload_bytes=%d sig_present=%s secret_configured=%s",
+             len(payload), bool(sig), bool(_STRIPE_WEBHOOK_SECRET))
+
     if not _STRIPE_WEBHOOK_SECRET:
-        log.warning("STRIPE_WEBHOOK_SECRET not set — skipping signature verification")
+        log.warning("STRIPE_WEBHOOK_SECRET not set — skipping signature verification (events accepted unsigned)")
         import json
         event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
     else:
         try:
             event = stripe.Webhook.construct_event(payload, sig, _STRIPE_WEBHOOK_SECRET)
         except stripe.error.SignatureVerificationError as exc:
-            log.error("Stripe webhook signature verification failed: %s", exc)
+            log.error("Stripe webhook SIGNATURE FAILED — check STRIPE_WEBHOOK_SECRET matches dashboard: %s", exc)
             raise ValueError("Invalid Stripe signature") from exc
 
     _handle_event(event)
@@ -436,7 +439,7 @@ def _handle_event(event) -> None:
     event_type = event["type"]
     data = event["data"]["object"]
 
-    log.info("Stripe webhook: %s", event_type)
+    log.info("Stripe webhook received: event=%s id=%s", event_type, event.get("id", "?"))
 
     if event_type == "checkout.session.completed":
         _handle_checkout_completed(db_path, data)
@@ -456,72 +459,95 @@ def _handle_checkout_completed(db_path, session) -> None:
     customer_id = session.get("customer")
     subscription_id = session.get("subscription")
     user_id = session.get("metadata", {}).get("user_id")
+    session_id = session.get("id", "?")
+    mode = session.get("mode", "?")
+
+    log.info(
+        "checkout.session.completed: session=%s mode=%s customer_email=%r customer_id=%r subscription_id=%r user_id_meta=%r",
+        session_id, mode, customer_email, customer_id, subscription_id, user_id,
+    )
 
     # ── One-time payment: song or animation credit top-up ────────────────────
-    if session.get("mode") == "payment":
+    if mode == "payment":
         pack = session.get("metadata", {}).get("song_pack")
         anim_pack = session.get("metadata", {}).get("animation_pack")
+        log.info("checkout one-time payment: song_pack=%r anim_pack=%r", pack, anim_pack)
+
         user = None
         if customer_email:
             user = db.get_user_by_email(db_path, customer_email)
+            log.info("checkout user lookup by email=%r: found=%s", customer_email, bool(user))
         if not user and customer_id:
             user = _find_user_by_customer(db_path, customer_id)
+            log.info("checkout user lookup by customer_id=%r: found=%s", customer_id, bool(user))
         if not user and user_id:
             user = db.get_user_by_id(db_path, user_id)
+            log.info("checkout user lookup by user_id_meta=%r: found=%s", user_id, bool(user))
 
         if pack and pack in SONG_PACKS:
             if user:
                 credits = SONG_PACKS[pack]["credits"]
                 db.increment_song_credits(db_path, user["id"], credits)
                 db.update_user(db_path, user["id"], has_paid=1)
-                log.info("Song top-up: added %d credits (%s) to user %s — marked has_paid=1", credits, pack, user["id"])
+                log.info("CREDITS GRANTED: song top-up %d credits (%s) → user %s email=%s",
+                         credits, pack, user["id"], user.get("email"))
             else:
-                log.warning("Song top-up: could not find user (email=%s customer=%s user_id=%s)",
-                            customer_email, customer_id, user_id)
+                log.error("CREDITS FAILED: song top-up pack=%s — user NOT FOUND (email=%r customer=%r user_id_meta=%r)",
+                          pack, customer_email, customer_id, user_id)
         elif anim_pack and anim_pack in ANIMATION_PACKS:
             if user:
                 credits = ANIMATION_PACKS[anim_pack]["credits"]
                 db.increment_premium_credits(db_path, user["id"], credits)
                 db.update_user(db_path, user["id"], has_paid=1)
-                log.info("Premium credits top-up: added %d credits (%s) to user %s", credits, anim_pack, user["id"])
+                log.info("CREDITS GRANTED: premium top-up %d credits (%s) → user %s email=%s",
+                         credits, anim_pack, user["id"], user.get("email"))
             else:
-                log.warning("Animation top-up: could not find user (email=%s customer=%s user_id=%s)",
-                            customer_email, customer_id, user_id)
+                log.error("CREDITS FAILED: animation top-up pack=%s — user NOT FOUND (email=%r customer=%r user_id_meta=%r)",
+                          anim_pack, customer_email, customer_id, user_id)
         else:
             log.warning("checkout.session.completed payment: unrecognised pack song=%r anim=%r — ignoring", pack, anim_pack)
         return
 
+    # ── Subscription ─────────────────────────────────────────────────────────
     # Determine plan from the subscription's price ID
     plan = None
+    price_id = None
     if subscription_id:
         try:
             stripe = _get_stripe()
             sub = stripe.Subscription.retrieve(subscription_id)
             price_id = sub["items"]["data"][0]["price"]["id"]
             plan = _PRICE_ID_TO_PLAN.get(price_id)
+            log.info("checkout subscription price_id=%r → plan=%r (known_price_ids=%s)",
+                     price_id, plan, list(_PRICE_ID_TO_PLAN.keys()))
             if not plan:
-                log.warning("checkout.session.completed: unknown price_id %s", price_id)
+                log.error("checkout.session.completed: price_id %r not in _PRICE_ID_TO_PLAN — credits will NOT be granted. "
+                          "Fix: add this price_id to _PRICE_ID_TO_PLAN or set the correct env var.", price_id)
         except Exception as exc:
-            log.warning("Could not retrieve subscription to determine plan: %s", exc)
+            log.warning("Could not retrieve subscription %r to determine plan: %s", subscription_id, exc)
 
     # Fall back to metadata plan if price_id lookup failed
     if not plan:
         plan = session.get("metadata", {}).get("plan")
+        log.info("checkout plan fallback to metadata: plan=%r", plan)
 
     # Find user — by email first, then by Stripe customer ID, then by metadata user_id
     user = None
     if customer_email:
         user = db.get_user_by_email(db_path, customer_email)
+        log.info("checkout user lookup by email=%r: found=%s", customer_email, bool(user))
     if not user and customer_id:
         user = _find_user_by_customer(db_path, customer_id)
+        log.info("checkout user lookup by customer_id=%r: found=%s", customer_id, bool(user))
     if not user and user_id:
         user = db.get_user_by_id(db_path, user_id)
+        log.info("checkout user lookup by user_id_meta=%r: found=%s", user_id, bool(user))
 
     if not user:
-        log.warning(
-            "checkout.session.completed: could not find user "
-            "(email=%s, customer=%s, user_id=%s)",
-            customer_email, customer_id, user_id,
+        log.error(
+            "CREDITS FAILED: checkout.session.completed — user NOT FOUND "
+            "(email=%r customer=%r user_id_meta=%r plan=%r session=%s)",
+            customer_email, customer_id, user_id, plan, session_id,
         )
         return
 
@@ -536,7 +562,7 @@ def _handle_checkout_completed(db_path, session) -> None:
         updates["subscription_id"] = subscription_id
 
     db.update_user(db_path, user["id"], **updates)
-    log.info("Activated %s plan for user %s — marked has_paid=1", plan, user["id"])
+    log.info("Activated %s plan for user %s (email=%s) — has_paid=1", plan, user["id"], user.get("email"))
 
     amount_pence = session.get("amount_total") or 0
     _alerts.alert_payment(
@@ -547,28 +573,32 @@ def _handle_checkout_completed(db_path, session) -> None:
 
     allowance = _PLAN_SONG_CREDITS.get(plan, FREE_SONG_CREDITS)
     db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
-    log.info("Granted %d song credits (%s plan) to user %s", allowance, plan, user["id"])
+    log.info("CREDITS GRANTED: %d song credits (%s plan) → user %s email=%s", allowance, plan, user["id"], user.get("email"))
 
     video_allowance = _PLAN_VIDEO_CREDITS.get(plan, 0)
     if video_allowance > 0:
         db.upsert_video_credits(db_path, user["id"], balance=video_allowance, monthly_allowance=video_allowance)
-        log.info("Granted %d video credits (%s plan) to user %s", video_allowance, plan, user["id"])
+        log.info("CREDITS GRANTED: %d video credits (%s plan) → user %s", video_allowance, plan, user["id"])
 
     anim_allowance = _PLAN_PREMIUM_CREDITS.get(plan, 0)
     db.upsert_premium_credits(db_path, user["id"], balance=anim_allowance, monthly_allowance=anim_allowance)
-    log.info("Granted %d premium credits (%s plan) to user %s", anim_allowance, plan, user["id"])
+    log.info("CREDITS GRANTED: %d premium credits (%s plan) → user %s", anim_allowance, plan, user["id"])
 
 
 def _handle_invoice_paid(db_path, invoice) -> None:
     """Reset monthly song credit balance on recurring Stripe invoice."""
-    if invoice.get("billing_reason") != "subscription_cycle":
-        return
+    billing_reason = invoice.get("billing_reason")
     customer_id = invoice.get("customer")
+    log.info("invoice.payment_succeeded: billing_reason=%r customer_id=%r", billing_reason, customer_id)
+
+    if billing_reason != "subscription_cycle":
+        log.info("invoice.payment_succeeded: skipping (not subscription_cycle, reason=%r)", billing_reason)
+        return
     if not customer_id:
         return
     user = _find_user_by_customer(db_path, customer_id)
     if not user:
-        log.warning("invoice.payment_succeeded: no user for customer %s", customer_id)
+        log.error("CREDITS FAILED: invoice.payment_succeeded — no user for customer_id=%r", customer_id)
         return
     plan = user.get("subscription_plan")
     # Free plan is one-time signup credits only — never reset monthly
