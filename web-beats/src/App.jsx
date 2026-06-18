@@ -43,6 +43,20 @@ const KidsSongsListPage      = lazy(() => import('./pages/kids/KidsSongsListPage
 const KidsLanguagePage       = lazy(() => import('./pages/kids/KidsLanguagePage'));
 const SchoolRegisterPage     = lazy(() => import('./pages/SchoolRegisterPage'));
 
+function RootRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="spinner-page"><div className="spinner" /></div>;
+  if (user) return <Navigate to="/songs" replace />;
+  return <LandingPage />;
+}
+
+function LoginRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="spinner-page"><div className="spinner" /></div>;
+  if (user) return <Navigate to="/songs" replace />;
+  return <LoginPage />;
+}
+
 function KidsProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="spinner-page"><div className="spinner" /></div>;
@@ -108,8 +122,8 @@ export default function App() {
         <AppInner />
         <Suspense fallback={fallback}>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<RootRedirect />} />
+            <Route path="/login" element={<LoginRedirect />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/terms" element={<TermsPage />} />
