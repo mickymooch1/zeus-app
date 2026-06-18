@@ -1,7 +1,7 @@
 // web-beats/src/components/OfflineBanner.jsx
 export default function OfflineBanner() {
   return (
-    <div style={{
+    <div role="status" aria-live="polite" style={{
       background:   'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.06))',
       border:       '1px solid rgba(245,158,11,0.3)',
       borderRadius: 8,
