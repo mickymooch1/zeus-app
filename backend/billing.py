@@ -433,15 +433,28 @@ def handle_webhook(payload: bytes, sig: str) -> None:
     _handle_event(event)
 
 
+_HANDLED_EVENTS = frozenset({
+    "checkout.session.completed",
+    "checkout.session.async_payment_succeeded",
+    "invoice.payment_succeeded",
+    "customer.subscription.updated",
+    "customer.subscription.deleted",
+})
+
+
 def _handle_event(event) -> None:
     """Dispatch Stripe event to the appropriate handler."""
     db_path = db.get_db_path()
     event_type = event["type"]
     data = event["data"]["object"]
 
-    log.info("Stripe webhook received: event=%s id=%s", event_type, event.get("id", "?"))
+    # Log at INFO so this always appears in Railway logs
+    log.info(
+        "Stripe webhook received: type=%s id=%s (handled=%s)",
+        event_type, event.get("id", "?"), event_type in _HANDLED_EVENTS,
+    )
 
-    if event_type == "checkout.session.completed":
+    if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
         _handle_checkout_completed(db_path, data)
     elif event_type == "invoice.payment_succeeded":
         _handle_invoice_paid(db_path, data)
@@ -450,7 +463,8 @@ def _handle_event(event) -> None:
     elif event_type == "customer.subscription.deleted":
         _handle_subscription_deleted(db_path, data)
     else:
-        log.debug("Unhandled Stripe event type: %s", event_type)
+        # Must be INFO not DEBUG — Railway default level is INFO so debug never appears
+        log.info("Stripe webhook: event type %r is not handled — no action taken", event_type)
 
 
 def _handle_checkout_completed(db_path, session) -> None:
@@ -462,10 +476,22 @@ def _handle_checkout_completed(db_path, session) -> None:
     session_id = session.get("id", "?")
     mode = session.get("mode", "?")
 
+    payment_status = session.get("payment_status", "?")
     log.info(
-        "checkout.session.completed: session=%s mode=%s customer_email=%r customer_id=%r subscription_id=%r user_id_meta=%r",
-        session_id, mode, customer_email, customer_id, subscription_id, user_id,
+        "checkout.session.completed: session=%s mode=%s payment_status=%s customer_email=%r customer_id=%r subscription_id=%r user_id_meta=%r",
+        session_id, mode, payment_status, customer_email, customer_id, subscription_id, user_id,
     )
+
+    # For one-time payments, Stripe fires checkout.session.completed immediately
+    # even for async payment methods (bank transfer etc) where payment_status="unpaid".
+    # Only grant credits once payment_status is "paid" or it's a subscription (handled by invoice event).
+    if mode == "payment" and payment_status != "paid":
+        log.warning(
+            "checkout.session.completed: mode=payment but payment_status=%r — NOT granting credits yet "
+            "(will fire checkout.session.async_payment_succeeded when paid)",
+            payment_status,
+        )
+        return
 
     # ── One-time payment: song or animation credit top-up ────────────────────
     if mode == "payment":
