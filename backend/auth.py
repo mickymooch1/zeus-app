@@ -2,6 +2,7 @@
 auth.py — JWT + bcrypt authentication for Zeus SaaS platform.
 Uses PyJWT and passlib[bcrypt].
 """
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -10,6 +11,8 @@ from fastapi import Depends, Header, HTTPException, Query
 from passlib.context import CryptContext
 
 from db import get_db_path, get_db_path_dep, get_user_by_id
+
+log = logging.getLogger("zeus.auth")
 
 SECRET_KEY = os.environ.get("JWT_SECRET", "")
 if not SECRET_KEY:
@@ -20,7 +23,7 @@ if not SECRET_KEY:
         "Never change it once users have active sessions."
     )
 ALGORITHM = "HS256"
-TOKEN_EXPIRE_DAYS = 60
+TOKEN_EXPIRE_DAYS = 365
 
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -49,12 +52,34 @@ def create_token(user_id: str, email: str, is_admin: bool = False) -> str:
 
 def verify_token(token: str) -> dict | None:
     """Decode and verify a JWT. Returns payload dict or None on failure."""
+    # Peek at the exp claim without verifying the signature, so we can log
+    # useful diagnostics regardless of why verification later fails.
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        unverified = jwt.decode(
+            token,
+            options={"verify_signature": False, "verify_exp": False},
+            algorithms=[ALGORITHM],
+        )
+        exp = unverified.get("exp")
+        sub = unverified.get("sub", "?")
+        now_ts = datetime.now(timezone.utc).timestamp()
+        if exp is not None:
+            delta_days = (exp - now_ts) / 86400
+            log.info("JWT verify: sub=%s exp_in_days=%.1f (exp=%s now=%s)", sub, delta_days, exp, now_ts)
+        else:
+            log.warning("JWT verify: sub=%s — no exp claim in token", sub)
+    except Exception as peek_err:
+        log.warning("JWT verify: could not peek at token claims: %s", peek_err)
+
+    try:
+        # 30-second leeway guards against minor clock drift between issuer and verifier
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], leeway=timedelta(seconds=30))
         return payload
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as exc:
+        log.warning("JWT EXPIRED: %s", exc)
         return None
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as exc:
+        log.warning("JWT INVALID: %s", exc)
         return None
 
 
