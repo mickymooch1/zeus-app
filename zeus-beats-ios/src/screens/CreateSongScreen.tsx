@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, Switch,
+  View, Text, TextInput, Switch,
   ScrollView, ActivityIndicator, Image, StyleSheet, Alert,
 } from 'react-native';
+import { TouchableOpacity } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
 import * as SecureStore from 'expo-secure-store';
+import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { COLORS, RADIUS } from '../constants/theme';
 import { BACKEND_URL, API, TOKEN_KEY } from '../constants/api';
 
@@ -33,9 +34,8 @@ export function CreateSongScreen() {
   const [phase, setPhase]             = useState<Phase>('idle');
   const [errorMsg, setErrorMsg]       = useState('');
   const [result, setResult]           = useState<SongResult | null>(null);
-  const [isPlaying, setIsPlaying]     = useState(false);
+  const { isPlaying, togglePlay, stop: stopAudio } = useAudioPlayer();
 
-  const soundRef     = useRef<Audio.Sound | null>(null);
   const pollTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollStart    = useRef(0);
   const lyricIdRef   = useRef<number | null>(null);
@@ -43,7 +43,6 @@ export function CreateSongScreen() {
 
   useEffect(() => () => {
     clearPoll();
-    soundRef.current?.unloadAsync();
   }, []);
 
   function clearPoll() {
@@ -65,9 +64,7 @@ export function CreateSongScreen() {
       setPhase('generating');
       setErrorMsg('');
       setResult(null);
-      setIsPlaying(false);
-      soundRef.current?.unloadAsync();
-      soundRef.current = null;
+      stopAudio();
 
       const res = await fetch(API.generate, {
         method: 'POST',
@@ -130,23 +127,7 @@ export function CreateSongScreen() {
   async function handlePlay() {
     if (!result) return;
     try {
-      if (isPlaying) {
-        await soundRef.current?.pauseAsync();
-        setIsPlaying(false);
-        return;
-      }
-      if (!soundRef.current) {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: result.mp3_url },
-          { shouldPlay: true },
-          (status) => { if (status.isLoaded && status.didJustFinish) setIsPlaying(false); },
-        );
-        soundRef.current = sound;
-      } else {
-        await soundRef.current.playAsync();
-      }
-      setIsPlaying(true);
+      await togglePlay(result.mp3_url);
     } catch (e: any) {
       Alert.alert('Playback error', e.message);
     }
@@ -154,12 +135,10 @@ export function CreateSongScreen() {
 
   function reset() {
     clearPoll();
-    soundRef.current?.unloadAsync();
-    soundRef.current = null;
+    stopAudio();
     setPhase('idle');
     setResult(null);
     setErrorMsg('');
-    setIsPlaying(false);
   }
 
   // ── Generating / polling ──────────────────────────────────────────────────
@@ -213,7 +192,7 @@ export function CreateSongScreen() {
   // ── Idle form ─────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={s.safeArea}>
-      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="always">
         <Text style={s.heading}>⚡ Create</Text>
 
         <Text style={s.label}>Describe your song</Text>
