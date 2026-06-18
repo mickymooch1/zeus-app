@@ -15,7 +15,10 @@
     },
     "ios": {
       "bundleIdentifier": "com.zeusbeats.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,6 +31,12 @@
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c2d22a2c-6fcd-46e7-9fc4-8a6709deaf2b"
+      }
+    },
+    "owner": "mickymooch1"
   }
 }
