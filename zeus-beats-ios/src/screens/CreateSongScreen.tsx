@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, Switch,
   ScrollView, ActivityIndicator, Image, StyleSheet, Alert,
+  KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform,
 } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -192,54 +193,63 @@ export function CreateSongScreen() {
   // ── Idle form ─────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={s.safeArea}>
-      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="always">
-        <Text style={s.heading}>⚡ Create</Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+            <Text style={s.heading}>⚡ Create</Text>
 
-        <Text style={s.label}>Describe your song</Text>
-        <TextInput
-          style={s.briefInput}
-          placeholder="A summer anthem about chasing dreams…"
-          placeholderTextColor={COLORS.textMuted}
-          multiline
-          maxLength={2000}
-          value={brief}
-          onChangeText={setBrief}
-          textAlignVertical="top"
-        />
+            <Text style={s.label}>Describe your song</Text>
+            <TextInput
+              style={s.briefInput}
+              placeholder="A summer anthem about chasing dreams…"
+              placeholderTextColor={COLORS.textMuted}
+              multiline
+              blurOnSubmit
+              returnKeyType="done"
+              maxLength={2000}
+              value={brief}
+              onChangeText={setBrief}
+              textAlignVertical="top"
+            />
 
-        <Text style={s.label}>
-          Genre <Text style={s.required}>*</Text>
-        </Text>
-        <View style={s.genreGrid}>
-          {GENRES.map(g => (
+            <Text style={s.label}>
+              Genre <Text style={s.required}>*</Text>
+            </Text>
+            <View style={s.genreGrid}>
+              {GENRES.map(g => (
+                <TouchableOpacity
+                  key={g}
+                  style={[s.chip, genre === g && s.chipActive]}
+                  onPress={() => setGenre(g)}
+                >
+                  <Text style={[s.chipText, genre === g && s.chipTextActive]}>{g}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={s.toggleRow}>
+              <Text style={s.label}>Instrumental</Text>
+              <Switch
+                value={instrumental}
+                onValueChange={setInstrumental}
+                trackColor={{ false: COLORS.textMuted, true: COLORS.purple }}
+                thumbColor={instrumental ? COLORS.cyan : COLORS.white}
+              />
+            </View>
+
             <TouchableOpacity
-              key={g}
-              style={[s.chip, genre === g && s.chipActive]}
-              onPress={() => setGenre(g)}
+              style={[s.createBtn, !genre && s.createBtnDisabled]}
+              onPress={handleCreate}
+              disabled={!genre}
             >
-              <Text style={[s.chipText, genre === g && s.chipTextActive]}>{g}</Text>
+              <Text style={s.createBtnText}>Create</Text>
             </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={s.toggleRow}>
-          <Text style={s.label}>Instrumental</Text>
-          <Switch
-            value={instrumental}
-            onValueChange={setInstrumental}
-            trackColor={{ false: COLORS.textMuted, true: COLORS.purple }}
-            thumbColor={instrumental ? COLORS.cyan : COLORS.white}
-          />
-        </View>
-
-        <TouchableOpacity
-          style={[s.createBtn, !genre && s.createBtnDisabled]}
-          onPress={handleCreate}
-          disabled={!genre}
-        >
-          <Text style={s.createBtnText}>Create</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
