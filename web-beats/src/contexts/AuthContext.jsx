@@ -7,17 +7,31 @@ const USER_CACHE_KEY = 'zeus_user_cache';
 function readCachedUser() {
   try {
     const raw = localStorage.getItem(USER_CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
+    if (!raw) {
+      console.log('[Auth] readCachedUser: nothing in localStorage');
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    console.log('[Auth] readCachedUser: found user id=', parsed?.id, 'email=', parsed?.email);
+    return parsed;
+  } catch (e) {
+    console.warn('[Auth] readCachedUser: JSON.parse failed:', e);
     return null;
   }
 }
 
 function writeCachedUser(user) {
   try {
-    if (user) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
-    else localStorage.removeItem(USER_CACHE_KEY);
-  } catch {}
+    if (user) {
+      localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+      console.log('[Auth] writeCachedUser: stored user id=', user?.id);
+    } else {
+      localStorage.removeItem(USER_CACHE_KEY);
+      console.log('[Auth] writeCachedUser: cleared cache');
+    }
+  } catch (e) {
+    console.warn('[Auth] writeCachedUser failed:', e);
+  }
 }
 
 const AuthContext = createContext(null);
@@ -25,43 +39,62 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(readCachedUser);
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
-  // Start loading=false if there's a cached user (no flash), true otherwise
-  const [loading, setLoading] = useState(() => !readCachedUser() && !!localStorage.getItem(TOKEN_KEY));
+  // loading=false immediately if we have a cached user — no flash, no spinner
+  const [loading, setLoading] = useState(() => {
+    const hasCache = !!readCachedUser();
+    const hasToken = !!localStorage.getItem(TOKEN_KEY);
+    const initial = !hasCache && hasToken;
+    console.log('[Auth] initial loading state:', initial, '(hasCache:', hasCache, 'hasToken:', hasToken, ')');
+    return initial;
+  });
+
+  // Log what the first render sees — runs once after mount
+  useEffect(() => {
+    console.log('[Auth] first render — user:', user?.id ?? 'null', 'token:', token ? 'present' : 'absent', 'loading:', loading);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const storedToken = localStorage.getItem(TOKEN_KEY);
+    console.log('[Auth] useEffect: storedToken', storedToken ? 'present' : 'absent');
+
     if (!storedToken) {
+      console.log('[Auth] no token — setting loading=false, staying logged out');
       setLoading(false);
       return;
     }
+
+    console.log('[Auth] fetching /auth/me to validate token...');
     fetch(`${BACKEND_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${storedToken}` },
     })
       .then(async (res) => {
+        console.log('[Auth] /auth/me response status:', res.status, 'ok:', res.ok);
         if (res.ok) {
           const data = await res.json();
-          // Server may return a refreshed token — store it to slide the expiry forward
           const freshToken = data.token || storedToken;
           if (data.token) localStorage.setItem(TOKEN_KEY, freshToken);
           writeCachedUser(data);
           setToken(freshToken);
           setUser(data);
+          console.log('[Auth] /auth/me success — user id:', data?.id);
         } else {
-          // Token rejected (expired or secret changed) — clear everything
+          const body = await res.text().catch(() => '');
+          console.warn('[Auth] /auth/me REJECTED status:', res.status, 'body:', body, '— clearing session');
           localStorage.removeItem(TOKEN_KEY);
           writeCachedUser(null);
           setToken(null);
           setUser(null);
         }
       })
-      .catch(() => {
-        // Network unavailable at startup (common on Android TWA launch) —
-        // keep the stored token and show the cached user so the app feels logged in.
-        // /auth/me will be retried next time the app opens with a network connection.
+      .catch((err) => {
+        console.warn('[Auth] /auth/me network error (keeping cached session):', err?.message);
         setToken(storedToken);
         setUser(readCachedUser());
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        console.log('[Auth] /auth/me done — setting loading=false');
+        setLoading(false);
+      });
   }, []);
 
   const login = useCallback(async (email, password) => {
