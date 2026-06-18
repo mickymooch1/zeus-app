@@ -11,7 +11,14 @@ from passlib.context import CryptContext
 
 from db import get_db_path, get_db_path_dep, get_user_by_id
 
-SECRET_KEY = os.environ.get("JWT_SECRET", "zeus-dev-secret-CHANGE-IN-PROD-NOW")
+SECRET_KEY = os.environ.get("JWT_SECRET", "")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "JWT_SECRET environment variable is not set. "
+        "Generate a stable secret and add it to Railway: "
+        "python -c \"import secrets; print(secrets.token_hex(32))\". "
+        "Never change it once users have active sessions."
+    )
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 60
 
