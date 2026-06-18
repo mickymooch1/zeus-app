@@ -3571,6 +3571,43 @@ async def admin_clear_youtube_token(email: str, secret: str):
     return {"cleared": True, "email": email}
 
 
+@app.get("/api/admin/device-fingerprints")
+async def admin_list_device_fingerprints(
+    x_admin_secret: str = Header(None, alias="X-Admin-Secret"),
+):
+    if x_admin_secret != os.environ.get("ADMIN_SECRET", ""):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    import sqlite3
+    db_path = db.get_db_path()
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            "SELECT id, fp_hash, user_id, created_at FROM device_fingerprints ORDER BY created_at DESC LIMIT 50"
+        ).fetchall()
+        return {"rows": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/admin/device-fingerprints/{row_id}")
+async def admin_delete_device_fingerprint(
+    row_id: int,
+    x_admin_secret: str = Header(None, alias="X-Admin-Secret"),
+):
+    if x_admin_secret != os.environ.get("ADMIN_SECRET", ""):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    import sqlite3
+    db_path = db.get_db_path()
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute("DELETE FROM device_fingerprints WHERE id = ?", (row_id,))
+        conn.commit()
+        return {"deleted": True, "id": row_id, "rows_affected": conn.total_changes}
+    finally:
+        conn.close()
+
+
 @app.get("/api/youtube/debug")
 async def youtube_debug():
     """Verify YouTube env vars and OAuth config are present in production."""
