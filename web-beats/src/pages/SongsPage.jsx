@@ -15,8 +15,8 @@ import { useOfflineSongs }  from '../hooks/useOfflineSongs';
 import OfflineBanner        from '../components/OfflineBanner';
 import { useNowPlaying }    from '../contexts/NowPlayingContext';
 
-const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos','healingfrequency','purebassline'];
-const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', southemsoul:'Southern Soul', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', christmas:'Christmas', corridos:'Corridos', healingfrequency:'Healing Frequencies', purebassline:'Pure Bassline' };
+const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','deephouse','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos','healingfrequency','purebassline'];
+const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', deephouse:'Deep House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', southemsoul:'Southern Soul', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', christmas:'Christmas', corridos:'Corridos', healingfrequency:'Healing Frequencies', purebassline:'Pure Bassline' };
 const GENRE_CATEGORIES = [
   { id: 'uk_street',  label: 'UK STREET',          color: '#00f0ff',
     genres: ['grime','ukdrill','ukgarage','jungle','drumandbass','niche','deeprotbassline','bassline','purebassline','ukstreetsoul','eastcoasthiphop'] },
@@ -25,7 +25,7 @@ const GENRE_CATEGORIES = [
   { id: 'soul',       label: 'SOUL & BLUES',        color: '#fb923c',
     genres: ['soul','rnb','blues','bluessoul','deepsoulblues','jazz','swing','vocaljazz','southemsoul','gospel'] },
   { id: 'electronic', label: 'ELECTRONIC & DANCE',  color: '#4ade80',
-    genres: ['house','technhouse','techno','edm','lofi','electronicfunk','dubstep','driftphonk','jerseyclub','hyperpop','syntheticpop','synthwave'] },
+    genres: ['house','deephouse','technhouse','techno','edm','lofi','electronicfunk','dubstep','driftphonk','jerseyclub','hyperpop','syntheticpop','synthwave'] },
   { id: 'rock',       label: 'ROCK & METAL',        color: '#f87171',
     genres: ['rock','metal','indie','acoustic','country','rockney','countryamericana','rocknroll','traditionalpop'] },
   { id: 'world',      label: 'WORLD & URBAN',       color: '#fbbf24',
@@ -1179,8 +1179,6 @@ export default function SongsPage() {
   const [showTour, setShowTour]           = useState(() => !localStorage.getItem('zeus_onboarding_done'));
   const [pendingAutoGen, setPendingAutoGen] = useState(null);
   const [showRetrigger, setShowRetrigger] = useState(false);
-  const [creativity, setCreativity]       = useState(60);
-  const [styleWeight, setStyleWeight]     = useState(60);
   const [tempo, setTempo]                 = useState(() => _matchTempo(location.state?.prefillTempo));
   const [tempoBpm, setTempoBpm]           = useState(120);
   const [modelVersion, setModelVersion]   = useState('V5');
@@ -1696,8 +1694,7 @@ export default function SongsPage() {
           ...(showAdvanced ? {
             vocal_gender: vocalGender || undefined,
             accent: accent || undefined,
-            creativity: creativity / 100,
-            style_weight: styleWeight / 100,
+
             tempo: tempo || undefined,
             tempo_bpm: tempo === 'custom' ? tempoBpm : undefined,
             model_version: modelVersion,
@@ -2890,26 +2887,6 @@ export default function SongsPage() {
                       <option key={v} value={v}>{v}</option>
                     ))}
                   </select>
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', margin: 0 }}>{t('songs.creativityLabel')}</p>
-                    <span style={{ fontSize: 11, color: '#a78bfa' }}>{creativity}%</span>
-                  </div>
-                  <input type="range" min={0} max={100} value={creativity} onChange={(e) => setCreativity(Number(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-                    <span style={{ fontSize: 10, color: '#666' }}>{t('songs.weirdnessSafe')}</span>
-                    <span style={{ fontSize: 10, color: '#666' }}>{t('songs.weirdnessExperimental')}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', margin: 0 }}>{t('songs.styleStrengthLabel')}</p>
-                    <span style={{ fontSize: 11, color: '#a78bfa' }}>{styleWeight}%</span>
-                  </div>
-                  <input type="range" min={0} max={100} value={styleWeight} onChange={(e) => setStyleWeight(Number(e.target.value))} onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} style={{ width: '100%', accentColor: '#a78bfa', cursor: 'pointer' }} />
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>

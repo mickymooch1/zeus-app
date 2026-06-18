@@ -28,6 +28,7 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "drumandbass":  "DJ performing at rave, hands on decks, strobe lights, energetic movement",
     "grime":        "grime MC performing intensely, microphone in hand, urban backdrop",
     "house":        "DJ at club, hands raised, euphoric crowd, colourful lights",
+    "deephouse":    "deep house DJ performing smoothly, hypnotic minimal movement, warm amber underground lighting, sophisticated late night club atmosphere",
     "jungle":       "jungle MC on stage, energetic performance, rave lights",
     "country":      "country guitarist strumming, gentle swaying, warm natural light",
     "acoustic":     "acoustic guitarist playing intimately, fingers on strings, candlelight",
