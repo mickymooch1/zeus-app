@@ -429,6 +429,7 @@ const SongCard = memo(function SongCard({
   playlists, onAddToPlaylist,
   premiumCredits, stemsData: stemsProp, onGetStems, onOpenCover,
   soundPersonaVariantId, onLockSound,
+  isSaved, isDownloading, onSaveOffline, onRemoveSaved, onPlayOffline,
 }) {
   const { t } = useTranslation();
   const waveRef = useRef(null);
@@ -724,19 +725,23 @@ const SongCard = memo(function SongCard({
         )}
         {!isFailed && (
           <button
-            onClick={handlePlay}
+            onClick={onPlayOffline || handlePlay}
             style={{
               position: 'absolute', bottom: 8, left: 8,
               transform: 'none',
               width: 40, height: 40, borderRadius: '50%',
               border: '1.5px solid rgba(255,255,255,0.7)',
               background: playing ? 'rgba(124,58,237,0.85)' : 'rgba(0,0,0,0.6)',
-              color: '#fff', fontSize: 16, cursor: wsReady ? 'pointer' : 'default',
+              color: '#fff', fontSize: 16,
+              cursor: (wsReady || !!onPlayOffline) ? 'pointer' : 'default',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              backdropFilter: 'blur(6px)', opacity: wsReady ? 1 : 0.4,
-              transition: 'all 0.2s', pointerEvents: wsReady ? 'auto' : 'none', flexShrink: 0,
+              backdropFilter: 'blur(6px)',
+              opacity: (wsReady || !!onPlayOffline) ? 1 : 0.4,
+              transition: 'all 0.2s',
+              pointerEvents: (wsReady || !!onPlayOffline) ? 'auto' : 'none',
+              flexShrink: 0,
             }}
-            onMouseEnter={(e) => { if (wsReady) e.currentTarget.style.boxShadow = '0 0 10px rgba(0,240,255,0.6)'; }}
+            onMouseEnter={(e) => { if (wsReady || !!onPlayOffline) e.currentTarget.style.boxShadow = '0 0 10px rgba(0,240,255,0.6)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
           >
             {playing ? '⏸' : '▶'}
@@ -836,6 +841,23 @@ const SongCard = memo(function SongCard({
               >
                 {downloaded ? '✓ Downloaded' : t('songs.buttons.download')}
               </a>
+            </div>
+            {/* Row 1.5: Save for offline */}
+            <div style={{ marginTop: 8 }}>
+              <button
+                onClick={isSaved ? onRemoveSaved : onSaveOffline}
+                disabled={isDownloading}
+                style={{
+                  ...actionBtnStyle,
+                  width:       '100%',
+                  color:       isSaved ? '#4ade80' : '#a78bfa',
+                  borderColor: isSaved ? 'rgba(74,222,128,0.5)' : 'rgba(167,139,250,0.5)',
+                  opacity:     isDownloading ? 0.6 : 1,
+                  cursor:      isDownloading ? 'default' : 'pointer',
+                }}
+              >
+                {isDownloading ? '⬇ Saving…' : isSaved ? '✓ Saved Offline' : '⬇ Save Offline'}
+              </button>
             </div>
             {/* Row 2: Share + Telegram */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
