@@ -12,6 +12,20 @@ import { COLORS, RADIUS } from '../constants/theme';
 import { BACKEND_URL, API, TOKEN_KEY } from '../constants/api';
 
 const GENRES = ['Pop', 'Hip Hop', 'Rock', 'R&B', 'Electronic', 'Afrobeats', 'Drill', 'House', 'Country', 'Jazz'];
+
+// Maps display label → backend genre key expected by GENRE_PRESETS
+const GENRE_KEY: Record<string, string> = {
+  'Pop':        'pop',
+  'Hip Hop':    'hiphop',
+  'Rock':       'rock',
+  'R&B':        'rnb',
+  'Electronic': 'edm',
+  'Afrobeats':  'afrobeats',
+  'Drill':      'ukdrill',
+  'House':      'house',
+  'Country':    'country',
+  'Jazz':       'jazz',
+};
 const POLL_MS = 5_000;
 const TIMEOUT_MS = 5 * 60 * 1_000;
 
@@ -70,7 +84,7 @@ export function CreateSongScreen() {
       const res = await fetch(API.generate, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` },
-        body: JSON.stringify({ brief: brief.trim(), genres: [genre], instrumental }),
+        body: JSON.stringify({ brief: brief.trim(), genres: [GENRE_KEY[genre] ?? genre], instrumental }),
       });
 
       if (!res.ok) {
