@@ -441,6 +441,15 @@ _HANDLED_EVENTS = frozenset({
     "customer.subscription.deleted",
 })
 
+# Events we acknowledge but intentionally do nothing with
+_IGNORED_EVENTS = frozenset({
+    "invoice.upcoming",
+    "payment_intent.created",
+    "payment_intent.succeeded",
+    "charge.succeeded",
+    "charge.updated",
+})
+
 
 def _handle_event(event) -> None:
     """Dispatch Stripe event to the appropriate handler."""
@@ -453,6 +462,10 @@ def _handle_event(event) -> None:
         "Stripe webhook received: type=%s id=%s (handled=%s)",
         event_type, event.get("id", "?"), event_type in _HANDLED_EVENTS,
     )
+
+    if event_type in _IGNORED_EVENTS:
+        log.info("Stripe webhook: event type %r acknowledged and ignored", event_type)
+        return
 
     if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
         _handle_checkout_completed(db_path, data)
