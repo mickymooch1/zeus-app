@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Zeus Beats",
+    "slug": "zeus-beats-ios",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "zeusbeats",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0b0b14"
+    },
+    "ios": {
+      "bundleIdentifier": "com.zeusbeats.app",
+      "supportsTablet": false
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b0b14",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.zeusbeats.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1deffc7e-e3ef-4b9f-995d-0b05a576fc17"
+      }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}
