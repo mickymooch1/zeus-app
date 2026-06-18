@@ -322,6 +322,10 @@ def check_and_record_registration_attempt(db_path: pathlib.Path, ip_address: str
     """Return True (allowed) if no registration from this IP in the last 7 days.
     Records the attempt when allowed; returns False when the limit is reached."""
     from datetime import datetime, timedelta, timezone
+    import os
+    allowlist = {ip.strip() for ip in os.environ.get("REGISTRATION_ALLOWLIST", "").split(",") if ip.strip()}
+    if ip_address in allowlist:
+        return True
     cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     conn = _conn(db_path)
     try:
