@@ -307,6 +307,14 @@ def create_song_pack_checkout_session(user: dict, pack: str, success_url: str, c
             "user_id": user["id"],
             "song_pack": pack,
         },
+        # Propagate metadata to payment intent so payment_intent.succeeded
+        # can identify the user and pack (needed for Apple Pay backup flow)
+        "payment_intent_data": {
+            "metadata": {
+                "user_id": user["id"],
+                "song_pack": pack,
+            },
+        },
     }
 
     if customer_id:
@@ -340,6 +348,14 @@ def create_animation_pack_checkout_session(user: dict, pack: str, success_url: s
         "metadata": {
             "user_id": user["id"],
             "animation_pack": pack,
+        },
+        # Propagate metadata to payment intent so payment_intent.succeeded
+        # can identify the user and pack (needed for Apple Pay backup flow)
+        "payment_intent_data": {
+            "metadata": {
+                "user_id": user["id"],
+                "animation_pack": pack,
+            },
         },
     }
 
@@ -439,13 +455,13 @@ _HANDLED_EVENTS = frozenset({
     "invoice.payment_succeeded",
     "customer.subscription.updated",
     "customer.subscription.deleted",
+    "payment_intent.succeeded",
 })
 
 # Events we acknowledge but intentionally do nothing with
 _IGNORED_EVENTS = frozenset({
     "invoice.upcoming",
     "payment_intent.created",
-    "payment_intent.succeeded",
     "charge.succeeded",
     "charge.updated",
 })
@@ -471,6 +487,8 @@ def _handle_event(event) -> None:
         _handle_checkout_completed(db_path, data)
     elif event_type == "invoice.payment_succeeded":
         _handle_invoice_paid(db_path, data)
+    elif event_type == "payment_intent.succeeded":
+        _handle_payment_intent_succeeded(db_path, data)
     elif event_type == "customer.subscription.updated":
         _handle_subscription_updated(db_path, data)
     elif event_type == "customer.subscription.deleted":
@@ -656,6 +674,72 @@ def _handle_invoice_paid(db_path, invoice) -> None:
     anim_allowance = _PLAN_PREMIUM_CREDITS.get(plan, 0)
     db.upsert_premium_credits(db_path, user["id"], balance=anim_allowance, monthly_allowance=anim_allowance)
     log.info("Monthly premium credits reset for user %s: %d credits (%s plan)", user["id"], anim_allowance, plan)
+
+
+def _handle_payment_intent_succeeded(db_path, payment_intent) -> None:
+    """Backup credit handler for payment_intent.succeeded — covers Apple Pay and other flows
+    where checkout.session.completed may not fire or may have fired with payment_status=unpaid.
+
+    Only acts when payment intent metadata contains song_pack or animation_pack (PAYG purchases).
+    Subscriptions are handled by checkout.session.completed / invoice.payment_succeeded.
+    Idempotency note: if checkout.session.completed already granted credits this will double-grant.
+    The guard: we only act when metadata has pack keys — subscription payment intents have none.
+    """
+    pi_id = payment_intent.get("id", "?")
+    metadata = payment_intent.get("metadata", {})
+    user_id = metadata.get("user_id")
+    song_pack = metadata.get("song_pack")
+    anim_pack = metadata.get("animation_pack")
+    customer_id = payment_intent.get("customer")
+
+    log.info(
+        "payment_intent.succeeded: id=%s customer_id=%r user_id_meta=%r song_pack=%r anim_pack=%r",
+        pi_id, customer_id, user_id, song_pack, anim_pack,
+    )
+
+    # No pack metadata means this is a subscription payment intent — skip
+    if not song_pack and not anim_pack:
+        log.info("payment_intent.succeeded: no pack metadata — subscription payment, ignoring")
+        return
+
+    # Find the user — prefer metadata user_id (most reliable), then customer_id
+    user = None
+    if user_id:
+        user = db.get_user_by_id(db_path, user_id)
+        log.info("payment_intent user lookup by user_id_meta=%r: found=%s", user_id, bool(user))
+    if not user and customer_id:
+        user = _find_user_by_customer(db_path, customer_id)
+        log.info("payment_intent user lookup by customer_id=%r: found=%s", customer_id, bool(user))
+
+    if not user:
+        log.error(
+            "CREDITS FAILED: payment_intent.succeeded — user NOT FOUND "
+            "(user_id_meta=%r customer_id=%r song_pack=%r anim_pack=%r pi=%s)",
+            user_id, customer_id, song_pack, anim_pack, pi_id,
+        )
+        return
+
+    if song_pack and song_pack in SONG_PACKS:
+        credits = SONG_PACKS[song_pack]["credits"]
+        db.increment_song_credits(db_path, user["id"], credits)
+        db.update_user(db_path, user["id"], has_paid=1)
+        log.info(
+            "CREDITS GRANTED (payment_intent backup): song top-up %d credits (%s) → user %s email=%s pi=%s",
+            credits, song_pack, user["id"], user.get("email"), pi_id,
+        )
+    elif anim_pack and anim_pack in ANIMATION_PACKS:
+        credits = ANIMATION_PACKS[anim_pack]["credits"]
+        db.increment_premium_credits(db_path, user["id"], credits)
+        db.update_user(db_path, user["id"], has_paid=1)
+        log.info(
+            "CREDITS GRANTED (payment_intent backup): animation top-up %d credits (%s) → user %s email=%s pi=%s",
+            credits, anim_pack, user["id"], user.get("email"), pi_id,
+        )
+    else:
+        log.warning(
+            "payment_intent.succeeded: unrecognised pack song=%r anim=%r — no credits granted (pi=%s)",
+            song_pack, anim_pack, pi_id,
+        )
 
 
 def _handle_subscription_updated(db_path, subscription) -> None:
