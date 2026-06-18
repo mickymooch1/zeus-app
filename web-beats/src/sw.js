@@ -23,7 +23,7 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
       .then(names =>
-        Promise.all(names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n)))
+        Promise.all(names.filter(n => n !== CACHE_NAME && !n.startsWith('zeus-audio-')).map(n => caches.delete(n)))
       )
       .then(() => self.clients.claim())
   );
