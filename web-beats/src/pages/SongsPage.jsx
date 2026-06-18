@@ -1312,6 +1312,7 @@ export default function SongsPage() {
     console.log('[Generate] disabled:', !canGenerate, { cost, creditsLoaded, balance: credits.balance, canAfford, generating, isKidsMode, useCustomLyrics });
   }
   const creditExceeded = !isAdmin && cost > 0 && cost > credits.balance;
+  const generateEffective = isOnline ? canGenerate : true;
 
   const fetchCredits = useCallback(async () => {
     try {
@@ -1427,10 +1428,11 @@ export default function SongsPage() {
   };
 
   useEffect(() => {
+    if (!isOnline) return;
     fetchCredits();
     fetchLibrary();
     fetchPlaylists();
-  }, [fetchCredits, fetchLibrary, fetchPlaylists]);
+  }, [fetchCredits, fetchLibrary, fetchPlaylists, isOnline]);
 
   // Kids mode and Roast mode force explicit off and hide the toggle
   useEffect(() => { if (isKidsMode || isRoastMode) setExplicit(false); }, [isKidsMode, isRoastMode]);
@@ -2237,17 +2239,18 @@ export default function SongsPage() {
   const barColor = isAdmin ? '#a78bfa' : (pct > 30 ? '#a78bfa' : pct > 10 ? '#fbbf24' : '#f87171');
 
   const activeLyricId   = activeJob?.lyric_id;
+  const displayLibrary  = isOnline ? library : savedSongs;
   const filteredLibrary = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return library
-      .filter((v) => v.lyric_id !== activeLyricId)
+    return displayLibrary
+      .filter((v) => activeLyricId == null || v.lyric_id !== activeLyricId)
       .filter((v) => !q ||
         v.title?.toLowerCase().includes(q) ||
         v.genre_tag?.toLowerCase().includes(q) ||
         gLabel(v.genre_tag).toLowerCase().includes(q) ||
         v.brief?.toLowerCase().includes(q)
       );
-  }, [library, activeLyricId, search]);
+  }, [displayLibrary, activeLyricId, search]);
 
   const MAX_RENDERED = 30;
   const [windowStart, setWindowStart] = useState(0);
@@ -2404,6 +2407,7 @@ export default function SongsPage() {
         )}
 
         <div className="songs-content-wrap" style={{ maxWidth: 880, margin: '0 auto', padding: '32px 24px 80px' }}>
+          {!isOnline && <OfflineBanner />}
 
           {showWelcome && (
             <div style={{
@@ -3529,22 +3533,22 @@ export default function SongsPage() {
               </div>
             )}
             <button
-              onClick={handleGenerate}
-              disabled={!canGenerate}
+              onClick={isOnline ? handleGenerate : () => showOfflineToast()}
+              disabled={!generateEffective}
               style={{
                 width: '100%',
                 padding: '14px',
                 borderRadius: 10,
                 border: 'none',
-                background: canGenerate
+                background: generateEffective
                   ? isKidsMode
                     ? 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)'
                     : 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)'
                   : 'rgba(255,255,255,0.05)',
-                color: canGenerate ? (isKidsMode ? '#1a0a00' : '#fff') : '#444',
+                color: generateEffective ? (isKidsMode ? '#1a0a00' : '#fff') : '#444',
                 fontSize: isKidsMode ? 16 : 15,
                 fontWeight: 700,
-                cursor: canGenerate ? 'pointer' : 'default',
+                cursor: generateEffective ? 'pointer' : 'default',
                 transition: 'all 0.2s',
                 letterSpacing: '0.2px',
               }}
@@ -3606,7 +3610,7 @@ export default function SongsPage() {
             </p>
           </div>
 
-          {activeJob && (
+          {isOnline && activeJob && (
             <section style={{ marginBottom: 48 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
                 <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', margin: 0 }}>{activeJob.title}</h2>
@@ -3665,6 +3669,11 @@ export default function SongsPage() {
                         onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
                         soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                         onLockSound={handleLockSound}
+                        isSaved={false}
+                        isDownloading={false}
+                        onSaveOffline={null}
+                        onRemoveSaved={null}
+                        onPlayOffline={null}
                       />
                     )
                   ) : (
@@ -3808,6 +3817,11 @@ export default function SongsPage() {
                       onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
                       soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                       onLockSound={handleLockSound}
+                      isSaved={isSaved(v.variant_id)}
+                      isDownloading={downloading.has(v.variant_id)}
+                      onSaveOffline={() => handleSaveOffline(v)}
+                      onRemoveSaved={() => removeSaved(v.variant_id)}
+                      onPlayOffline={!isOnline && isSaved(v.variant_id) ? () => handlePlayOffline(v) : null}
                     />
                   )
                 ))}
@@ -3848,7 +3862,32 @@ export default function SongsPage() {
           {!activeJob && filteredLibrary.length === 0 && (
             <div style={{ textAlign: 'center', padding: '80px 0' }}>
               <div style={{ fontSize: 56, marginBottom: 16, opacity: 0.15 }}>♫</div>
-              <p style={{ fontSize: 15, color: '#555' }}>{t('songs.emptySongs')}</p>
+              <p style={{ fontSize: 15, color: '#555' }}>
+                {isOnline
+                  ? t('songs.emptySongs')
+                  : 'No songs saved yet. Go online to save songs for offline playback.'}
+              </p>
+            </div>
+          )}
+          {offlineToast && (
+            <div style={{
+              position:  'fixed',
+              bottom:    80,
+              left:      '50%',
+              transform: 'translateX(-50%)',
+              background:   'rgba(18,18,30,0.96)',
+              border:       '1px solid rgba(245,158,11,0.4)',
+              borderRadius: 10,
+              padding:   '12px 20px',
+              color:     '#fbbf24',
+              fontSize:  13,
+              fontWeight: 600,
+              zIndex:    9999,
+              whiteSpace: 'nowrap',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              pointerEvents: 'none',
+            }}>
+              📵 {offlineToast}
             </div>
           )}
         </div>
