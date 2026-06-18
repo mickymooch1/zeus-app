@@ -10,6 +10,10 @@ import OnboardingTour from '../components/OnboardingTour';
 import { audioManager } from '../utils/audioManager';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
 import IOSWebViewBanner from '../components/IOSWebViewBanner';
+import { useOnlineStatus }  from '../hooks/useOnlineStatus';
+import { useOfflineSongs }  from '../hooks/useOfflineSongs';
+import OfflineBanner        from '../components/OfflineBanner';
+import { useNowPlaying }    from '../contexts/NowPlayingContext';
 
 const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos','healingfrequency','purebassline'];
 const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', southemsoul:'Southern Soul', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', christmas:'Christmas', corridos:'Corridos', healingfrequency:'Healing Frequencies', purebassline:'Pure Bassline' };
@@ -1147,6 +1151,9 @@ const SongCard = memo(function SongCard({
 
 export default function SongsPage() {
   const { token, user } = useAuth();
+  const isOnline = useOnlineStatus();
+  const { savedSongs, downloading, isSaved, saveForOffline, removeSaved, getOfflineAudioUrl } = useOfflineSongs();
+  const { playOne } = useNowPlaying();
   const { t } = useTranslation();
   const location = useLocation();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
@@ -1244,6 +1251,8 @@ export default function SongsPage() {
   const [soundPersona, setSoundPersona] = useState(null);
   const [lockToast, setLockToast] = useState('');
   const lockToastTimer = useRef(null);
+  const [offlineToast, setOfflineToast] = useState('');
+  const offlineToastRef = useRef(null);
 
   // Kids Mode
   const [isKidsMode, setIsKidsMode]         = useState(false);
@@ -1741,6 +1750,33 @@ export default function SongsPage() {
       setGenerating(false);
     }
   };
+
+  const showOfflineToast = useCallback((msg = "You're offline — reconnect to create songs") => {
+    setOfflineToast(msg);
+    clearTimeout(offlineToastRef.current);
+    offlineToastRef.current = setTimeout(() => setOfflineToast(''), 3500);
+  }, []);
+
+  const handleSaveOffline = useCallback(async (song) => {
+    try {
+      await saveForOffline(song);
+    } catch (err) {
+      if (err?.isQuota) {
+        showOfflineToast('Not enough storage — remove a saved song to free space');
+      }
+    }
+  }, [saveForOffline, showOfflineToast]);
+
+  const handlePlayOffline = useCallback(async (song) => {
+    try {
+      const blobUrl = await getOfflineAudioUrl(song.variant_id);
+      if (!blobUrl) {
+        showOfflineToast('Song file not found — try saving it again while online');
+        return;
+      }
+      playOne({ ...song, mp3_url: blobUrl });
+    } catch (_) {}
+  }, [getOfflineAudioUrl, playOne, showOfflineToast]);
 
   const handleTopup = async (pack) => {
     setTopupLoading(pack);
