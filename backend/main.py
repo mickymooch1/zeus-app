@@ -864,7 +864,9 @@ async def register(request: Request, body: RegisterRequest):
     # (old flow: create_user ran first, then fingerprint check failed → user existed but never got credits)
     import hashlib
     fp_hash = hashlib.sha256(body.fingerprint.encode()).hexdigest() if body.fingerprint else None
-    if fp_hash and db.check_device_fingerprint_exists(db_path, fp_hash):
+    _fp_allowlist = {v.strip() for v in os.environ.get("DEVICE_FINGERPRINT_ALLOWLIST", "").split(",") if v.strip()}
+    _fp_allowed = body.fingerprint and body.fingerprint in _fp_allowlist
+    if not _fp_allowed and fp_hash and db.check_device_fingerprint_exists(db_path, fp_hash):
         log.warning("register: duplicate device fingerprint pre-check blocked email=%s", body.email)
         raise HTTPException(
             status_code=429,
