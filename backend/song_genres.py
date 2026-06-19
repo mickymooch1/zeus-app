@@ -7,6 +7,8 @@ KIDS_STORY_PRESETS = {
 
 INSTRUMENTAL_SUFFIX = "fully instrumental, extended arrangement, prominent deep bass, dynamic structure with build ups and breakdowns, musical complexity, clever chord progressions, layered instrumentation, extended intro and outro, detailed production, rich harmonic content, bass-forward mix, evolving arrangement that develops throughout, professional instrumental composition"
 
+INTERMITTENT_VOCALS_SUFFIX = "mostly instrumental with sparse occasional vocal hooks and ad libs, minimal vocals, instrumental focus with brief vocal moments, rare vocal chops and short phrases, predominantly instrumental arrangement"
+
 GENRE_PRESETS = {
     "country":  "country ballad, acoustic guitar, slide guitar, warm storytelling vocals, moderate tempo",
     "reggae":   "reggae, off-beat rhythm guitar upstroke, dub bass, laid-back vocals, 80 BPM",

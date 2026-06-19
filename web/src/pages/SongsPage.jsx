@@ -851,7 +851,7 @@ export default function SongsPage() {
   const [pinModalOpen, setPinModalOpen]   = useState(false);
   const [pinInput, setPinInput]           = useState('');
   const [pinError, setPinError]           = useState('');
-  const [vocals, setVocals]               = useState(true);
+  const [vocalMode, setVocalMode]         = useState('full'); // 'full' | 'intermittent' | 'instrumental'
   const [animateCoverPref, setAnimateCoverPref] = useState(
     () => localStorage.getItem('zeus_animated_covers') === 'true'
   );
@@ -1225,7 +1225,8 @@ export default function SongsPage() {
             tempo_bpm: tempo === 'custom' ? tempoBpm : undefined,
             model_version: modelVersion,
             explicit: explicit || undefined,
-            instrumental: !vocals || undefined,
+            instrumental: vocalMode === 'instrumental' || undefined,
+            intermittent_vocals: vocalMode === 'intermittent' || undefined,
             negative_tags: negativeTags.trim() || undefined,
             genre_b: genreBlend && genreB ? genreB : undefined,
             blend_ratio: genreBlend && genreB ? blendRatio : undefined,
@@ -1250,7 +1251,8 @@ export default function SongsPage() {
             tempo_bpm: tempo === 'custom' ? tempoBpm : undefined,
             model_version: modelVersion,
             explicit: explicit || undefined,
-            instrumental: !vocals || undefined,
+            instrumental: vocalMode === 'instrumental' || undefined,
+            intermittent_vocals: vocalMode === 'intermittent' || undefined,
             negative_tags: negativeTags.trim() || undefined,
             genre_b: genreBlend && genreB ? genreB : undefined,
             blend_ratio: genreBlend && genreB ? blendRatio : undefined,
@@ -1960,7 +1962,7 @@ export default function SongsPage() {
               type="text"
               value={songTitle}
               onChange={(e) => setSongTitle(e.target.value)}
-              placeholder={vocals ? 'Song title (optional)' : 'e.g. Midnight Run, Deep Blue, Storm'}
+              placeholder={vocalMode === 'instrumental' ? 'e.g. Midnight Run, Deep Blue, Storm' : 'Song title (optional)'}
               maxLength={100}
               style={{
                 width: '100%',
@@ -2341,38 +2343,31 @@ export default function SongsPage() {
                   </div>
                 )}
 
-                {/* Vocals toggle — hidden for instrumental-only genres */}
+                {/* Vocals mode — hidden for instrumental-only genres */}
                 {!['meditation','healingfrequency'].some(g => selGenres.has(g)) && (
                 <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                    <div
-                      onClick={() => setVocals((v) => !v)}
-                      style={{
-                        width: 36,
-                        height: 20,
-                        borderRadius: 10,
-                        background: vocals ? '#7c3aed' : 'rgba(255,255,255,0.08)',
-                        position: 'relative',
-                        flexShrink: 0,
-                        transition: 'background 0.2s',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{
-                        position: 'absolute',
-                        top: 3,
-                        left: vocals ? 19 : 3,
-                        width: 14,
-                        height: 14,
-                        borderRadius: '50%',
-                        background: '#fff',
-                        transition: 'left 0.2s',
-                      }} />
-                    </div>
-                    <span style={{ fontSize: 12, color: vocals ? '#c4b5fd' : '#555', fontWeight: 500 }}>
-                      {vocals ? 'Vocals' : 'Instrumental'}
-                    </span>
-                  </label>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {[
+                      { value: 'full',         label: '🎵 Full Vocals' },
+                      { value: 'instrumental', label: '🎹 Instrumental' },
+                      { value: 'intermittent', label: '🎤 Intermittent Vocals' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => setVocalMode(value)}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: 20,
+                          border: `1px solid ${vocalMode === value ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`,
+                          background: vocalMode === value ? 'rgba(167,139,250,0.15)' : 'transparent',
+                          color: vocalMode === value ? '#c4b5fd' : '#555',
+                          fontSize: 12,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                        }}
+                      >{label}</button>
+                    ))}
+                  </div>
                 </div>
                 )}
 

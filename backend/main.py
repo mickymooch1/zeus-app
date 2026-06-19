@@ -1967,6 +1967,7 @@ class SongsGenerateRequest(BaseModel):
     accent: str | None = None            # e.g. "British" → appended to style string
     explicit: bool = False               # agency/enterprise only — loosens Suno content filter
     instrumental: bool = False           # skip lyrics; append instrumental style suffix
+    intermittent_vocals: bool = False    # mostly instrumental with sparse vocal hooks/ad libs
     inspired_by_descriptors: str | None = None  # from /api/songs/artist-style
     negative_tags: str | None = Field(default=None, max_length=500)  # → sunoParams.negative_tags
     song_title: str | None = None        # optional user-supplied title; overrides AI-generated title
@@ -2584,6 +2585,9 @@ async def songs_generate(
     if body.instrumental:
         from song_genres import INSTRUMENTAL_SUFFIX as _INSTRUMENTAL_SUFFIX
         style_suffix_parts.append(_INSTRUMENTAL_SUFFIX)
+    if body.intermittent_vocals and not body.instrumental:
+        from song_genres import INTERMITTENT_VOCALS_SUFFIX as _INTERMITTENT_VOCALS_SUFFIX
+        style_suffix_parts.append(_INTERMITTENT_VOCALS_SUFFIX)
     if body.healing_frequency and 'healingfrequency' in list(body.genres):
         _valid_hz = {"432", "528", "396", "639", "741", "852", "963"}
         _hz = body.healing_frequency.strip().replace(" Hz", "").replace("Hz", "")
