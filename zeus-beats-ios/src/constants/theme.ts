@@ -6,6 +6,7 @@ export const COLORS = {
   cyan:        '#00f0ff',
   purple:      '#7c3aed',
   purpleLight: '#a855f7',
+  pink:        '#ff0099',
   white:       '#ffffff',
   textPrimary: '#e2d9f3',
   textMuted:   '#6b7280',
@@ -15,6 +16,8 @@ export const COLORS = {
   tabBg:       '#120d2e',
   tabActive:   '#a78bfa',
   tabInactive: '#3a3a5a',
+  gradientTop: '#0b0b14' as const,
+  gradientBot: '#0d0028' as const,
 };
 
 export const FONT = {
