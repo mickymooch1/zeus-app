@@ -65,7 +65,7 @@ def verify_token(token: str) -> dict | None:
         now_ts = datetime.now(timezone.utc).timestamp()
         if exp is not None:
             delta_days = (exp - now_ts) / 86400
-            log.info("JWT verify: sub=%s exp_in_days=%.1f (exp=%s now=%s)", sub, delta_days, exp, now_ts)
+            log.debug("JWT verify: sub=%s exp_in_days=%.1f (exp=%s now=%s)", sub, delta_days, exp, now_ts)
         else:
             log.warning("JWT verify: sub=%s — no exp claim in token", sub)
     except Exception as peek_err:
