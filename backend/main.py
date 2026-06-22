@@ -2578,8 +2578,19 @@ async def songs_generate(
             style_suffix_parts.append(_KIDS_LANG_STYLE[body.accent.lower()])
             log.info("accent: kids_lang accent=%r applied", body.accent)
         else:
-            style_suffix_parts.append(_ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals"))
-            log.info("accent: %s accent=%r → %r", "kids" if body.kids_story else "regular", body.accent, _ACCENT_DESCRIPTORS.get(body.accent, body.accent)[:80])
+            _accent_desc = _ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals")
+            # Country Soul crossover: American Soul over country instrumentation gets
+            # buried by the country style unless the soul/gospel/R&B weighting leads.
+            # Scope to country genres so American Soul on other genres is unchanged.
+            _country_genres = {"countryamericana", "country"}
+            if body.accent == "American Soul" and any(g in _country_genres for g in body.genres):
+                _accent_desc = (
+                    "soulful Southern gospel influenced vocals, warm R&B delivery, "
+                    "emotional soul singer, country soul crossover style, " + _accent_desc
+                )
+                log.info("accent: American Soul → Country Soul crossover boost applied (genres=%r)", list(body.genres))
+            style_suffix_parts.append(_accent_desc)
+            log.info("accent: %s accent=%r → %r", "kids" if body.kids_story else "regular", body.accent, _accent_desc[:80])
     if body.explicit:
         style_suffix_parts.append("explicit lyrics allowed, no content restrictions")
     if body.instrumental:
@@ -2588,6 +2599,19 @@ async def songs_generate(
     if body.intermittent_vocals and not body.instrumental:
         from song_genres import INTERMITTENT_VOCALS_SUFFIX as _INTERMITTENT_VOCALS_SUFFIX
         style_suffix_parts.append(_INTERMITTENT_VOCALS_SUFFIX)
+        # Suno will still sing full verses unless we explicitly suppress it.
+        # Merge with any user-supplied negative tags rather than overwriting.
+        _intermittent_neg = "full vocals, constant singing, verse chorus structure"
+        _existing_neg = extra_suno_params.get("negative_tags", "")
+        extra_suno_params["negative_tags"] = (
+            f"{_existing_neg}, {_intermittent_neg}" if _existing_neg else _intermittent_neg
+        )[:500]
+    log.info(
+        "Vocal mode: instrumental=%s intermittent=%s effective_instrumental_param=%s negative_tags=%r",
+        body.instrumental, body.intermittent_vocals,
+        extra_suno_params.get("instrumental", False),
+        extra_suno_params.get("negative_tags"),
+    )
     if body.healing_frequency and 'healingfrequency' in list(body.genres):
         _valid_hz = {"432", "528", "396", "639", "741", "852", "963"}
         _hz = body.healing_frequency.strip().replace(" Hz", "").replace("Hz", "")
