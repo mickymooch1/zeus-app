@@ -179,6 +179,24 @@ def sanitize_inspired_by_descriptors(raw: str | None) -> str | None:
     return ", ".join(safe_parts)[:500] or None
 
 
+_VOCAL_CUE_KEYWORDS = ("vocal", "singing", "singer", "sung", "sings", "acapella", "a cappella")
+
+
+def strip_vocal_cues(style: str) -> str:
+    """Remove vocal-forward descriptors from a genre style string for
+    intermittent-vocal mode.
+
+    Many genre presets hardcode vocal cues (e.g. "pitched male vocals",
+    "chopped female vocal samples", "warm storytelling vocals") that fight the
+    "mostly instrumental" intent. Drop any comma-segment mentioning vocals and
+    re-assert the instrumental direction.
+    """
+    segments = [s.strip() for s in style.split(",")]
+    kept = [s for s in segments if s and not any(k in s.lower() for k in _VOCAL_CUE_KEYWORDS)]
+    kept.append("mostly instrumental, brief vocal hook only")
+    return ", ".join(kept)
+
+
 def _dj_transition_style(style_a: str, style_b: str) -> str:
     """Build a Suno section-tag style string that switches genre per section."""
     return (
@@ -465,6 +483,7 @@ def generate_multiple_variants(
     genre_b: str | None = None,
     blend_ratio: int | None = None,
     kids_story: bool = False,
+    intermittent_vocals: bool = False,
 ) -> dict:
     """Generate the same lyrics in multiple genres. Costs len(genres) credits.
     Admin users bypass credit checks entirely."""
@@ -495,6 +514,11 @@ def generate_multiple_variants(
     for genre in valid_genres:
         from song_genres import KIDS_STORY_PRESETS
         style = KIDS_STORY_PRESETS.get(genre, GENRE_PRESETS[genre]) if kids_story else GENRE_PRESETS[genre]
+        # Intermittent mode: scrub vocal cues (e.g. "pitched male vocals") from the preset
+        # so they don't fight the mostly-instrumental hook-only lyrics.
+        if intermittent_vocals:
+            style = strip_vocal_cues(style)
+            logger.info("intermittent: stripped vocal cues from genre=%r style", genre)
         # Apply DJ-transition style for genre blend
         if genre_b and genre_b in GENRE_PRESETS:
             style = _dj_transition_style(style, GENRE_PRESETS[genre_b])

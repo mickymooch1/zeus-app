@@ -396,7 +396,73 @@ _REGULAR_LANGUAGE_MAP = {
 }
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None, roast_mode: bool = False, roast_name: str | None = None, roast_details: str | None = None, roast_vibe: str | None = None, bilingual_mode: bool = False) -> dict:
+_SECTION_TAG_LINE_RE = re.compile(r'^\s*\[[^\]]*\]\s*$')
+_LEADING_TAG_RE = re.compile(r'^\[[^\]]*\]\s*')
+
+
+def _extract_hook(lyrics_text: str, max_lines: int = 2) -> list[str]:
+    """Pull a short hook (<= max_lines) out of a full lyric sheet.
+
+    Prefers the lines under a [Chorus]/[Hook] section; falls back to the first
+    content lines anywhere. Section-tag-only lines are skipped.
+    """
+    lines = [l.strip() for l in (lyrics_text or "").splitlines()]
+
+    def _content_lines(seq: list[str]) -> list[str]:
+        out: list[str] = []
+        for l in seq:
+            if not l or _SECTION_TAG_LINE_RE.match(l):
+                continue
+            l = _LEADING_TAG_RE.sub('', l).strip()  # drop inline "[Chorus] words"
+            if l:
+                out.append(l)
+            if len(out) >= max_lines:
+                break
+        return out
+
+    # 1) Prefer a chorus/hook section.
+    collecting = False
+    chorus_seq: list[str] = []
+    for l in lines:
+        m = re.match(r'^\[([^\]]*)\]', l)
+        if m:
+            tag = m.group(1).lower()
+            if 'chorus' in tag or 'hook' in tag:
+                collecting = True
+            elif collecting:
+                break  # next section ends the hook
+            continue
+        if collecting and l:
+            chorus_seq.append(l)
+    hook = _content_lines(chorus_seq)
+    if hook:
+        return hook[:max_lines]
+
+    # 2) Fallback: first content lines anywhere.
+    return _content_lines(lines)[:max_lines]
+
+
+def build_intermittent_hook(lyrics_text: str) -> str:
+    """Reduce a full lyric sheet to a tiny sung hook surrounded by instrumental
+    section tags, so Suno spends most of the track on instrumentals.
+
+    The lyrics passed to Suno in custom mode are sung in full, so the only
+    reliable way to get sparse/intermittent vocals is to hand it almost nothing
+    to sing.
+    """
+    hook = _extract_hook(lyrics_text, max_lines=2)
+    hook_block = "\n".join(hook) if hook else "oh-oh-oh"
+    return (
+        "[Intro - Instrumental]\n"
+        "[Instrumental break]\n"
+        "[Hook]\n"
+        f"{hook_block}\n"
+        "[Instrumental]\n"
+        "[Outro - Instrumental]"
+    )
+
+
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None, roast_mode: bool = False, roast_name: str | None = None, roast_details: str | None = None, roast_vibe: str | None = None, bilingual_mode: bool = False, intermittent_vocals: bool = False) -> dict:
     _need_translation = False  # initialised here so all code paths have a value
     if instrumental:
         title = song_title or "Instrumental"
@@ -797,12 +863,18 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
 
     final_title = song_title or parsed["title"]
 
+    _lyrics_text = parsed["lyrics"]
+    if intermittent_vocals:
+        # Mostly-instrumental: hand Suno only a tiny hook so it can't sing full verses.
+        _lyrics_text = build_intermittent_hook(_lyrics_text)
+        logger.info("generate_lyrics: intermittent mode — reduced lyrics to hook (len=%d)", len(_lyrics_text))
+
     conn = db._conn(db_path)
     try:
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO lyrics (user_id, brief, lyrics_text, title) VALUES (?, ?, ?, ?)",
-            (user_id, brief, parsed["lyrics"], final_title),
+            (user_id, brief, _lyrics_text, final_title),
         )
         lyric_id = cur.lastrowid
         conn.commit()
@@ -811,14 +883,16 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
 
     return {
         "lyric_id": lyric_id,
-        "lyrics": parsed["lyrics"],
+        "lyrics": _lyrics_text,
         "title": final_title,
     }
 
 
-def store_custom_lyrics(user_id: str, brief: str, lyrics_text: str, db_path: pathlib.Path, song_title: str | None = None) -> dict:
+def store_custom_lyrics(user_id: str, brief: str, lyrics_text: str, db_path: pathlib.Path, song_title: str | None = None, intermittent_vocals: bool = False) -> dict:
     """Store user-supplied lyrics directly without calling Claude."""
     title = song_title or "Custom Song"
+    if intermittent_vocals:
+        lyrics_text = build_intermittent_hook(lyrics_text)
     conn = db._conn(db_path)
     try:
         cur = conn.cursor()
