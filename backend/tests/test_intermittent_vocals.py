@@ -102,3 +102,22 @@ class TestStripVocalCues:
         assert "vocal" not in residue
         assert "singing" not in residue
         assert "acoustic guitar" in out
+
+    def test_reinforces_female_vocal_hook_when_female_selected(self):
+        out = songs_mod.strip_vocal_cues("bassline house, pitched male vocals, 130 BPM", "f")
+        assert out.endswith("mostly instrumental, female vocal hook only")
+        assert "pitched male vocals" not in out
+
+    def test_reinforces_male_vocal_hook_when_male_selected(self):
+        out = songs_mod.strip_vocal_cues("bassline house, 130 BPM", "m")
+        assert out.endswith("mostly instrumental, male vocal hook only")
+
+    def test_reinforces_duet_hook_when_duet_selected(self):
+        out = songs_mod.strip_vocal_cues("bassline house, 130 BPM", "duet")
+        assert out.endswith("mostly instrumental, brief male and female vocal hook")
+
+    def test_defaults_to_neutral_hook_when_no_gender(self):
+        assert songs_mod.strip_vocal_cues("bassline house, 130 BPM").endswith(
+            "mostly instrumental, brief vocal hook only")
+        assert songs_mod.strip_vocal_cues("bassline house, 130 BPM", "").endswith(
+            "mostly instrumental, brief vocal hook only")

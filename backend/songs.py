@@ -181,19 +181,27 @@ def sanitize_inspired_by_descriptors(raw: str | None) -> str | None:
 
 _VOCAL_CUE_KEYWORDS = ("vocal", "singing", "singer", "sung", "sings", "acapella", "a cappella")
 
+_HOOK_CUE_BY_GENDER = {
+    "f":    "mostly instrumental, female vocal hook only",
+    "m":    "mostly instrumental, male vocal hook only",
+    "duet": "mostly instrumental, brief male and female vocal hook",
+}
+_DEFAULT_HOOK_CUE = "mostly instrumental, brief vocal hook only"
 
-def strip_vocal_cues(style: str) -> str:
+
+def strip_vocal_cues(style: str, vocal_gender: str | None = None) -> str:
     """Remove vocal-forward descriptors from a genre style string for
-    intermittent-vocal mode.
+    intermittent-vocal mode, then re-assert the instrumental direction with a
+    gender-appropriate hook cue.
 
     Many genre presets hardcode vocal cues (e.g. "pitched male vocals",
     "chopped female vocal samples", "warm storytelling vocals") that fight the
-    "mostly instrumental" intent. Drop any comma-segment mentioning vocals and
-    re-assert the instrumental direction.
+    "mostly instrumental" intent. Drop any comma-segment mentioning vocals, then
+    reinforce the user's chosen vocal gender so the short hook actually sticks.
     """
     segments = [s.strip() for s in style.split(",")]
     kept = [s for s in segments if s and not any(k in s.lower() for k in _VOCAL_CUE_KEYWORDS)]
-    kept.append("mostly instrumental, brief vocal hook only")
+    kept.append(_HOOK_CUE_BY_GENDER.get((vocal_gender or "").lower(), _DEFAULT_HOOK_CUE))
     return ", ".join(kept)
 
 
@@ -484,6 +492,7 @@ def generate_multiple_variants(
     blend_ratio: int | None = None,
     kids_story: bool = False,
     intermittent_vocals: bool = False,
+    vocal_gender: str | None = None,
 ) -> dict:
     """Generate the same lyrics in multiple genres. Costs len(genres) credits.
     Admin users bypass credit checks entirely."""
@@ -517,8 +526,8 @@ def generate_multiple_variants(
         # Intermittent mode: scrub vocal cues (e.g. "pitched male vocals") from the preset
         # so they don't fight the mostly-instrumental hook-only lyrics.
         if intermittent_vocals:
-            style = strip_vocal_cues(style)
-            logger.info("intermittent: stripped vocal cues from genre=%r style", genre)
+            style = strip_vocal_cues(style, vocal_gender)
+            logger.info("intermittent: stripped vocal cues from genre=%r style (vocal_gender=%r)", genre, vocal_gender)
         # Apply DJ-transition style for genre blend
         if genre_b and genre_b in GENRE_PRESETS:
             style = _dj_transition_style(style, GENRE_PRESETS[genre_b])

@@ -2722,6 +2722,7 @@ async def songs_generate(
             blend_ratio=body.blend_ratio,
             kids_story=_is_story,
             intermittent_vocals=bool(body.intermittent_vocals and not body.instrumental),
+            vocal_gender=body.vocal_gender or None,
         )
         log.info(
             "songs_generate: Apiframe submission ok user_id=%s lyric_id=%s variants=%r",
