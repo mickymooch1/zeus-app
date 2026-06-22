@@ -19,7 +19,7 @@ import songs as songs_mod
 
 
 class TestBuildIntermittentHook:
-    def test_keeps_only_chorus_hook_and_wraps_in_instrumental_tags(self):
+    def test_keeps_only_chorus_hook_and_wraps_in_instrumental_structure(self):
         full = (
             "[Verse 1]\n"
             "Walking down the street tonight\n"
@@ -36,13 +36,22 @@ class TestBuildIntermittentHook:
         assert "We run the night we own the floor" in out
         assert "Walking down the street tonight" not in out
         assert "Another line goes here" not in out
-        # Instrumental scaffolding present
+        # Full instrumental scaffolding present for song length
         assert "[Intro - Instrumental]" in out
+        assert "[Verse - Instrumental]" in out
         assert "[Instrumental break]" in out
-        assert "[Hook]" in out
+        assert "[Drop - Instrumental]" in out
         assert "[Outro - Instrumental]" in out
-        # Drastically shorter than the full sheet
-        assert len(out) < len(full)
+        # Hook is opened and closed
+        assert "[Hook]" in out
+        assert "[/Hook]" in out
+
+    def test_repeats_hook_twice_for_standard_song_structure(self):
+        full = "[Chorus]\nWe run the night we own the floor\nTurn it up and give me more\n"
+        out = lyrics_mod.build_intermittent_hook(full)
+        assert out.count("We run the night we own the floor") == 2
+        assert out.count("[Hook]") == 2
+        assert out.count("[/Hook]") == 2
 
     def test_caps_hook_to_two_lines(self):
         full = "[Chorus]\nline one\nline two\nline three\nline four\n"
