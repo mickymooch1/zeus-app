@@ -38,10 +38,14 @@ class TestBuildIntermittentHook:
         assert "Another line goes here" not in out
         # Full instrumental scaffolding present for song length
         assert "[Intro - Instrumental]" in out
-        assert "[Verse - Instrumental]" in out
+        assert "[Instrumental verse]" in out
         assert "[Instrumental break]" in out
+        assert "[Instrumental build]" in out
         assert "[Drop - Instrumental]" in out
         assert "[Outro - Instrumental]" in out
+        assert "[Extended outro - Instrumental]" in out
+        # Multiple instrumental verses give Suno room to fill 2.5-3 minutes
+        assert out.count("[Instrumental verse]") >= 3
         # Hook is opened and closed
         assert "[Hook]" in out
         assert "[/Hook]" in out
@@ -87,6 +91,8 @@ class TestStripVocalCues:
         assert "bassline house" in out
         assert "130 BPM" in out
         assert "mostly instrumental, brief vocal hook only" in out
+        # Full-length duration cue is appended so Suno renders 2.5-3 minutes
+        assert "extended outro, full length track, 3 minute duration" in out
 
     def test_removes_chopped_female_vocal_samples(self):
         style = ("heavy sub bass, chopped pitched-up female vocal samples, "
@@ -103,21 +109,28 @@ class TestStripVocalCues:
         assert "singing" not in residue
         assert "acoustic guitar" in out
 
+    _DURATION_CUE = "extended outro, full length track, 3 minute duration"
+
     def test_reinforces_female_vocal_hook_when_female_selected(self):
         out = songs_mod.strip_vocal_cues("bassline house, pitched male vocals, 130 BPM", "f")
-        assert out.endswith("mostly instrumental, female vocal hook only")
+        assert "mostly instrumental, female vocal hook only" in out
+        assert out.endswith(self._DURATION_CUE)
         assert "pitched male vocals" not in out
 
     def test_reinforces_male_vocal_hook_when_male_selected(self):
         out = songs_mod.strip_vocal_cues("bassline house, 130 BPM", "m")
-        assert out.endswith("mostly instrumental, male vocal hook only")
+        assert "mostly instrumental, male vocal hook only" in out
+        assert out.endswith(self._DURATION_CUE)
 
     def test_reinforces_duet_hook_when_duet_selected(self):
         out = songs_mod.strip_vocal_cues("bassline house, 130 BPM", "duet")
-        assert out.endswith("mostly instrumental, brief male and female vocal hook")
+        assert "mostly instrumental, brief male and female vocal hook" in out
+        assert out.endswith(self._DURATION_CUE)
 
     def test_defaults_to_neutral_hook_when_no_gender(self):
-        assert songs_mod.strip_vocal_cues("bassline house, 130 BPM").endswith(
-            "mostly instrumental, brief vocal hook only")
-        assert songs_mod.strip_vocal_cues("bassline house, 130 BPM", "").endswith(
-            "mostly instrumental, brief vocal hook only")
+        out_none = songs_mod.strip_vocal_cues("bassline house, 130 BPM")
+        out_empty = songs_mod.strip_vocal_cues("bassline house, 130 BPM", "")
+        assert "mostly instrumental, brief vocal hook only" in out_none
+        assert "mostly instrumental, brief vocal hook only" in out_empty
+        assert out_none.endswith(self._DURATION_CUE)
+        assert out_empty.endswith(self._DURATION_CUE)

@@ -452,21 +452,27 @@ def build_intermittent_hook(lyrics_text: str) -> str:
     """
     hook = _extract_hook(lyrics_text, max_lines=2)
     hook_block = "\n".join(hook) if hook else "oh-oh-oh"
-    # Repeat the hook twice across a full instrumental structure so Suno renders
-    # a standard 2-3 minute track — the extra section tags give it room to fill
-    # with music rather than ending early on the short lyric.
+    # Repeat the hook twice across a long, fully-tagged instrumental structure so
+    # Suno renders a standard 2.5-3 minute track. More instrumental section tags
+    # means Suno fills the time with music rather than ending early (~45s) on the
+    # short lyric — the hook appears twice to give it something to sing, while
+    # every other section is pure instrumental scaffolding.
     return (
         "[Intro - Instrumental]\n"
-        "[Verse - Instrumental]\n"
+        "[Instrumental verse]\n"
+        "[Instrumental verse]\n"
         "[Hook]\n"
         f"{hook_block}\n"
         "[/Hook]\n"
         "[Instrumental break]\n"
+        "[Instrumental verse]\n"
         "[Drop - Instrumental]\n"
+        "[Instrumental build]\n"
         "[Hook]\n"
         f"{hook_block}\n"
         "[/Hook]\n"
-        "[Outro - Instrumental]"
+        "[Outro - Instrumental]\n"
+        "[Extended outro - Instrumental]"
     )
 
 

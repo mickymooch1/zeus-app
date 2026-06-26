@@ -202,6 +202,8 @@ def strip_vocal_cues(style: str, vocal_gender: str | None = None) -> str:
     segments = [s.strip() for s in style.split(",")]
     kept = [s for s in segments if s and not any(k in s.lower() for k in _VOCAL_CUE_KEYWORDS)]
     kept.append(_HOOK_CUE_BY_GENDER.get((vocal_gender or "").lower(), _DEFAULT_HOOK_CUE))
+    # Push Suno toward a full-length render — the short hook otherwise ends ~45s in.
+    kept.append("extended outro, full length track, 3 minute duration")
     return ", ".join(kept)
 
 
