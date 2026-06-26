@@ -36,11 +36,10 @@ class TestBuildIntermittentHook:
         assert "We run the night we own the floor" in out
         assert "Walking down the street tonight" not in out
         assert "Another line goes here" not in out
-        # Full instrumental scaffolding present for song length
+        # Default scaffolding present for song length
         assert "[Intro - Instrumental]" in out
         assert "[Instrumental verse]" in out
         assert "[Instrumental break]" in out
-        assert "[Instrumental build]" in out
         assert "[Drop - Instrumental]" in out
         assert "[Outro - Instrumental]" in out
         assert "[Extended outro - Instrumental]" in out
@@ -75,6 +74,67 @@ class TestBuildIntermittentHook:
         out = lyrics_mod.build_intermittent_hook("")
         assert "[Hook]" in out
         assert "[Instrumental break]" in out
+
+
+class TestGenreAwareIntermittentStructure:
+    _HOOK_FULL = "[Chorus]\nWe run the night we own the floor\nTurn it up and give me more\n"
+
+    def test_unknown_genre_falls_back_to_default(self):
+        out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL, genre="reggaeton")
+        assert out == lyrics_mod.INTERMITTENT_STRUCTURES["default"].replace(
+            "{hook}", "We run the night we own the floor\nTurn it up and give me more")
+
+    def test_no_genre_uses_default(self):
+        out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL)
+        assert "[Instrumental verse]" in out  # default-only tag
+
+    def test_jungle_gets_amen_breaks(self):
+        out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL, genre="jungle")
+        assert "[Amen break - Instrumental]" in out
+        assert "[Reese bass drop - Instrumental]" in out
+        assert "[Instrumental verse]" not in out  # not the default structure
+
+    def test_deephouse_gets_grooves_and_breakdown(self):
+        out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL, genre="deephouse")
+        assert "[Groove - Instrumental]" in out
+        assert "[Breakdown - Instrumental]" in out
+        assert "[Instrumental groove]" in out
+
+    def test_techhouse_gets_drops_and_builds(self):
+        out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL, genre="techhouse")
+        assert "[Build - Instrumental]" in out
+        assert "[Drop - Instrumental]" in out
+        assert "[Breakdown - Instrumental]" in out
+
+    def test_bassline_uses_build_drop_structure(self):
+        out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL, genre="bassline")
+        assert "[Build]" in out
+        assert "[Drop - Instrumental]" in out
+        assert "[Instrumental verse]" not in out
+
+    def test_drumandbass_genre_key_aliases_to_drumnbass_structure(self):
+        # The app passes the real GENRE_PRESETS key "drumandbass"; it must resolve.
+        out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL, genre="drumandbass")
+        assert "[Amen break]" in out
+        assert "[Jungle break - Instrumental]" in out
+
+    def test_technhouse_genre_key_aliases_to_techhouse_structure(self):
+        # GENRE_PRESETS stores tech house under the typo'd key "technhouse".
+        out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL, genre="technhouse")
+        assert "[Build - Instrumental]" in out
+        assert "[Breakdown - Instrumental]" in out
+
+    def test_genre_match_is_case_insensitive(self):
+        out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL, genre="Jungle")
+        assert "[Amen break - Instrumental]" in out
+
+    def test_every_structure_keeps_hook_twice(self):
+        for key in lyrics_mod.INTERMITTENT_STRUCTURES:
+            out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL, genre=None if key == "default" else key)
+            assert out.count("[Hook]") == 2, key
+            assert out.count("[/Hook]") == 2, key
+            assert out.count("We run the night we own the floor") == 2, key
+            assert "{hook}" not in out, key  # placeholder fully substituted
 
 
 class TestStripVocalCues:

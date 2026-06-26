@@ -442,38 +442,55 @@ def _extract_hook(lyrics_text: str, max_lines: int = 2) -> list[str]:
     return _content_lines(lines)[:max_lines]
 
 
-def build_intermittent_hook(lyrics_text: str) -> str:
-    """Reduce a full lyric sheet to a tiny sung hook surrounded by instrumental
-    section tags, so Suno spends most of the track on instrumentals.
+# Genre-aware instrumental scaffolding for intermittent-vocals mode. Each genre
+# gets section tags matching its natural energy and arrangement (jungle → amen
+# breaks, deep house → grooves/breakdowns, tech house → drops/builds), so Suno
+# fills a full 2.5-3 minute track with music rather than ending early (~45s) on
+# the short hook. The hook appears twice to give it something to sing; every
+# other section is pure instrumental structure. {hook} is replaced with the
+# extracted hook lines.
+INTERMITTENT_STRUCTURES = {
+    'bassline': '[Intro - Instrumental]\n[Build]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Instrumental break]\n[Build]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Extended outro - Instrumental]',
+    'jungle': '[Intro - Instrumental]\n[Amen break - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Jungle break]\n[Reese bass drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]',
+    'techhouse': '[Intro - Instrumental]\n[Groove - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Breakdown - Instrumental]\n[Build - Instrumental]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Extended outro - Instrumental]',
+    'house': '[Intro - Instrumental]\n[Verse - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Break - Instrumental]\n[Build - Instrumental]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]',
+    'deephouse': '[Intro - Instrumental]\n[Groove - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Breakdown - Instrumental]\n[Instrumental groove]\n[Hook]\n{hook}\n[/Hook]\n[Extended outro - Instrumental]',
+    'drumnbass': '[Intro - Instrumental]\n[Amen break]\n[Hook]\n{hook}\n[/Hook]\n[Jungle break - Instrumental]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]',
+    'ukgarage': '[Intro - Instrumental]\n[2-step groove - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Break - Instrumental]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]',
+    'purebassline': '[Intro - Instrumental]\n[4x4 build]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Instrumental break]\n[Build]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Extended outro - Instrumental]',
+    # Default for all other genres
+    'default': '[Intro - Instrumental]\n[Instrumental verse]\n[Instrumental verse]\n[Hook]\n{hook}\n[/Hook]\n[Instrumental break]\n[Instrumental verse]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]\n[Extended outro - Instrumental]',
+}
+
+# GENRE_PRESETS stores a few of these genres under differently-spelled keys.
+# Map the real genre tag the app passes us onto the structure entry above.
+_INTERMITTENT_GENRE_ALIASES = {
+    'drumandbass': 'drumnbass',
+    'dnb': 'drumnbass',
+    'technhouse': 'techhouse',     # GENRE_PRESETS stores tech house under this typo'd key
+    'tech_house': 'techhouse',
+    'deeprotbassline': 'bassline',
+}
+
+
+def build_intermittent_hook(lyrics_text: str, genre: str | None = None) -> str:
+    """Reduce a full lyric sheet to a tiny sung hook surrounded by genre-aware
+    instrumental section tags, so Suno spends most of the track on instrumentals.
 
     The lyrics passed to Suno in custom mode are sung in full, so the only
     reliable way to get sparse/intermittent vocals is to hand it almost nothing
-    to sing.
+    to sing. The instrumental scaffolding is selected per genre (see
+    INTERMITTENT_STRUCTURES) so the section tags match each genre's natural
+    energy and arrangement and Suno renders a full 2.5-3 minute track rather than
+    ending early on the short hook.
     """
     hook = _extract_hook(lyrics_text, max_lines=2)
     hook_block = "\n".join(hook) if hook else "oh-oh-oh"
-    # Repeat the hook twice across a long, fully-tagged instrumental structure so
-    # Suno renders a standard 2.5-3 minute track. More instrumental section tags
-    # means Suno fills the time with music rather than ending early (~45s) on the
-    # short lyric — the hook appears twice to give it something to sing, while
-    # every other section is pure instrumental scaffolding.
-    return (
-        "[Intro - Instrumental]\n"
-        "[Instrumental verse]\n"
-        "[Instrumental verse]\n"
-        "[Hook]\n"
-        f"{hook_block}\n"
-        "[/Hook]\n"
-        "[Instrumental break]\n"
-        "[Instrumental verse]\n"
-        "[Drop - Instrumental]\n"
-        "[Instrumental build]\n"
-        "[Hook]\n"
-        f"{hook_block}\n"
-        "[/Hook]\n"
-        "[Outro - Instrumental]\n"
-        "[Extended outro - Instrumental]"
-    )
+    key = (genre or "").strip().lower()
+    key = _INTERMITTENT_GENRE_ALIASES.get(key, key)
+    template = INTERMITTENT_STRUCTURES.get(key, INTERMITTENT_STRUCTURES["default"])
+    # Hook lines could theoretically contain braces — use replace, not str.format.
+    return template.replace("{hook}", hook_block)
 
 
 def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None, roast_mode: bool = False, roast_name: str | None = None, roast_details: str | None = None, roast_vibe: str | None = None, bilingual_mode: bool = False, intermittent_vocals: bool = False) -> dict:
@@ -880,8 +897,9 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
     _lyrics_text = parsed["lyrics"]
     if intermittent_vocals:
         # Mostly-instrumental: hand Suno only a tiny hook so it can't sing full verses.
-        _lyrics_text = build_intermittent_hook(_lyrics_text)
-        logger.info("generate_lyrics: intermittent mode — reduced lyrics to hook (len=%d)", len(_lyrics_text))
+        _genre = genres[0] if genres else None
+        _lyrics_text = build_intermittent_hook(_lyrics_text, genre=_genre)
+        logger.info("generate_lyrics: intermittent mode — genre=%r reduced lyrics to hook (len=%d)", _genre, len(_lyrics_text))
 
     conn = db._conn(db_path)
     try:
@@ -902,11 +920,11 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
     }
 
 
-def store_custom_lyrics(user_id: str, brief: str, lyrics_text: str, db_path: pathlib.Path, song_title: str | None = None, intermittent_vocals: bool = False) -> dict:
+def store_custom_lyrics(user_id: str, brief: str, lyrics_text: str, db_path: pathlib.Path, song_title: str | None = None, intermittent_vocals: bool = False, genre: str | None = None) -> dict:
     """Store user-supplied lyrics directly without calling Claude."""
     title = song_title or "Custom Song"
     if intermittent_vocals:
-        lyrics_text = build_intermittent_hook(lyrics_text)
+        lyrics_text = build_intermittent_hook(lyrics_text, genre=genre)
     conn = db._conn(db_path)
     try:
         cur = conn.cursor()

@@ -2171,6 +2171,7 @@ async def songs_generate(
                 db_path=db_path,
                 song_title=body.song_title or None,
                 intermittent_vocals=bool(body.intermittent_vocals and not body.instrumental),
+                genre=(list(body.genres)[0] if body.genres else None),
             )
         else:
             _genre_lang = _GENRE_LANGUAGE_MAP.get((list(body.genres)[0] if body.genres else ''), None)
