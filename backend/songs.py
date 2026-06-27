@@ -71,6 +71,7 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "bhangra":         "bhangra dancer performing energetically, traditional arm movements, vibrant colourful lighting, joyful celebration energy",
     "rockney":         "rockney musician performing cheerfully, pub singalong energy, warm amber pub lighting, cheeky energetic performance",
     "metal":           "metal guitarist shredding intensely, headbanging dramatic movement, dark red stage lighting, fierce powerful energy",
+    "bluesrock":       "blues rock guitarist performing powerfully, hard driving energetic movement, dramatic red orange stage lighting, raw rock energy",
     "reggaeton":       "reggaeton performer dancing energetically, perreo movement, warm tropical neon lighting, confident Latin urban energy",
     "latintrap":       "Latin trap performer moving intensely, dark moody movement, blue purple neon lighting, brooding urban Latin energy",
     "rootsreggae":    "roots reggae musician performing peacefully, gentle swaying movement, warm golden sunset lighting, spiritual conscious energy",
