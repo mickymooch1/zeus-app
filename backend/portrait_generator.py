@@ -68,6 +68,7 @@ GENRE_PORTRAIT_PROMPTS = {
     "rootsreggae":    "Black Jamaican roots reggae musician, professional portrait photo, clear frontal face, warm golden sunset lighting, peaceful spiritual expression, natural dreadlocks, photorealistic",
     "countryamericana": "American country musician, professional portrait photo, clear frontal face, warm golden hour lighting, authentic rugged expression, photorealistic",
     "southemsoul":      "Black Southern American soul musician, professional portrait photo, clear frontal face, warm amber church or studio lighting, deeply emotional soulful expression, photorealistic",
+    "soulrnb":          "smooth soul R&B singer professional portrait, clear frontal face, warm intimate studio lighting, sophisticated elegant expression, classic soul aesthetic, photorealistic",
     "traditionalpop":   "classic crooner in elegant suit, professional portrait photo, clear frontal face, warm golden vintage lighting, charming sophisticated expression, 1950s aesthetic, photorealistic",
     "rocknroll":        "rock and roll musician with quiff hairstyle, professional portrait photo, clear frontal face, vintage stage lighting, energetic rebellious expression, 1950s rockabilly aesthetic, photorealistic",
     "trap":             "Black American trap artist, professional portrait photo, clear frontal face, dark moody studio lighting, intense brooding expression, photorealistic",
