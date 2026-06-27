@@ -2161,6 +2161,12 @@ export default function SongsPage() {
                     ].map(([label, value]) => (
                       <option key={label} value={value}>{label}</option>
                     ))}
+                    <optgroup label="🎸 Rock & Blues">
+                      <option value="classic rock vocalist, powerful raw rock delivery, gritty emotional rock voice, stadium rock energy">🎸 Classic Rock</option>
+                      <option value="Southern rock drawl, Alabama Georgia rock delivery, country rock vocal twang, Lynyrd Skynyrd city rawness">🤘 Southern Rock</option>
+                      <option value="raw blues rock vocalist, gritty soulful blues delivery, Southern blues emotional power, whiskey-soaked blues voice">🎵 Blues Rock</option>
+                      <option value="punk rock vocalist, raw aggressive punk delivery, rebellious British punk energy, fast aggressive vocal style">🏴‍☠️ Punk Rock</option>
+                    </optgroup>
                     <optgroup label="🇪🇺 European Languages (lyrics in that language)">
                       <option value="Russian">🇷🇺 Russian</option>
                       <option value="Polish">🇵🇱 Polish</option>
