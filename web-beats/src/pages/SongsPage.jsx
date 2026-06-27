@@ -1183,6 +1183,18 @@ export default function SongsPage() {
   const [genreBlend, setGenreBlend]       = useState(false);
   const [genreB, setGenreB]               = useState('');
   const [blendRatio, setBlendRatio]       = useState(50);
+  // Collapsible genre categories — all collapsed by default, except any category
+  // that already contains a (prefilled) selection so the choice stays visible.
+  const [openCats, setOpenCats] = useState(() => {
+    const open = new Set();
+    GENRE_CATEGORIES.forEach(cat => { if (cat.genres.some(g => selGenres.has(g))) open.add(cat.id); });
+    return open;
+  });
+  const toggleCat = (id) => setOpenCats(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   // Onboarding
   const [showTour, setShowTour]           = useState(() => !localStorage.getItem('zeus_onboarding_done'));
   const [pendingAutoGen, setPendingAutoGen] = useState(null);
@@ -2693,43 +2705,66 @@ export default function SongsPage() {
             <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>
               {t('songs.styleLabel')}
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 18 }}>
-              {GENRE_CATEGORIES.map(cat => (
-                <div key={cat.id}>
-                  <p style={{ fontSize: 10, fontWeight: 700, color: cat.color, opacity: 0.65, letterSpacing: '0.8px', textTransform: 'uppercase', margin: '0 0 8px', fontFamily: 'inherit' }}>
-                    {cat.label}
-                  </p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                    {cat.genres.map(g => {
-                      const sel = selGenres.has(g);
-                      return (
-                        <button
-                          key={g}
-                          onClick={() => toggleGenre(g)}
-                          className={sel ? 'genre-pill genre-pill--sel' : 'genre-pill'}
-                          style={{
-                            '--pill-color': cat.color,
-                            '--pill-hover-bg': cat.color + '28',
-                            padding: '7px 15px',
-                            borderRadius: 20,
-                            border: sel ? `2px solid ${cat.color}` : `1.5px solid ${cat.color}55`,
-                            background: sel ? cat.color : 'transparent',
-                            color: sel ? '#000' : cat.color,
-                            fontSize: 13,
-                            fontWeight: sel ? 700 : 500,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            boxShadow: sel ? `0 0 16px ${cat.color}, 0 0 30px ${cat.color}60` : 'none',
-                            transform: sel ? 'scale(1.05)' : 'scale(1)',
-                          }}
-                        >
-                          {gLabel(g)}
-                        </button>
-                      );
-                    })}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+              {GENRE_CATEGORIES.map(cat => {
+                const open = openCats.has(cat.id);
+                const selCount = cat.genres.reduce((n, g) => n + (selGenres.has(g) ? 1 : 0), 0);
+                return (
+                  <div key={cat.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggleCat(cat.id)}
+                      aria-expanded={open}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                        padding: '9px 12px', borderRadius: 10,
+                        border: `1.5px solid ${cat.color}${open ? 'aa' : '40'}`,
+                        background: open ? cat.color + '14' : 'transparent',
+                        cursor: 'pointer', transition: 'all 0.2s ease', fontFamily: 'inherit',
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <span style={{ fontSize: 11, color: cat.color, transition: 'transform 0.2s ease', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: cat.color, letterSpacing: '0.8px', textTransform: 'uppercase' }}>{cat.label}</span>
+                      </span>
+                      {selCount > 0 && (
+                        <span style={{ fontSize: 11, fontWeight: 800, color: '#000', background: cat.color, borderRadius: 10, padding: '1px 8px', minWidth: 20, textAlign: 'center' }}>{selCount}</span>
+                      )}
+                    </button>
+                    {open && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, padding: '10px 2px 4px' }}>
+                        {cat.genres.map(g => {
+                          const sel = selGenres.has(g);
+                          return (
+                            <button
+                              key={g}
+                              onClick={() => toggleGenre(g)}
+                              className={sel ? 'genre-pill genre-pill--sel' : 'genre-pill'}
+                              style={{
+                                '--pill-color': cat.color,
+                                '--pill-hover-bg': cat.color + '28',
+                                padding: '7px 15px',
+                                borderRadius: 20,
+                                border: sel ? `2px solid ${cat.color}` : `1.5px solid ${cat.color}55`,
+                                background: sel ? cat.color : 'transparent',
+                                color: sel ? '#000' : cat.color,
+                                fontSize: 13,
+                                fontWeight: sel ? 700 : 500,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                boxShadow: sel ? `0 0 16px ${cat.color}, 0 0 30px ${cat.color}60` : 'none',
+                                transform: sel ? 'scale(1.05)' : 'scale(1)',
+                              }}
+                            >
+                              {gLabel(g)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div style={{ marginBottom: 18 }}>
@@ -2844,7 +2879,7 @@ export default function SongsPage() {
                     ))}
                     <optgroup label="🎸 Rock & Blues">
                       <option value="classic rock vocalist, powerful raw rock delivery, gritty emotional rock voice, stadium rock energy">🎸 Classic Rock</option>
-                      <option value="Southern rock drawl, Alabama Georgia rock delivery, country rock vocal twang, Lynyrd Skynyrd city rawness">🤘 Southern Rock</option>
+                      <option value="Southern rock drawl, Alabama Georgia rock delivery, country rock vocal twang, raw swampy Southern rock grit">🤘 Southern Rock</option>
                       <option value="raw blues rock vocalist, gritty soulful blues delivery, Southern blues emotional power, whiskey-soaked blues voice">🎵 Blues Rock</option>
                       <option value="punk rock vocalist, raw aggressive punk delivery, rebellious British punk energy, fast aggressive vocal style">🏴‍☠️ Punk Rock</option>
                     </optgroup>
