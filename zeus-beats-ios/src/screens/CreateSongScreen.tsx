@@ -29,20 +29,20 @@ const SONG_TEMPLATES = [
 interface GenreCategory { id: string; label: string; color: string; genres: string[] }
 
 const GENRE_CATEGORIES: GenreCategory[] = [
-  { id: 'uk_street',  label: 'UK STREET',          color: '#00f0ff',
-    genres: ['grime','ukdrill','ukgarage','jungle','drumandbass','niche','deeprotbassline','bassline','purebassline','ukstreetsoul','eastcoasthiphop'] },
-  { id: 'caribbean',  label: 'CARIBBEAN & AFRICAN', color: '#f472b6',
-    genres: ['reggae','loversrock','rastadub','ragga','afrobeats','afroswing','amapiano','reggaeton','latintrap','rootsreggae','corridos'] },
-  { id: 'soul',       label: 'SOUL & BLUES',        color: '#fb923c',
-    genres: ['soul','rnb','soulrnb','blues','bluessoul','deepsoulblues','jazz','swing','vocaljazz','southemsoul','gospel'] },
-  { id: 'electronic', label: 'ELECTRONIC & DANCE',  color: '#4ade80',
-    genres: ['house','deephouse','technhouse','techno','edm','lofi','electronicfunk','dubstep','driftphonk','jerseyclub','hyperpop','syntheticpop','synthwave'] },
-  { id: 'rock',       label: 'ROCK & METAL',        color: '#f87171',
-    genres: ['rock','bluesrock','metal','indie','acoustic','country','rockney','countryamericana','rocknroll','traditionalpop'] },
-  { id: 'world',      label: 'WORLD & URBAN',       color: '#fbbf24',
-    genres: ['hiphop','kpop','bhangra','trap','poprap','trapsoul'] },
-  { id: 'classic',    label: 'CLASSIC',             color: '#e2e8f0',
-    genres: ['classical','irishjig','irishfolk','pop','meditation','christmas','healingfrequency'] },
+  { id: 'uk_street',  label: '🎤 UK Street & Hip Hop', color: '#00f0ff',
+    genres: ['grime','ukdrill','afroswing','bassline','ukgarage','niche','drumandbass','jungle','deeprotbassline','ukstreetsoul'] },
+  { id: 'soul',       label: '🎵 Soul & Blues',        color: '#fb923c',
+    genres: ['soul','bluessoul','southemsoul','soulrnb','gospel','trapsoul','vocaljazz','swing','rnb','blues','deepsoulblues'] },
+  { id: 'rock',       label: '🎸 Rock & Metal',        color: '#f87171',
+    genres: ['rock','metal','rocknroll','traditionalpop','countryamericana','bluesrock','indie','country','rockney'] },
+  { id: 'electronic', label: '🎹 Electronic & Dance',  color: '#4ade80',
+    genres: ['house','technhouse','deephouse','purebassline','synthwave','driftphonk','techno','edm','electronicfunk','dubstep','jerseyclub','hyperpop','syntheticpop'] },
+  { id: 'world',      label: '🌍 World & Urban',       color: '#fbbf24',
+    genres: ['afrobeats','reggae','rootsreggae','reggaeton','ragga','corridos','bhangra','loversrock','rastadub','amapiano','latintrap'] },
+  { id: 'pop',        label: '🎶 Pop & Hip Hop',       color: '#f472b6',
+    genres: ['pop','trap','eastcoasthiphop','poprap','kpop','hiphop'] },
+  { id: 'chill',      label: '🧘 Chill & Wellness',    color: '#e2e8f0',
+    genres: ['lofi','meditation','healingfrequency','classical','acoustic','jazz','irishfolk','irishjig','christmas'] },
 ];
 
 const GENRE_LABEL: Record<string, string> = {

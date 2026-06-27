@@ -18,20 +18,20 @@ import { useNowPlaying }    from '../contexts/NowPlayingContext';
 const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','deephouse','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos','healingfrequency','purebassline'];
 const GENRE_LABEL = { hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', deephouse:'Deep House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', bluesrock:'Blues Rock', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', southemsoul:'Southern Soul', soulrnb:'Soul R&B', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', christmas:'Christmas', corridos:'Corridos', healingfrequency:'Healing Frequencies', purebassline:'Pure Bassline' };
 const GENRE_CATEGORIES = [
-  { id: 'uk_street',  label: 'UK STREET',          color: '#00f0ff',
-    genres: ['grime','ukdrill','ukgarage','jungle','drumandbass','niche','deeprotbassline','bassline','purebassline','ukstreetsoul','eastcoasthiphop'] },
-  { id: 'caribbean',  label: 'CARIBBEAN & AFRICAN', color: '#f472b6',
-    genres: ['reggae','loversrock','rastadub','ragga','afrobeats','afroswing','amapiano','reggaeton','latintrap','rootsreggae','corridos'] },
-  { id: 'soul',       label: 'SOUL & BLUES',        color: '#fb923c',
-    genres: ['soul','rnb','soulrnb','blues','bluessoul','deepsoulblues','jazz','swing','vocaljazz','southemsoul','gospel'] },
-  { id: 'electronic', label: 'ELECTRONIC & DANCE',  color: '#4ade80',
-    genres: ['house','deephouse','technhouse','techno','edm','lofi','electronicfunk','dubstep','driftphonk','jerseyclub','hyperpop','syntheticpop','synthwave'] },
-  { id: 'rock',       label: 'ROCK & METAL',        color: '#f87171',
-    genres: ['rock','bluesrock','metal','indie','acoustic','country','rockney','countryamericana','rocknroll','traditionalpop'] },
-  { id: 'world',      label: 'WORLD & URBAN',       color: '#fbbf24',
-    genres: ['hiphop','kpop','bhangra','trap','poprap','trapsoul'] },
-  { id: 'classic',    label: 'CLASSIC',             color: '#e2e8f0',
-    genres: ['classical','irishjig','irishfolk','pop','meditation','christmas','healingfrequency'] },
+  { id: 'uk_street',  label: '🎤 UK Street & Hip Hop', color: '#00f0ff',
+    genres: ['grime','ukdrill','afroswing','bassline','ukgarage','niche','drumandbass','jungle','deeprotbassline','ukstreetsoul'] },
+  { id: 'soul',       label: '🎵 Soul & Blues',        color: '#fb923c',
+    genres: ['soul','bluessoul','southemsoul','soulrnb','gospel','trapsoul','vocaljazz','swing','rnb','blues','deepsoulblues'] },
+  { id: 'rock',       label: '🎸 Rock & Metal',        color: '#f87171',
+    genres: ['rock','metal','rocknroll','traditionalpop','countryamericana','bluesrock','indie','country','rockney'] },
+  { id: 'electronic', label: '🎹 Electronic & Dance',  color: '#4ade80',
+    genres: ['house','technhouse','deephouse','purebassline','synthwave','driftphonk','techno','edm','electronicfunk','dubstep','jerseyclub','hyperpop','syntheticpop'] },
+  { id: 'world',      label: '🌍 World & Urban',       color: '#fbbf24',
+    genres: ['afrobeats','reggae','rootsreggae','reggaeton','ragga','corridos','bhangra','loversrock','rastadub','amapiano','latintrap'] },
+  { id: 'pop',        label: '🎶 Pop & Hip Hop',       color: '#f472b6',
+    genres: ['pop','trap','eastcoasthiphop','poprap','kpop','hiphop'] },
+  { id: 'chill',      label: '🧘 Chill & Wellness',    color: '#e2e8f0',
+    genres: ['lofi','meditation','healingfrequency','classical','acoustic','jazz','irishfolk','irishjig','christmas'] },
 ];
 const _genreColorMap = Object.fromEntries(
   GENRE_CATEGORIES.flatMap(cat => cat.genres.map(g => [g, cat.color]))
@@ -1191,6 +1191,12 @@ export default function SongsPage() {
     return open;
   });
   const toggleCat = (id) => setOpenCats(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const [remakeOpenCats, setRemakeOpenCats] = useState(() => new Set());
+  const toggleRemakeCat = (id) => setRemakeOpenCats(prev => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
@@ -3988,42 +3994,65 @@ export default function SongsPage() {
             <p style={{ fontSize: 13, color: '#555', marginBottom: 22 }}>{remakeModal.title || `Song #${remakeModal.variantId}`}</p>
             <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>{t('songs.remakeModal.genreLabel')}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-              {GENRE_CATEGORIES.map(cat => (
-                <div key={cat.id}>
-                  <p style={{ fontSize: 9, fontWeight: 700, color: cat.color, opacity: 0.65, letterSpacing: '0.7px', textTransform: 'uppercase', margin: '0 0 6px', fontFamily: 'inherit' }}>
-                    {cat.label}
-                  </p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    {cat.genres.map(g => {
-                      const sel = remakeGenre === g;
-                      return (
-                        <button
-                          key={g}
-                          onClick={() => setRemakeGenre(g)}
-                          className={sel ? 'genre-pill genre-pill--sel' : 'genre-pill'}
-                          style={{
-                            '--pill-color': cat.color,
-                            '--pill-hover-bg': cat.color + '28',
-                            padding: '5px 11px',
-                            borderRadius: 20,
-                            border: sel ? `2px solid ${cat.color}` : `1.5px solid ${cat.color}55`,
-                            background: sel ? cat.color : 'transparent',
-                            color: sel ? '#000' : cat.color,
-                            fontSize: 12,
-                            fontWeight: sel ? 700 : 500,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            boxShadow: sel ? `0 0 14px ${cat.color}, 0 0 26px ${cat.color}60` : 'none',
-                            transform: sel ? 'scale(1.05)' : 'scale(1)',
-                          }}
-                        >
-                          {gLabel(g)}
-                        </button>
-                      );
-                    })}
+              {GENRE_CATEGORIES.map(cat => {
+                const open = remakeOpenCats.has(cat.id);
+                const hasSel = cat.genres.includes(remakeGenre);
+                return (
+                  <div key={cat.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggleRemakeCat(cat.id)}
+                      aria-expanded={open}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                        padding: '8px 11px', borderRadius: 9,
+                        border: `1.5px solid ${cat.color}${open ? 'aa' : '40'}`,
+                        background: open ? cat.color + '14' : (hasSel ? cat.color + '0e' : 'transparent'),
+                        cursor: 'pointer', transition: 'all 0.2s ease', fontFamily: 'inherit',
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 10, color: cat.color, transition: 'transform 0.2s ease', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: cat.color, letterSpacing: '0.7px', textTransform: 'uppercase' }}>{cat.label}</span>
+                      </span>
+                      {hasSel && (
+                        <span style={{ fontSize: 10, fontWeight: 800, color: '#000', background: cat.color, borderRadius: 10, padding: '1px 7px' }}>✓</span>
+                      )}
+                    </button>
+                    {open && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, padding: '8px 2px 2px' }}>
+                        {cat.genres.map(g => {
+                          const sel = remakeGenre === g;
+                          return (
+                            <button
+                              key={g}
+                              onClick={() => setRemakeGenre(g)}
+                              className={sel ? 'genre-pill genre-pill--sel' : 'genre-pill'}
+                              style={{
+                                '--pill-color': cat.color,
+                                '--pill-hover-bg': cat.color + '28',
+                                padding: '5px 11px',
+                                borderRadius: 20,
+                                border: sel ? `2px solid ${cat.color}` : `1.5px solid ${cat.color}55`,
+                                background: sel ? cat.color : 'transparent',
+                                color: sel ? '#000' : cat.color,
+                                fontSize: 12,
+                                fontWeight: sel ? 700 : 500,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                boxShadow: sel ? `0 0 14px ${cat.color}, 0 0 26px ${cat.color}60` : 'none',
+                                transform: sel ? 'scale(1.05)' : 'scale(1)',
+                              }}
+                            >
+                              {gLabel(g)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.remakeModal.styleNoteLabel')}</p>
             <input type="text" value={remakeStyle} onChange={(e) => setRemakeStyle(e.target.value)}
