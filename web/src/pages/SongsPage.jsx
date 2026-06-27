@@ -2163,7 +2163,7 @@ export default function SongsPage() {
                     ))}
                     <optgroup label="🎸 Rock & Blues">
                       <option value="classic rock vocalist, powerful raw rock delivery, gritty emotional rock voice, stadium rock energy">🎸 Classic Rock</option>
-                      <option value="Southern rock drawl, Alabama Georgia rock delivery, country rock vocal twang, Lynyrd Skynyrd city rawness">🤘 Southern Rock</option>
+                      <option value="Southern rock drawl, Alabama Georgia rock delivery, country rock vocal twang, raw swampy Southern rock grit">🤘 Southern Rock</option>
                       <option value="raw blues rock vocalist, gritty soulful blues delivery, Southern blues emotional power, whiskey-soaked blues voice">🎵 Blues Rock</option>
                       <option value="punk rock vocalist, raw aggressive punk delivery, rebellious British punk energy, fast aggressive vocal style">🏴‍☠️ Punk Rock</option>
                     </optgroup>
