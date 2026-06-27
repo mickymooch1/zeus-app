@@ -34,7 +34,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'soul',       label: '🎵 Soul & Blues',        color: '#fb923c',
     genres: ['soul','bluessoul','southemsoul','soulrnb','gospel','trapsoul','vocaljazz','swing','rnb','blues','deepsoulblues'] },
   { id: 'rock',       label: '🎸 Rock & Metal',        color: '#f87171',
-    genres: ['rock','metal','rocknroll','traditionalpop','countryamericana','bluesrock','indie','country','rockney'] },
+    genres: ['rock','hardrock','metal','punkrock','rocknroll','traditionalpop','countryamericana','bluesrock','indie','country','rockney'] },
   { id: 'electronic', label: '🎹 Electronic & Dance',  color: '#4ade80',
     genres: ['house','technhouse','deephouse','purebassline','synthwave','driftphonk','techno','edm','electronicfunk','dubstep','jerseyclub','hyperpop','syntheticpop'] },
   { id: 'world',      label: '🌍 World & Urban',       color: '#fbbf24',
@@ -42,7 +42,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'pop',        label: '🎶 Pop & Hip Hop',       color: '#f472b6',
     genres: ['pop','trap','eastcoasthiphop','poprap','kpop','hiphop'] },
   { id: 'chill',      label: '🧘 Chill & Wellness',    color: '#e2e8f0',
-    genres: ['lofi','meditation','healingfrequency','classical','acoustic','jazz','irishfolk','irishjig','christmas'] },
+    genres: ['lofi','meditation','ambient','healingfrequency','classical','acoustic','jazz','irishfolk','irishjig','christmas'] },
 ];
 
 const GENRE_LABEL: Record<string, string> = {
@@ -54,12 +54,12 @@ const GENRE_LABEL: Record<string, string> = {
   jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub',
   deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz',
   electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga',
-  dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', bluesrock:'Blues Rock',
+  dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', bluesrock:'Blues Rock', hardrock:'Hard Rock', punkrock:'Punk Rock',
   reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae',
   countryamericana:'Country Americana', southemsoul:'Southern Soul', soulrnb:'Soul R&B',
   traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap',
   eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave',
-  gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', christmas:'Christmas',
+  gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', ambient:'Ambient', christmas:'Christmas',
   corridos:'Corridos', healingfrequency:'Healing Frequencies', purebassline:'Pure Bassline',
   niche:'Niche', amapiano:'Amapiano', hyperpop:'Hyperpop', techno:'Techno',
   indie:'Indie', acoustic:'Acoustic', country:'Country', classical:'Classical',
