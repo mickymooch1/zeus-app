@@ -423,6 +423,15 @@ function KidsPinGateLoader({ token, hasPIN, onSuccess, onCancel }) {
   return <LazyPINGate token={token} hasPIN={hasPIN} action="enter" onSuccess={onSuccess} onCancel={onCancel} />;
 }
 
+// Paid-feature upgrade prompts. On web → modal with a /billing CTA; inside the
+// iOS webview → plain "visit zeusbeats.com" message (App Store: no in-app
+// purchase steering). A locked feature button must never silently do nothing.
+const UPGRADE_FEATURES = {
+  youtube: { icon: '📺', title: 'YouTube Upload', desc: 'Upload your songs directly to YouTube with Music Starter and above.' },
+  stems:   { icon: '🎵', title: 'Stem Separator', desc: 'Split your track into separate vocals, drums, bass and melody stems — available with premium credits on paid plans.' },
+  avatar:  { icon: '🎬', title: 'Avatar Videos',  desc: 'Turn your songs into animated avatar performance videos with Music Pro and above.' },
+};
+
 const SongCard = memo(function SongCard({
   variant, title, artistName, activeWsRef,
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, ytError, onYouTubeClick,
@@ -431,7 +440,7 @@ const SongCard = memo(function SongCard({
   isFavourite, onToggleFavourite, isFreeTier, animateCover,
   isPublic, onShareToggle,
   playlists, onAddToPlaylist,
-  premiumCredits, stemsData: stemsProp, onGetStems, onOpenCover,
+  premiumCredits, stemsData: stemsProp, onGetStems, onOpenCover, onUpgrade,
   soundPersonaVariantId, onLockSound,
   isSaved, isDownloading, onSaveOffline, onRemoveSaved, onPlayOffline,
 }) {
@@ -623,7 +632,7 @@ const SongCard = memo(function SongCard({
   let avatarBtn;
   if (!didPlanOk) {
     avatarBtn = (
-      <button onClick={() => showLocked('upgrade-avatar')} style={avatarStyle}>
+      <button onClick={() => onUpgrade('avatar')} style={avatarStyle}>
         {t('songs.buttons.avatar')}
       </button>
     );
@@ -657,7 +666,7 @@ const SongCard = memo(function SongCard({
   let ytBtn;
   if (!canYouTube) {
     ytBtn = (
-      <button onClick={() => showLocked('upgrade-yt')} style={ytStyle}>
+      <button onClick={() => onUpgrade('youtube')} style={ytStyle}>
         {t('songs.buttons.youtube')}
       </button>
     );
@@ -1005,15 +1014,14 @@ const SongCard = memo(function SongCard({
               return (
                 <div style={{ marginTop: 8 }}>
                   <button
-                    onClick={() => premiumCredits > 0 ? onGetStems(variant.variant_id) : null}
-                    disabled={premiumCredits === 0}
-                    title={premiumCredits === 0 ? 'Needs 1 Premium Credit' : 'Separate into vocals, drums, bass, melody (costs 1 premium credit)'}
+                    onClick={() => premiumCredits > 0 ? onGetStems(variant.variant_id) : onUpgrade('stems')}
+                    title={premiumCredits === 0 ? 'Unlock stem separation' : 'Separate into vocals, drums, bass, melody (costs 1 premium credit)'}
                     style={{
                       ...actionBtnStyle, width: '100%',
-                      color: premiumCredits > 0 ? '#a78bfa' : '#555',
-                      borderColor: premiumCredits > 0 ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.08)',
-                      opacity: premiumCredits === 0 ? 0.5 : 1,
-                      cursor: premiumCredits === 0 ? 'not-allowed' : 'pointer',
+                      color: premiumCredits > 0 ? '#a78bfa' : '#7c6fb0',
+                      borderColor: premiumCredits > 0 ? 'rgba(167,139,250,0.4)' : 'rgba(167,139,250,0.18)',
+                      opacity: premiumCredits === 0 ? 0.8 : 1,
+                      cursor: 'pointer',
                     }}
                   >
                     🎵 Get Stems {premiumCredits === 0 ? '(0 credits)' : '(1 credit)'}
@@ -1242,6 +1250,7 @@ export default function SongsPage() {
   const [stemsData, setStemsData] = useState({});
   const stemsPollRef = useRef({});
   const [coverModal, setCoverModal] = useState(null);
+  const [upgradeFeature, setUpgradeFeature] = useState(null);
   const [coverLyrics, setCoverLyrics] = useState('');
   const [coverLoading, setCoverLoading] = useState(false);
   const [coverError, setCoverError] = useState('');
@@ -3655,6 +3664,7 @@ export default function SongsPage() {
                         premiumCredits={credits.premium_credits}
                         stemsData={stemsData[v.variant_id]}
                         onGetStems={handleGetStems}
+                        onUpgrade={setUpgradeFeature}
                         onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
                         soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                         onLockSound={handleLockSound}
@@ -3803,6 +3813,7 @@ export default function SongsPage() {
                       premiumCredits={credits.premium_credits}
                       stemsData={stemsData[v.variant_id]}
                       onGetStems={handleGetStems}
+                      onUpgrade={setUpgradeFeature}
                       onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
                       soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                       onLockSound={handleLockSound}
@@ -4135,6 +4146,43 @@ export default function SongsPage() {
             >
               {coverLoading ? '🎵 Submitting…' : '🎤 Generate Cover'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Paid-feature upgrade prompt — web shows /billing CTA, iOS shows compliant message */}
+      {upgradeFeature && UPGRADE_FEATURES[upgradeFeature] && (
+        <div
+          onClick={() => setUpgradeFeature(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#12121e', border: '1px solid rgba(0,240,255,0.25)', borderRadius: 16, padding: '24px 24px 28px', maxWidth: 420, width: '100%', textAlign: 'center' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setUpgradeFeature(null)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#94a3b8', fontSize: 13, cursor: 'pointer', padding: '4px 9px' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>{UPGRADE_FEATURES[upgradeFeature].icon}</div>
+            <h2 style={{ margin: '0 0 10px', fontSize: 20, fontWeight: 800, color: '#e2e8f0' }}>
+              {UPGRADE_FEATURES[upgradeFeature].title}
+            </h2>
+            <p style={{ margin: '0 0 20px', color: '#94a3b8', fontSize: 14, lineHeight: 1.6 }}>
+              {UPGRADE_FEATURES[upgradeFeature].desc}
+            </p>
+            {isIOSWebView ? (
+              <p style={{ margin: 0, color: '#00f0ff', fontSize: 14, fontWeight: 600 }}>
+                Visit zeusbeats.com to upgrade your plan.
+              </p>
+            ) : (
+              <Link
+                to="/billing"
+                onClick={() => setUpgradeFeature(null)}
+                style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '13px 0', background: 'linear-gradient(135deg,#00c8d4,#00f0ff)', borderRadius: 10, color: '#000', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 0 18px rgba(0,240,255,0.3)' }}
+              >
+                Upgrade from £4.50 first month
+              </Link>
+            )}
           </div>
         </div>
       )}
