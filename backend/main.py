@@ -2441,6 +2441,11 @@ async def songs_generate(
     extra_suno_params: dict = {}
     if body.vocal_gender in ("m", "f"):
         extra_suno_params["vocal_gender"] = body.vocal_gender
+    elif not body.vocal_gender and "ukstreetsoul" in body.genres:
+        # UK street soul is authentically female-led — default to female vocals
+        # unless the user explicitly picked Male/Female/Duet (handled above + below).
+        extra_suno_params["vocal_gender"] = "f"
+        log.info("ukstreetsoul: defaulting vocal_gender=f (no explicit selection)")
     if body.creativity is not None:
         extra_suno_params["weirdness_constraint"] = max(0.0, min(1.0, body.creativity))
     if body.style_weight is not None:
@@ -2591,16 +2596,16 @@ async def songs_generate(
                     "emotional soul singer, country soul crossover style, " + _accent_desc
                 )
                 log.info("accent: American Soul → Country Soul crossover boost applied (genres=%r)", list(body.genres))
-            # British accent on soul/R&B genres: the default posh-RP descriptor makes
-            # UK street soul sound American/wrong. Swap in a London/UK soul descriptor.
-            _soul_rnb_genres = {"ukstreetsoul", "soul", "rnb", "soulrnb", "bluessoul",
-                                "deepsoulblues", "southemsoul", "trapsoul"}
-            if body.accent == "British" and any(g in _soul_rnb_genres for g in body.genres):
+            # British accent on UK Street Soul only: the default posh-RP descriptor
+            # makes it sound American/wrong. Swap in a London street-soul descriptor.
+            # No "posh RP" and no forced female — female is the vocal_gender default,
+            # which an explicit Male/Duet selection overrides.
+            if body.accent == "British" and "ukstreetsoul" in body.genres:
                 _accent_desc = (
-                    "British female vocalist, London accent, UK pronunciation, "
-                    "British vowel sounds, distinctly British delivery"
+                    "British urban soul vocalist, London street soul delivery, "
+                    "UK pronunciation, distinctly British urban feel"
                 )
-                log.info("accent: British → UK soul/R&B boost applied (genres=%r)", list(body.genres))
+                log.info("accent: British → UK street soul boost applied")
             style_suffix_parts.append(_accent_desc)
             log.info("accent: %s accent=%r → %r", "kids" if body.kids_story else "regular", body.accent, _accent_desc[:80])
     if body.explicit:
