@@ -78,6 +78,7 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "latintrap":       "Latin trap performer moving intensely, dark moody movement, blue purple neon lighting, brooding urban Latin energy",
     "rootsreggae":    "roots reggae musician performing peacefully, gentle swaying movement, warm golden sunset lighting, spiritual conscious energy",
     "countryamericana": "country Americana performer playing guitar, authentic Southern energy, warm golden lighting, heartfelt emotional performance",
+    "countrypop":       "country pop singer performing warmly, bright upbeat movement, golden warm lighting, classic Nashville country pop energy",
     "southemsoul":      "Southern soul singer performing passionately, gospel church energy, warm amber lighting, deeply emotional soulful delivery",
     "soulrnb":          "soul R&B singer performing smoothly, intimate romantic movement, warm candlelit lighting, sophisticated elegant soul atmosphere",
     "traditionalpop":   "classic crooner performing elegantly, smooth sophisticated movement, warm golden vintage lighting, timeless pop performance",
