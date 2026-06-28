@@ -2591,6 +2591,16 @@ async def songs_generate(
                     "emotional soul singer, country soul crossover style, " + _accent_desc
                 )
                 log.info("accent: American Soul → Country Soul crossover boost applied (genres=%r)", list(body.genres))
+            # British accent on soul/R&B genres: the default posh-RP descriptor makes
+            # UK street soul sound American/wrong. Swap in a London/UK soul descriptor.
+            _soul_rnb_genres = {"ukstreetsoul", "soul", "rnb", "soulrnb", "bluessoul",
+                                "deepsoulblues", "southemsoul", "trapsoul"}
+            if body.accent == "British" and any(g in _soul_rnb_genres for g in body.genres):
+                _accent_desc = (
+                    "British female vocalist, London accent, UK pronunciation, "
+                    "British vowel sounds, distinctly British delivery"
+                )
+                log.info("accent: British → UK soul/R&B boost applied (genres=%r)", list(body.genres))
             style_suffix_parts.append(_accent_desc)
             log.info("accent: %s accent=%r → %r", "kids" if body.kids_story else "regular", body.accent, _accent_desc[:80])
     if body.explicit:

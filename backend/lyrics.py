@@ -43,6 +43,7 @@ GENRE_MOOD_DIRECTIVES: dict[str, str] = {
     "christmas":  "\n\nIMPORTANT MOOD: Write a joyful, warm, cheerful Christmas song — uplifting and festive, NEVER sad or dark. Themes: joy, family, snow, giving, togetherness, celebration, carol singing. Major key feel, upbeat and merry. Every line should feel warm and positive.",
     "gospel":     "\n\nIMPORTANT MOOD: Write with powerful uplifting gospel spirit — testifying, praising, hopeful, joyful. Church energy, call and response. Never dark or despairing.",
     "meditation": "\n\nIMPORTANT MOOD: Write peaceful, deeply calming, reflective lyrics — serene and tranquil. No aggression, no darkness, no urgency. Themes: stillness, breath, inner peace, letting go.",
+    "ukstreetsoul": "\n\nIMPORTANT — BRITISH CONTEXT: This is UK street soul, a distinctly British genre. Set the song in the UK (London or Manchester). Write with British cultural references throughout: pounds not dollars, British place names and slang, British spelling, UK urban life. Intimate, melancholic, late-night emotional storytelling. NEVER use American settings, references or vocabulary.",
 }
 
 GENRE_VOCABULARY: dict[str, str] = {
