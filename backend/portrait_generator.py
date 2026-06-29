@@ -73,6 +73,8 @@ GENRE_PORTRAIT_PROMPTS = {
     "countrypop":       "country pop singer professional portrait, clear frontal face, warm golden Nashville studio lighting, bright warm smile, classic country aesthetic, polished professional look, photorealistic",
     "southemsoul":      "Black Southern American soul musician, professional portrait photo, clear frontal face, warm amber church or studio lighting, deeply emotional soulful expression, photorealistic",
     "soulrnb":          "smooth soul R&B singer professional portrait, clear frontal face, warm intimate studio lighting, sophisticated elegant expression, classic soul aesthetic, photorealistic",
+    "orchestralsoul":   "deep soul singer professional portrait, clear frontal face, warm romantic candlelit lighting, sophisticated elegant expression, 1970s orchestral soul aesthetic, photorealistic",
+    "classicfunk":      "funk musician professional portrait, clear frontal face, dramatic stage lighting, intense energetic expression, 1970s funk aesthetic, photorealistic",
     "traditionalpop":   "classic crooner in elegant suit, professional portrait photo, clear frontal face, warm golden vintage lighting, charming sophisticated expression, 1950s aesthetic, photorealistic",
     "rocknroll":        "rock and roll musician with quiff hairstyle, professional portrait photo, clear frontal face, vintage stage lighting, energetic rebellious expression, 1950s rockabilly aesthetic, photorealistic",
     "trap":             "Black American trap artist, professional portrait photo, clear frontal face, dark moody studio lighting, intense brooding expression, photorealistic",

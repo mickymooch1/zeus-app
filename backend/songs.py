@@ -81,6 +81,8 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "countrypop":       "country pop singer performing warmly, bright upbeat movement, golden warm lighting, classic Nashville country pop energy",
     "southemsoul":      "Southern soul singer performing passionately, gospel church energy, warm amber lighting, deeply emotional soulful delivery",
     "soulrnb":          "soul R&B singer performing smoothly, intimate romantic movement, warm candlelit lighting, sophisticated elegant soul atmosphere",
+    "orchestralsoul":   "deep orchestral soul singer performing romantically, sweeping orchestral movement, warm golden candlelit lighting, sophisticated intimate soul atmosphere",
+    "classicfunk":      "funk band performing with explosive energy, tight rhythmic movement, warm amber stage lighting, raw danceable funk groove",
     "traditionalpop":   "classic crooner performing elegantly, smooth sophisticated movement, warm golden vintage lighting, timeless pop performance",
     "rocknroll":        "rock and roll musician performing energetically, lively rockabilly movement, vintage stage lighting, rebellious 1950s energy",
     "trap":             "trap artist performing intensely, dark moody studio lighting, heavy bass atmosphere, intense focused expression",
