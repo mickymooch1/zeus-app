@@ -34,6 +34,7 @@ GENRE_PORTRAIT_PROMPTS = {
     "bassline":    "Professional portrait photo, Black British bassline MC, clear frontal face, underground club lighting, energetic expression, photorealistic",
     "house":       "Professional portrait photo, house music DJ, clear frontal face, warm colourful club lighting, joyful expression, photorealistic",
     "deephouse":   "deep house DJ professional portrait, clear frontal face, warm underground club lighting, cool sophisticated expression, minimal aesthetic, photorealistic",
+    "dancehouse":  "house music DJ professional portrait, clear frontal face, energetic club lighting, euphoric confident expression, hands raised, festival aesthetic, photorealistic",
     "loversrock":  "Professional portrait photo, Black British lovers rock singer, clear frontal face, warm romantic studio lighting, soulful expression, photorealistic",
     "ukdrill":     "Professional portrait photo, Black UK drill artist, clear frontal face, dark moody studio lighting, intense expression, photorealistic",
     "kpop":        "Professional portrait photo, Korean K-pop idol, clear frontal face, bright studio lighting, flawless skin, youthful expression, photorealistic",

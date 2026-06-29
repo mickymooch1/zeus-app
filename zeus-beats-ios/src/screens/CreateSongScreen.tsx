@@ -36,7 +36,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'rock',       label: '🎸 Rock & Metal',        color: '#f87171',
     genres: ['rock','hardrock','metal','punkrock','rocknroll','traditionalpop','countryamericana','countrypop','bluesrock','indie','country','rockney'] },
   { id: 'electronic', label: '🎹 Electronic & Dance',  color: '#4ade80',
-    genres: ['house','technhouse','deephouse','purebassline','synthwave','driftphonk','techno','edm','electronicfunk','dubstep','jerseyclub','hyperpop','syntheticpop'] },
+    genres: ['house','technhouse','deephouse','dancehouse','purebassline','synthwave','driftphonk','techno','edm','electronicfunk','dubstep','jerseyclub','hyperpop','syntheticpop'] },
   { id: 'world',      label: '🌍 World & Urban',       color: '#fbbf24',
     genres: ['afrobeats','reggae','rootsreggae','reggaeton','ragga','corridos','bhangra','loversrock','rastadub','amapiano','latintrap'] },
   { id: 'pop',        label: '🎶 Pop & Hip Hop',       color: '#f472b6',
@@ -48,7 +48,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
 const GENRE_LABEL: Record<string, string> = {
   hiphop:'Hip-Hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk',
   rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage',
-  jungle:'Jungle', bassline:'Bassline House', house:'House', deephouse:'Deep House',
+  jungle:'Jungle', bassline:'Bassline House', house:'House', deephouse:'Deep House', dancehouse:'Dance House',
   loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues',
   ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk',
   jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub',

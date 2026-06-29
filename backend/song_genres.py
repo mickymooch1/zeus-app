@@ -31,6 +31,7 @@ GENRE_PRESETS = {
     "bassline":    "bassline house, heavy 4x4 kick, wobbling sub bassline, pitched male vocals, 130 BPM, Sheffield underground sound, raw club energy",
     "house":       "house music, 4x4 kick drum, soulful vocals, deep bassline, 126 BPM, Chicago roots, uplifting club energy, classic house piano",
     "deephouse":   "deep house, warm soulful bassline, minimal percussion, atmospheric pads, 124 BPM, late night club feel, hypnotic groove, subtle chord progressions, organic textures, deep rolling bass, sophisticated underground house sound, smooth melodic elements, Chicago house influence",
+    "dancehouse":  "dance house music, four to the floor kick drum, euphoric uplifting synths, driving bassline, 128 BPM, hands in the air energy, anthemic breakdown and build, bright piano chords, vocal samples and hooks, energetic dancefloor feel, classic house piano stabs, punchy drums, euphoric drop, late night club energy, uplifting melodic house, festival dancefloor sound",
     "loversrock":  "lovers rock, romantic reggae, smooth bassline, sweet soulful vocals, 70s Caribbean warmth, slow sensual rhythm",
     "ukdrill":     "UK drill, dark 808 bassline, sliding minor melodies, aggressive flow, 140 BPM, South London sound, trap hi-hats",
     "kpop":        "K-pop, polished production, catchy hook, bright synth melody, precise rhythm, 120 BPM, Korean pop aesthetic, energetic and clean",
