@@ -560,6 +560,9 @@ def _verify_signature(raw_body: bytes, signature_header: str) -> bool:
 
 
 _EXTEND_TARGET_SECONDS = 150
+# upload/extend live on the api.apiframe.pro base with an Authorization header — NOT the
+# api.apiframe.ai/v2 base used for generation (that base 404s for upload/extend).
+_APIFRAME_PRO_BASE = "https://api.apiframe.pro"
 
 
 def _maybe_extend_short_song(variant_id: int, mp3_path: str, duration: int, style_prompt: str, lyric_id) -> None:
@@ -585,11 +588,12 @@ def _maybe_extend_short_song(variant_id: int, mp3_path: str, duration: int, styl
         with open(mp3_path, "rb") as fh:
             audio_data = fh.read()
         up = requests.post(
-            f"{APIFRAME_BASE}/v2/music/upload",
-            headers={"X-API-Key": APIFRAME_API_KEY},
+            f"{_APIFRAME_PRO_BASE}/suno-upload",
+            headers={"Authorization": APIFRAME_API_KEY},
             files={"audio": ("source.mp3", audio_data, "audio/mpeg")},
             timeout=60,
         )
+        logger.info("AUTO_EXTEND variant_id=%d upload status=%d body=%r", variant_id, up.status_code, up.text[:200])
         up.raise_for_status()
         parent_task_id = up.json().get("task_id")
         if not parent_task_id:
@@ -610,14 +614,13 @@ def _maybe_extend_short_song(variant_id: int, mp3_path: str, duration: int, styl
             "parent_task_id": parent_task_id,
             "continue_at": max(0, int(duration) - 1),
             "tags": (style_prompt or "")[:990],
-            "webhookUrl": f"{WEBHOOK_URL}-extend?variant_id={variant_id}",
-            "webhookEvents": ["completed", "failed"],
+            "webhook_url": f"{WEBHOOK_URL}-extend?variant_id={variant_id}",
         }
         if lyrics_text:
             payload["lyrics"] = lyrics_text
         ext = requests.post(
-            f"{APIFRAME_BASE}/v2/music/extend",
-            headers={"X-API-Key": APIFRAME_API_KEY, "Content-Type": "application/json"},
+            f"{_APIFRAME_PRO_BASE}/suno-extend",
+            headers={"Authorization": APIFRAME_API_KEY, "Content-Type": "application/json"},
             json=payload,
             timeout=30,
         )
