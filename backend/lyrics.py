@@ -445,22 +445,23 @@ def _extract_hook(lyrics_text: str, max_lines: int = 2) -> list[str]:
 
 # Genre-aware instrumental scaffolding for intermittent-vocals mode. Each genre
 # gets section tags matching its natural energy and arrangement (jungle → amen
-# breaks, deep house → grooves/breakdowns, tech house → drops/builds), so Suno
-# fills a full 2.5-3 minute track with music rather than ending early (~45s) on
-# the short hook. The hook appears twice to give it something to sing; every
-# other section is pure instrumental structure. {hook} is replaced with the
-# extracted hook lines.
+# breaks, deep house → grooves/breakdowns, tech house → drops/builds). The hook
+# appears THREE times and sparse ad-libs ("oohs", "yeah, uh, come on") sit under
+# the instrumental sections — enough vocal content spread across the track that
+# Suno renders a full 2.5-3 minutes instead of giving up and cutting it short
+# (~30s) on near-empty instrumental tags. Still mostly instrumental — just not so
+# sparse that the renderer bails. {hook} is replaced with the extracted hook lines.
 INTERMITTENT_STRUCTURES = {
-    'bassline': '[Intro - Instrumental]\n[Build]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Instrumental break]\n[Build]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Extended outro - Instrumental]',
-    'jungle': '[Intro - Instrumental]\n[Amen break - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Jungle break]\n[Reese bass drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]',
-    'techhouse': '[Intro - Instrumental]\n[Groove - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Breakdown - Instrumental]\n[Build - Instrumental]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Extended outro - Instrumental]',
-    'house': '[Intro - Instrumental]\n[Verse - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Break - Instrumental]\n[Build - Instrumental]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]',
-    'deephouse': '[Intro - Instrumental]\n[Groove - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Breakdown - Instrumental]\n[Instrumental groove]\n[Hook]\n{hook}\n[/Hook]\n[Extended outro - Instrumental]',
-    'drumnbass': '[Intro - Instrumental]\n[Amen break]\n[Hook]\n{hook}\n[/Hook]\n[Jungle break - Instrumental]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]',
-    'ukgarage': '[Intro - Instrumental]\n[2-step groove - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Break - Instrumental]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]',
-    'purebassline': '[Intro - Instrumental]\n[4x4 build]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Instrumental break]\n[Build]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Extended outro - Instrumental]',
+    'bassline': '[Intro - Instrumental]\n[Build]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Instrumental break]\n(oohs and ahs)\n[Build]\n[Hook]\n{hook}\n[/Hook]\n[Drop - Instrumental]\n(yeah, uh, come on)\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]\n(sparse ad-libs fading)\n[Extended outro - Instrumental]',
+    'jungle': '[Intro - Instrumental]\n[Amen break - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Jungle break]\n(oohs and ahs)\n[Hook]\n{hook}\n[/Hook]\n[Reese bass drop - Instrumental]\n(yeah, uh, come on)\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]\n(sparse ad-libs fading)',
+    'techhouse': '[Intro - Instrumental]\n[Groove - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Breakdown - Instrumental]\n(oohs and ahs)\n[Build - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Drop - Instrumental]\n(yeah, uh, come on)\n[Hook]\n{hook}\n[/Hook]\n[Extended outro - Instrumental]\n(sparse ad-libs fading)',
+    'house': '[Intro - Instrumental]\n[Verse - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Break - Instrumental]\n(oohs and ahs)\n[Build - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Drop - Instrumental]\n(yeah, uh, come on)\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]\n(sparse ad-libs fading)',
+    'deephouse': '[Intro - Instrumental]\n[Groove - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Breakdown - Instrumental]\n(oohs and ahs)\n[Hook]\n{hook}\n[/Hook]\n[Instrumental groove]\n(yeah, uh, come on)\n[Hook]\n{hook}\n[/Hook]\n[Extended outro - Instrumental]\n(sparse ad-libs fading)',
+    'drumnbass': '[Intro - Instrumental]\n[Amen break]\n[Hook]\n{hook}\n[/Hook]\n[Jungle break - Instrumental]\n(oohs and ahs)\n[Hook]\n{hook}\n[/Hook]\n[Drop - Instrumental]\n(yeah, uh, come on)\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]\n(sparse ad-libs fading)',
+    'ukgarage': '[Intro - Instrumental]\n[2-step groove - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Break - Instrumental]\n(oohs and ahs)\n[Hook]\n{hook}\n[/Hook]\n[Drop - Instrumental]\n(yeah, uh, come on)\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]\n(sparse ad-libs fading)',
+    'purebassline': '[Intro - Instrumental]\n[4x4 build]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Instrumental break]\n(oohs and ahs)\n[Build]\n[Hook]\n{hook}\n[/Hook]\n[Drop - Instrumental]\n(yeah, uh, come on)\n[Hook]\n{hook}\n[/Hook]\n[Extended outro - Instrumental]\n(sparse ad-libs fading)',
     # Default for all other genres
-    'default': '[Intro - Instrumental]\n[Instrumental verse]\n[Instrumental verse]\n[Hook]\n{hook}\n[/Hook]\n[Instrumental break]\n[Instrumental verse]\n[Drop - Instrumental]\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]\n[Extended outro - Instrumental]',
+    'default': '[Intro - Instrumental]\n[Instrumental verse]\n[Hook]\n{hook}\n[/Hook]\n[Instrumental break]\n(oohs and ahs)\n[Instrumental verse]\n[Hook]\n{hook}\n[/Hook]\n[Drop - Instrumental]\n(yeah, uh, come on)\n[Hook]\n{hook}\n[/Hook]\n[Outro - Instrumental]\n(sparse ad-libs fading)\n[Extended outro - Instrumental]',
 }
 
 # GENRE_PRESETS stores a few of these genres under differently-spelled keys.

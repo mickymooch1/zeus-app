@@ -43,18 +43,26 @@ class TestBuildIntermittentHook:
         assert "[Drop - Instrumental]" in out
         assert "[Outro - Instrumental]" in out
         assert "[Extended outro - Instrumental]" in out
-        # Multiple instrumental verses give Suno room to fill 2.5-3 minutes
-        assert out.count("[Instrumental verse]") >= 3
+        # Hook repeated 3x + sparse ad-libs give Suno spread vocal content to fill
+        # 2.5-3 minutes rather than cutting short on near-empty sections.
+        assert out.count("[Hook]") == 3
+        assert out.count("[Instrumental verse]") >= 2
+        assert "(oohs and ahs)" in out and "(sparse ad-libs fading)" in out
         # Hook is opened and closed
         assert "[Hook]" in out
         assert "[/Hook]" in out
 
-    def test_repeats_hook_twice_for_standard_song_structure(self):
+    def test_repeats_hook_three_times_for_standard_song_structure(self):
         full = "[Chorus]\nWe run the night we own the floor\nTurn it up and give me more\n"
         out = lyrics_mod.build_intermittent_hook(full)
-        assert out.count("We run the night we own the floor") == 2
-        assert out.count("[Hook]") == 2
-        assert out.count("[/Hook]") == 2
+        # Hook now appears 3x (was 2x) so Suno has enough spread vocal content to
+        # render a full track instead of cutting it short on near-empty sections.
+        assert out.count("We run the night we own the floor") == 3
+        assert out.count("[Hook]") == 3
+        assert out.count("[/Hook]") == 3
+        # Sparse ad-libs give Suno light vocal moments under the instrumentals.
+        assert "(oohs and ahs)" in out
+        assert "(yeah, uh, come on)" in out
 
     def test_caps_hook_to_two_lines(self):
         full = "[Chorus]\nline one\nline two\nline three\nline four\n"
@@ -128,13 +136,14 @@ class TestGenreAwareIntermittentStructure:
         out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL, genre="Jungle")
         assert "[Amen break - Instrumental]" in out
 
-    def test_every_structure_keeps_hook_twice(self):
+    def test_every_structure_repeats_hook_three_times_with_adlibs(self):
         for key in lyrics_mod.INTERMITTENT_STRUCTURES:
             out = lyrics_mod.build_intermittent_hook(self._HOOK_FULL, genre=None if key == "default" else key)
-            assert out.count("[Hook]") == 2, key
-            assert out.count("[/Hook]") == 2, key
-            assert out.count("We run the night we own the floor") == 2, key
+            assert out.count("[Hook]") == 3, key
+            assert out.count("[/Hook]") == 3, key
+            assert out.count("We run the night we own the floor") == 3, key
             assert "{hook}" not in out, key  # placeholder fully substituted
+            assert "(oohs and ahs)" in out, key  # sparse ad-libs present
 
 
 class TestStripVocalCues:
