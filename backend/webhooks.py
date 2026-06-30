@@ -510,12 +510,10 @@ def _cover_pipeline(variant_id: int, source_mp3_url: str, lyrics_text: str) -> N
         logger.info("Cover pipeline: downloaded %d bytes for variant_id=%d", len(audio_data), variant_id)
 
         # Step 2: Upload to Apiframe
-        # TODO(extend): this upload/extend path is BROKEN — APIFRAME_BASE (.ai/v2) 404s
-        # for /v2/music/upload and /v2/music/extend. The working endpoints are on the
-        # api.apiframe.pro base with an Authorization header (POST /suno-upload and
-        # /suno-extend), but .pro currently returns 502. Fix this Cover-This-Song flow
-        # at the same time we re-enable auto-extend (_AUTO_EXTEND_ENABLED), once Apiframe
-        # confirms a working upload/extend endpoint.
+        # TODO: Cover This Song extend is broken — uses same /v2/music/upload path that 502s
+        # Fix: update to api.apiframe.pro/suno-upload + /suno-extend once working endpoint confirmed with Apiframe support
+        # Tracked: same fix needed as auto-extend (shelved pending Apiframe endpoint verification)
+        # Do not attempt until working URL confirmed — will 502 same as auto-extend
         upload_resp = requests.post(
             f"{APIFRAME_BASE}/v2/music/upload",
             headers={"X-API-Key": APIFRAME_API_KEY},
