@@ -510,6 +510,12 @@ def _cover_pipeline(variant_id: int, source_mp3_url: str, lyrics_text: str) -> N
         logger.info("Cover pipeline: downloaded %d bytes for variant_id=%d", len(audio_data), variant_id)
 
         # Step 2: Upload to Apiframe
+        # TODO(extend): this upload/extend path is BROKEN — APIFRAME_BASE (.ai/v2) 404s
+        # for /v2/music/upload and /v2/music/extend. The working endpoints are on the
+        # api.apiframe.pro base with an Authorization header (POST /suno-upload and
+        # /suno-extend), but .pro currently returns 502. Fix this Cover-This-Song flow
+        # at the same time we re-enable auto-extend (_AUTO_EXTEND_ENABLED), once Apiframe
+        # confirms a working upload/extend endpoint.
         upload_resp = requests.post(
             f"{APIFRAME_BASE}/v2/music/upload",
             headers={"X-API-Key": APIFRAME_API_KEY},
@@ -563,6 +569,11 @@ _EXTEND_TARGET_SECONDS = 150
 # upload/extend live on the api.apiframe.pro base with an Authorization header — NOT the
 # api.apiframe.ai/v2 base used for generation (that base 404s for upload/extend).
 _APIFRAME_PRO_BASE = "https://api.apiframe.pro"
+# SHELVED: the trigger logic is complete and tested, but the Apiframe extend endpoint
+# isn't confirmed working — .ai/v2/music/upload 404s and .pro/suno-upload returns 502.
+# Disabled so we don't hammer a dead endpoint. Flip back to True once Apiframe confirms
+# a working upload/extend URL (see _maybe_extend_short_song below — flow is ready).
+_AUTO_EXTEND_ENABLED = False
 
 
 def _maybe_extend_short_song(variant_id: int, mp3_path: str, duration: int, style_prompt: str, lyric_id) -> None:
@@ -581,7 +592,9 @@ def _maybe_extend_short_song(variant_id: int, mp3_path: str, duration: int, styl
     if not (is_intermittent or is_instrumental):
         return
     if not duration or duration >= _EXTEND_TARGET_SECONDS:
-        logger.info("AUTO_EXTEND skip variant_id=%d duration=%ss (>=%d or unknown)", variant_id, duration, _EXTEND_TARGET_SECONDS)
+        return
+    if not _AUTO_EXTEND_ENABLED:
+        logger.info("AUTO_EXTEND skipped — extend endpoint not yet confirmed, shelved pending Apiframe verification")
         return
     mode = "intermittent" if is_intermittent else "instrumental"
     try:
