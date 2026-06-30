@@ -494,6 +494,17 @@ def build_intermittent_hook(lyrics_text: str, genre: str | None = None) -> str:
     return template.replace("{hook}", hook_block)
 
 
+def _apply_rapidfire_section_tags(lyrics_text: str) -> str:
+    """For Rapid Fire Rap: rewrite section headers into bracketed performance tags
+    so Suno delivers fast, rhythmic verses instead of mumbling through. These tags
+    live INSIDE the lyrics text (the style box stays plain descriptors).
+    [Verse]/[Verse 1]/[Verse 2: ...] → [Verse: Rhythmic, fast flow];
+    [Chorus]/[Hook] → [Chorus: Aggressive hook]."""
+    text = re.sub(r"\[\s*verse[^\]]*\]", "[Verse: Rhythmic, fast flow]", lyrics_text, flags=re.IGNORECASE)
+    text = re.sub(r"\[\s*(?:chorus|hook)[^\]]*\]", "[Chorus: Aggressive hook]", text, flags=re.IGNORECASE)
+    return text
+
+
 def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None, roast_mode: bool = False, roast_name: str | None = None, roast_details: str | None = None, roast_vibe: str | None = None, bilingual_mode: bool = False, intermittent_vocals: bool = False) -> dict:
     _need_translation = False  # initialised here so all code paths have a value
     if instrumental:
@@ -914,6 +925,11 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         _genre = genres[0] if genres else None
         _lyrics_text = build_intermittent_hook(_lyrics_text, genre=_genre)
         logger.info("generate_lyrics: intermittent mode — genre=%r reduced lyrics to hook (len=%d)", _genre, len(_lyrics_text))
+    elif "rapid-fire rap" in (accent or "").lower():
+        # Bracketed performance tags go INSIDE the lyrics (not the style box) so Suno
+        # renders fast double-time delivery rather than mumbling through.
+        _lyrics_text = _apply_rapidfire_section_tags(_lyrics_text)
+        logger.info("generate_lyrics: rapid-fire — injected fast-flow section tags (len=%d)", len(_lyrics_text))
 
     conn = db._conn(db_path)
     try:

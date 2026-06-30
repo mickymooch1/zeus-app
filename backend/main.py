@@ -2611,7 +2611,7 @@ async def songs_generate(
     # Rapid Fire Rap: reinforce dense, non-repetitive fast verses in the Suno style and
     # discourage looping via a negative tag (merged with any user-supplied negative tags).
     if "rapid-fire rap" in (body.accent or "").lower():
-        style_suffix_parts.append("dense lyrical content, no repetition, continuous fast verses")
+        style_suffix_parts.append("double-time triple-time delivery, 160 BPM, dense lyrical content, no repetition, continuous fast verses")
         _rf_neg = "repetitive lyrics, looping phrases"
         _existing_neg = extra_suno_params.get("negative_tags")
         extra_suno_params["negative_tags"] = (f"{_existing_neg}, {_rf_neg}" if _existing_neg else _rf_neg)[:500]
