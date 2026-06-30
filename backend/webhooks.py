@@ -559,6 +559,132 @@ def _verify_signature(raw_body: bytes, signature_header: str) -> bool:
     return hmac.compare_digest(signature_header, expected)
 
 
+_EXTEND_TARGET_SECONDS = 150
+
+
+def _maybe_extend_short_song(variant_id: int, mp3_path: str, duration: int, style_prompt: str, lyric_id) -> None:
+    """Continue a short intermittent/instrumental song to full length via Apiframe
+    extend. BEST-EFFORT: the short take is already delivered before this runs, and it
+    never raises into the webhook path.
+
+    Mode is inferred from style_prompt (no DB column): intermittent carries the
+    "3 minute duration" cue; instrumental carries the INSTRUMENTAL_SUFFIX marker. The
+    result is delivered to the SEPARATE /webhooks/apiframe-extend route so it bypasses
+    the claim/dedup guards that reject re-processing of a complete variant.
+    """
+    sp = (style_prompt or "").lower()
+    is_intermittent = "full length track, 3 minute duration" in sp
+    is_instrumental = "fully instrumental, extended arrangement" in sp
+    if not (is_intermittent or is_instrumental):
+        return
+    if not duration or duration >= _EXTEND_TARGET_SECONDS:
+        logger.info("AUTO_EXTEND skip variant_id=%d duration=%ss (>=%d or unknown)", variant_id, duration, _EXTEND_TARGET_SECONDS)
+        return
+    mode = "intermittent" if is_intermittent else "instrumental"
+    try:
+        with open(mp3_path, "rb") as fh:
+            audio_data = fh.read()
+        up = requests.post(
+            f"{APIFRAME_BASE}/v2/music/upload",
+            headers={"X-API-Key": APIFRAME_API_KEY},
+            files={"audio": ("source.mp3", audio_data, "audio/mpeg")},
+            timeout=60,
+        )
+        up.raise_for_status()
+        parent_task_id = up.json().get("task_id")
+        if not parent_task_id:
+            logger.error("AUTO_EXTEND variant_id=%d: upload returned no task_id: %r", variant_id, up.text[:200])
+            return
+        lyrics_text = ""
+        if is_intermittent and lyric_id:
+            try:
+                _c = sqlite3.connect(DB_PATH)
+                try:
+                    _row = _c.execute("SELECT lyrics_text FROM lyrics WHERE id = ?", (lyric_id,)).fetchone()
+                    lyrics_text = (_row[0] if _row else "") or ""
+                finally:
+                    _c.close()
+            except Exception:
+                lyrics_text = ""
+        payload = {
+            "parent_task_id": parent_task_id,
+            "continue_at": max(0, int(duration) - 1),
+            "tags": (style_prompt or "")[:990],
+            "webhookUrl": f"{WEBHOOK_URL}-extend?variant_id={variant_id}",
+            "webhookEvents": ["completed", "failed"],
+        }
+        if lyrics_text:
+            payload["lyrics"] = lyrics_text
+        ext = requests.post(
+            f"{APIFRAME_BASE}/v2/music/extend",
+            headers={"X-API-Key": APIFRAME_API_KEY, "Content-Type": "application/json"},
+            json=payload,
+            timeout=30,
+        )
+        logger.info(
+            "AUTO_EXTEND variant_id=%d mode=%s duration=%ss (<%d) → extend submitted "
+            "(parent_task=%s continue_at=%d status=%d) body=%r",
+            variant_id, mode, duration, _EXTEND_TARGET_SECONDS, parent_task_id,
+            payload["continue_at"], ext.status_code, ext.text[:200],
+        )
+        ext.raise_for_status()
+    except Exception as exc:
+        logger.exception("AUTO_EXTEND failed variant_id=%d (non-fatal — short song already delivered): %s", variant_id, exc)
+
+
+@router.post("/webhooks/apiframe-extend")
+async def apiframe_extend_webhook(request: Request) -> dict:
+    """Apply an AUTO-EXTEND result: swap the variant's audio for the longer version and
+    update its duration. SEPARATE from the main webhook on purpose — it must not hit the
+    claim/dedup guards that reject re-processing of an already-complete variant."""
+    import json as _json
+    raw_body = await request.body()
+    signature = request.headers.get("X-Webhook-Signature", "")
+    if signature and not _verify_signature(raw_body, signature):
+        logger.warning("apiframe-extend: signature MISMATCH — rejecting")
+        raise HTTPException(401, "Invalid signature")
+    try:
+        variant_id = int(request.query_params.get("variant_id"))
+    except (TypeError, ValueError):
+        logger.warning("apiframe-extend: bad variant_id=%r", request.query_params.get("variant_id"))
+        return {"ok": False, "status": "bad_variant_id"}
+    try:
+        body = _json.loads(raw_body)
+    except Exception:
+        body = {}
+    status = (body.get("status") or "").upper()
+    if status and status not in ("COMPLETED", "FINISHED"):
+        logger.warning("apiframe-extend: variant_id=%d status=%s — not applying", variant_id, status)
+        return {"ok": True, "status": "ignored"}
+    tracks = (body.get("result") or {}).get("tracks", []) or body.get("songs", [])
+    if not tracks:
+        logger.error("apiframe-extend: no tracks for variant_id=%d body=%r", variant_id, str(body)[:400])
+        return {"ok": True, "status": "no_tracks"}
+    track = tracks[0]
+    new_url = track.get("audioUrl") or track.get("audio_url")
+    new_duration = round(track.get("duration", 0) or 0)
+    if not new_url:
+        logger.error("apiframe-extend: no audio url in track for variant_id=%d track=%r", variant_id, str(track)[:300])
+        return {"ok": True, "status": "no_audio"}
+    try:
+        dl = requests.get(new_url, timeout=120)
+        dl.raise_for_status()
+        local_path = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
+        with open(local_path, "wb") as fh:
+            fh.write(dl.content)
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("UPDATE song_variants SET duration_seconds = ? WHERE id = ?", (new_duration, variant_id))
+            conn.commit()
+        finally:
+            conn.close()
+        logger.info("AUTO_EXTEND COMPLETE variant_id=%d → lengthened to %ss, overwrote %s", variant_id, new_duration, local_path)
+        return {"ok": True, "status": "extended", "duration": new_duration}
+    except Exception as exc:
+        logger.exception("apiframe-extend: failed to apply extended audio variant_id=%d: %s", variant_id, exc)
+        return {"ok": False, "status": "error_logged"}
+
+
 @router.post("/webhooks/apiframe")
 async def apiframe_webhook(request: Request):
     # Log BEFORE reading body so this fires even if body parsing fails
@@ -861,6 +987,12 @@ async def apiframe_webhook(request: Request):
     finally:
         conn.close()
     logger.info("Apiframe webhook take 1 complete: variant_id=%d url=%s", variant_id, permanent_url1)
+
+    # Auto-extend short intermittent/instrumental songs to full length. Best-effort:
+    # the short take is already delivered above; the extend result is applied by the
+    # separate /webhooks/apiframe-extend route (bypassing the claim/dedup guards).
+    if orig:
+        _maybe_extend_short_song(variant_id, local_path1, duration1, orig[2], orig[0])
 
     # Pre-query paid status so all conditions are visible in one log line
     _kling_is_paid1 = False
