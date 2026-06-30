@@ -452,6 +452,7 @@ def handle_webhook(payload: bytes, sig: str) -> None:
 _HANDLED_EVENTS = frozenset({
     "checkout.session.completed",
     "checkout.session.async_payment_succeeded",
+    "checkout.session.async_payment_failed",
     "invoice.payment_succeeded",
     "customer.subscription.updated",
     "customer.subscription.deleted",
@@ -485,6 +486,8 @@ def _handle_event(event) -> None:
 
     if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
         _handle_checkout_completed(db_path, data)
+    elif event_type == "checkout.session.async_payment_failed":
+        _handle_async_payment_failed(db_path, data)
     elif event_type == "invoice.payment_succeeded":
         _handle_invoice_paid(db_path, data)
     elif event_type == "payment_intent.succeeded":
@@ -496,6 +499,66 @@ def _handle_event(event) -> None:
     else:
         # Must be INFO not DEBUG — Railway default level is INFO so debug never appears
         log.info("Stripe webhook: event type %r is not handled — no action taken", event_type)
+
+
+def _send_notification_email(to_email: str, subject: str, body: str) -> None:
+    """Best-effort transactional email via Gmail SMTP. Never raises — a Stripe
+    webhook must still return 200 even if the notification email fails."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
+    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+    if not smtp_email or not smtp_password:
+        log.warning("notification email NOT sent (SMTP_EMAIL/SMTP_PASSWORD unset) — to=%r subject=%r", to_email, subject)
+        return
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = f"Zeus <{smtp_email}>"
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
+            server.login(smtp_email, smtp_password)
+            server.sendmail(smtp_email, [to_email], msg.as_string())
+        log.info("notification email sent to %r (subject=%r)", to_email, subject)
+    except Exception as exc:
+        log.error("notification email FAILED to %r (subject=%r) — %s", to_email, subject, exc)
+
+
+def _handle_async_payment_failed(db_path, session) -> None:
+    """A delayed/async payment method (e.g. bank transfer) failed after checkout.
+
+    Per Stripe's "Fulfil orders with Checkout" delayed-notification guidance, no
+    credits were ever granted (the payment_status guard in
+    _handle_checkout_completed withheld them), so there is nothing to revoke —
+    we just notify the customer so they can place the order again."""
+    customer_email = session.get("customer_email")
+    customer_id = session.get("customer")
+    session_id = session.get("id", "?")
+
+    user = None
+    if customer_email:
+        user = db.get_user_by_email(db_path, customer_email)
+    if not user and customer_id:
+        user = _find_user_by_customer(db_path, customer_id)
+    to_email = (user.get("email") if user else None) or customer_email
+
+    log.warning(
+        "checkout.session.async_payment_failed: session=%s user=%s email=%r — delayed payment "
+        "FAILED, no credits granted (none were), notifying customer",
+        session_id, (user["id"] if user else "NOT FOUND"), to_email,
+    )
+    if to_email:
+        _send_notification_email(
+            to_email,
+            "Your Zeus payment didn't go through",
+            "Hi,\n\nYour recent payment to Zeus didn't complete — delayed payment methods "
+            "(such as bank transfers) can take a few days and occasionally fail. No credits "
+            "were added and you have not been charged.\n\nTo get your credits, please place "
+            "the order again at zeusbeats.com.\n\nThanks,\nThe Zeus team",
+        )
 
 
 def _handle_checkout_completed(db_path, session) -> None:
