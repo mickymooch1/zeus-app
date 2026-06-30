@@ -2210,6 +2210,7 @@ export default function SongsPage() {
                     </optgroup>
                     <optgroup label="🎵 Vocal Style">
                       <option value="extremely deep resonant bass-baritone male vocalist, ultra low rich deep voice, velvet smooth deep bass delivery, romantic intimate low register singing, deep chest resonance, powerful low bass vocal presence">🎤 Deep Bass Voice</option>
+                      <option value="extremely fast rapid-fire rap delivery, machine gun flow, tongue-twisting fast paced lyrics, technical speed rapping, double-time triple-time flow, intricate fast wordplay, breathless rapid syllable delivery, lightning fast verbal dexterity, hypersped lyrical flow">🔥 Rapid Fire Rap</option>
                     </optgroup>
                     <optgroup label="🇪🇺 European Languages (lyrics in that language)">
                       <option value="Russian">🇷🇺 Russian</option>

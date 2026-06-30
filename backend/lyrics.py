@@ -859,6 +859,14 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             f"Use authentic {_lyric_language} vocabulary and natural phrasing throughout. "
             f"Write every line in {_lyric_language} — no English translation."
         )
+    # Rapid Fire Rap accent: structure the lyrics for speed-rapping, not just the vocal style.
+    # The accent value is the full descriptor string, so match on a signature phrase.
+    if "rapid-fire rap" in (accent or "").lower():
+        user_message += (
+            "\n\nWrite these lyrics for extremely fast rapid-fire rap delivery — pack in "
+            "lots of syllables per line, use tight internal rhymes, short punchy words, "
+            "built for a machine-gun fast flow."
+        )
     model = "claude-sonnet-4-6" if (genre_b or _lyric_language) else "claude-haiku-4-5-20251001"
     logger.info(
         "generate_lyrics: calling %s — user=%s explicit=%s genre_b=%r blend_ratio=%r theme=%r mood=%r lyric_language=%r brief=%r",
