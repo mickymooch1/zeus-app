@@ -546,17 +546,32 @@ def generate_multiple_variants(
         # Accent/vocal modifiers go BEFORE the genre preset so Suno weights them first.
         # Genre presets can contain strong location/vocal cues (e.g. "East London sound")
         # that override an accent appended at the end.
-        if tempo_suffix:
-            style = f"{tempo_suffix}, {style}"
-        safe_inspired_by = sanitize_inspired_by_descriptors(inspired_by_descriptors)
-        if safe_inspired_by:
-            style = f"{style}, {safe_inspired_by}"
         # Blend songs use section-tag structure (~700+ chars) so they need a higher cap.
         # Single-genre stays at 500. Both stay under Apiframe's own 1000-char limit.
         hard_cap = 900 if genre_b else 500
+        # The genre's core descriptors are sacred — they ARE the sound. The accent/style
+        # suffix is prepended (Suno weights it first) but if we're over budget we trim
+        # the SUFFIX, never the genre identity. (Bug: a long rapid-fire accent used to
+        # truncate "East Coast hip-h…", losing boom bap / jazzy-sample descriptors.)
+        genre_style = style
+        safe_inspired_by = sanitize_inspired_by_descriptors(inspired_by_descriptors)
+        tail = f", {safe_inspired_by}" if safe_inspired_by else ""
+        if tempo_suffix:
+            suffix_budget = hard_cap - len(genre_style) - len(tail) - 2  # 2 for ", " join
+            suffix = tempo_suffix
+            if len(suffix) > max(0, suffix_budget):
+                suffix = suffix[:max(0, suffix_budget)].rstrip(" ,")
+                logger.warning(
+                    "style: trimmed accent/style suffix %d→%d chars to protect genre=%r identity",
+                    len(tempo_suffix), len(suffix), genre,
+                )
+            style = f"{suffix}, {genre_style}{tail}" if suffix else f"{genre_style}{tail}"
+        else:
+            style = f"{genre_style}{tail}"
+        # Final safety net (e.g. genre + inspired_by alone exceeding the cap)
         if len(style) > hard_cap:
             logger.warning(
-                "style string truncated from %d to %d chars for genre=%r blend=%s",
+                "style string hard-truncated from %d to %d chars for genre=%r blend=%s",
                 len(style), hard_cap, genre, bool(genre_b),
             )
             style = style[:hard_cap]

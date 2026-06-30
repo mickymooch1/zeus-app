@@ -2600,16 +2600,22 @@ async def songs_generate(
                     "UK pronunciation, distinctly British urban feel"
                 )
                 log.info("accent: British → UK street soul boost applied")
+            # Rapid Fire Rap: the accent VALUE is a long descriptor that would eat the
+            # 500-char style budget and truncate the genre. Collapse it to ONE concise
+            # phrase (~75 chars); the anti-loop negative tags live outside the style box.
+            if "rapid-fire rap" in (body.accent or "").lower():
+                _accent_desc = "fast double-time rap flow, rapid staccato cadence, sped-up vocals, 170 BPM"
+                log.info("accent: rapid-fire → concise style descriptor (%d chars)", len(_accent_desc))
             style_suffix_parts.append(_accent_desc)
             log.info("accent: %s accent=%r → %r", "kids" if body.kids_story else "regular", body.accent, _accent_desc[:80])
-    # Rapid Fire Rap: reinforce dense, non-repetitive fast verses in the Suno style and
-    # discourage looping via a negative tag (merged with any user-supplied negative tags).
+    # Rapid Fire Rap: the concise style descriptor is added via _accent_desc above (so the
+    # genre's core descriptors stay inside the 500-char budget). Here we ONLY set the
+    # anti-loop negative tags — a separate Suno param that doesn't count against the style.
     if "rapid-fire rap" in (body.accent or "").lower():
-        style_suffix_parts.append("extremely fast double-time triple-time rap flow, breakneck speed delivery, rapid staccato vocal cadence, sped-up flow over the beat, chopper rap technique, 170 BPM, no repetition, continuous fast verses")
         _rf_neg = "repetitive lyrics, looping phrases, cluttered, rushed mumbling, word-cramming"
         _existing_neg = extra_suno_params.get("negative_tags")
         extra_suno_params["negative_tags"] = (f"{_existing_neg}, {_rf_neg}" if _existing_neg else _rf_neg)[:500]
-        log.info("rapid-fire: added dense-content style + anti-loop negative tags")
+        log.info("rapid-fire: anti-loop negative tags set")
     if body.explicit:
         style_suffix_parts.append("explicit lyrics allowed, no content restrictions")
     if body.instrumental:
