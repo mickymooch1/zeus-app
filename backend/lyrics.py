@@ -500,7 +500,7 @@ def _apply_rapidfire_section_tags(lyrics_text: str) -> str:
     live INSIDE the lyrics text (the style box stays plain descriptors).
     [Verse]/[Verse 1]/[Verse 2: ...] → [Verse: Rhythmic, fast flow];
     [Chorus]/[Hook] → [Chorus: Aggressive hook]."""
-    text = re.sub(r"\[\s*verse[^\]]*\]", "[Verse: Rhythmic, fast flow]", lyrics_text, flags=re.IGNORECASE)
+    text = re.sub(r"\[\s*verse[^\]]*\]", "[Verse: Rhythmic, fast flow, breakneck speed]", lyrics_text, flags=re.IGNORECASE)
     text = re.sub(r"\[\s*(?:chorus|hook)[^\]]*\]", "[Chorus: Aggressive hook]", text, flags=re.IGNORECASE)
     return text
 
@@ -874,13 +874,12 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
     # The accent value is the full descriptor string, so match on a signature phrase.
     if "rapid-fire rap" in (accent or "").lower():
         user_message += (
-            "\n\nWrite these lyrics for extremely fast rapid-fire rap delivery. "
-            "IMPORTANT: Write substantially MORE lyrics than usual — at least 1.5-2x the "
-            "normal verse length — because fast rapping covers far more words per minute. "
-            "Do not let the lyrics run out partway through. "
-            "Pack in lots of syllables per line, use tight internal rhymes, short punchy "
-            "multi-syllabic words, dense wordplay, built for a machine-gun fast flow with no "
-            "wasted space. "
+            "\n\nWrite these lyrics for extremely fast double-time rap delivery. "
+            "Write moderately MORE lyrics than usual — roughly 1.3x the normal verse length — "
+            "enough to avoid repetition without cramming. The goal is a faster CADENCE (each "
+            "word and syllable hitting quicker), NOT squeezing more words into the same pace. "
+            "Use tight internal rhymes, short punchy multi-syllabic words and a steady rhythmic "
+            "pocket built for a sped-up double-time flow with clear, un-mumbled diction. "
             "Avoid repetitive hooks — keep generating fresh bars throughout, minimal repetition."
         )
     model = "claude-sonnet-4-6" if (genre_b or _lyric_language) else "claude-haiku-4-5-20251001"
