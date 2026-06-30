@@ -2608,6 +2608,14 @@ async def songs_generate(
                 log.info("accent: British → UK street soul boost applied")
             style_suffix_parts.append(_accent_desc)
             log.info("accent: %s accent=%r → %r", "kids" if body.kids_story else "regular", body.accent, _accent_desc[:80])
+    # Rapid Fire Rap: reinforce dense, non-repetitive fast verses in the Suno style and
+    # discourage looping via a negative tag (merged with any user-supplied negative tags).
+    if "rapid-fire rap" in (body.accent or "").lower():
+        style_suffix_parts.append("dense lyrical content, no repetition, continuous fast verses")
+        _rf_neg = "repetitive lyrics, looping phrases"
+        _existing_neg = extra_suno_params.get("negative_tags")
+        extra_suno_params["negative_tags"] = (f"{_existing_neg}, {_rf_neg}" if _existing_neg else _rf_neg)[:500]
+        log.info("rapid-fire: added dense-content style + anti-loop negative tags")
     if body.explicit:
         style_suffix_parts.append("explicit lyrics allowed, no content restrictions")
     if body.instrumental:
