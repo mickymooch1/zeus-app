@@ -114,6 +114,19 @@ def alert_payment(email: str, plan_key: str, amount_display: str) -> None:
         log.debug("alert_payment failed (non-fatal)")
 
 
+def alert_payment_failed(email: str, session_id: str = "") -> None:
+    try:
+        send_admin_alert(
+            "🚨 Payment FAILED (delayed payment method)\n"
+            f"📧 {email or 'unknown'}\n"
+            f"🧾 session={session_id or 'n/a'}\n"
+            "💳 No credits granted — customer emailed to retry\n"
+            "🔍 Check Stripe Dashboard"
+        )
+    except Exception:
+        log.debug("alert_payment_failed failed (non-fatal)")
+
+
 def alert_song_failed(email: str, variant_id: int) -> None:
     try:
         send_admin_alert(

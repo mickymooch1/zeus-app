@@ -557,9 +557,13 @@ def _handle_async_payment_failed(db_path, session) -> None:
 
     log.warning(
         "checkout.session.async_payment_failed: session=%s user=%s email=%r — delayed payment "
-        "FAILED, no credits granted (none were), notifying customer",
+        "FAILED, no credits granted (none were), notifying customer + admin",
         session_id, (user["id"] if user else "NOT FOUND"), to_email,
     )
+    # Internal Telegram alert so we know immediately — not just the customer.
+    # alert_payment_failed is best-effort (swallows its own errors), so it can't
+    # break the webhook ack.
+    _alerts.alert_payment_failed(to_email or "", session_id)
     if to_email:
         _send_notification_email(
             to_email,
