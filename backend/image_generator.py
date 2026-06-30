@@ -18,10 +18,14 @@ ZEUS_PUBLIC_URL = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
 
 def _public_image_url(job_id: str, ext: str = "jpg") -> str:
     """Absolute, public-facing URL for a saved image/video — clickable and
-    shareable everywhere (agent replies, Facebook/Telegram posts, Kling source).
-    A bare ``/api/files/...`` path only resolves same-origin, so always prepend
-    the host. Mirrors the Zeus Beats cover-art flow (PUBLIC_BASE_URL + filename)."""
-    return f"{ZEUS_PUBLIC_URL.rstrip('/')}/api/files/images/{job_id}.{ext}"
+    shareable everywhere, and loadable inline in an <img>/<video> tag (which
+    can't send auth headers).
+
+    Uses the PUBLIC ``/files/images`` static mount, NOT the authenticated
+    ``/api/files/images`` endpoint — exactly how Zeus Beats serves song covers
+    (public ``/files/songs/...``). Generated logos/images/cover art aren't
+    private, so they're served like any other public asset."""
+    return f"{ZEUS_PUBLIC_URL.rstrip('/')}/files/images/{job_id}.{ext}"
 
 # Log API key presence at import time so Railway logs confirm configuration
 if FAL_API_KEY:
