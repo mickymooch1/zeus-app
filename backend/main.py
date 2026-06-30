@@ -1612,22 +1612,19 @@ async def stripe_webhook(request: Request):
     payload = await request.body()
     sig = request.headers.get("stripe-signature", "")
     log.info("Stripe webhook hit: /billing/webhook payload_bytes=%d sig_present=%s", len(payload), bool(sig))
-
-    if not billing.stripe_enabled():
-        log.error("Stripe webhook: billing not configured (STRIPE_SECRET_KEY missing)")
-        raise HTTPException(status_code=503, detail="Billing not configured")
-
+    # NEVER return a non-2xx from a Stripe webhook: repeated 4xx/5xx make Stripe retry
+    # and then DISABLE the endpoint, which silently breaks ALL payment crediting.
+    # Acknowledge with 200 and handle/log every error internally.
     try:
+        if not billing.stripe_enabled():
+            log.error("Stripe webhook: billing not configured (STRIPE_SECRET_KEY missing)")
+            return {"status": "error_logged", "detail": "billing not configured"}
         billing.handle_webhook(payload, sig)
-    except ValueError as exc:
-        log.error("Stripe webhook 400: %s", exc)
-        raise HTTPException(status_code=400, detail=str(exc))
+        log.info("Stripe webhook /billing/webhook: processed successfully")
+        return {"received": True}
     except Exception as exc:
-        log.exception("Stripe webhook 500: unhandled error")
-        raise HTTPException(status_code=500, detail="Webhook processing failed")
-
-    log.info("Stripe webhook /billing/webhook: processed successfully")
-    return {"received": True}
+        log.exception("Stripe webhook /billing/webhook: error processing (acknowledged 200 to avoid disable): %s", exc)
+        return {"status": "error_logged"}
 
 
 @app.post("/webhook/stripe")
@@ -1635,22 +1632,19 @@ async def stripe_webhook_v2(request: Request):
     payload = await request.body()
     sig = request.headers.get("stripe-signature", "")
     log.info("Stripe webhook hit: /webhook/stripe payload_bytes=%d sig_present=%s", len(payload), bool(sig))
-
-    if not billing.stripe_enabled():
-        log.error("Stripe webhook: billing not configured (STRIPE_SECRET_KEY missing)")
-        raise HTTPException(status_code=503, detail="Billing not configured")
-
+    # NEVER return a non-2xx from a Stripe webhook: repeated 4xx/5xx make Stripe retry
+    # and then DISABLE the endpoint, which silently breaks ALL payment crediting.
+    # Acknowledge with 200 and handle/log every error internally.
     try:
+        if not billing.stripe_enabled():
+            log.error("Stripe webhook: billing not configured (STRIPE_SECRET_KEY missing)")
+            return {"status": "error_logged", "detail": "billing not configured"}
         billing.handle_webhook(payload, sig)
-    except ValueError as exc:
-        log.error("Stripe webhook 400: %s", exc)
-        raise HTTPException(status_code=400, detail=str(exc))
+        log.info("Stripe webhook /webhook/stripe: processed successfully")
+        return {"received": True}
     except Exception as exc:
-        log.exception("Stripe webhook 500: unhandled error")
-        raise HTTPException(status_code=500, detail="Webhook processing failed")
-
-    log.info("Stripe webhook /webhook/stripe: processed successfully")
-    return {"received": True}
+        log.exception("Stripe webhook /webhook/stripe: error processing (acknowledged 200 to avoid disable): %s", exc)
+        return {"status": "error_logged"}
 
 
 # ── WebSocket chat endpoint ───────────────────────────────────────────────────

@@ -484,21 +484,31 @@ def _handle_event(event) -> None:
         log.info("Stripe webhook: event type %r acknowledged and ignored", event_type)
         return
 
-    if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
-        _handle_checkout_completed(db_path, data)
-    elif event_type == "checkout.session.async_payment_failed":
-        _handle_async_payment_failed(db_path, data)
-    elif event_type == "invoice.payment_succeeded":
-        _handle_invoice_paid(db_path, data)
-    elif event_type == "payment_intent.succeeded":
-        _handle_payment_intent_succeeded(db_path, data)
-    elif event_type == "customer.subscription.updated":
-        _handle_subscription_updated(db_path, data)
-    elif event_type == "customer.subscription.deleted":
-        _handle_subscription_deleted(db_path, data)
-    else:
-        # Must be INFO not DEBUG — Railway default level is INFO so debug never appears
-        log.info("Stripe webhook: event type %r is not handled — no action taken", event_type)
+    try:
+        if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
+            _handle_checkout_completed(db_path, data)
+        elif event_type == "checkout.session.async_payment_failed":
+            _handle_async_payment_failed(db_path, data)
+        elif event_type == "invoice.payment_succeeded":
+            _handle_invoice_paid(db_path, data)
+        elif event_type == "payment_intent.succeeded":
+            _handle_payment_intent_succeeded(db_path, data)
+        elif event_type == "customer.subscription.updated":
+            _handle_subscription_updated(db_path, data)
+        elif event_type == "customer.subscription.deleted":
+            _handle_subscription_deleted(db_path, data)
+        else:
+            # Must be INFO not DEBUG — Railway default level is INFO so debug never appears
+            log.info("Stripe webhook: event type %r is not handled — no action taken", event_type)
+    except Exception:
+        # Defence-in-depth: a crash in ONE handler must NOT bubble up to a 500 — Stripe
+        # disables endpoints that keep erroring, which would break ALL crediting. Log the
+        # exact event type + id (this is what pinpoints the culprit in Railway logs), then
+        # swallow so the webhook still acknowledges with 200.
+        log.exception(
+            "Stripe webhook: handler for type=%s id=%s CRASHED — logged & acknowledged, NOT retried",
+            event_type, event.get("id", "?"),
+        )
 
 
 def _send_notification_email(to_email: str, subject: str, body: str) -> None:
