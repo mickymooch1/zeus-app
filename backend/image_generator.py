@@ -15,6 +15,14 @@ FAL_SYNC_BASE = "https://fal.run"
 FAL_MODEL = "fal-ai/flux/dev"
 ZEUS_PUBLIC_URL = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
 
+
+def _public_image_url(job_id: str, ext: str = "jpg") -> str:
+    """Absolute, public-facing URL for a saved image/video — clickable and
+    shareable everywhere (agent replies, Facebook/Telegram posts, Kling source).
+    A bare ``/api/files/...`` path only resolves same-origin, so always prepend
+    the host. Mirrors the Zeus Beats cover-art flow (PUBLIC_BASE_URL + filename)."""
+    return f"{ZEUS_PUBLIC_URL.rstrip('/')}/api/files/images/{job_id}.{ext}"
+
 # Log API key presence at import time so Railway logs confirm configuration
 if FAL_API_KEY:
     log.info("image_generator: FAL_API_KEY is set (len=%d)", len(FAL_API_KEY))
@@ -114,7 +122,7 @@ def get_image_job_status(job_id: str) -> dict:
     """Return status for a generated image. Images are now generated synchronously."""
     dest = pathlib.Path("/data/images") / f"{job_id}.jpg"
     if dest.exists():
-        return {"status": "COMPLETED", "image_url": f"/api/files/images/{job_id}.jpg"}
+        return {"status": "COMPLETED", "image_url": _public_image_url(job_id)}
     return {"status": "NOT_FOUND", "image_url": None}
 
 
@@ -148,8 +156,11 @@ def download_and_save_image(job_id: str, image_url: str) -> str:
     else:
         dest.write_bytes(resp.content)
 
+    local_path = str(dest)
+    public_url = _public_image_url(job_id)
     log.info("download_and_save_image: saved %s (%d bytes)", dest, len(resp.content))
-    return f"/api/files/images/{job_id}.jpg"
+    log.info(f"Logo generated: local_path={local_path} public_url={public_url}")
+    return public_url
 
 
 _KLING_SUBMIT_URL = "https://queue.fal.run/fal-ai/kling-video/v2/master/image-to-video"
@@ -226,8 +237,11 @@ def generate_video_art(image_url: str, prompt: str, duration: int = 5) -> str:
             vid_resp = requests.get(video_url, timeout=60)
             vid_resp.raise_for_status()
             dest.write_bytes(vid_resp.content)
+            local_path = str(dest)
+            public_url = _public_image_url(job_id, "mp4")
             log.info("generate_video_art: saved %s (%d bytes)", dest, len(vid_resp.content))
-            return f"/api/files/images/{job_id}.mp4"
+            log.info(f"Video art generated: local_path={local_path} public_url={public_url}")
+            return public_url
 
         if state in ("FAILED", "ERROR"):
             raise RuntimeError(f"Kling video generation failed: {status_data}")
