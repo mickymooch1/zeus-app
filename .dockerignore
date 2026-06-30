@@ -1,0 +1,14 @@
+# Keep stale local bytecode and VCS metadata out of the Docker build context so
+# the image can never ship outdated .pyc files instead of the current source.
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+.git/
+.gitignore
+
+# Regenerated in-image by `npm ci` — never copy local installs.
+**/node_modules/
+
+# Build outputs (frontends are built inside the image)
+web/dist/
+web-beats-dist/
