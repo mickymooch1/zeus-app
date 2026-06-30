@@ -546,9 +546,11 @@ def generate_multiple_variants(
         # Accent/vocal modifiers go BEFORE the genre preset so Suno weights them first.
         # Genre presets can contain strong location/vocal cues (e.g. "East London sound")
         # that override an accent appended at the end.
-        # Blend songs use section-tag structure (~700+ chars) so they need a higher cap.
-        # Single-genre stays at 500. Both stay under Apiframe's own 1000-char limit.
-        hard_cap = 900 if genre_b else 500
+        # Cap at Apiframe's actual style-field limit (~1000), not an arbitrary 500.
+        # The old 500 silently truncated long styles (lost rapid-fire genre identity and
+        # could clip the intermittent "3 minute duration" cue). 990 leaves headroom under
+        # the 1000 limit while almost never trimming (real styles run ~200-450 chars).
+        hard_cap = 990
         # The genre's core descriptors are sacred — they ARE the sound. The accent/style
         # suffix is prepended (Suno weights it first) but if we're over budget we trim
         # the SUFFIX, never the genre identity. (Bug: a long rapid-fire accent used to
