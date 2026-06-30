@@ -543,6 +543,13 @@ def generate_multiple_variants(
         if genre_b and genre_b in GENRE_PRESETS:
             style = _dj_transition_style(style, GENRE_PRESETS[genre_b])
             logger.info("genre_blend: %s × %s DJ-transition style len=%d", genre, genre_b, len(style))
+            if intermittent_vocals:
+                # DJ-transition blend styles are long and hit the 990 cap, which clips
+                # the duration cue from the END. Front-load it so it survives truncation
+                # and is weighted first by Suno (strip_vocal_cues also embeds it per
+                # section, but only in the genre-A sections — this guarantees it leads).
+                style = f"full length track, 3 minute duration, extended outro, {style}"
+                logger.info("intermittent blend: front-loaded duration cue (len=%d)", len(style))
         # Accent/vocal modifiers go BEFORE the genre preset so Suno weights them first.
         # Genre presets can contain strong location/vocal cues (e.g. "East London sound")
         # that override an accent appended at the end.
