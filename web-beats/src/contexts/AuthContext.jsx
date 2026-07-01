@@ -97,6 +97,22 @@ export function AuthProvider({ children }) {
       });
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const storedToken = localStorage.getItem(TOKEN_KEY);
+    if (!storedToken) return null;
+    try {
+      const res = await fetch(`${BACKEND_URL}/auth/me`, { headers: { Authorization: `Bearer ${storedToken}` } });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.token) localStorage.setItem(TOKEN_KEY, data.token);
+        writeCachedUser(data);
+        setUser(data);
+        return data;
+      }
+    } catch (e) { /* keep current session on network error */ }
+    return null;
+  }, []);
+
   const login = useCallback(async (email, password) => {
     const res = await fetch(`${BACKEND_URL}/auth/login`, {
       method: 'POST',
@@ -143,7 +159,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, loading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

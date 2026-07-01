@@ -82,7 +82,7 @@ const previewDot = (active, color) => ({
 });
 
 export default function KidsStoryMode() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
   const [theme, setTheme]             = useState(null);
   const [age, setAge]                 = useState('little_ones');
@@ -224,18 +224,23 @@ export default function KidsStoryMode() {
       {/* Narrator Voice */}
       {label('📖 Narrator Voice')}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 22 }}>
-        {NARRATOR_VOICES.map(([val, emoji, name, desc]) => (
+        {(user?.custom_voice_id
+          ? [['my_voice', '🎙️', 'My Voice', 'Your voice'], ...NARRATOR_VOICES]
+          : NARRATOR_VOICES
+        ).map(([val, emoji, name, desc]) => (
           <div key={val} style={{ position: 'relative' }}>
             <button onClick={() => setNarrator(val)} style={voiceBtn(narrator === val, '#fbd155', 'rgba(251,209,85,0.2)')}>
               <span style={{ fontSize: 20 }}>{emoji}</span>
               <span style={{ fontSize: 11, fontWeight: narrator === val ? 800 : 600, color: narrator === val ? '#b45309' : '#475569' }}>{name}</span>
               <span style={{ fontSize: 9, color: '#94a3b8' }}>{desc}</span>
             </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); handleVoicePreview(val); }}
-              title="Preview voice"
-              style={previewDot(previewingVoice === val, '#f59e0b')}
-            >{previewingVoice === val ? '⏸' : '▶'}</button>
+            {val !== 'my_voice' && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleVoicePreview(val); }}
+                title="Preview voice"
+                style={previewDot(previewingVoice === val, '#f59e0b')}
+              >{previewingVoice === val ? '⏸' : '▶'}</button>
+            )}
           </div>
         ))}
       </div>

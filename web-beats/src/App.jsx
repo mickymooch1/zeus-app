@@ -19,6 +19,7 @@ const PricingPage        = lazy(() => import('./pages/PricingPage'));
 const SongsPage          = lazy(() => import('./pages/SongsPage'));
 const SongSharePage      = lazy(() => import('./pages/SongSharePage'));
 const BillingPage        = lazy(() => import('./pages/BillingPage'));
+const SettingsPage       = lazy(() => import('./pages/SettingsPage'));
 const TermsPage          = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage        = lazy(() => import('./pages/PrivacyPage'));
 const ContactPage        = lazy(() => import('./pages/ContactPage'));
@@ -151,6 +152,14 @@ export default function App() {
               element={
                 <SchoolSafeRoute>
                   <BillingPage />
+                </SchoolSafeRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <SchoolSafeRoute>
+                  <SettingsPage />
                 </SchoolSafeRoute>
               }
             />

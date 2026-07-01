@@ -1133,6 +1133,88 @@ async def me(current_user: dict = Depends(auth.get_current_user)):
     return safe_user
 
 
+@app.post("/api/voice/clone")
+async def clone_voice(request: Request, current_user: dict = Depends(auth.get_current_user)):
+    """Instant Voice Cloning via ElevenLabs. Receives an audio recording + explicit
+    consent, creates a cloned voice, and stores its voice_id on the user."""
+    el_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
+    if not el_key:
+        raise HTTPException(status_code=503, detail="Voice cloning is not configured")
+    form = await request.form()
+    if str(form.get("consent", "")).lower() not in ("true", "1", "on", "yes"):
+        raise HTTPException(status_code=400, detail="You must confirm consent to clone your voice")
+    audio = form.get("audio")
+    if audio is None or not hasattr(audio, "read"):
+        raise HTTPException(status_code=400, detail="No audio file provided")
+    audio_bytes = await audio.read()
+    if len(audio_bytes) < 20_000:
+        raise HTTPException(status_code=400, detail="Recording too short — please record 1-3 minutes of clear speech")
+
+    user_id = current_user["id"]
+    db_path = db.get_db_path()
+    voice_name = f"Zeus voice — {current_user.get('email', 'user')}"[:64]
+
+    # Replace any existing clone (best-effort delete of the old one on ElevenLabs).
+    old_voice_id = current_user.get("custom_voice_id")
+    if old_voice_id:
+        try:
+            requests.delete(f"https://api.elevenlabs.io/v1/voices/{old_voice_id}",
+                            headers={"xi-api-key": el_key}, timeout=20)
+        except Exception:
+            pass
+
+    try:
+        resp = requests.post(
+            "https://api.elevenlabs.io/v1/voices/add",
+            headers={"xi-api-key": el_key},
+            data={"name": voice_name, "description": "Personal narrator voice cloned in Zeus Beats"},
+            files=[("files", ("voice_sample.mp3", audio_bytes, getattr(audio, "content_type", None) or "audio/mpeg"))],
+            timeout=120,
+        )
+    except Exception as exc:
+        log.exception("voice clone: request to ElevenLabs failed user=%s", user_id)
+        raise HTTPException(status_code=502, detail=f"Voice cloning failed: {exc}")
+    if resp.status_code != 200:
+        log.error("voice clone: ElevenLabs HTTP %d user=%s body=%s", resp.status_code, user_id, resp.text[:300])
+        if resp.status_code in (401, 403):
+            raise HTTPException(status_code=502, detail="Voice cloning permission is missing on the ElevenLabs key — enable Voice Cloning in the ElevenLabs dashboard")
+        raise HTTPException(status_code=502, detail=f"Voice cloning failed ({resp.status_code})")
+    voice_id = resp.json().get("voice_id")
+    if not voice_id:
+        raise HTTPException(status_code=502, detail="ElevenLabs did not return a voice_id")
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute("UPDATE users SET custom_voice_id = ? WHERE id = ?", (voice_id, user_id))
+        conn.commit()
+    finally:
+        conn.close()
+    log.info("voice clone: user=%s voice_id=%s bytes=%d", user_id, voice_id, len(audio_bytes))
+    return {"ok": True, "custom_voice_id": voice_id}
+
+
+@app.delete("/api/voice/clone")
+async def delete_voice(current_user: dict = Depends(auth.get_current_user)):
+    """Remove the user's cloned voice (deletes it on ElevenLabs, clears the column)."""
+    el_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
+    user_id = current_user["id"]
+    voice_id = current_user.get("custom_voice_id")
+    if voice_id and el_key:
+        try:
+            requests.delete(f"https://api.elevenlabs.io/v1/voices/{voice_id}",
+                            headers={"xi-api-key": el_key}, timeout=20)
+        except Exception:
+            log.exception("voice delete: ElevenLabs delete failed (non-fatal) user=%s", user_id)
+    conn = sqlite3.connect(str(db.get_db_path()))
+    try:
+        conn.execute("UPDATE users SET custom_voice_id = NULL WHERE id = ?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    log.info("voice delete: user=%s cleared custom_voice_id", user_id)
+    return {"ok": True}
+
+
 @app.post("/api/auth/forgot-password")
 @limiter.limit("5/minute")
 async def forgot_password(request: Request, body: ForgotPasswordRequest):
@@ -2185,7 +2267,12 @@ async def songs_generate(
             raise HTTPException(status_code=500, detail="Story narration is unavailable right now — please try again")
         try:
             _story_text = lyric_result["lyrics"].strip()
-            _narrator_voice_id = _STORY_VOICES.get((body.accent or '').lower(), 'ZEt85AU1ui8Rr8FxNslW')
+            # "My Voice" narrator → the user's own cloned ElevenLabs voice.
+            if (body.accent or '').lower() == 'my_voice' and current_user.get('custom_voice_id'):
+                _narrator_voice_id = current_user['custom_voice_id']
+                log.info("story narration: using cloned voice_id=%s for user=%s", _narrator_voice_id, user_id)
+            else:
+                _narrator_voice_id = _STORY_VOICES.get((body.accent or '').lower(), 'ZEt85AU1ui8Rr8FxNslW')
             _char_voice_key  = (body.character_voice or '').lower()
             _child_voice_key = (body.child_voice or '').lower()
             _char_voice_id   = _STORY_VOICES.get(_char_voice_key,  _narrator_voice_id)
