@@ -9,6 +9,14 @@ import requests
 
 INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency', 'naturesounds', 'whalesong', 'cracklingfire'})
 
+# Genres that should render as pure sound (no music at all) — pushed via Suno negative_tags.
+_NATURE_SOUND_NEG = "music, instruments, melody, beat, rhythm, drums, bass"
+GENRE_NEGATIVE_TAGS: dict[str, str] = {
+    'naturesounds':  _NATURE_SOUND_NEG,
+    'whalesong':     _NATURE_SOUND_NEG,
+    'cracklingfire': _NATURE_SOUND_NEG,
+}
+
 GENRE_MODEL_OVERRIDES: dict[str, str] = {
     'ragga':       'V5_5',
     'bhangra':     'V5_5',
@@ -604,6 +612,11 @@ def generate_multiple_variants(
         if genre in INSTRUMENTAL_GENRES:
             genre_suno_params['instrumental'] = True
             logger.info("Forcing instrumental for genre=%r", genre)
+        _gneg = GENRE_NEGATIVE_TAGS.get(genre)
+        if _gneg:
+            _existing_neg = genre_suno_params.get('negative_tags')
+            genre_suno_params['negative_tags'] = (f"{_existing_neg}, {_gneg}" if _existing_neg else _gneg)[:500]
+            logger.info("Genre negative_tags for %r → %r", genre, genre_suno_params['negative_tags'])
         result = generate_song_variant(
             user_id=user_id,
             lyric_id=lyric_id,
