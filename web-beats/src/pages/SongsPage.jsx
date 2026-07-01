@@ -2973,11 +2973,11 @@ export default function SongsPage() {
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: genreBlend ? 14 : 0 }}>
                     <div
                       onClick={() => { setGenreBlend(v => !v); if (genreBlend) setGenreB(''); }}
-                      style={{ width: 36, height: 20, borderRadius: 10, background: genreBlend ? '#00f0ff' : 'rgba(255,255,255,0.08)', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}
+                      style={{ width: 36, height: 20, borderRadius: 10, background: genreBlend ? '#7c3aed' : 'rgba(255,255,255,0.08)', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}
                     >
-                      <div style={{ position: 'absolute', top: 3, left: genreBlend ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: genreBlend ? '#000' : '#fff', transition: 'left 0.2s' }} />
+                      <div style={{ position: 'absolute', top: 3, left: genreBlend ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
                     </div>
-                    <span style={{ fontSize: 12, color: genreBlend ? '#00f0ff' : '#555', fontWeight: 600 }}>Blend Genres</span>
+                    <span style={{ fontSize: 12, color: genreBlend ? '#c4b5fd' : '#555', fontWeight: 500 }}>Blend Genres</span>
                     {genreBlend && genreB && selGenres.size > 0 && (
                       <span style={{
                         marginLeft: 'auto', padding: '3px 10px', borderRadius: 20,
