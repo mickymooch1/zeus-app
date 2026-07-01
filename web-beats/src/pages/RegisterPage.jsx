@@ -46,9 +46,6 @@ export default function RegisterPage() {
     return errors;
   };
 
-  const canSubmit =
-    name.trim() && email && password.length >= 8 && password === confirmPassword;
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log('[RegisterPage] handleSubmit called', { email, name, tcAccepted });
@@ -207,7 +204,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             className="btn btn-primary btn-full"
-            disabled={!canSubmit || loading}
+            disabled={loading}
           >
             {loading ? <span className="spinner spinner--inline" /> : t('auth.register.submit')}
           </button>
