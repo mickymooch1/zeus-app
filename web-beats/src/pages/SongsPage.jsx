@@ -37,9 +37,9 @@ const _genreColorMap = Object.fromEntries(
   GENRE_CATEGORIES.flatMap(cat => cat.genres.map(g => [g, cat.color]))
 );
 const genreColor = (g) => {
-  if (!g) return '#94a3b8';
+  if (!g) return '#cccccc';
   const base = g.includes('__') ? g.split('__')[0] : g;
-  return _genreColorMap[base] || '#94a3b8';
+  return _genreColorMap[base] || '#cccccc';
 };
 const gLabel = (g) => {
   if (!g) return '';
@@ -984,7 +984,7 @@ const SongCard = memo(function SongCard({
                                 <a href={url} download style={{ color: '#a78bfa', fontSize: 18, textDecoration: 'none', flexShrink: 0 }} title="Download">⬇</a>
                               </>
                             ) : (
-                              <span style={{ color: '#555', fontSize: 12 }}>unavailable</span>
+                              <span style={{ color: '#cccccc', fontSize: 12 }}>unavailable</span>
                             )}
                           </div>
                         ))}
@@ -2358,7 +2358,7 @@ export default function SongsPage() {
 
         {!isAdmin && !credits.plan && !isIOSWebView && (
           <div style={{ background: 'rgba(0,240,255,0.04)', borderBottom: '1px solid rgba(0,240,255,0.08)', padding: '8px 24px', textAlign: 'center' }}>
-            <span style={{ fontSize: 12, color: '#555' }}>
+            <span style={{ fontSize: 12, color: '#cccccc' }}>
               {t('songs.upgradeBanner')}{' '}
               <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>→ {t('songs.viewPlans')}</Link>
             </span>
@@ -2523,7 +2523,7 @@ export default function SongsPage() {
             <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f0eeff', marginBottom: 4 }}>
               {t('songs.pageTitle')}
             </h1>
-            <p style={{ color: '#555', fontSize: 14, marginBottom: 14 }}>
+            <p style={{ color: '#cccccc', fontSize: 14, marginBottom: 14 }}>
               {useCustomLyrics ? t('songs.subtitleOwn') : t('songs.subtitleAI')}
             </p>
 
@@ -2713,7 +2713,7 @@ export default function SongsPage() {
               }}
             />
 
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>
               {t('songs.styleLabel')}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
@@ -2804,7 +2804,7 @@ export default function SongsPage() {
                   }}
                 />
                 {artistLoading && (
-                  <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#555' }}>
+                  <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#cccccc' }}>
                     ···
                   </span>
                 )}
@@ -2843,7 +2843,7 @@ export default function SongsPage() {
                 animation: 'advGlow 2.5s ease-in-out infinite',
               }}>
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.vocalGenderLabel')}</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.vocalGenderLabel')}</p>
                   <div style={{ display: 'flex', gap: 6 }}>
                     {[['', t('songs.vocalEither')], ['m', t('songs.vocalMale')], ['f', t('songs.vocalFemale')], ['duet', t('songs.vocalDuet')]].map(([val, label]) => (
                       <button
@@ -2853,7 +2853,7 @@ export default function SongsPage() {
                           padding: '5px 12px', borderRadius: 6,
                           border: `1px solid ${vocalGender === val ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`,
                           background: vocalGender === val ? 'rgba(167,139,250,0.15)' : 'transparent',
-                          color: vocalGender === val ? '#c4b5fd' : '#555',
+                          color: vocalGender === val ? '#c4b5fd' : '#cccccc',
                           fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
                         }}
                       >{label}</button>
@@ -2862,11 +2862,11 @@ export default function SongsPage() {
                 </div>
 
                 {!['meditation','healingfrequency'].some(g => selGenres.has(g)) && <div>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.accentLabel')}</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.accentLabel')}</p>
                   <select
                     value={accent}
                     onChange={(e) => setAccent(e.target.value)}
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: accent ? '#c4b5fd' : '#555', fontSize: 13, outline: 'none' }}
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: accent ? '#c4b5fd' : '#cccccc', fontSize: 13, outline: 'none' }}
                   >
                     <option value="">🎤 Auto (matches your genre)</option>
                     {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish','American Soul','Jamaican','D&B MC','UK Rave MC','British MC Grime','Jazz Vocal','American Hip-Hop','K-Pop','West African','South African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta','West Coast G-Funk','British Street Soul'].map((a) => (
@@ -2939,11 +2939,11 @@ export default function SongsPage() {
                       <option value="Brazilian Portuguese">🇧🇷 Brazilian Portuguese</option>
                     </optgroup>
                   </select>
-                  <p style={{ fontSize: 11, color: '#555', marginTop: 5 }}>Leave on Auto to let Zeus match the accent to your genre</p>
+                  <p style={{ fontSize: 11, color: '#cccccc', marginTop: 5 }}>Leave on Auto to let Zeus match the accent to your genre</p>
                 </div>}
 
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.modelLabel')}</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.modelLabel')}</p>
                   <select
                     value={modelVersion}
                     onChange={(e) => setModelVersion(e.target.value)}
@@ -2956,7 +2956,7 @@ export default function SongsPage() {
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>{t('songs.negativeTagsLabel')}</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>{t('songs.negativeTagsLabel')}</p>
                   <input
                     type="text"
                     maxLength={500}
@@ -2977,7 +2977,7 @@ export default function SongsPage() {
                     >
                       <div style={{ position: 'absolute', top: 3, left: genreBlend ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
                     </div>
-                    <span style={{ fontSize: 12, color: genreBlend ? '#c4b5fd' : '#555', fontWeight: 500 }}>Blend Genres</span>
+                    <span style={{ fontSize: 12, color: genreBlend ? '#c4b5fd' : '#cccccc', fontWeight: 500 }}>Blend Genres</span>
                     {genreBlend && genreB && selGenres.size > 0 && (
                       <span style={{
                         marginLeft: 'auto', padding: '3px 10px', borderRadius: 20,
@@ -2994,11 +2994,11 @@ export default function SongsPage() {
 
                   {genreBlend && (
                     <div style={{ paddingLeft: 46 }}>
-                      <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>Genre B</p>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>Genre B</p>
                       <select
                         value={genreB}
                         onChange={e => setGenreB(e.target.value)}
-                        style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: genreB ? '#00f0ff' : '#555', fontSize: 13, outline: 'none', marginBottom: genreB ? 14 : 0 }}
+                        style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: genreB ? '#00f0ff' : '#cccccc', fontSize: 13, outline: 'none', marginBottom: genreB ? 14 : 0 }}
                       >
                         <option value="">Pick a second genre…</option>
                         {GENRES.filter(g => !selGenres.has(g)).map(g => (
@@ -3010,7 +3010,7 @@ export default function SongsPage() {
                         <>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                             <span style={{ fontSize: 12, color: '#00f0ff', fontWeight: 600 }}>{selGenres.size > 0 ? gLabel([...selGenres][0]) : 'Genre A'}</span>
-                            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{100 - blendRatio}% / {blendRatio}%</span>
+                            <span style={{ fontSize: 11, color: '#cccccc' }}>{100 - blendRatio}% / {blendRatio}%</span>
                             <span style={{ fontSize: 12, color: '#f472b6', fontWeight: 600 }}>{gLabel(genreB)}</span>
                           </div>
                           <input
@@ -3025,7 +3025,7 @@ export default function SongsPage() {
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.tempoLabel')}</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.tempoLabel')}</p>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                     {[['', t('songs.tempoDefault')], ['slow', t('songs.tempoSlow')], ['medium', t('songs.tempoMedium')], ['fast', t('songs.tempoFast')], ['custom', t('songs.tempoCustom')]].map(([val, label]) => (
                       <button
@@ -3035,7 +3035,7 @@ export default function SongsPage() {
                           padding: '5px 12px', borderRadius: 6,
                           border: `1px solid ${tempo === val ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`,
                           background: tempo === val ? 'rgba(167,139,250,0.15)' : 'transparent',
-                          color: tempo === val ? '#c4b5fd' : '#555',
+                          color: tempo === val ? '#c4b5fd' : '#cccccc',
                           fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
                         }}
                       >{label}</button>
@@ -3070,7 +3070,7 @@ export default function SongsPage() {
                             padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', transition: 'all 0.15s',
                             border: `1px solid ${healingFrequency === hz ? '#e2e8f0' : 'rgba(255,255,255,0.08)'}`,
                             background: healingFrequency === hz ? 'rgba(226,232,240,0.12)' : 'transparent',
-                            color: healingFrequency === hz ? '#e2e8f0' : '#555',
+                            color: healingFrequency === hz ? '#e2e8f0' : '#cccccc',
                           }}
                         >{label}</button>
                       ))}
@@ -3094,7 +3094,7 @@ export default function SongsPage() {
                           borderRadius: 20,
                           border: `1px solid ${vocalMode === value ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`,
                           background: vocalMode === value ? 'rgba(167,139,250,0.15)' : 'transparent',
-                          color: vocalMode === value ? '#c4b5fd' : '#555',
+                          color: vocalMode === value ? '#c4b5fd' : '#cccccc',
                           fontSize: 12,
                           fontWeight: 500,
                           cursor: 'pointer',
@@ -3114,7 +3114,7 @@ export default function SongsPage() {
                       >
                         <div style={{ position: 'absolute', top: 3, left: animateCoverPref ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
                       </div>
-                      <span style={{ fontSize: 12, color: animateCoverPref ? '#c4b5fd' : '#555', fontWeight: 500 }}>
+                      <span style={{ fontSize: 12, color: animateCoverPref ? '#c4b5fd' : '#cccccc', fontWeight: 500 }}>
                         {animateCoverPref ? t('songs.animatedCoverOn') : t('songs.animatedCoverOff')}
                       </span>
                     </label>
@@ -3137,7 +3137,7 @@ export default function SongsPage() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <p style={{ margin: '0 0 6px', fontWeight: 700, color: '#e2e8f0', fontSize: 15 }}>Enter PIN to enable explicit content</p>
-                      <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 12 }}>Default PIN is 1234. Change in settings.</p>
+                      <p style={{ margin: '0 0 16px', color: '#cccccc', fontSize: 12 }}>Default PIN is 1234. Change in settings.</p>
                       <input
                         type="password"
                         inputMode="numeric"
@@ -3151,7 +3151,7 @@ export default function SongsPage() {
                       />
                       {pinError && <p style={{ color: '#f87171', fontSize: 12, margin: '8px 0 0' }}>{pinError}</p>}
                       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-                        <button onClick={() => { setPinModalOpen(false); setPinError(''); setPinInput(''); }} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: 14 }}>Cancel</button>
+                        <button onClick={() => { setPinModalOpen(false); setPinError(''); setPinInput(''); }} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#cccccc', cursor: 'pointer', fontSize: 14 }}>Cancel</button>
                         <button onClick={handlePinSubmit} style={{ flex: 1, padding: 10, borderRadius: 8, border: 'none', background: '#7c3aed', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>Unlock</button>
                       </div>
                     </div>
@@ -3168,7 +3168,7 @@ export default function SongsPage() {
                       >
                         <div style={{ position: 'absolute', top: 3, left: explicit ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
                       </div>
-                      <span style={{ fontSize: 12, color: explicit ? '#c4b5fd' : '#555', fontWeight: 500 }}>{t('songs.explicitLabel')}</span>
+                      <span style={{ fontSize: 12, color: explicit ? '#c4b5fd' : '#cccccc', fontWeight: 500 }}>{t('songs.explicitLabel')}</span>
                     </label>
                     {explicit && (
                       <p style={{ fontSize: 11, color: '#f87171', marginTop: 8, lineHeight: 1.5 }}>
@@ -3749,7 +3749,7 @@ export default function SongsPage() {
                     padding: '6px 12px', borderRadius: 20, fontSize: 13, cursor: 'pointer', flexShrink: 0,
                     border: `1px solid ${activeTab === tab ? 'rgba(0,240,255,0.5)' : 'rgba(255,255,255,0.1)'}`,
                     background: activeTab === tab ? 'rgba(0,240,255,0.1)' : 'transparent',
-                    color: activeTab === tab ? '#00f0ff' : '#555',
+                    color: activeTab === tab ? '#00f0ff' : '#cccccc',
                     fontWeight: activeTab === tab ? 600 : 400,
                     transition: 'all 0.15s', whiteSpace: 'nowrap',
                   }}
@@ -3776,7 +3776,7 @@ export default function SongsPage() {
 
               {/* Search bar */}
               <div style={{ position: 'relative', marginBottom: 18 }}>
-                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none', color: '#555' }}>🔍</span>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none', color: '#cccccc' }}>🔍</span>
                 <input
                   className="songs-search-input"
                   type="text"
@@ -3799,7 +3799,7 @@ export default function SongsPage() {
                     onClick={() => setSearch('')}
                     style={{
                       position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                      background: 'none', border: 'none', color: '#555', fontSize: 16,
+                      background: 'none', border: 'none', color: '#cccccc', fontSize: 16,
                       cursor: 'pointer', padding: '0 4px', lineHeight: 1,
                     }}
                     title="Clear search"
@@ -3818,7 +3818,7 @@ export default function SongsPage() {
                 </p>
               )}
               {search && tabFilteredLibrary.length === 0 && (
-                <p style={{ color: '#555', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>
+                <p style={{ color: '#cccccc', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>
                   No songs found for &ldquo;{search}&rdquo;
                 </p>
               )}
@@ -3918,7 +3918,7 @@ export default function SongsPage() {
           {!activeJob && filteredLibrary.length === 0 && (
             <div style={{ textAlign: 'center', padding: '80px 0' }}>
               <div style={{ fontSize: 56, marginBottom: 16, opacity: 0.15 }}>♫</div>
-              <p style={{ fontSize: 15, color: '#555' }}>
+              <p style={{ fontSize: 15, color: '#cccccc' }}>
                 {isOnline
                   ? t('songs.emptySongs')
                   : 'No songs saved yet. Go online to save songs for offline playback.'}
@@ -3977,8 +3977,8 @@ export default function SongsPage() {
         <div onClick={() => setYtModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#12121e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '28px 28px 24px', width: '100%', maxWidth: 380 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2d9f3', marginBottom: 6 }}>{t('songs.ytModal.title')}</h3>
-            <p style={{ fontSize: 13, color: '#555', marginBottom: 20 }}>{ytModal.title || `Song #${ytModal.variant_id}`}</p>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>{t('songs.ytModal.privacyLabel')}</label>
+            <p style={{ fontSize: 13, color: '#cccccc', marginBottom: 20 }}>{ytModal.title || `Song #${ytModal.variant_id}`}</p>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>{t('songs.ytModal.privacyLabel')}</label>
             <select
               value={ytPrivacy}
               onChange={(e) => setYtPrivacy(e.target.value)}
@@ -4000,8 +4000,8 @@ export default function SongsPage() {
         <div onClick={() => { setRemakeModal(null); setRemakeGenre(''); setRemakeStyle(''); setRemakeError(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#0d0d14', border: '1px solid rgba(0,240,255,0.2)', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: 17, fontWeight: 800, color: '#f0eeff', marginBottom: 4 }}>{t('songs.remakeModal.title')}</h3>
-            <p style={{ fontSize: 13, color: '#555', marginBottom: 22 }}>{remakeModal.title || `Song #${remakeModal.variantId}`}</p>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>{t('songs.remakeModal.genreLabel')}</p>
+            <p style={{ fontSize: 13, color: '#cccccc', marginBottom: 22 }}>{remakeModal.title || `Song #${remakeModal.variantId}`}</p>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>{t('songs.remakeModal.genreLabel')}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
               {GENRE_CATEGORIES.map(cat => {
                 const open = remakeOpenCats.has(cat.id);
@@ -4063,12 +4063,12 @@ export default function SongsPage() {
                 );
               })}
             </div>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.remakeModal.styleNoteLabel')}</p>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.remakeModal.styleNoteLabel')}</p>
             <input type="text" value={remakeStyle} onChange={(e) => setRemakeStyle(e.target.value)}
               placeholder={t('songs.remakeModal.stylePlaceholder')}
               style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 12px', color: '#f0eeff', fontSize: 13, fontFamily: 'inherit', outline: 'none', marginBottom: 20 }}
             />
-            {!isAdmin && <p style={{ fontSize: 12, color: '#555', marginBottom: 16 }}>{t('songs.remakeModal.creditInfo', { balance: credits.balance })}</p>}
+            {!isAdmin && <p style={{ fontSize: 12, color: '#cccccc', marginBottom: 16 }}>{t('songs.remakeModal.creditInfo', { balance: credits.balance })}</p>}
             {remakeError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '8px 12px', color: '#fca5a5', fontSize: 12, marginBottom: 14 }}>{remakeError}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => { setRemakeModal(null); setRemakeGenre(''); setRemakeStyle(''); setRemakeError(''); }} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>{t('songs.remakeModal.cancel')}</button>
@@ -4084,7 +4084,7 @@ export default function SongsPage() {
         <div onClick={closeAvatarModal} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#12121e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '28px 28px 24px', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2d9f3', marginBottom: 4 }}>{t('songs.avatarModal.title')}</h3>
-            <p style={{ fontSize: 13, color: '#555', marginBottom: 16 }}>{t('songs.avatarModal.desc')}</p>
+            <p style={{ fontSize: 13, color: '#cccccc', marginBottom: 16 }}>{t('songs.avatarModal.desc')}</p>
             <p style={{ fontSize: 12, color: '#4a4a6a', background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.12)', borderRadius: 8, padding: '8px 12px', marginBottom: 20, lineHeight: 1.5 }}>
               {t('songs.avatarModal.tip')}
             </p>
@@ -4119,7 +4119,7 @@ export default function SongsPage() {
             )}
 
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, marginBottom: 24 }}>
-              <p style={{ fontSize: 12, color: '#555', marginBottom: 10 }}>{t('songs.avatarModal.uploadDesc')}</p>
+              <p style={{ fontSize: 12, color: '#cccccc', marginBottom: 10 }}>{t('songs.avatarModal.uploadDesc')}</p>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                 <button
                   onClick={() => photoInputRef.current?.click()}
@@ -4138,7 +4138,7 @@ export default function SongsPage() {
             </div>
 
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, marginBottom: 24 }}>
-              <p style={{ fontSize: 11, fontWeight: 600, color: '#555', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>{t('songs.avatarModal.generateAI')}</p>
+              <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>{t('songs.avatarModal.generateAI')}</p>
               {portraitTimedOut ? (
                 <div>
                   <p style={{ fontSize: 13, color: '#f87171', marginBottom: 10 }}>{t('songs.avatarModal.timeout')}</p>
@@ -4154,7 +4154,7 @@ export default function SongsPage() {
                   </button>
                   <div>
                     <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.25)', borderRadius: 4, padding: '2px 7px', letterSpacing: '0.3px', textTransform: 'uppercase', marginBottom: 6 }}>AI Generated</span>
-                    <p style={{ fontSize: 12, color: '#555', margin: '0 0 4px' }}>{selectedAvatarUrl === portraitImageUrl ? t('songs.avatarModal.selected') : t('songs.avatarModal.clickSelect')}</p>
+                    <p style={{ fontSize: 12, color: '#cccccc', margin: '0 0 4px' }}>{selectedAvatarUrl === portraitImageUrl ? t('songs.avatarModal.selected') : t('songs.avatarModal.clickSelect')}</p>
                     <button onClick={() => { if (selectedAvatarUrl === portraitImageUrl) setSelectedAvatarUrl(null); setPortraitImageUrl(null); setPortraitJobId(null); }} style={{ fontSize: 11, color: '#444', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>{t('songs.avatarModal.regenerate')}</button>
                   </div>
                 </div>
@@ -4199,10 +4199,10 @@ export default function SongsPage() {
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, background: 'linear-gradient(90deg,#00f0ff,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 🎤 Cover This Song
               </h2>
-              <button onClick={() => setCoverModal(null)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#94a3b8', fontSize: 13, cursor: 'pointer', padding: '4px 9px' }}>✕</button>
+              <button onClick={() => setCoverModal(null)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#cccccc', fontSize: 13, cursor: 'pointer', padding: '4px 9px' }}>✕</button>
             </div>
 
-            <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#94a3b8', lineHeight: 1.5 }}>
+            <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#cccccc', lineHeight: 1.5 }}>
               Zeus will create a <strong style={{ color: '#e2e8f0' }}>new song</strong> in the same style as this one but with your lyrics. It won't be an exact overlay on the original beat — think of it like a <strong style={{ color: '#e2e8f0' }}>cover version</strong> inspired by this track.
             </div>
 
@@ -4214,7 +4214,7 @@ export default function SongsPage() {
               maxLength={3000}
               style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e2e8f0', fontSize: 13, padding: '10px 12px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8 }}
             />
-            <div style={{ fontSize: 11, color: '#475569', textAlign: 'right', marginBottom: 12 }}>{coverLyrics.length}/3000 · costs 1 song credit</div>
+            <div style={{ fontSize: 11, color: '#cccccc', textAlign: 'right', marginBottom: 12 }}>{coverLyrics.length}/3000 · costs 1 song credit</div>
 
             {coverError && <p style={{ color: '#f87171', fontSize: 13, margin: '0 0 10px' }}>{coverError}</p>}
 
@@ -4240,13 +4240,13 @@ export default function SongsPage() {
             style={{ background: '#12121e', border: '1px solid rgba(0,240,255,0.25)', borderRadius: 16, padding: '24px 24px 28px', maxWidth: 420, width: '100%', textAlign: 'center' }}
           >
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setUpgradeFeature(null)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#94a3b8', fontSize: 13, cursor: 'pointer', padding: '4px 9px' }}>✕</button>
+              <button onClick={() => setUpgradeFeature(null)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#cccccc', fontSize: 13, cursor: 'pointer', padding: '4px 9px' }}>✕</button>
             </div>
             <div style={{ fontSize: 40, marginBottom: 10 }}>{UPGRADE_FEATURES[upgradeFeature].icon}</div>
             <h2 style={{ margin: '0 0 10px', fontSize: 20, fontWeight: 800, color: '#e2e8f0' }}>
               {UPGRADE_FEATURES[upgradeFeature].title}
             </h2>
-            <p style={{ margin: '0 0 20px', color: '#94a3b8', fontSize: 14, lineHeight: 1.6 }}>
+            <p style={{ margin: '0 0 20px', color: '#cccccc', fontSize: 14, lineHeight: 1.6 }}>
               {UPGRADE_FEATURES[upgradeFeature].desc}
             </p>
             {isIOSWebView ? (
