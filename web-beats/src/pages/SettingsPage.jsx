@@ -100,7 +100,7 @@ export default function SettingsPage() {
 
   return (
     <div style={{ maxWidth: 560, margin: '0 auto', padding: '24px 20px', color: '#e2e8f0' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 20 }}>⚙️ Settings</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 20 }}>🎙️ Voice</h1>
       <div className="voice-clone-section" style={{ background: '#12121e', border: '1px solid rgba(0,240,255,0.2)', borderRadius: 16, padding: 24 }}>
         <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 6px' }}>🎙️ Clone Your Voice</h3>
         <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>

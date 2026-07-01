@@ -43,7 +43,7 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
     { to: '/playlists', label: '🎵 Playlists' },
     { to: '/mixer',     label: `🎛️ ${t('nav.mixer')}` },
     { to: '/billing',   label: `💳 ${t('nav.billing')}` },
-    { to: '/settings',  label: '⚙️ Settings' },
+    { to: '/settings',  label: '🎙️ Voice' },
     { to: '/tutorial',  label: '📖 Tutorial' },
     { to: '/contact',   label: `✉️ ${t('nav.contact')}` },
   ];

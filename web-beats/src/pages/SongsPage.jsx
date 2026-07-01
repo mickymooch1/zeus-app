@@ -109,6 +109,11 @@ const PAGE_CSS = `
 .genre-pill--sel:hover { opacity: 0.88 !important; }
 @keyframes favToastFade { 0% { opacity:0 } 10% { opacity:1 } 70% { opacity:1 } 100% { opacity:0 } }
 .adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 28px; }
+/* Advanced options — labels/hints/inactive states were #555 (unreadable on the dark panel). Force legible text; !important beats the inline styles. Active buttons stay indicated by their bg + border. */
+.adv-grid p, .adv-grid label { color: #cccccc !important; }
+.adv-grid button { color: #dddddd !important; }
+.adv-grid input, .adv-grid textarea, .adv-grid select { color: #ffffff !important; }
+.adv-grid select option { color: #111111; }
 @media (max-width: 599px) {
   .adv-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
   .adv-grid > * { grid-column: auto !important; }
