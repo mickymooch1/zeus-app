@@ -2425,6 +2425,63 @@ async def songs_generate(
             "story_audio_url": story_audio_url,
         }
 
+    # SOUND-EFFECT GENRES — pure ElevenLabs sound effects, do NOT call Suno.
+    # (Suno adds music to everything; these need pure ambient sound.)
+    import sound_effects as _sfx_mod
+    _sfx_genre = next((g for g in list(body.genres) if g in _sfx_mod.SFX_GENRES), None)
+    if _sfx_genre:
+        _pub_base = os.environ.get("SONG_PUBLIC_BASE_URL", "").rstrip("/")
+        _storage = os.environ.get("SONG_STORAGE_PATH", "/data/songs")
+        _is_admin_sfx = bool(current_user.get("is_admin", 0))
+        _sfx_conn = sqlite3.connect(str(db_path))
+        try:
+            if not _is_admin_sfx:
+                _sfx_conn.execute("UPDATE song_credits SET balance = balance - 1 WHERE user_id = ?", (user_id,))
+            _sfx_conn.execute(
+                "INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover) "
+                "VALUES (?, ?, ?, ?, 'pending', 1, 0)",
+                (lyric_id, user_id, _sfx_mod.sfx_prompt(_sfx_genre, body.brief or ""), _sfx_genre),
+            )
+            _sfx_vid = _sfx_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            _sfx_conn.commit()
+        finally:
+            _sfx_conn.close()
+        try:
+            _sfx_out = os.path.join(_storage, f"{_sfx_vid}.mp3")
+            _sfx_dur = _sfx_mod.generate_looped_sfx(_sfx_genre, body.brief or "", _sfx_out)
+        except Exception as exc:
+            log.exception("SFX generation FAILED variant_id=%d genre=%r", _sfx_vid, _sfx_genre)
+            _fc = sqlite3.connect(str(db_path))
+            try:
+                _fc.execute("UPDATE song_variants SET status='failed' WHERE id=?", (_sfx_vid,))
+                if not _is_admin_sfx:
+                    _fc.execute("UPDATE song_credits SET balance = balance + 1 WHERE user_id = ?", (user_id,))
+                _fc.commit()
+            finally:
+                _fc.close()
+            raise HTTPException(status_code=502, detail=f"Sound generation failed: {exc}")
+        _sfx_url = f"{_pub_base}/{_sfx_vid}.mp3"
+        _sfx_cover = None
+        try:
+            _sfx_cover = _webhooks_mod._generate_flux_cover(_sfx_vid, _sfx_genre, lyric_result["title"], "", _sfx_mod.sfx_prompt(_sfx_genre))
+        except Exception:
+            log.exception("SFX: cover art failed variant_id=%d", _sfx_vid)
+        _uc = sqlite3.connect(str(db_path))
+        try:
+            _uc.execute(
+                "UPDATE song_variants SET status='complete', mp3_url=?, duration_seconds=?, image_url=?, completed_at=CURRENT_TIMESTAMP WHERE id=?",
+                (_sfx_url, _sfx_dur, _sfx_cover, _sfx_vid),
+            )
+            _uc.commit()
+        finally:
+            _uc.close()
+        log.info("SFX MODE: Suno skipped. variant_id=%d genre=%r duration=%ds url=%s", _sfx_vid, _sfx_genre, _sfx_dur, _sfx_url)
+        return {
+            "lyric_id": lyric_id,
+            "title": lyric_result["title"],
+            "variants": [{"variant_id": _sfx_vid, "genre": _sfx_genre, "status": "complete"}],
+        }
+
     # Build extra sunoParams from advanced controls
     _MODEL_VERSION_MAP = {
         "V4.5": "V4_5",
