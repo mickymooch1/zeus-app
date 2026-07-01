@@ -38,6 +38,7 @@ SFX_GENRES = frozenset(SFX_PROMPTS.keys())
 _ELEVEN_SFX_URL = "https://api.elevenlabs.io/v1/sound-generation"
 _CLIP_SECONDS = 30       # ElevenLabs max per generation (v2)
 _TARGET_SECONDS = 180    # loop up to ~3 minutes
+_XFADE = 3               # seconds of crossfade at every loop join (1s was too short — drone leaked through)
 
 
 def sfx_prompt(genre: str, brief: str = "") -> str:
@@ -94,11 +95,13 @@ def generate_looped_sfx(genre: str, brief: str, out_path: str) -> int:
             fh.write(resp.content)
             tmp = fh.name
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        # Loop to target length with a 1s CROSSFADE at every join (acrossfade) so there
+        # Loop to target length with a {_XFADE}s CROSSFADE at every join (acrossfade) so there
         # is no click/drone at the loop point. A hard -stream_loop leaves an audible seam
         # because the clip's end doesn't match its start; a plain afade only softens the
         # overall start/end, not the internal joins. We overlap-blend N copies instead.
-        n_copies = (_TARGET_SECONDS // _CLIP_SECONDS) + 2  # enough to exceed target, then -t trims
+        # A 1s crossfade wasn't long enough to mask the seam — 2-3s does.
+        # Each copy after the first adds (_CLIP_SECONDS - _XFADE)s of new audio.
+        n_copies = (_TARGET_SECONDS // (_CLIP_SECONDS - _XFADE)) + 2  # exceed target, then -t trims
         inputs = []
         for _ in range(n_copies):
             inputs += ["-i", tmp]
@@ -106,7 +109,7 @@ def generate_looped_sfx(genre: str, brief: str, out_path: str) -> int:
         filt = ""
         for i in range(1, n_copies):
             lbl = f"[a{i}]"
-            filt += f"{prev}[{i}]acrossfade=d=1:c1=tri:c2=tri{lbl};"
+            filt += f"{prev}[{i}]acrossfade=d={_XFADE}:c1=tri:c2=tri{lbl};"
             prev = lbl
         filt = filt.rstrip(";")
         subprocess.run(
