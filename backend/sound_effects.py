@@ -65,6 +65,20 @@ def generate_looped_sfx(genre: str, brief: str, out_path: str) -> int:
     if len(resp.content) < 5000:
         raise RuntimeError(f"ElevenLabs sound-generation returned tiny payload ({len(resp.content)} bytes)")
 
+    # DEBUG: save the RAW 30s ElevenLabs clip (BEFORE any ffmpeg looping) next to the
+    # output so we can listen and tell whether the drone is baked into ElevenLabs' audio
+    # or introduced by the loop. Served at {SONG_PUBLIC_BASE_URL}/<name>_raw.mp3.
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    raw_path = (out_path[:-4] if out_path.endswith(".mp3") else out_path) + "_raw.mp3"
+    try:
+        with open(raw_path, "wb") as rf:
+            rf.write(resp.content)
+        _pub = os.environ.get("SONG_PUBLIC_BASE_URL", "").rstrip("/")
+        logger.info("SFX RAW clip (pre-loop) saved: %s  →  %s/%s  (%d bytes) — listen to check for baked-in drone",
+                    raw_path, _pub, os.path.basename(raw_path), len(resp.content))
+    except Exception:
+        logger.exception("SFX: failed to save raw debug clip")
+
     tmp = None
     try:
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as fh:
