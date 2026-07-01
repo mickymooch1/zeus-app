@@ -71,10 +71,24 @@ def generate_looped_sfx(genre: str, brief: str, out_path: str) -> int:
             fh.write(resp.content)
             tmp = fh.name
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        # Loop the 30s clip to target length (re-encode; -c copy is unreliable with loop).
+        # Loop to target length with a 1s CROSSFADE at every join (acrossfade) so there
+        # is no click/drone at the loop point. A hard -stream_loop leaves an audible seam
+        # because the clip's end doesn't match its start; a plain afade only softens the
+        # overall start/end, not the internal joins. We overlap-blend N copies instead.
+        n_copies = (_TARGET_SECONDS // _CLIP_SECONDS) + 2  # enough to exceed target, then -t trims
+        inputs = []
+        for _ in range(n_copies):
+            inputs += ["-i", tmp]
+        prev = "[0]"
+        filt = ""
+        for i in range(1, n_copies):
+            lbl = f"[a{i}]"
+            filt += f"{prev}[{i}]acrossfade=d=1:c1=tri:c2=tri{lbl};"
+            prev = lbl
+        filt = filt.rstrip(";")
         subprocess.run(
-            ["ffmpeg", "-y", "-stream_loop", "-1", "-i", tmp, "-t", str(_TARGET_SECONDS),
-             "-c:a", "libmp3lame", "-b:a", "192k", out_path],
+            ["ffmpeg", "-y", *inputs, "-filter_complex", filt, "-map", prev,
+             "-t", str(_TARGET_SECONDS), "-c:a", "libmp3lame", "-b:a", "192k", out_path],
             check=True, capture_output=True,
         )
     finally:
