@@ -7,7 +7,7 @@ import time
 import threading
 import requests
 
-INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency'})
+INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency', 'naturesounds', 'whalesong', 'cracklingfire'})
 
 GENRE_MODEL_OVERRIDES: dict[str, str] = {
     'ragga':       'V5_5',
