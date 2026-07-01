@@ -42,7 +42,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'pop',        label: '🎶 Pop & Hip Hop',       color: '#f472b6',
     genres: ['pop','trap','eastcoasthiphop','poprap','kpop','hiphop'] },
   { id: 'chill',      label: '🧘 Chill & Wellness',    color: '#e2e8f0',
-    genres: ['lofi','meditation','ambient','healingfrequency','naturesounds','whalesong','cracklingfire','classical','acoustic','jazz','irishfolk','irishjig','christmas'] },
+    genres: ['lofi','meditation','ambient','healingfrequency','naturesounds','whalesong','cracklingfire','thunderstorm','oceanwaves','forest','nightsounds','classical','acoustic','jazz','irishfolk','irishjig','christmas'] },
 ];
 
 const GENRE_LABEL: Record<string, string> = {
@@ -60,7 +60,7 @@ const GENRE_LABEL: Record<string, string> = {
   traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap',
   eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave',
   gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', ambient:'Ambient', christmas:'Christmas',
-  corridos:'Corridos', healingfrequency:'Healing Frequencies', naturesounds:'Nature Sounds', whalesong:'Whale Song', cracklingfire:'Crackling Fire', purebassline:'Pure Bassline',
+  corridos:'Corridos', healingfrequency:'Healing Frequencies', naturesounds:'Nature Sounds', whalesong:'Whale Song', cracklingfire:'Crackling Fire', thunderstorm:'Thunderstorm', oceanwaves:'Ocean Waves', forest:'Forest', nightsounds:'Night Sounds', purebassline:'Pure Bassline',
   niche:'Niche', amapiano:'Amapiano', hyperpop:'Hyperpop', techno:'Techno',
   indie:'Indie', acoustic:'Acoustic', country:'Country', classical:'Classical',
   blues:'Blues', soul:'Soul', reggae:'Reggae', pop:'Pop',

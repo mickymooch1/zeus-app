@@ -98,6 +98,10 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "naturesounds":     "serene nature soundscape album cover, misty rainforest with gentle rainfall, soft dawn light through lush green trees, a calm winding stream, tranquil natural landscape, no people, deeply calming atmosphere, ultra detailed professional music artwork, NOT dark or intense",
     "whalesong":        "deep ocean album cover, majestic humpback whale gliding through deep blue sea, ethereal rays of sunlight through the water, serene underwater depths, calming oceanic atmosphere, no people, tranquil aesthetic, ultra detailed professional music artwork, NOT dark or intense",
     "cracklingfire":    "cosy fireplace album cover, warm crackling fire in a stone hearth, soft golden glow, comfortable winter cabin interior, blankets and gentle warm light, tranquil relaxing atmosphere, no people, ultra detailed professional music artwork, NOT dark or intense",
+    "thunderstorm":     "dramatic thunderstorm album cover, dark storm clouds with forked lightning over a moody landscape, heavy rain, cinematic stormy atmosphere, no people, ultra detailed professional music artwork",
+    "oceanwaves":       "serene ocean album cover, gentle waves rolling onto a golden sandy beach at sunset, soft sea foam, distant horizon, calming coastal atmosphere, no people, ultra detailed professional music artwork, NOT dark or intense",
+    "forest":           "lush forest album cover, sunlight streaming through tall green trees, a clear stream, mossy woodland, tranquil natural atmosphere, no people, ultra detailed professional music artwork, NOT dark or intense",
+    "nightsounds":      "peaceful moonlit night album cover, calm countryside under a starry sky, soft moonlight, silhouetted trees, serene nocturnal atmosphere, no people, ultra detailed professional music artwork, NOT dark or intense",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"

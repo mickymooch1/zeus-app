@@ -17,16 +17,21 @@ import requests
 
 logger = logging.getLogger("zeus.sound_effects")
 
-# Genres routed to ElevenLabs SFX instead of Suno.
-SFX_GENRES = frozenset({"naturesounds", "whalesong", "cracklingfire"})
-
-# Clean sound-only prompts (the Suno style strings are music-oriented; ElevenLabs
-# wants a plain description of the sound).
+# Rich, layered sound-only prompts (the Suno style strings are music-oriented;
+# ElevenLabs wants a detailed description of the FULL soundscape — one element per
+# comma so it layers thunder + birds + wind etc rather than a single flat texture).
 SFX_PROMPTS = {
-    "naturesounds":  "steady gentle rainfall with distant rolling thunder, forest birds and soft wind through trees, calming natural ambience, no music, no instruments",
-    "whalesong":     "humpback whale song calls with deep underwater ocean ambience, gentle currents, no music, no instruments",
-    "cracklingfire": "a cosy crackling wood fireplace, fire gently popping and crackling, warm hearth ambience, no music, no instruments",
+    "naturesounds":  "heavy rainfall on leaves and grass, distant rolling thunder rumbling, occasional thunder crack, wind through trees, birds sheltering, puddles splashing, rich layered nature soundscape, no music",
+    "cracklingfire": "wood crackling and popping in a stone fireplace, occasional log shift, fire hissing, embers glowing, warm hearth sounds, cosy indoor winter atmosphere, no music",
+    "whalesong":     "humpback whale long mournful calls, deep underwater ocean ambience, distant whale song echoing, bubbles rising, deep ocean pressure, ethereal whale communication, no music",
+    "thunderstorm":  "heavy driving rainfall, frequent loud thunder cracks and long rolling thunder rumbles, storm wind gusting, rain hammering on rooftops and puddles, powerful dramatic thunderstorm soundscape, no music",
+    "oceanwaves":    "ocean waves rolling and crashing onto a sandy beach, gentle tide washing in and out, distant seagulls calling, soft sea breeze, coastal shoreline ambience, no music",
+    "forest":        "dense forest ambience, many birds chirping and singing, wind rustling through leaves and branches, a babbling stream nearby, insects buzzing, peaceful woodland soundscape, no music",
+    "nightsounds":   "peaceful night-time countryside ambience, crickets chirping steadily, occasional owl hooting, gentle warm breeze, distant rustling leaves, calm nocturnal soundscape, no music",
 }
+
+# Genres routed to ElevenLabs SFX instead of Suno.
+SFX_GENRES = frozenset(SFX_PROMPTS.keys())
 
 _ELEVEN_SFX_URL = "https://api.elevenlabs.io/v1/sound-generation"
 _CLIP_SECONDS = 30       # ElevenLabs max per generation (v2)
@@ -53,8 +58,10 @@ def generate_looped_sfx(genre: str, brief: str, out_path: str) -> int:
         json={
             "text": prompt,
             "duration_seconds": _CLIP_SECONDS,
-            "prompt_influence": 0.5,
-            "loop": True,
+            # Higher prompt_influence → follows the detailed multi-element description
+            # more closely (richer layered soundscape). No "loop" — it flattens variety;
+            # the ffmpeg acrossfade below handles seamless looping instead.
+            "prompt_influence": 0.7,
             "model_id": "eleven_text_to_sound_v2",
         },
         timeout=120,
