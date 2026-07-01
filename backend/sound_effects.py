@@ -21,7 +21,9 @@ logger = logging.getLogger("zeus.sound_effects")
 # ElevenLabs wants a detailed description of the FULL soundscape — one element per
 # comma so it layers thunder + birds + wind etc rather than a single flat texture).
 SFX_PROMPTS = {
-    "naturesounds":  "heavy rainfall on leaves and grass, distant rolling thunder rumbling, occasional thunder crack, wind through trees, birds sheltering, puddles splashing, rich layered nature soundscape, no music",
+    # Concise + open-ended: ElevenLabs fills in natural variety (esp. birds) better
+    # from a short prompt than an over-prescriptive one. Keep it under ~50 words.
+    "naturesounds":  "peaceful nature soundscape, gentle rainfall, birds chirping, distant rolling thunder, wind through trees",
     "cracklingfire": "wood crackling and popping in a stone fireplace, occasional log shift, fire hissing, embers glowing, warm hearth sounds, cosy indoor winter atmosphere, no music",
     "whalesong":     "humpback whale long mournful calls, deep underwater ocean ambience, distant whale song echoing, bubbles rising, deep ocean pressure, ethereal whale communication, no music",
     "thunderstorm":  "heavy driving rainfall, frequent loud thunder cracks and long rolling thunder rumbles, storm wind gusting, rain hammering on rooftops and puddles, powerful dramatic thunderstorm soundscape, no music",
