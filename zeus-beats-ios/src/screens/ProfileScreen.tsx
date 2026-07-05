@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { COLORS, RADIUS } from '../constants/theme';
 
 const BG: [string, string] = [COLORS.gradientTop, COLORS.gradientBot];
-const UPGRADE_URL = 'https://zeusbeats.com';
+const ACCOUNT_URL = 'https://zeusbeats.com';
 
 function initialOf(name: string | undefined, email: string): string {
   const source = (name && name.trim()) || email;
@@ -31,11 +31,11 @@ export function ProfileScreen() {
   const email = user?.email ?? '';
   const name  = user?.name;
 
-  async function handleUpgrade() {
+  async function handleOpenSite() {
     try {
-      await Linking.openURL(UPGRADE_URL);
+      await Linking.openURL(ACCOUNT_URL);
     } catch {
-      Alert.alert('Could not open link', 'Visit zeusbeats.com in your browser to upgrade.');
+      Alert.alert('Could not open link', 'Visit zeusbeats.com in your browser to manage your account.');
     }
   }
 
@@ -66,11 +66,10 @@ export function ProfileScreen() {
           <Text style={s.email} numberOfLines={1}>{email}</Text>
         </View>
 
-        {/* ── Upgrade link (no pricing / no in-app purchase) ────────── */}
-        <TouchableOpacity style={s.linkRow} onPress={handleUpgrade} activeOpacity={0.7}>
+        {/* ── Account link — neutral outbound link, App Store 3.1.1-safe ── */}
+        <TouchableOpacity style={s.linkRow} onPress={handleOpenSite} activeOpacity={0.7}>
           <Text style={s.linkText}>
-            To upgrade your plan, visit{' '}
-            <Text style={s.linkAccent}>zeusbeats.com</Text>
+            Visit <Text style={s.linkAccent}>zeusbeats.com</Text> to manage your account
           </Text>
           <Text style={s.linkChevron}>›</Text>
         </TouchableOpacity>
@@ -122,7 +121,7 @@ const s = StyleSheet.create({
   name:  { fontSize: 20, fontWeight: '700', color: COLORS.white, marginBottom: 4 },
   email: { fontSize: 14, color: COLORS.cyan, fontWeight: '500' },
 
-  // ── Upgrade link row
+  // ── Account link row
   linkRow: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.03)',
