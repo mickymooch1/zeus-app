@@ -3,6 +3,7 @@ import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CreateSongScreen } from '../screens/CreateSongScreen';
 import { LibraryScreen }    from '../screens/LibraryScreen';
+import { ProfileScreen }    from '../screens/ProfileScreen';
 import { COLORS }           from '../constants/theme';
 
 const Tab = createBottomTabNavigator();
@@ -44,6 +45,16 @@ export function MainTabs() {
           title:        'Library',
           tabBarLabel:  'Library',
           tabBarIcon:   ({ color, size }) => <TabIcon icon="🎵" color={color} size={size} />,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          title:        'Profile',
+          tabBarLabel:  'Profile',
+          tabBarIcon:   ({ color, size }) => <TabIcon icon="👤" color={color} size={size} />,
+          headerShown:  false,
         }}
       />
     </Tab.Navigator>
