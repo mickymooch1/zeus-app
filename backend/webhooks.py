@@ -19,6 +19,7 @@ logger = logging.getLogger("zeus.webhooks")
 router = APIRouter()
 
 GENRE_COVER_PROMPTS: dict[str, str] = {
+    "bluegrass":      "cinematic album cover, bluegrass band in foreground, rustic American countryside behind, wooden barn, warm golden light, authentic Appalachian aesthetic, banjos and fiddles, ultra detailed professional music artwork",
     "britpop":        "90s Britpop band album cover, Union Jack aesthetic, British indie cool, Oasis Blur era vibe, ultra detailed",
     "indierock":      "indie rock band album cover, underground aesthetic, raw authentic photography, indie cool, ultra detailed",
     "folk":           "folk musician album cover, warm countryside aesthetic, acoustic instruments, earthy natural tones, ultra detailed",

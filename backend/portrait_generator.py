@@ -13,6 +13,7 @@ APIFRAME_BASE = "https://api.apiframe.ai"
 ZEUS_PUBLIC_URL = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
 
 GENRE_PORTRAIT_PROMPTS = {
+    "bluegrass":      "bluegrass musician professional portrait, clear frontal face, warm rustic barn lighting, authentic Appalachian expression, banjo or fiddle visible, photorealistic",
     "britpop":        "britpop guitarist professional portrait, clear frontal face, cool 90s British indie style, moody stage lighting, confident laddish expression, photorealistic",
     "indierock":      "indie rock musician professional portrait, clear frontal face, raw underground venue lighting, understated authentic style, introspective expression, photorealistic",
     "folk":           "folk musician professional portrait, clear frontal face, warm natural countryside lighting, acoustic guitar, earthy heartfelt expression, photorealistic",

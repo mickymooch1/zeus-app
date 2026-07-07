@@ -10,6 +10,7 @@ INSTRUMENTAL_SUFFIX = "fully instrumental, extended arrangement, prominent deep 
 INTERMITTENT_VOCALS_SUFFIX = "mostly instrumental, sparse occasional vocal hooks only, minimal vocals, long instrumental sections, brief vocal moments only, predominantly instrumental arrangement, no continuous singing, rare short vocal phrases and ad libs"
 
 GENRE_PRESETS = {
+    "bluegrass":      "bluegrass, fast banjo picking, fiddle, acoustic guitar, upright bass, mandolin, high lonesome vocals, 140 BPM, Appalachian mountain sound, traditional American folk, tight vocal harmonies, driving rhythm, authentic bluegrass instrumentation, foot stomping energy",
     "britpop":        "Britpop, jangly guitar, melodic British indie, upbeat guitar driven, 90s British sound, anthemic chorus, lad culture energy, catchy hooks, British vocal delivery, guitar pop, distinctly UK sound, 120 BPM",
     "indierock":      "indie rock, jangly electric guitar, lo-fi production, alternative rock, indie guitar riffs, driving drums, 110 BPM, underground indie sound, raw authentic delivery, indie pop crossover, reverb guitar",
     "folk":           "folk music, acoustic guitar, storytelling vocals, finger-picking, warm intimate sound, 80 BPM, campfire folk, traditional folk instruments, fiddle and banjo, heartfelt emotional delivery, folk ballad",

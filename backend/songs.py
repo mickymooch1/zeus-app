@@ -33,6 +33,7 @@ GENRE_MODEL_OVERRIDES: dict[str, str] = {
 logger = logging.getLogger("zeus.songs")
 
 GENRE_MOTION_PROMPTS: dict[str, str] = {
+    "bluegrass":      "bluegrass band performing energetically, foot stomping rhythm, warm rustic barn lighting, authentic Appalachian mountain energy",
     "britpop":        "Britpop band performing energetically, British indie energy, 90s aesthetic",
     "indierock":      "indie rock band performing, raw underground energy, authentic indie atmosphere",
     "folk":           "folk musician performing intimately, warm acoustic lighting, heartfelt storytelling energy",

@@ -32,9 +32,11 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'uk_street',  label: '🎤 UK Street & Hip Hop', color: '#00f0ff',
     genres: ['grime','ukdrill','afroswing','bassline','ukgarage','niche','drumandbass','jungle','deeprotbassline','ukstreetsoul'] },
   { id: 'soul',       label: '🎵 Soul & Blues',        color: '#fb923c',
-    genres: ['soul','bluessoul','southemsoul','soulrnb','orchestralsoul','classicfunk','gospel','trapsoul','vocaljazz','swing','rnb','blues','deepsoulblues','folk'] },
+    genres: ['soul','bluessoul','southemsoul','soulrnb','orchestralsoul','classicfunk','gospel','trapsoul','vocaljazz','swing','rnb','blues','deepsoulblues'] },
   { id: 'rock',       label: '🎸 Rock & Metal',        color: '#f87171',
-    genres: ['rock','hardrock','metal','punkrock','rocknroll','traditionalpop','countryamericana','countrypop','bluesrock','indie','britpop','indierock','country','rockney'] },
+    genres: ['rock','hardrock','metal','punkrock','rocknroll','traditionalpop','bluesrock','indie','britpop','indierock','country','rockney'] },
+  { id: 'country_folk', label: '🤠 Country & Folk',    color: '#d97706',
+    genres: ['bluegrass','countryamericana','countrypop','folk','acousticballad'] },
   { id: 'electronic', label: '🎹 Electronic & Dance',  color: '#4ade80',
     genres: ['house','technhouse','deephouse','dancehouse','purebassline','synthwave','driftphonk','techno','edm','electronicfunk','dubstep','jerseyclub','hyperpop','syntheticpop'] },
   { id: 'world',      label: '🌍 World & Urban',       color: '#fbbf24',
@@ -42,10 +44,11 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'pop',        label: '🎶 Pop & Hip Hop',       color: '#f472b6',
     genres: ['pop','patriotic','trap','eastcoasthiphop','poprap','kpop','hiphop'] },
   { id: 'chill',      label: '🧘 Chill & Wellness',    color: '#e2e8f0',
-    genres: ['lofi','meditation','ambient','healingfrequency','naturesounds','whalesong','cracklingfire','thunderstorm','oceanwaves','forest','nightsounds','classical','acoustic','acousticballad','jazz','irishfolk','irishjig','christmas'] },
+    genres: ['lofi','meditation','ambient','healingfrequency','naturesounds','whalesong','cracklingfire','thunderstorm','oceanwaves','forest','nightsounds','classical','acoustic','jazz','irishfolk','irishjig','christmas'] },
 ];
 
 const GENRE_LABEL: Record<string, string> = {
+  bluegrass:'Bluegrass',
   britpop:'Britpop', indierock:'Indie Rock', folk:'Folk', acousticballad:'Acoustic Ballad', patriotic:'Patriotic',
   hiphop:'Hip-Hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk',
   rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage',
