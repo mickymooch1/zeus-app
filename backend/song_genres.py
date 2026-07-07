@@ -10,6 +10,11 @@ INSTRUMENTAL_SUFFIX = "fully instrumental, extended arrangement, prominent deep 
 INTERMITTENT_VOCALS_SUFFIX = "mostly instrumental, sparse occasional vocal hooks only, minimal vocals, long instrumental sections, brief vocal moments only, predominantly instrumental arrangement, no continuous singing, rare short vocal phrases and ad libs"
 
 GENRE_PRESETS = {
+    "britpop":        "Britpop, jangly guitar, melodic British indie, upbeat guitar driven, 90s British sound, anthemic chorus, lad culture energy, catchy hooks, British vocal delivery, guitar pop, distinctly UK sound, 120 BPM",
+    "indierock":      "indie rock, jangly electric guitar, lo-fi production, alternative rock, indie guitar riffs, driving drums, 110 BPM, underground indie sound, raw authentic delivery, indie pop crossover, reverb guitar",
+    "folk":           "folk music, acoustic guitar, storytelling vocals, finger-picking, warm intimate sound, 80 BPM, campfire folk, traditional folk instruments, fiddle and banjo, heartfelt emotional delivery, folk ballad",
+    "acousticballad": "acoustic ballad, fingerpicked acoustic guitar, emotional vulnerable vocals, slow 65 BPM, intimate stripped back production, heartfelt lyrics, piano and acoustic guitar, soft emotional delivery, singer songwriter feel",
+    "patriotic":      "patriotic music, orchestral brass, rousing anthem, military drum, uplifting national pride, 90 BPM, choir voices, ceremonial feel, stirring emotional delivery, traditional patriotic march, grand orchestral arrangement",
     "country":  "country ballad, acoustic guitar, slide guitar, warm storytelling vocals, moderate tempo",
     "reggae":   "reggae, off-beat rhythm guitar upstroke, dub bass, laid-back vocals, 80 BPM",
     "pop":      "modern pop, polished production, catchy synth melody, clear vocals, 120 BPM",

@@ -13,6 +13,11 @@ APIFRAME_BASE = "https://api.apiframe.ai"
 ZEUS_PUBLIC_URL = os.environ.get("ZEUS_PUBLIC_URL", "https://zeusaidesign.com")
 
 GENRE_PORTRAIT_PROMPTS = {
+    "britpop":        "britpop guitarist professional portrait, clear frontal face, cool 90s British indie style, moody stage lighting, confident laddish expression, photorealistic",
+    "indierock":      "indie rock musician professional portrait, clear frontal face, raw underground venue lighting, understated authentic style, introspective expression, photorealistic",
+    "folk":           "folk musician professional portrait, clear frontal face, warm natural countryside lighting, acoustic guitar, earthy heartfelt expression, photorealistic",
+    "acousticballad": "singer-songwriter professional portrait, clear frontal face, intimate moody low lighting, acoustic guitar, emotional vulnerable expression, photorealistic",
+    "patriotic":      "patriotic singer professional portrait, clear frontal face, grand ceremonial lighting, dignified proud expression, national pride atmosphere, photorealistic",
     "blues":     "Professional portrait photo, Black blues musician, clear frontal face, warm amber lighting, vintage microphone, photorealistic, film grain",
     "soul":      "Professional portrait photo, Black soul singer, clear frontal face, warm Motown studio lighting, expressive, photorealistic",
     "rnb":       "Professional portrait photo, Black R&B artist, clear frontal face, modern studio lighting, confident expression, photorealistic",

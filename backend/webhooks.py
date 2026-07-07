@@ -19,6 +19,11 @@ logger = logging.getLogger("zeus.webhooks")
 router = APIRouter()
 
 GENRE_COVER_PROMPTS: dict[str, str] = {
+    "britpop":        "90s Britpop band album cover, Union Jack aesthetic, British indie cool, Oasis Blur era vibe, ultra detailed",
+    "indierock":      "indie rock band album cover, underground aesthetic, raw authentic photography, indie cool, ultra detailed",
+    "folk":           "folk musician album cover, warm countryside aesthetic, acoustic instruments, earthy natural tones, ultra detailed",
+    "acousticballad": "singer songwriter album cover, intimate moody lighting, acoustic guitar, emotional aesthetic, ultra detailed",
+    "patriotic":      "patriotic music album cover, Union Jack or national flag, grand ceremonial aesthetic, brass instruments, ultra detailed",
     "blues":        "cinematic album cover, Black blues guitarist in foreground, worn guitar, Mississippi Delta landscape behind, warm sunset, dusty road, deep soulful atmosphere, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
     "soul":         "cinematic album cover, Black soul singer performing in foreground, elegant stage lighting, warm golden tones, emotional powerful expression, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
     "rnb":          "cinematic album cover, Black RnB artist in foreground, stylish urban setting, moody blue and purple lighting, confident expression, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
