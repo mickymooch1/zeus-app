@@ -10,7 +10,6 @@ import os
 import secrets
 import subprocess
 import tempfile
-import time
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -95,65 +94,102 @@ def exchange_code(code: str, redirect_uri: str, code_verifier: str | None = None
     return refresh_token
 
 
-def _resolve_cover_image(variant: dict, storage_path: str, tmp: Path) -> Path:
+def _regenerate_cover(variant: dict, title: str, artist_name: str) -> str | None:
+    """Re-run Flux cover generation for this variant. Returns the public URL or None.
+
+    Lazy-imports the webhook generator so youtube_uploader has no import-time
+    dependency on webhooks (which pulls in heavy modules and env vars).
+    """
+    try:
+        from webhooks import _generate_flux_cover
+    except Exception as exc:
+        log.warning("cover image: could not import cover generator: %s", exc)
+        return None
+    return _generate_flux_cover(
+        variant["id"],
+        variant.get("genre_tag"),
+        title or "",
+        artist_name or "",
+        variant.get("style_prompt") or "",
+    )
+
+
+def _resolve_cover_image(
+    variant: dict,
+    storage_path: str,
+    tmp: Path,
+    title: str = "",
+    artist_name: str = "",
+    allow_regenerate: bool = True,
+) -> Path:
     """Return a path to a valid cover image for this variant, or raise.
 
     The DB's public ``image_url`` is the source of truth. Resolution order:
       1. Local ``{id}_cover.jpg`` on the volume (fast path, no network I/O).
       2. Local ``{id}.jpg`` on the volume (Apiframe saves the cover unsuffixed).
-      3. Download ``variant["image_url"]`` (public URL), retrying transient errors.
+      3. Download ``variant["image_url"]`` (the public URL).
+      4. Retry once by regenerating the cover via Flux, then re-checking 1–3.
 
     This never silently substitutes a black frame. When cover generation failed
     upstream (intermittent Flux/FAL errors) the song still completes but no local
-    cover exists — previously that produced a blank/black YouTube video. Now a
-    missing cover raises so the upload fails loudly (HTTP 400) instead of shipping
-    a blank video.
+    cover exists — previously that produced a blank/black YouTube video. Now we
+    retry once (a transient Flux glitch shouldn't block an otherwise-good upload)
+    and only raise — surfacing as HTTP 400 — if the retry also fails.
     """
     variant_id = variant["id"]
 
-    # 1 & 2: trust a local file already on the volume.
-    for name in (f"{variant_id}_cover.jpg", f"{variant_id}.jpg"):
-        local = Path(storage_path) / name
-        if local.exists() and local.stat().st_size > 0:
-            log.info("cover image: using local file %s (%d bytes)", local, local.stat().st_size)
-            return local
-        log.info("cover image: local candidate absent %s", local)
+    def _local() -> Path | None:
+        for name in (f"{variant_id}_cover.jpg", f"{variant_id}.jpg"):
+            p = Path(storage_path) / name
+            if p.exists() and p.stat().st_size > 0:
+                return p
+        return None
 
-    # 3: fall back to the authoritative public URL stored in the DB.
-    image_url = (variant.get("image_url") or "").strip()
-    if not image_url:
-        raise ValueError(
-            f"No cover art for variant {variant_id}: no local file on volume and "
-            f"image_url is empty (cover generation likely failed upstream)"
-        )
-    if not image_url.lower().startswith(("http://", "https://")):
-        # Guard against the old bug where image_url held a local path, not a URL.
-        raise ValueError(
-            f"Cover image_url for variant {variant_id} is not a public URL: {image_url!r}"
-        )
-
-    dst = tmp / f"{variant_id}_cover.jpg"
-    last_exc: Exception | None = None
-    for attempt in range(1, 4):
+    def _download(url: str | None) -> Path | None:
+        url = (url or "").strip()
+        if not url:
+            return None
+        if not url.lower().startswith(("http://", "https://")):
+            # Guard against the old bug where image_url held a local path, not a URL.
+            log.warning("cover image: image_url is not a public URL: %r", url)
+            return None
         try:
-            log.info("cover image: downloading image_url (attempt %d/3) %s", attempt, image_url)
-            resp = requests.get(image_url, timeout=30)
+            log.info("cover image: downloading image_url %s", url)
+            resp = requests.get(url, timeout=30)
             resp.raise_for_status()
             content = resp.content
             if len(content) < 1024:
                 raise ValueError(f"downloaded cover suspiciously small ({len(content)} bytes)")
+            dst = tmp / f"{variant_id}_cover.jpg"
             dst.write_bytes(content)
             log.info("cover image: downloaded %d bytes to %s", len(content), dst)
             return dst
         except Exception as exc:
-            last_exc = exc
-            log.warning("cover image: download attempt %d/3 failed: %s", attempt, exc)
-            if attempt < 3:
-                time.sleep(1)
+            log.warning("cover image: download failed for %s: %s", url, exc)
+            return None
+
+    # First attempt: an existing local file, else the DB's public image_url.
+    got = _local() or _download(variant.get("image_url"))
+    if got:
+        log.info("cover image: using %s", got)
+        return got
+
+    # Retry once: regenerate the cover. Handles the intermittent case where an
+    # upstream Flux glitch left the song complete with no cover on the volume.
+    if allow_regenerate:
+        log.warning(
+            "cover image: none found for variant %s — regenerating once before giving up",
+            variant_id,
+        )
+        new_url = _regenerate_cover(variant, title, artist_name)
+        got = _local() or _download(new_url)
+        if got:
+            log.info("cover image: recovered via regeneration %s", got)
+            return got
 
     raise ValueError(
-        f"Cover art unavailable for variant {variant_id}: no local file and download of "
-        f"{image_url} failed after 3 attempts: {last_exc}"
+        f"Cover art unavailable for variant {variant_id}: no local file, image_url "
+        f"download failed, and the regeneration retry did not produce a usable cover"
     )
 
 
@@ -273,9 +309,12 @@ def upload_song_to_youtube(
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
-        # Resolve a real cover (local file or DB image_url). Raises if none —
-        # we never silently mux a black frame.
-        img_path = _resolve_cover_image(variant, storage_path, tmp)
+        # Resolve a real cover (local file, DB image_url, or one regeneration
+        # retry). Raises if none — we never silently mux a black frame.
+        img_path = _resolve_cover_image(
+            variant, storage_path, tmp,
+            title=title, artist_name=(user.get("artist_name") or ""),
+        )
         mp4_path = tmp / f"{variant_id}.mp4"
 
         log.info(

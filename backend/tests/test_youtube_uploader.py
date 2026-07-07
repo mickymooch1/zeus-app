@@ -68,8 +68,10 @@ def test_resolve_downloads_image_url_when_local_missing(tmp_path):
 def test_resolve_raises_when_no_cover_anywhere(tmp_path):
     storage = tmp_path / "songs"
     storage.mkdir()
-    with pytest.raises(ValueError):
-        youtube_uploader._resolve_cover_image(_variant(image_url=""), str(storage), tmp_path)
+    # Regeneration retry also fails (returns no cover) -> must raise.
+    with patch.object(youtube_uploader, "_regenerate_cover", return_value=None):
+        with pytest.raises(ValueError):
+            youtube_uploader._resolve_cover_image(_variant(image_url=""), str(storage), tmp_path)
 
 
 def test_resolve_raises_when_image_url_not_public(tmp_path):
@@ -77,15 +79,16 @@ def test_resolve_raises_when_image_url_not_public(tmp_path):
     storage = tmp_path / "songs"
     storage.mkdir()
     v = _variant(image_url="/data/songs/4242_cover.jpg")
-    with pytest.raises(ValueError):
-        youtube_uploader._resolve_cover_image(v, str(storage), tmp_path)
+    with patch.object(youtube_uploader, "_regenerate_cover", return_value=None):
+        with pytest.raises(ValueError):
+            youtube_uploader._resolve_cover_image(v, str(storage), tmp_path)
 
 
 def test_resolve_raises_when_download_fails(tmp_path):
     storage = tmp_path / "songs"
     storage.mkdir()
     with patch.object(youtube_uploader.requests, "get", side_effect=RuntimeError("boom")), \
-         patch.object(youtube_uploader.time, "sleep", return_value=None):
+         patch.object(youtube_uploader, "_regenerate_cover", return_value=None):
         with pytest.raises(ValueError):
             youtube_uploader._resolve_cover_image(_variant(), str(storage), tmp_path)
 
@@ -95,6 +98,35 @@ def test_resolve_never_returns_black_frame_silently(tmp_path):
     storage = tmp_path / "songs"
     storage.mkdir()
     with patch.object(youtube_uploader.requests, "get", side_effect=RuntimeError("boom")), \
-         patch.object(youtube_uploader.time, "sleep", return_value=None):
+         patch.object(youtube_uploader, "_regenerate_cover", return_value=None):
         with pytest.raises(ValueError):
             youtube_uploader._resolve_cover_image(_variant(), str(storage), tmp_path)
+
+
+def test_resolve_retries_regeneration_before_giving_up(tmp_path):
+    """A transient upstream glitch is recovered by one regeneration retry."""
+    storage = tmp_path / "songs"
+    storage.mkdir()  # no local cover, and download will fail
+
+    def _fake_regen(variant, title, artist_name):
+        # Flux regeneration writes {id}_cover.jpg to the volume and returns a URL.
+        (storage / "4242_cover.jpg").write_bytes(b"z" * 3000)
+        return "https://example.com/files/songs/4242_cover.jpg"
+
+    with patch.object(youtube_uploader.requests, "get", side_effect=RuntimeError("boom")), \
+         patch.object(youtube_uploader, "_regenerate_cover", side_effect=_fake_regen) as regen:
+        got = youtube_uploader._resolve_cover_image(_variant(), str(storage), tmp_path)
+
+    regen.assert_called_once()  # retried exactly once
+    assert got == storage / "4242_cover.jpg"
+
+
+def test_resolve_does_not_regenerate_when_disabled(tmp_path):
+    storage = tmp_path / "songs"
+    storage.mkdir()
+    with patch.object(youtube_uploader, "_regenerate_cover") as regen:
+        with pytest.raises(ValueError):
+            youtube_uploader._resolve_cover_image(
+                _variant(image_url=""), str(storage), tmp_path, allow_regenerate=False
+            )
+    regen.assert_not_called()
