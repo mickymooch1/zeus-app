@@ -10,6 +10,7 @@ import os
 import secrets
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -92,6 +93,68 @@ def exchange_code(code: str, redirect_uri: str, code_verifier: str | None = None
             "The user may have already authorised this app — revoke access at myaccount.google.com and try again."
         )
     return refresh_token
+
+
+def _resolve_cover_image(variant: dict, storage_path: str, tmp: Path) -> Path:
+    """Return a path to a valid cover image for this variant, or raise.
+
+    The DB's public ``image_url`` is the source of truth. Resolution order:
+      1. Local ``{id}_cover.jpg`` on the volume (fast path, no network I/O).
+      2. Local ``{id}.jpg`` on the volume (Apiframe saves the cover unsuffixed).
+      3. Download ``variant["image_url"]`` (public URL), retrying transient errors.
+
+    This never silently substitutes a black frame. When cover generation failed
+    upstream (intermittent Flux/FAL errors) the song still completes but no local
+    cover exists — previously that produced a blank/black YouTube video. Now a
+    missing cover raises so the upload fails loudly (HTTP 400) instead of shipping
+    a blank video.
+    """
+    variant_id = variant["id"]
+
+    # 1 & 2: trust a local file already on the volume.
+    for name in (f"{variant_id}_cover.jpg", f"{variant_id}.jpg"):
+        local = Path(storage_path) / name
+        if local.exists() and local.stat().st_size > 0:
+            log.info("cover image: using local file %s (%d bytes)", local, local.stat().st_size)
+            return local
+        log.info("cover image: local candidate absent %s", local)
+
+    # 3: fall back to the authoritative public URL stored in the DB.
+    image_url = (variant.get("image_url") or "").strip()
+    if not image_url:
+        raise ValueError(
+            f"No cover art for variant {variant_id}: no local file on volume and "
+            f"image_url is empty (cover generation likely failed upstream)"
+        )
+    if not image_url.lower().startswith(("http://", "https://")):
+        # Guard against the old bug where image_url held a local path, not a URL.
+        raise ValueError(
+            f"Cover image_url for variant {variant_id} is not a public URL: {image_url!r}"
+        )
+
+    dst = tmp / f"{variant_id}_cover.jpg"
+    last_exc: Exception | None = None
+    for attempt in range(1, 4):
+        try:
+            log.info("cover image: downloading image_url (attempt %d/3) %s", attempt, image_url)
+            resp = requests.get(image_url, timeout=30)
+            resp.raise_for_status()
+            content = resp.content
+            if len(content) < 1024:
+                raise ValueError(f"downloaded cover suspiciously small ({len(content)} bytes)")
+            dst.write_bytes(content)
+            log.info("cover image: downloaded %d bytes to %s", len(content), dst)
+            return dst
+        except Exception as exc:
+            last_exc = exc
+            log.warning("cover image: download attempt %d/3 failed: %s", attempt, exc)
+            if attempt < 3:
+                time.sleep(1)
+
+    raise ValueError(
+        f"Cover art unavailable for variant {variant_id}: no local file and download of "
+        f"{image_url} failed after 3 attempts: {last_exc}"
+    )
 
 
 _DESCRIPTIONS = {
@@ -204,24 +267,21 @@ def upload_song_to_youtube(
     # Standard path — mux still image + MP3 into MP4 with ffmpeg.
     storage_path = os.environ.get("SONG_STORAGE_PATH", "/data/songs")
     mp3_src = Path(storage_path) / f"{variant_id}.mp3"
-    img_src = Path(storage_path) / f"{variant_id}_cover.jpg"
 
     if not mp3_src.exists():
         raise ValueError(f"MP3 not found on volume: {mp3_src}")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
-        img_path = img_src if img_src.exists() else tmp / f"{variant_id}_cover.jpg"
+        # Resolve a real cover (local file or DB image_url). Raises if none —
+        # we never silently mux a black frame.
+        img_path = _resolve_cover_image(variant, storage_path, tmp)
         mp4_path = tmp / f"{variant_id}.mp4"
 
-        if not img_src.exists():
-            log.info("upload_song_to_youtube: cover art not found at %s — using black fallback", img_src)
-            subprocess.run(
-                ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=1280x720:r=1",
-                 "-frames:v", "1", str(img_path)],
-                check=True, capture_output=True,
-            )
-
+        log.info(
+            "upload_song_to_youtube: creating video variant_id=%s cover=%s mp3=%s",
+            variant_id, img_path, mp3_src,
+        )
         subprocess.run(
             [
                 "ffmpeg", "-y",
@@ -234,6 +294,10 @@ def upload_song_to_youtube(
                 str(mp4_path),
             ],
             check=True, capture_output=True,
+        )
+        log.info(
+            "upload_song_to_youtube: video created variant_id=%s path=%s size=%d bytes",
+            variant_id, mp4_path, mp4_path.stat().st_size if mp4_path.exists() else -1,
         )
 
         return _upload(mp4_path)
