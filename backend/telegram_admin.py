@@ -348,14 +348,38 @@ def _cmd_db_fix_youtube(email: str) -> str:
         return f"❌ Error: {exc}"
 
 
-def _cmd_db_credits(email: str, delta: int) -> str:
+def _cmd_db_credits(email: str, delta: int, admin: str = "?", force: bool = False) -> str:
     try:
         import db as _db
+        from datetime import datetime, timezone
         db_path = _db.get_db_path()
         user = _db.get_user_by_email(db_path, email)
         if not user:
             return f"❌ User not found: <code>{email}</code>"
+
+        # Duplicate-grant guard (positive grants only; removals aren't double-grant risks).
+        # Matches a recent grant from ANY source — so a manual grant after a webhook grant
+        # (or another manual grant) is flagged before it double-credits.
+        if delta > 0 and not force:
+            recent = _db.get_recent_credit_grant(db_path, user["id"], "song", delta, within_hours=24)
+            if recent:
+                try:
+                    ts = datetime.fromisoformat(recent["created_at"])
+                    mins = (datetime.now(timezone.utc) - ts).total_seconds() / 60
+                    ago = f"{mins / 60:.1f}h ago" if mins >= 60 else f"{int(mins)}m ago"
+                except Exception:
+                    ago = "recently"
+                return (
+                    f"⚠️ <code>{email}</code> was already granted <b>{delta}</b> song credits "
+                    f"{ago} (source={recent['source']}). Grant again anyway? Reply <b>yes</b> to confirm."
+                )
+
         _db.increment_song_credits(db_path, user["id"], delta)
+        # Record positive grants in the ledger (audit + future duplicate detection).
+        if delta > 0:
+            ref = f"manual:{admin}:{datetime.now(timezone.utc).isoformat()}"
+            _db.record_credit_grant(db_path, user["id"], user.get("email"), "song", delta, "manual", ref)
+
         credits = _db.get_song_credits(db_path, user["id"])
         new_balance = credits["balance"] if credits else "unknown"
         sign = "+" if delta >= 0 else ""
@@ -1448,6 +1472,7 @@ Rules:
 - For post_channel, write the full ready-to-post message with emojis.
 - For email actions, write proper subject + body in Zeus Beats brand voice.
 - Use negative amounts for add_credits to remove credits.
+- add_credits duplicate guard: if a grant would duplicate a recent one, the system replies with a "⚠️ ... Grant again anyway? Reply yes" warning. If Michael then confirms ("yes", "yeah do it", "go on"), re-issue the SAME add_credits action from history but add "force": true. Only add "force": true right after such a warning — never by default.
 - For upgrade_user: plan must be one of the exact plan keys listed above.
 
 Examples:
@@ -1464,6 +1489,7 @@ Examples:
 "what was today's revenue" → {"type": "action", "action": "revenue"}
 "tell me about user X" → {"type": "action", "action": "user_details", "email": "X"}
 "give him 20 more" → use email from conversation context, then {"type": "action", "action": "add_credits", "email": "...", "amount": 20}
+(after a "⚠️ ... already granted 10 ... Grant again anyway?" warning) "yes" → {"type": "action", "action": "add_credits", "email": "<same email>", "amount": 10, "force": true}
 "log a feature: dark mode for the app" → {"type": "action", "action": "feature_request", "description": "Dark mode for the app"}
 "tell claude code to fix the stems button on mobile" → {"type": "action", "action": "tell_claude_code", "message": "Fix the stems button on mobile — not tapping properly on small screens"}
 "email the schools again" → {"type": "message", "text": "Which schools do you mean, mate — the ones we already blasted, or a new city?"}
@@ -1606,10 +1632,12 @@ def _execute_action(action: dict, chat_id: str = "") -> str:
             return "❌ Invalid credit amount"
         if not email:
             return "❌ No email address — ask Michael for it"
-        result = _cmd_db_credits(email, delta)
+        force = bool(action.get("force", False))
+        result = _cmd_db_credits(email, delta, admin=str(chat_id or "?"), force=force)
         if chat_id and "✅" in result:
             sign = "+" if delta >= 0 else ""
-            _db_log_action(chat_id, "add_credits", f"Gave {sign}{delta} song credits to {email}")
+            note = " (confirmed override)" if force else ""
+            _db_log_action(chat_id, "add_credits", f"Gave {sign}{delta} song credits to {email}{note}")
         return result
 
     if act == "verify_email":

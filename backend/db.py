@@ -1198,6 +1198,30 @@ def get_credit_grant(db_path: pathlib.Path, stripe_payment_id: str, credit_type:
         conn.close()
 
 
+def get_recent_credit_grant(
+    db_path: pathlib.Path, user_id: str, credit_type: str, amount: int, within_hours: int = 24
+) -> dict | None:
+    """Return the most recent matching ledger grant (same user + credit_type + amount)
+    within the window, across ANY source (webhook or manual), or None.
+
+    Powers the admin duplicate-grant warning: a manual grant that matches a recent
+    grant (manual OR webhook) is flagged before it double-credits.
+    """
+    from datetime import datetime, timezone, timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=within_hours)).isoformat()
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            """SELECT * FROM credit_ledger
+               WHERE user_id = ? AND credit_type = ? AND amount = ? AND created_at >= ?
+               ORDER BY created_at DESC LIMIT 1""",
+            (user_id, credit_type, amount, cutoff),
+        ).fetchone()
+        return _row_to_dict(row) if row else None
+    finally:
+        conn.close()
+
+
 # ── Lyrics CRUD ───────────────────────────────────────────────────────────────
 
 def get_lyric_title(db_path: pathlib.Path, lyric_id: int) -> str | None:
