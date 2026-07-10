@@ -470,6 +470,14 @@ _IGNORED_EVENTS = frozenset({
 
 def _handle_event(event) -> None:
     """Dispatch Stripe event to the appropriate handler."""
+    # stripe-python 15.x returns a StripeObject, whose ``.get()`` raises
+    # AttributeError('get') (attribute access routes through __getattr__). Every
+    # handler below — and the logging line at 480 — treats the event/session/
+    # invoice/payment_intent as a plain dict via ``.get()``. Convert the whole
+    # event to a fully-plain nested dict once at ingress so all of that works.
+    import json
+    event = json.loads(str(event))
+
     db_path = db.get_db_path()
     event_type = event["type"]
     data = event["data"]["object"]
