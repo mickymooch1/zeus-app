@@ -51,6 +51,21 @@ class TestTopupIdempotency:
         billing._handle_checkout_completed(db_path, _session())  # Stripe retry, same pi
         assert _bal(db_path, user["id"]) == 2
 
+    def test_checkout_topup_sets_has_paid(self, db_path, user):
+        # PAYG purchases must flip has_paid=1 too (not just subscriptions) — a fresh
+        # user starts at 0; the crashed 07-03 webhook is why cummins.anne stayed 0.
+        assert not db.get_user_by_id(db_path, user["id"]).get("has_paid")
+        billing._handle_checkout_completed(db_path, _session())
+        assert db.get_user_by_id(db_path, user["id"])["has_paid"] == 1
+
+    def test_payment_intent_backup_topup_sets_has_paid(self, db_path, user):
+        pi = {
+            "id": "pi_pay", "object": "payment_intent", "customer": "cus_1",
+            "metadata": {"song_pack": "song_pack_099", "user_id": user["id"]},
+        }
+        billing._handle_payment_intent_succeeded(db_path, pi)
+        assert db.get_user_by_id(db_path, user["id"])["has_paid"] == 1
+
     def test_payment_intent_backup_after_checkout_no_double_grant(self, db_path, user):
         # The Apple-Pay overlap: checkout.session.completed AND payment_intent.succeeded
         # both fire for the same payment_intent id.
