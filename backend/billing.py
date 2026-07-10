@@ -425,6 +425,15 @@ def ensure_promo_codes() -> None:
         log.warning("billing: ensure_promo_codes failed: %s", exc)
 
 
+class WebhookSignatureError(Exception):
+    """Raised when a webhook payload fails Stripe signature verification.
+
+    Almost always a bot/scanner probing the public webhook URL with junk — NOT a
+    real payment that failed to process. Callers log it quietly and do NOT raise a
+    Telegram alert, so genuine processing-error alerts stay meaningful.
+    """
+
+
 def handle_webhook(payload: bytes, sig: str) -> None:
     """
     Handle incoming Stripe webhook events.
@@ -443,8 +452,9 @@ def handle_webhook(payload: bytes, sig: str) -> None:
         try:
             event = stripe.Webhook.construct_event(payload, sig, _STRIPE_WEBHOOK_SECRET)
         except stripe.error.SignatureVerificationError as exc:
-            log.error("Stripe webhook SIGNATURE FAILED — check STRIPE_WEBHOOK_SECRET matches dashboard: %s", exc)
-            raise ValueError("Invalid Stripe signature") from exc
+            # Usually a bot probing the public URL with junk — log quietly, no alert.
+            log.warning("Stripe webhook: invalid signature — ignoring (usually a bot probing the URL): %s", exc)
+            raise WebhookSignatureError(str(exc)) from exc
 
     _handle_event(event)
 

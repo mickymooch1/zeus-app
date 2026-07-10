@@ -2,6 +2,8 @@ import os
 import pathlib
 import sys
 
+import pytest
+
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
 # Keep FastAPI lifespan / other imports from raising on a missing key.
@@ -37,6 +39,18 @@ def test_stripe_object_get_reproduces_the_bug():
         # If a future stripe version restores .get(), that's fine — the handler
         # fix below is still correct. Only fail if we somehow lost coverage.
         pass
+
+
+def test_invalid_signature_raises_webhook_signature_error():
+    """A bad signature (bot/scanner probing the URL, or a real misconfig) must raise
+    the dedicated WebhookSignatureError — so main.py can log it quietly and NOT fire a
+    '🚨 CRASHED' Telegram alert for what is almost always endpoint noise."""
+    import billing as _b
+    _b._STRIPE_SECRET_KEY = "sk_test_dummy"
+    _b._STRIPE_WEBHOOK_SECRET = "whsec_test_dummy"
+    _b._stripe = None  # force re-init with the dummy key
+    with pytest.raises(_b.WebhookSignatureError):
+        _b.handle_webhook(b'{"id":"evt_bot_probe"}', "t=1,v1=deadbeef")
 
 
 def test_handle_event_does_not_crash_on_stripe_object():

@@ -1704,6 +1704,10 @@ async def stripe_webhook(request: Request):
         billing.handle_webhook(payload, sig)
         log.info("Stripe webhook /billing/webhook: processed successfully")
         return {"received": True}
+    except billing.WebhookSignatureError:
+        # Invalid signature = bot/scanner noise. Already logged quietly in billing;
+        # do NOT alert (keeps 🚨 alerts meaningful for real processing failures).
+        return {"status": "invalid_signature"}
     except Exception as exc:
         log.error("Stripe webhook /billing/webhook error (acknowledged 200 to avoid disable): %s", exc, exc_info=True)
         try:
@@ -1729,6 +1733,10 @@ async def stripe_webhook_v2(request: Request):
         billing.handle_webhook(payload, sig)
         log.info("Stripe webhook /webhook/stripe: processed successfully")
         return {"received": True}
+    except billing.WebhookSignatureError:
+        # Invalid signature = bot/scanner noise. Already logged quietly in billing;
+        # do NOT alert (keeps 🚨 alerts meaningful for real processing failures).
+        return {"status": "invalid_signature"}
     except Exception as exc:
         log.error("Stripe webhook /webhook/stripe error (acknowledged 200 to avoid disable): %s", exc, exc_info=True)
         try:
