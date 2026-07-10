@@ -18,10 +18,10 @@ Run on Railway (where STRIPE_SECRET_KEY and the DB live):
 
 Verdicts:
     OK                 — subscription active + has_paid; looks credited.
-    LIKELY_UNCREDITED  — paid in Stripe but user has_paid=0 / no plan → RESTORE.
+    CREDITED           — one-time top-up with a matching credit_ledger row → credited.
+    LIKELY_UNCREDITED  — paid in Stripe but not credited (sub: has_paid=0/no plan;
+                         top-up: no credit_ledger row) → RESTORE.
     USER_NOT_FOUND     — paid in Stripe but no matching DB user → investigate.
-    REVIEW             — one-time top-up: balance can't be verified retroactively,
-                         eyeball it (has_paid shown to help).
 """
 import argparse
 import csv as _csv
@@ -140,8 +140,11 @@ def _row(obj, source, forced_verdict, db_path, stripe, note=""):
         verdict = "USER_NOT_FOUND"
     elif is_sub:
         verdict = "OK" if _is_credited_subscription(user) else "LIKELY_UNCREDITED"
-    else:  # one-time top-up — balance can't be verified retroactively
-        verdict = "REVIEW" if user.get("has_paid") else "LIKELY_UNCREDITED"
+    else:  # one-time top-up — now verifiable via the credit ledger (keyed on payment_intent id)
+        pi_id = obj.get("payment_intent")
+        credit_type = "song" if meta.get("song_pack") else "premium"
+        grant = db.get_credit_grant(db_path, pi_id, credit_type) if pi_id else None
+        verdict = "CREDITED" if grant else "LIKELY_UNCREDITED"
 
     return {
         "created": created,
@@ -160,7 +163,7 @@ def _row(obj, source, forced_verdict, db_path, stripe, note=""):
 
 
 def _report(rows, args):
-    order = {"LIKELY_UNCREDITED": 0, "USER_NOT_FOUND": 1, "PENDING/UNPAID": 2, "REVIEW": 3, "OK": 4}
+    order = {"LIKELY_UNCREDITED": 0, "USER_NOT_FOUND": 1, "PENDING/UNPAID": 2, "REVIEW": 3, "OK": 4, "CREDITED": 5}
     rows.sort(key=lambda r: (order.get(r["verdict"], 9), r["created"]))
 
     cols = ["created", "verdict", "email", "amount", "bought", "source", "has_paid", "db_plan", "object_id", "note"]

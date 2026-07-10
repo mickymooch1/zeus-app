@@ -583,6 +583,32 @@ def _handle_async_payment_failed(db_path, session) -> None:
         )
 
 
+def _grant_topup(db_path, user, credit_type: str, credits: int, source: str, pi_id, pack) -> None:
+    """Grant a one-time credit top-up idempotently.
+
+    The credit_ledger insert (keyed on payment_intent id + credit_type) is the
+    idempotency gate: if this payment was already credited — by the other webhook
+    path (checkout vs payment_intent backup) or a Stripe delivery retry — the
+    increment is skipped. credit_type is 'song' or 'premium'.
+    """
+    email = user.get("email")
+    if not pi_id:
+        log.warning("Top-up with no payment_intent id (pack=%s user=%s) — cannot dedupe, granting once",
+                    pack, user["id"])
+    newly = db.record_credit_grant(db_path, user["id"], email, credit_type, credits, source, pi_id)
+    if not newly:
+        log.info("DUPLICATE credit grant skipped: %s top-up %d (%s) pi=%s already credited — user %s",
+                 credit_type, credits, pack, pi_id, user["id"])
+        return
+    if credit_type == "song":
+        db.increment_song_credits(db_path, user["id"], credits)
+    else:
+        db.increment_premium_credits(db_path, user["id"], credits)
+    db.update_user(db_path, user["id"], has_paid=1)
+    log.info("CREDITS GRANTED: %s top-up %d credits (%s) → user %s email=%s pi=%s",
+             credit_type, credits, pack, user["id"], email, pi_id)
+
+
 def _handle_checkout_completed(db_path, session) -> None:
     """Handle successful checkout — subscription activation or song credit top-up."""
     customer_email = session.get("customer_email")
@@ -613,7 +639,9 @@ def _handle_checkout_completed(db_path, session) -> None:
     if mode == "payment":
         pack = session.get("metadata", {}).get("song_pack")
         anim_pack = session.get("metadata", {}).get("animation_pack")
-        log.info("checkout one-time payment: song_pack=%r anim_pack=%r", pack, anim_pack)
+        pi_id = session.get("payment_intent")
+        amount_display = f"£{(session.get('amount_total') or 0) / 100:.2f}"
+        log.info("checkout one-time payment: song_pack=%r anim_pack=%r pi=%s", pack, anim_pack, pi_id)
 
         user = None
         if customer_email:
@@ -628,26 +656,24 @@ def _handle_checkout_completed(db_path, session) -> None:
 
         if pack and pack in SONG_PACKS:
             if user:
-                credits = SONG_PACKS[pack]["credits"]
-                db.increment_song_credits(db_path, user["id"], credits)
-                db.update_user(db_path, user["id"], has_paid=1)
-                log.info("CREDITS GRANTED: song top-up %d credits (%s) → user %s email=%s",
-                         credits, pack, user["id"], user.get("email"))
+                _grant_topup(db_path, user, "song", SONG_PACKS[pack]["credits"], "checkout_topup", pi_id, pack)
             else:
                 log.error("CREDITS FAILED: song top-up pack=%s — user NOT FOUND (email=%r customer=%r user_id_meta=%r)",
                           pack, customer_email, customer_id, user_id)
+                _alerts.alert_credit_not_granted(customer_email or "", amount_display,
+                                                 f"song top-up {pack}: user not found", pi_id or session_id)
         elif anim_pack and anim_pack in ANIMATION_PACKS:
             if user:
-                credits = ANIMATION_PACKS[anim_pack]["credits"]
-                db.increment_premium_credits(db_path, user["id"], credits)
-                db.update_user(db_path, user["id"], has_paid=1)
-                log.info("CREDITS GRANTED: premium top-up %d credits (%s) → user %s email=%s",
-                         credits, anim_pack, user["id"], user.get("email"))
+                _grant_topup(db_path, user, "premium", ANIMATION_PACKS[anim_pack]["credits"], "checkout_topup", pi_id, anim_pack)
             else:
                 log.error("CREDITS FAILED: animation top-up pack=%s — user NOT FOUND (email=%r customer=%r user_id_meta=%r)",
                           anim_pack, customer_email, customer_id, user_id)
+                _alerts.alert_credit_not_granted(customer_email or "", amount_display,
+                                                 f"animation top-up {anim_pack}: user not found", pi_id or session_id)
         else:
             log.warning("checkout.session.completed payment: unrecognised pack song=%r anim=%r — ignoring", pack, anim_pack)
+            _alerts.alert_credit_not_granted(customer_email or "", amount_display,
+                                             f"unrecognised pack (song={pack!r} anim={anim_pack!r})", pi_id or session_id)
         return
 
     # ── Subscription ─────────────────────────────────────────────────────────
@@ -691,6 +717,9 @@ def _handle_checkout_completed(db_path, session) -> None:
             "(email=%r customer=%r user_id_meta=%r plan=%r session=%s)",
             customer_email, customer_id, user_id, plan, session_id,
         )
+        _alerts.alert_credit_not_granted(
+            customer_email or "", f"£{(session.get('amount_total') or 0) / 100:.2f}",
+            f"subscription {plan}: user not found", subscription_id or session_id)
         return
 
     updates = {
@@ -741,6 +770,9 @@ def _handle_invoice_paid(db_path, invoice) -> None:
     user = _find_user_by_customer(db_path, customer_id)
     if not user:
         log.error("CREDITS FAILED: invoice.payment_succeeded — no user for customer_id=%r", customer_id)
+        _alerts.alert_credit_not_granted(
+            "", f"£{(invoice.get('amount_paid') or 0) / 100:.2f}",
+            "subscription renewal: no user for customer", invoice.get("id") or customer_id)
         return
     plan = user.get("subscription_plan")
     # Free plan is one-time signup credits only — never reset monthly
@@ -796,35 +828,35 @@ def _handle_payment_intent_succeeded(db_path, payment_intent) -> None:
         user = _find_user_by_customer(db_path, customer_id)
         log.info("payment_intent user lookup by customer_id=%r: found=%s", customer_id, bool(user))
 
+    amount_display = f"£{(payment_intent.get('amount') or 0) / 100:.2f}"
+
     if not user:
         log.error(
             "CREDITS FAILED: payment_intent.succeeded — user NOT FOUND "
             "(user_id_meta=%r customer_id=%r song_pack=%r anim_pack=%r pi=%s)",
             user_id, customer_id, song_pack, anim_pack, pi_id,
         )
+        _alerts.alert_credit_not_granted(
+            "", amount_display,
+            f"payment_intent top-up (song={song_pack!r} anim={anim_pack!r}): user not found", pi_id)
         return
 
+    # Idempotent: keyed on the payment_intent id, so if checkout.session.completed
+    # already credited this same purchase, this backup path skips.
     if song_pack and song_pack in SONG_PACKS:
-        credits = SONG_PACKS[song_pack]["credits"]
-        db.increment_song_credits(db_path, user["id"], credits)
-        db.update_user(db_path, user["id"], has_paid=1)
-        log.info(
-            "CREDITS GRANTED (payment_intent backup): song top-up %d credits (%s) → user %s email=%s pi=%s",
-            credits, song_pack, user["id"], user.get("email"), pi_id,
-        )
+        _grant_topup(db_path, user, "song", SONG_PACKS[song_pack]["credits"],
+                     "payment_intent_topup", pi_id, song_pack)
     elif anim_pack and anim_pack in ANIMATION_PACKS:
-        credits = ANIMATION_PACKS[anim_pack]["credits"]
-        db.increment_premium_credits(db_path, user["id"], credits)
-        db.update_user(db_path, user["id"], has_paid=1)
-        log.info(
-            "CREDITS GRANTED (payment_intent backup): animation top-up %d credits (%s) → user %s email=%s pi=%s",
-            credits, anim_pack, user["id"], user.get("email"), pi_id,
-        )
+        _grant_topup(db_path, user, "premium", ANIMATION_PACKS[anim_pack]["credits"],
+                     "payment_intent_topup", pi_id, anim_pack)
     else:
         log.warning(
             "payment_intent.succeeded: unrecognised pack song=%r anim=%r — no credits granted (pi=%s)",
             song_pack, anim_pack, pi_id,
         )
+        _alerts.alert_credit_not_granted(
+            user.get("email") or "", amount_display,
+            f"payment_intent: unrecognised pack (song={song_pack!r} anim={anim_pack!r})", pi_id)
 
 
 def _handle_subscription_updated(db_path, subscription) -> None:

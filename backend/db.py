@@ -303,6 +303,21 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 user_id     TEXT,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""",
+            # Audit log of every credit grant. Doubles as the idempotency gate for
+            # one-time top-ups: UNIQUE(stripe_payment_id, credit_type) means the same
+            # payment can't be credited twice (checkout vs payment_intent overlap, or
+            # a Stripe delivery retry).
+            """CREATE TABLE IF NOT EXISTS credit_ledger (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id           TEXT NOT NULL,
+                email             TEXT,
+                credit_type       TEXT NOT NULL,
+                amount            INTEGER NOT NULL,
+                source            TEXT NOT NULL,
+                stripe_payment_id TEXT,
+                created_at        TEXT NOT NULL,
+                UNIQUE(stripe_payment_id, credit_type)
+            )""",
             "ALTER TABLE users ADD COLUMN account_type TEXT NOT NULL DEFAULT 'standard'",
             "ALTER TABLE users ADD COLUMN kids_pin_hash TEXT",
             "ALTER TABLE users ADD COLUMN school_verified INTEGER NOT NULL DEFAULT 0",
@@ -1126,6 +1141,59 @@ def increment_song_credits(db_path: pathlib.Path, user_id: str, amount: int) -> 
             (user_id, amount, amount),
         )
         conn.commit()
+    finally:
+        conn.close()
+
+
+# ── Credit ledger (audit log + idempotency gate) ──────────────────────────────
+
+def record_credit_grant(
+    db_path: pathlib.Path,
+    user_id: str,
+    email: str | None,
+    credit_type: str,
+    amount: int,
+    source: str,
+    stripe_payment_id: str | None,
+) -> bool:
+    """Record a credit grant in the audit ledger.
+
+    Returns True if this is a newly-recorded grant, or False if a grant for the
+    same (stripe_payment_id, credit_type) already exists. Callers use the False
+    return to SKIP re-crediting — this is the idempotency gate for one-time
+    top-ups (checkout vs payment_intent backup for the same payment, and Stripe
+    delivery retries).
+
+    Note: SQLite treats NULLs as distinct, so a NULL stripe_payment_id can never
+    conflict — a missing id means "cannot dedupe", and every call records + returns
+    True. Callers should pass the payment_intent id whenever they have one.
+    """
+    from datetime import datetime, timezone
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            """INSERT INTO credit_ledger
+                   (user_id, email, credit_type, amount, source, stripe_payment_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(stripe_payment_id, credit_type) DO NOTHING""",
+            (user_id, email, credit_type, amount, source, stripe_payment_id,
+             datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def get_credit_grant(db_path: pathlib.Path, stripe_payment_id: str, credit_type: str) -> dict | None:
+    """Return the ledger row for a (payment, credit_type), or None if not granted."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM credit_ledger WHERE stripe_payment_id = ? AND credit_type = ?",
+            (stripe_payment_id, credit_type),
+        ).fetchone()
+        return _row_to_dict(row) if row else None
     finally:
         conn.close()
 

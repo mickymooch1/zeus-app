@@ -31,9 +31,8 @@ credit_ledger(
   email             TEXT,               -- denormalised; reconcile needs no join
   credit_type       TEXT NOT NULL,      -- 'song' | 'premium' | 'video'
   amount            INTEGER NOT NULL,
-  source            TEXT NOT NULL,      -- 'checkout_topup' | 'payment_intent_topup'
-                                        --  | 'subscription' | 'invoice_renewal' | 'manual'
-  stripe_payment_id TEXT,               -- pi_… (one-time), in_…/cs_… (subscription)
+  source            TEXT NOT NULL,      -- 'checkout_topup' | 'payment_intent_topup' | 'manual'
+  stripe_payment_id TEXT,               -- payment_intent id (pi_…) for one-time top-ups
   created_at        TEXT NOT NULL,
   UNIQUE(stripe_payment_id, credit_type)
 )
@@ -78,8 +77,10 @@ If `payment_intent` id is missing (shouldn't happen for paid top-ups), fall back
 incrementing and log a warning — can't dedupe without a key.
 
 Subscription / invoice grants use absolute `upsert_*` (set balance = allowance), which is
-already retry-safe, so they are **recorded** for audit (source `subscription` /
-`invoice_renewal`, keyed on session / invoice id) but not guarded.
+already retry-safe **and** already verifiable retroactively via `has_paid` +
+`subscription_plan` (which `reconcile_payments.py` checks). The ledger therefore stays
+focused on **top-ups** — the grants that had no verifiable record. Subscriptions are not
+ledger-recorded; they still get a failure **alert** if the user can't be resolved.
 
 ## 4. Safety alerts (Porickbot)
 

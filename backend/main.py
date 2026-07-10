@@ -1706,6 +1706,11 @@ async def stripe_webhook(request: Request):
         return {"received": True}
     except Exception as exc:
         log.error("Stripe webhook /billing/webhook error (acknowledged 200 to avoid disable): %s", exc, exc_info=True)
+        try:
+            import alerts as _alerts
+            _alerts.alert_webhook_error("/billing/webhook", "n/a", str(exc))
+        except Exception:
+            pass
         return {"status": "error_logged"}
 
 
@@ -1726,6 +1731,11 @@ async def stripe_webhook_v2(request: Request):
         return {"received": True}
     except Exception as exc:
         log.error("Stripe webhook /webhook/stripe error (acknowledged 200 to avoid disable): %s", exc, exc_info=True)
+        try:
+            import alerts as _alerts
+            _alerts.alert_webhook_error("/webhook/stripe", "n/a", str(exc))
+        except Exception:
+            pass
         return {"status": "error_logged"}
 
 

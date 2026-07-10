@@ -127,6 +127,38 @@ def alert_payment_failed(email: str, session_id: str = "") -> None:
         log.debug("alert_payment_failed failed (non-fatal)")
 
 
+def alert_webhook_error(event_type: str, event_id: str, error: str) -> None:
+    """A Stripe webhook crashed and was acknowledged with 200 (error_logged path).
+
+    This is the alarm that would have caught the silent stripe-15 outage on day one
+    instead of ~2.5 weeks later via a customer complaint.
+    """
+    try:
+        send_admin_alert(
+            "🚨 STRIPE WEBHOOK CRASHED — credits may NOT be granted!\n"
+            f"📩 event: {event_type or 'unknown'} ({event_id or 'n/a'})\n"
+            f"💥 error: {error}\n"
+            "🔍 Check Railway logs + Stripe dashboard NOW"
+        )
+    except Exception:
+        log.debug("alert_webhook_error failed (non-fatal)")
+
+
+def alert_credit_not_granted(email: str, amount: str, detail: str, ref: str = "") -> None:
+    """A payment succeeded but no credits were granted (user not found, unknown pack…)."""
+    try:
+        send_admin_alert(
+            "🚨 PAID but NO CREDITS granted!\n"
+            f"📧 {email or 'unknown'}\n"
+            f"💵 {amount}\n"
+            f"⚠️ {detail}\n"
+            f"🧾 ref: {ref or 'n/a'}\n"
+            "🔧 Grant manually via Porickbot + check Stripe"
+        )
+    except Exception:
+        log.debug("alert_credit_not_granted failed (non-fatal)")
+
+
 def alert_song_failed(email: str, variant_id: int) -> None:
     try:
         send_admin_alert(
