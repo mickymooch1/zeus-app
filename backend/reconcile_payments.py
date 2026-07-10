@@ -25,6 +25,7 @@ Verdicts:
 """
 import argparse
 import csv as _csv
+import json
 import os
 import sys
 from datetime import datetime, timezone
@@ -92,6 +93,7 @@ def reconcile(args) -> None:
 
     # ── Paid Checkout Sessions (new subscriptions + one-time top-ups) ────────────
     for s in stripe.checkout.Session.list(created={"gte": since}, limit=100).auto_paging_iter():
+        s = json.loads(str(s))  # stripe 15.x StripeObject has no working .get(); use a plain dict
         if s.get("status") != "complete":
             continue
         pay_status = s.get("payment_status")
@@ -104,6 +106,7 @@ def reconcile(args) -> None:
 
     # ── Paid subscription RENEWAL invoices (initial create is covered by session) ─
     for inv in stripe.Invoice.list(created={"gte": since}, status="paid", limit=100).auto_paging_iter():
+        inv = json.loads(str(inv))  # stripe 15.x StripeObject has no working .get(); use a plain dict
         if inv.get("billing_reason") not in ("subscription_cycle", "subscription_update"):
             continue
         rows.append(_row(inv, "invoice_renewal", None, db_path, stripe))
@@ -172,7 +175,7 @@ def _report(rows, args):
     counts = Counter(r["verdict"] for r in rows)
     print("\nSummary:", dict(counts))
     flagged = [r for r in rows if r["verdict"] in ("LIKELY_UNCREDITED", "USER_NOT_FOUND")]
-    print(f"\n⚠️  {len(flagged)} payment(s) need restoration/investigation:")
+    print(f"\n[!] {len(flagged)} payment(s) need restoration/investigation:")
     for r in flagged:
         print(f"  - {r['email']}  {r['amount']}  {r['bought']}  ({r['object_id']})")
 
