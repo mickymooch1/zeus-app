@@ -127,6 +127,24 @@ def alert_payment_failed(email: str, session_id: str = "") -> None:
         log.debug("alert_payment_failed failed (non-fatal)")
 
 
+def alert_payg_purchase(email: str, pack_label: str, credits: int, amount_display: str) -> None:
+    """Success notification when a one-time (PAYG) credit top-up is granted.
+
+    Uses the same send path as every other admin alert (send_admin_alert -> Porick's
+    Telegram). Fire-and-forget: never raises into the webhook handler.
+    """
+    try:
+        send_admin_alert(
+            "💰 PAYG PURCHASE\n"
+            f"📧 Customer: {email or 'unknown'}\n"
+            f"📦 Pack: {pack_label} ({credits} credits)\n"
+            f"💵 Amount: {amount_display or 'n/a'}\n"
+            "✅ Credits granted"
+        )
+    except Exception:
+        log.debug("alert_payg_purchase failed (non-fatal)")
+
+
 def alert_webhook_error(event_type: str, event_id: str, error: str) -> None:
     """A Stripe webhook crashed and was acknowledged with 200 (error_logged path).
 

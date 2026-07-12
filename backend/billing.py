@@ -593,7 +593,8 @@ def _handle_async_payment_failed(db_path, session) -> None:
         )
 
 
-def _grant_topup(db_path, user, credit_type: str, credits: int, source: str, pi_id, pack) -> None:
+def _grant_topup(db_path, user, credit_type: str, credits: int, source: str, pi_id, pack,
+                 amount_display: str = "") -> None:
     """Grant a one-time credit top-up idempotently.
 
     The credit_ledger insert (keyed on payment_intent id + credit_type) is the
@@ -617,6 +618,11 @@ def _grant_topup(db_path, user, credit_type: str, credits: int, source: str, pi_
     db.update_user(db_path, user["id"], has_paid=1)
     log.info("CREDITS GRANTED: %s top-up %d credits (%s) → user %s email=%s pi=%s",
              credit_type, credits, pack, user["id"], email, pi_id)
+
+    # Success notification to Porick — same send path as every other alert.
+    log.info("PAYG alert firing for %s — %d credits", email, credits)
+    _pack_cfg = (SONG_PACKS if credit_type == "song" else ANIMATION_PACKS).get(pack, {})
+    _alerts.alert_payg_purchase(email or "", _pack_cfg.get("label", pack), credits, amount_display)
 
 
 def _handle_checkout_completed(db_path, session) -> None:
@@ -666,7 +672,7 @@ def _handle_checkout_completed(db_path, session) -> None:
 
         if pack and pack in SONG_PACKS:
             if user:
-                _grant_topup(db_path, user, "song", SONG_PACKS[pack]["credits"], "checkout_topup", pi_id, pack)
+                _grant_topup(db_path, user, "song", SONG_PACKS[pack]["credits"], "checkout_topup", pi_id, pack, amount_display)
             else:
                 log.error("CREDITS FAILED: song top-up pack=%s — user NOT FOUND (email=%r customer=%r user_id_meta=%r)",
                           pack, customer_email, customer_id, user_id)
@@ -674,7 +680,7 @@ def _handle_checkout_completed(db_path, session) -> None:
                                                  f"song top-up {pack}: user not found", pi_id or session_id)
         elif anim_pack and anim_pack in ANIMATION_PACKS:
             if user:
-                _grant_topup(db_path, user, "premium", ANIMATION_PACKS[anim_pack]["credits"], "checkout_topup", pi_id, anim_pack)
+                _grant_topup(db_path, user, "premium", ANIMATION_PACKS[anim_pack]["credits"], "checkout_topup", pi_id, anim_pack, amount_display)
             else:
                 log.error("CREDITS FAILED: animation top-up pack=%s — user NOT FOUND (email=%r customer=%r user_id_meta=%r)",
                           anim_pack, customer_email, customer_id, user_id)
@@ -855,10 +861,10 @@ def _handle_payment_intent_succeeded(db_path, payment_intent) -> None:
     # already credited this same purchase, this backup path skips.
     if song_pack and song_pack in SONG_PACKS:
         _grant_topup(db_path, user, "song", SONG_PACKS[song_pack]["credits"],
-                     "payment_intent_topup", pi_id, song_pack)
+                     "payment_intent_topup", pi_id, song_pack, amount_display)
     elif anim_pack and anim_pack in ANIMATION_PACKS:
         _grant_topup(db_path, user, "premium", ANIMATION_PACKS[anim_pack]["credits"],
-                     "payment_intent_topup", pi_id, anim_pack)
+                     "payment_intent_topup", pi_id, anim_pack, amount_display)
     else:
         log.warning(
             "payment_intent.succeeded: unrecognised pack song=%r anim=%r — no credits granted (pi=%s)",

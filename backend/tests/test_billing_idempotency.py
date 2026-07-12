@@ -78,6 +78,34 @@ class TestTopupIdempotency:
         assert _bal(db_path, user["id"]) == 2
 
 
+class TestPaygSuccessAlert:
+    def test_successful_checkout_topup_fires_payg_alert(self, db_path, user, monkeypatch):
+        calls = []
+        monkeypatch.setattr(billing._alerts, "alert_payg_purchase",
+                            lambda *a, **k: calls.append((a, k)))
+        billing._handle_checkout_completed(db_path, _session())
+        assert len(calls) == 1
+
+    def test_payment_intent_topup_fires_payg_alert(self, db_path, user, monkeypatch):
+        calls = []
+        monkeypatch.setattr(billing._alerts, "alert_payg_purchase",
+                            lambda *a, **k: calls.append((a, k)))
+        pi = {
+            "id": "pi_pay2", "object": "payment_intent", "customer": "cus_1", "amount": 99,
+            "metadata": {"song_pack": "song_pack_099", "user_id": user["id"]},
+        }
+        billing._handle_payment_intent_succeeded(db_path, pi)
+        assert len(calls) == 1
+
+    def test_duplicate_topup_does_not_fire_payg_alert(self, db_path, user, monkeypatch):
+        billing._handle_checkout_completed(db_path, _session())  # first grant
+        calls = []
+        monkeypatch.setattr(billing._alerts, "alert_payg_purchase",
+                            lambda *a, **k: calls.append((a, k)))
+        billing._handle_checkout_completed(db_path, _session())  # replay — no new grant
+        assert len(calls) == 0
+
+
 class TestCreditFailureAlert:
     def test_user_not_found_triggers_alert(self, db_path, monkeypatch):
         calls = []
