@@ -36,7 +36,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'rock',       label: '🎸 Rock & Metal',        color: '#f87171',
     genres: ['rock','hardrock','metal','punkrock','rocknroll','traditionalpop','bluesrock','indie','britpop','indierock','rockney'] },
   { id: 'country_folk', label: '🤠 Country & Folk',    color: '#d97706',
-    genres: ['country','bluegrass','countryamericana','countrypop','folk','acousticballad'] },
+    genres: ['country','bluegrass','countryamericana','countrypop','folk','acousticballad','folkblues','roots','acousticblues'] },
   { id: 'electronic', label: '🎹 Electronic & Dance',  color: '#4ade80',
     genres: ['house','technhouse','deephouse','dancehouse','purebassline','synthwave','driftphonk','techno','edm','electronicfunk','dubstep','jerseyclub','hyperpop','syntheticpop'] },
   { id: 'world',      label: '🌍 World & Urban',       color: '#fbbf24',
@@ -49,7 +49,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
 
 const GENRE_LABEL: Record<string, string> = {
   bluegrass:'Bluegrass',
-  britpop:'Britpop', indierock:'Indie Rock', folk:'Folk', acousticballad:'Acoustic Ballad', patriotic:'Patriotic',
+  britpop:'Britpop', indierock:'Indie Rock', folk:'Folk', acousticballad:'Acoustic Ballad', folkblues:'Folk Blues', roots:'Roots', acousticblues:'Acoustic Blues', patriotic:'Patriotic',
   hiphop:'Hip-Hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk',
   rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage',
   jungle:'Jungle', bassline:'Bassline House', house:'House', deephouse:'Deep House', dancehouse:'Dance House',
