@@ -271,6 +271,10 @@ def _submit_to_apiframe(variant_id: int, lyrics: str, style_prompt: str, suno_mo
         },
     }
     headers = {"X-API-Key": APIFRAME_API_KEY, "Content-Type": "application/json"}
+    logger.info(
+        "APIFRAME_V2_INSTRUMENTAL variant_id=%d sunoParams.instrumental=%s extra_suno_keys=%s",
+        variant_id, payload["sunoParams"].get("instrumental"), sorted(extra_suno_params.keys()),
+    )
     logger.info("APIFRAME_V2_SUBMIT variant_id=%d webhook=%r style_len=%d", variant_id, webhook_url, len(style_prompt))
     logger.info("APIFRAME_V2_STYLE variant_id=%d style=%r", variant_id, style_prompt[:600])
 
@@ -626,9 +630,13 @@ def generate_multiple_variants(
         genre_tag = f"{genre}__{genre_b}" if genre_b and genre_b in GENRE_PRESETS else genre
         suno_model = GENRE_MODEL_OVERRIDES.get(genre, GENRE_MODEL_OVERRIDES.get(genre_b or '', 'V5'))
         genre_suno_params = dict(extra_suno_params or {})
-        if genre in INSTRUMENTAL_GENRES:
+        _in_instrumental_set = genre in INSTRUMENTAL_GENRES
+        if _in_instrumental_set:
             genre_suno_params['instrumental'] = True
-            logger.info("Forcing instrumental for genre=%r", genre)
+        logger.info(
+            "Instrumental genre check: genre=%r in_frozenset=%s instrumental_forced=%s",
+            genre, _in_instrumental_set, genre_suno_params.get('instrumental', False),
+        )
         _gneg = GENRE_NEGATIVE_TAGS.get(genre)
         if _gneg:
             _existing_neg = genre_suno_params.get('negative_tags')
