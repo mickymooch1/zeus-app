@@ -9,7 +9,7 @@ export default function PrivacyPage() {
       </div>
       <main className="content-page page">
         <h1 className="content-title">Privacy Policy</h1>
-        <p className="content-meta">Last updated: 6 June 2026</p>
+        <p className="content-meta">Last updated: 17 July 2026</p>
 
         <section className="content-section">
           <h2>1. Introduction</h2>
@@ -105,12 +105,11 @@ export default function PrivacyPage() {
         <section className="content-section">
           <h2>5. Third-Party Services</h2>
           <p>We use the following third-party processors:</p>
+          <p>
+            The third-party AI providers that process your creative inputs are described
+            separately in Section 6 (AI Processing &amp; Third-Party AI Services).
+          </p>
           <ul>
-            <li>
-              <strong>AI music providers:</strong> Your song generation requests are transmitted
-              to third-party AI services to generate music, lyrics, and cover art. We recommend
-              not including sensitive personal information in your prompts.
-            </li>
             <li>
               <strong>Stripe:</strong> Processes all payment transactions. Stripe collects and
               stores payment details directly. We receive only non-sensitive billing identifiers.
@@ -139,7 +138,68 @@ export default function PrivacyPage() {
         </section>
 
         <section className="content-section">
-          <h2>6. Your Rights Under UK GDPR</h2>
+          <h2>6. AI Processing &amp; Third-Party AI Services</h2>
+          <p>
+            Zeus Beats is an AI-powered creative tool. To generate the music, lyrics, cover art,
+            and voice content you request, the information you provide — including your song
+            descriptions and style prompts, lyric ideas, and any voice recordings you upload for
+            voice cloning — is transmitted to and processed by the third-party
+            artificial-intelligence providers listed below. This processing is essential to
+            deliver the features you ask for, and it only happens when you choose to use those
+            features.
+          </p>
+          <ul>
+            <li>
+              <strong>Suno (via Apiframe):</strong> Your song descriptions, style selections, and
+              generated lyrics are sent to generate the music audio for your tracks. Processed
+              under Suno's and Apiframe's own terms (suno.com, apiframe.ai).
+            </li>
+            <li>
+              <strong>ElevenLabs:</strong> Text you provide is sent to generate voice narration
+              and sound effects. For the optional voice-cloning feature, any voice recording you
+              record or upload is sent to create a synthetic version of that voice. Processed
+              under ElevenLabs' own terms (elevenlabs.io).
+            </li>
+            <li>
+              <strong>Anthropic (Claude):</strong> Your song descriptions, themes, and prompts are
+              sent to generate and refine song lyrics and text. Processed under Anthropic's own
+              terms (anthropic.com).
+            </li>
+            <li>
+              <strong>fal.ai:</strong> Your prompts and style selections are sent to generate
+              cover art and image content for your songs. Processed under fal.ai's own terms
+              (fal.ai).
+            </li>
+          </ul>
+          <p>
+            <strong>Limited use.</strong> We use the data sent to these AI providers solely to
+            provide the generation features you request. We do not use your prompts, uploads, or
+            generated content to train our own AI models, we do not sell or rent this data, and we
+            do not use it for advertising. Each provider processes your data only to return the
+            requested result to us, under its own privacy policy and terms.
+          </p>
+          <p>
+            <strong>Voice cloning and biometric data.</strong> The optional voice-cloning feature
+            processes a recording of your voice, which may constitute biometric data. We capture
+            and transmit a voice recording to ElevenLabs only when you actively choose to use voice
+            cloning and give your explicit consent at the point of recording or upload. Your voice
+            recording is used solely to create the synthetic voice you request — it is never used
+            for identification, sold, or shared for any other purpose. You may decline by not using
+            the feature, and you may request deletion of your voice data at any time by contacting
+            us at{' '}
+            <a href="mailto:hello@zeusbeats.com" className="auth-link">hello@zeusbeats.com</a>.
+          </p>
+          <p>
+            <strong>Your consent.</strong> By using Zeus Beats' AI generation features, you consent
+            to your inputs being processed by these third-party AI providers as described above. If
+            you do not wish your data to be processed by them, please do not use the relevant AI
+            generation features. We recommend you do not include sensitive personal information in
+            your prompts, descriptions, or uploads.
+          </p>
+        </section>
+
+        <section className="content-section">
+          <h2>7. Your Rights Under UK GDPR</h2>
           <p>You have the following rights regarding your personal data:</p>
           <ul>
             <li>
@@ -183,7 +243,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="content-section">
-          <h2>7. Data Retention</h2>
+          <h2>8. Data Retention</h2>
           <p>
             We retain your personal data for as long as your account is active or as needed to
             provide the Service. If you delete your account, we will delete your personal data
@@ -197,7 +257,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="content-section">
-          <h2>8. Cookies</h2>
+          <h2>9. Cookies</h2>
           <p>
             Zeus Beats uses minimal cookies and local storage:
           </p>
@@ -217,7 +277,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="content-section">
-          <h2>9. Children's Privacy</h2>
+          <h2>10. Children's Privacy</h2>
           <p>
             The Service is not directed at children under the age of 18. We do not knowingly
             collect personal data from children. If you believe we have inadvertently collected
@@ -226,7 +286,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="content-section">
-          <h2>10. Right to Erasure &amp; Data Deletion</h2>
+          <h2>11. Right to Erasure &amp; Data Deletion</h2>
           <p>
             You have the right to request deletion of your personal data at any time. To request
             deletion, visit your{' '}
@@ -243,7 +303,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="content-section">
-          <h2>11. Children's Data (Zeus Kids Beats)</h2>
+          <h2>12. Children's Data (Zeus Kids Beats)</h2>
           <p>Zeus Kids Beats is our child-safe music and storytelling mode designed for use in schools and family settings. We take children's privacy extremely seriously.</p>
           <p><strong>No individual child data is collected.</strong> Zeus Kids Beats school accounts are managed by adult teachers. Children do not have individual logins or personal profiles. All songs and stories created belong to the teacher's account, not to any individual child.</p>
           <p>School accounts store only: the teacher's name, school name, email address, and year group. No child names, ages, or personal identifiers are stored.</p>
@@ -252,7 +312,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="content-section">
-          <h2>12. Contact &amp; Data Controller</h2>
+          <h2>13. Contact &amp; Data Controller</h2>
           <p>
             Zeus Beats Ltd is the data controller for personal
             data processed through the Service. Zeus Beats Ltd is registered with the
