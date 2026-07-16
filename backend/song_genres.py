@@ -102,4 +102,11 @@ GENRE_PRESETS = {
     "oceanwaves":        "ocean waves soundscape, waves crashing on a sandy beach, gentle tide, distant seagulls, sea breeze, no music, no instruments, no vocals, no melody, pure ocean sounds only",
     "forest":            "forest soundscape, birdsong, wind through the leaves, babbling stream, woodland ambience, no music, no instruments, no vocals, no melody, pure nature sounds only",
     "nightsounds":       "night-time soundscape, crickets chirping, distant owl hooting, gentle breeze, calm nocturnal ambience, no music, no instruments, no vocals, no melody, pure night sounds only",
+    "psychedelicguitar": "psychedelic rock guitar, virtuoso electric guitar solos, wah-wah pedal, fuzz distortion, expressive string bends, blues rock foundation, 1960s psychedelic sound, feedback and sustain, improvisational guitar mastery, overdriven amp tone, soulful lead guitar, heavy reverb, experimental guitar effects, 120 BPM, raw electric energy",
+    "saxophone":         "smooth jazz saxophone, expressive solo sax, warm brass tone, soulful improvisation, late night jazz club, gentle rhythm section backing, 90 BPM, romantic mellow saxophone, breathy emotive playing, sophisticated jazz",
+    "pianosolo":         "solo piano, expressive emotive playing, classical and contemporary blend, delicate melody, rich harmonies, intimate concert piano, dynamic light and shade, 80 BPM, cinematic piano, heartfelt instrumental",
+    "violinsolo":        "solo violin, virtuoso classical violin, expressive vibrato, sweeping emotional melody, orchestral strings backing, cinematic dramatic feel, 90 BPM, passionate violin performance, rich resonant tone",
+    "electricbluesguitar": "electric blues guitar solo, soulful string bends, blues scale mastery, warm overdriven tone, expressive slow blues, backing band groove, 75 BPM, emotive lead guitar, gritty authentic blues",
+    "trumpet":           "solo trumpet, jazz trumpet virtuoso, bright brass tone, expressive improvisation, smooth jazz backing, 100 BPM, soulful muted trumpet, sophisticated brass melody",
+    "flamencoguitar":    "flamenco guitar, rapid fingerpicking, Spanish classical guitar, passionate rhythmic playing, percussive guitar techniques, 110 BPM, fiery Spanish melody, virtuoso nylon string guitar",
 }

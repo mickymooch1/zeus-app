@@ -95,6 +95,13 @@ GENRE_PORTRAIT_PROMPTS = {
     "christmas":        "Christmas music performer, professional portrait photo, clear frontal face, warm festive red and gold lighting, joyful festive expression, photorealistic",
     "corridos":         "Mexican musician, professional portrait photo, clear frontal face, warm vibrant studio lighting, passionate authentic expression, photorealistic",
     "healingfrequency": "sound healer with singing bowls, professional portrait photo, clear frontal face, soft glowing pastel light, serene peaceful expression, spiritual wellness aesthetic, photorealistic",
+    "psychedelicguitar": "psychedelic rock guitarist professional portrait, clear frontal face, colourful 1960s stage lighting, expressive passionate face, electric guitar visible, photorealistic",
+    "saxophone":        "saxophonist professional portrait, clear frontal face, warm late-night jazz club lighting, expressive soulful face, saxophone visible, photorealistic",
+    "pianosolo":        "solo pianist professional portrait, clear frontal face, elegant intimate concert lighting, expressive emotive face, grand piano visible, photorealistic",
+    "violinsolo":       "solo violinist professional portrait, clear frontal face, elegant dramatic concert lighting, passionate expressive face, violin visible, photorealistic",
+    "electricbluesguitar": "electric blues guitarist professional portrait, clear frontal face, warm amber club lighting, soulful expressive face, electric guitar visible, photorealistic",
+    "trumpet":          "jazz trumpeter professional portrait, clear frontal face, warm intimate jazz club lighting, expressive soulful face, trumpet visible, photorealistic",
+    "flamencoguitar":   "flamenco guitarist professional portrait, clear frontal face, warm dramatic Spanish lighting, passionate fiery face, nylon string guitar visible, photorealistic",
 }
 
 _FALLBACK_PROMPT = "Professional portrait photo, musician, clear frontal face, studio lighting, photorealistic"

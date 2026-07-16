@@ -7,7 +7,7 @@ import time
 import threading
 import requests
 
-INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency', 'naturesounds', 'whalesong', 'cracklingfire', 'thunderstorm', 'oceanwaves', 'forest', 'nightsounds'})
+INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency', 'naturesounds', 'whalesong', 'cracklingfire', 'thunderstorm', 'oceanwaves', 'forest', 'nightsounds', 'saxophone', 'pianosolo', 'violinsolo', 'trumpet', 'flamencoguitar'})
 
 # Genres that should render as pure sound (no music at all) — pushed via Suno negative_tags.
 _NATURE_SOUND_NEG = "music, instruments, melody, beat, rhythm, drums, bass"
@@ -115,6 +115,13 @@ GENRE_MOTION_PROMPTS: dict[str, str] = {
     "christmas":        "Christmas performer singing joyfully, festive warm lighting, holiday celebration energy, cosy festive atmosphere",
     "corridos":         "corridos musician playing guitar passionately, traditional Mexican performance, vibrant warm lighting, heartfelt authentic storytelling energy",
     "healingfrequency": "peaceful healing frequency visuals, gentle energy waves, soft glowing calming light, serene meditative atmosphere",
+    "psychedelicguitar": "psychedelic rock guitarist performing passionately, expressive guitar movement, swirling colourful psychedelic lighting, raw electric energy",
+    "saxophone":        "saxophonist playing expressively, warm swaying movement, smoky amber jazz club lighting, soulful late-night atmosphere",
+    "pianosolo":        "pianist playing expressively, hands moving gracefully across the keys, intimate concert lighting, emotive heartfelt atmosphere",
+    "violinsolo":       "violinist performing passionately, expressive bowing movement, dramatic sweeping concert lighting, cinematic emotional atmosphere",
+    "electricbluesguitar": "electric blues guitarist playing soulfully, expressive string bends, warm amber club lighting, gritty emotive atmosphere",
+    "trumpet":          "trumpeter playing expressively, bright confident movement, warm golden jazz club lighting, sophisticated soulful atmosphere",
+    "flamencoguitar":   "flamenco guitarist playing passionately, rapid expressive fingerpicking, warm dramatic Spanish lighting, fiery rhythmic atmosphere",
 }
 
 APIFRAME_API_KEY = os.environ["APIFRAME_API_KEY"]

@@ -108,6 +108,13 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "oceanwaves":       "serene ocean album cover, gentle waves rolling onto a golden sandy beach at sunset, soft sea foam, distant horizon, calming coastal atmosphere, no people, ultra detailed professional music artwork, NOT dark or intense",
     "forest":           "lush forest album cover, sunlight streaming through tall green trees, a clear stream, mossy woodland, tranquil natural atmosphere, no people, ultra detailed professional music artwork, NOT dark or intense",
     "nightsounds":      "peaceful moonlit night album cover, calm countryside under a starry sky, soft moonlight, silhouetted trees, serene nocturnal atmosphere, no people, ultra detailed professional music artwork, NOT dark or intense",
+    "psychedelicguitar": "cinematic album cover, psychedelic rock guitarist in foreground, swirling colourful 1960s psychedelic backdrop, electric guitar, vibrant purple orange lighting, retro psychedelic aesthetic, ultra detailed professional music artwork",
+    "saxophone":        "cinematic album cover, saxophone in foreground, warm late-night jazz club backdrop, smoky amber lighting, sophisticated jazz aesthetic, ultra detailed professional music artwork",
+    "pianosolo":        "cinematic album cover, grand piano in foreground, intimate concert hall backdrop, soft dramatic lighting, elegant emotive aesthetic, ultra detailed professional music artwork",
+    "violinsolo":       "cinematic album cover, violin in foreground, dramatic concert hall backdrop, sweeping golden light, elegant classical aesthetic, ultra detailed professional music artwork",
+    "electricbluesguitar": "cinematic album cover, electric blues guitar in foreground, smoky blues club backdrop, warm amber lighting, gritty authentic blues aesthetic, ultra detailed professional music artwork",
+    "trumpet":          "cinematic album cover, trumpet in foreground, warm intimate jazz club backdrop, golden amber lighting, sophisticated jazz aesthetic, ultra detailed professional music artwork",
+    "flamencoguitar":   "cinematic album cover, flamenco guitar in foreground, warm dramatic Spanish courtyard backdrop, fiery red and amber lighting, passionate Spanish aesthetic, ultra detailed professional music artwork",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"
