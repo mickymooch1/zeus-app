@@ -47,6 +47,19 @@ class TestInstrumentalRegistry:
 
         assert "electricbluesguitar" in INSTRUMENTAL_GENRES
 
+    def test_psychedelic_guitar_is_instrumental(self):
+        from songs import INSTRUMENTAL_GENRES
+
+        assert "psychedelicguitar" in INSTRUMENTAL_GENRES
+
+    @pytest.mark.parametrize(
+        "picker", FRONTEND_GENRE_PICKERS, ids=lambda p: p.parent.parent.parent.name
+    )
+    def test_psychedelic_guitar_lives_in_instrumental_not_rock(self, picker):
+        source = picker.read_text(encoding="utf-8")
+        assert "psychedelicguitar" in _category_genres(source, "instrumental_solo")
+        assert "psychedelicguitar" not in _category_genres(source, "rock")
+
     @pytest.mark.parametrize(
         "picker", FRONTEND_GENRE_PICKERS, ids=lambda p: p.parent.parent.parent.name
     )

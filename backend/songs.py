@@ -7,7 +7,7 @@ import time
 import threading
 import requests
 
-INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency', 'naturesounds', 'whalesong', 'cracklingfire', 'thunderstorm', 'oceanwaves', 'forest', 'nightsounds', 'saxophone', 'pianosolo', 'violinsolo', 'trumpet', 'flamencoguitar', 'electricbluesguitar'})
+INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency', 'naturesounds', 'whalesong', 'cracklingfire', 'thunderstorm', 'oceanwaves', 'forest', 'nightsounds', 'saxophone', 'pianosolo', 'violinsolo', 'trumpet', 'flamencoguitar', 'electricbluesguitar', 'psychedelicguitar'})
 
 # Genres that should render as pure sound (no music at all) — pushed via Suno negative_tags.
 _NATURE_SOUND_NEG = "music, instruments, melody, beat, rhythm, drums, bass"

@@ -34,7 +34,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'soul',       label: '🎵 Soul & Blues',        color: '#fb923c',
     genres: ['soul','bluessoul','southemsoul','soulrnb','orchestralsoul','classicfunk','gospel','trapsoul','vocaljazz','swing','rnb','blues','deepsoulblues'] },
   { id: 'rock',       label: '🎸 Rock & Metal',        color: '#f87171',
-    genres: ['rock','hardrock','metal','punkrock','rocknroll','traditionalpop','bluesrock','indie','britpop','indierock','rockney','psychedelicguitar'] },
+    genres: ['rock','hardrock','metal','punkrock','rocknroll','traditionalpop','bluesrock','indie','britpop','indierock','rockney'] },
   { id: 'country_folk', label: '🤠 Country & Folk',    color: '#d97706',
     genres: ['country','bluegrass','countryamericana','countrypop','folk','acousticballad','folkblues','roots','acousticblues'] },
   { id: 'electronic', label: '🎹 Electronic & Dance',  color: '#4ade80',
@@ -46,7 +46,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'chill',      label: '🧘 Chill & Wellness',    color: '#e2e8f0',
     genres: ['lofi','meditation','ambient','healingfrequency','naturesounds','whalesong','cracklingfire','thunderstorm','oceanwaves','forest','nightsounds','classical','acoustic','jazz','irishfolk','irishjig','christmas'] },
   { id: 'instrumental_solo', label: '🎷 Instrumental & Solo', color: '#a78bfa',
-    genres: ['saxophone','pianosolo','violinsolo','electricbluesguitar','trumpet','flamencoguitar'] },
+    genres: ['saxophone','pianosolo','violinsolo','electricbluesguitar','psychedelicguitar','trumpet','flamencoguitar'] },
 ];
 
 const GENRE_LABEL: Record<string, string> = {
