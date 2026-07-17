@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { BACKEND_URL } from '../brand';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -83,7 +84,9 @@ export default function LyricsModal({ lyricId, title, onClose }) {
   const blocks = state.status === 'loaded' ? parseLyrics(state.text) : [];
   const instrumental = state.status === 'loaded' && isInstrumental(state.text);
 
-  return (
+  // Portal to <body>: rendered from inside a song card, a transformed ancestor
+  // (.song-card-anim) would otherwise trap position:fixed to the card's box.
+  return createPortal(
     <div
       onClick={onClose}
       style={{
@@ -181,6 +184,7 @@ export default function LyricsModal({ lyricId, title, onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
