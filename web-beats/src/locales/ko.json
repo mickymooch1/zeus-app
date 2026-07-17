@@ -314,22 +314,6 @@
     "featuresTitle": "필요한 모든 것.",
     "featuresTitle2": "불필요한 것은 없습니다.",
     "featuresSub": "아이디어부터 발행된 트랙까지 몇 분 안에 — {{brand}}이 가사, 오디오, 커버 아트, 배포를 처리합니다.",
-    "feature1Title": "30개 이상의 장르",
-    "feature1Desc": "Soul, Grime, D&B, Afrobeats, Amapiano, Jazz, Drill, Jungle 등.",
-    "feature1Tag1": "Soul",
-    "feature1Tag2": "Grime",
-    "feature1Tag3": "D&B",
-    "feature1Tag4": "Afrobeats",
-    "feature2Title": "당신의 노래, 당신의 권리",
-    "feature2Desc": "모든 노래를 상업적으로 사용할 수 있습니다. 판매, 스트리밍, 게시 — 당신의 음악, 당신의 돈.",
-    "feature3Title": "애니메이션 커버 아트",
-    "feature3Desc": "AI가 자동으로 아트워크를 생성하고 애니메이션화합니다.",
-    "feature4Title": "원클릭 YouTube 업로드",
-    "feature4Desc": "몇 초 안에 채널에 라이브로 올라갑니다.",
-    "feature5Title": "AI 아바타 영상",
-    "feature5Desc": "퍼포머가 HD로 트랙에 립싱크합니다. YouTube, Instagram Reels에 완벽합니다.",
-    "feature6Title": "DJ 믹서",
-    "feature6Desc": "노래를 믹스하고 세트를 녹음하세요. Telegram으로 공유하거나 다운로드하세요.",
     "howLabel": "이용 방법",
     "howTitle1": "3단계.",
     "howTitle2": "60초.",
@@ -361,6 +345,127 @@
     "footerPrivacy": "개인정보",
     "footerRefund": "환불 정책",
     "footerDataDeletion": "데이터 삭제",
-    "footerContact": "문의"
+    "footerContact": "문의",
+    "features": {
+      "groups": {
+        "music": "음악 제작",
+        "publishing": "게시 및 공유",
+        "advanced": "고급 설정",
+        "account": "계정 기능"
+      },
+      "tags": {
+        "genres": "38개 이상의 장르",
+        "customLyrics": "직접 가사 작성",
+        "aiVocals": "AI 보컬",
+        "instrumental": "인스트루멘탈 모드"
+      },
+      "cards": {
+        "songGenerator": {
+          "title": "AI 노래 생성기",
+          "desc": "설명만 입력하면 완전한 오리지널 노래가 완성됩니다 — 가사는 Claude AI, 오디오는 Suno. 가사와 보컬까지 60초 만에."
+        },
+        "genres": {
+          "title": "38개 이상의 장르",
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline 외 20가지 이상."
+        },
+        "coverArt": {
+          "title": "시네마틱 커버 아트",
+          "desc": "모든 커버에 부드러운 Ken Burns 모션 효과가 적용됩니다 — 전 사용자 무료. Kling AI 기반 HD 영상 애니메이션으로 업그레이드하면 진짜 영상 커버를 만들 수 있습니다."
+        },
+        "avatarVideos": {
+          "title": "아바타 립싱크 영상",
+          "desc": "AI 퍼포머가 HD 영상으로 내 트랙을 부릅니다. YouTube, Instagram Reels, 음악 홍보에 딱 맞습니다."
+        },
+        "genreBlending": {
+          "title": "장르 블렌딩",
+          "desc": "두 장르를 섞어 나만의 하이브리드 사운드를 만드세요 — Grime-Trap, Afro-Soul 등 원하는 조합 무엇이든. DJ 스타일 장르 전환도 포함됩니다."
+        },
+        "djMixer": {
+          "title": "DJ 믹서",
+          "desc": "내 노래를 믹스하고 세트를 녹음하세요 — AI 트랙을 이어 붙이는 DJ 덱이 내장되어 있습니다."
+        },
+        "voiceToText": {
+          "title": "음성 입력",
+          "desc": "타이핑 대신 말로 노래를 설명하세요. 마이크를 누르면 Zeus가 아이디어를 바로 받아 적습니다."
+        },
+        "templates": {
+          "title": "노래 템플릿",
+          "desc": "클릭 한 번으로 시작 — Club Banger, Emotional R&B, Grime Bars 등. 빈 화면 앞에서 고민할 필요가 없습니다."
+        },
+        "stemSeparator": {
+          "title": "스템 분리",
+          "desc": "노래를 보컬, 드럼, 베이스, 반주로 나눠보세요. 트랙마다 따로 다운로드할 수 있습니다."
+        },
+        "youtube": {
+          "title": "YouTube 업로드",
+          "desc": "클릭 한 번이면 채널에 바로 공개됩니다. Zeus가 오디오 업로드부터 제목 설정까지 알아서 처리합니다."
+        },
+        "facebookInstagram": {
+          "title": "Facebook 및 Instagram",
+          "desc": "Zeus Beats에서 바로 Facebook에 게시하거나 Instagram으로 공유하세요 — 캡션과 이미지까지 준비되어 앱을 옮겨 다닐 필요가 없습니다."
+        },
+        "discoverFeed": {
+          "title": "디스커버 피드",
+          "desc": "전 세계 Zeus Beats 사용자의 노래를 둘러보고 들어보세요 — 앱 안에 열린 음악 커뮤니티가 있습니다."
+        },
+        "playlist": {
+          "title": "플레이리스트 및 자동 재생",
+          "desc": "내 라이브러리로 플레이리스트를 만들고 자동 재생으로 즐기세요. 곡만 골라두면 재생 순서는 Zeus Beats가 관리합니다."
+        },
+        "musicSearch": {
+          "title": "음악 검색",
+          "desc": "아티스트를 찾아 스타일을 가져오고 나만의 버전으로 만드세요 — 영감을 검색해 내 것으로."
+        },
+        "modelSelector": {
+          "title": "모델 선택",
+          "desc": "Suno 모델을 직접 고르세요 — V4, V5, V5.5로 최신 음질과 기능을 사용할 수 있습니다."
+        },
+        "vocalGender": {
+          "title": "보컬 성별",
+          "desc": "남성, 여성, 듀엣 — 누가 트랙을 부를지 직접 정하세요."
+        },
+        "accents": {
+          "title": "27개 이상의 억양",
+          "desc": "펀자브, 자메이카, Grime MC, 서아프리카, 콜롬비아, 푸에르토리코, 영국, 미국 힙합, 아일랜드, 스코틀랜드 등."
+        },
+        "explicit": {
+          "title": "성인 콘텐츠 설정",
+          "desc": "Grime, Drill 같은 스트리트 장르에서는 성인 콘텐츠를 켤 수 있습니다 — 곡에 어울리는 진짜 표현 그대로."
+        },
+        "weirdness": {
+          "title": "독창성 조절",
+          "desc": "안전부터 실험적까지 슬라이더로 조절 — 트랙을 얼마나 무난하게, 또는 파격적으로 만들지 정하세요."
+        },
+        "avoidTags": {
+          "title": "제외 태그",
+          "desc": "넣지 말아야 할 것을 Zeus에게 알려주세요 — 피아노 없이, 트럼펫 없이, 느린 구간 없이. 원하는 대로 조절할 수 있습니다."
+        },
+        "inspiredBy": {
+          "title": "아티스트 참고",
+          "desc": "아티스트 이름만 입력하면 스타일을 참고합니다 — 사운드를 베끼지 않고 분위기만 살립니다."
+        },
+        "artistName": {
+          "title": "아티스트 이름",
+          "desc": "활동명을 설정하면 모든 노래와 영상에 자동으로 표시됩니다."
+        },
+        "favourites": {
+          "title": "즐겨찾기",
+          "desc": "잘 나온 노래에 ★을 눌러 저장하세요. 목록을 뒤지지 않아도 아끼는 곡을 바로 찾을 수 있습니다."
+        },
+        "songFilters": {
+          "title": "노래 필터",
+          "desc": "모든 노래, 즐겨찾기, 최근 — 원하는 곡을 몇 초 만에 찾습니다."
+        },
+        "multiLanguage": {
+          "title": "다국어 지원",
+          "desc": "프랑스어, 스페인어, 독일어, 일본어, 중국어, 아랍어 등 13개 언어 — Zeus Beats는 내 언어로 말합니다."
+        }
+      }
+    }
+  },
+  "cookies": {
+    "message": "더 나은 경험을 제공하기 위해 쿠키를 사용합니다. Zeus Beats를 이용하시면 <privacy>개인정보처리방침</privacy>에 동의하는 것으로 간주됩니다.",
+    "learnMore": "자세히 보기",
+    "accept": "동의"
   }
 }

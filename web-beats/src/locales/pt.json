@@ -312,20 +312,6 @@
     "featuresTitle": "Tudo para música IA.",
     "featuresTitle2": "Nada que você não precisa.",
     "featuresSub": "Do briefing à música publicada em minutos — {{brand}} cuida da letra, áudio, arte de capa e distribuição.",
-    "feature1Title": "Gerador de músicas IA",
-    "feature1Desc": "Transforme um briefing de texto em uma música original completa — letra por Claude AI, áudio por Suno. Escolha entre mais de 20 gêneros.",
-    "feature1Tag1": "20+ gêneros",
-    "feature1Tag2": "Letra personalizada",
-    "feature1Tag3": "Vocais IA",
-    "feature1Tag4": "Modo instrumental",
-    "feature2Title": "Vídeos avatar lip-sync",
-    "feature2Desc": "Transforme sua música em um vídeo com um avatar IA realista que sincroniza os lábios com sua faixa.",
-    "feature3Title": "Upload para YouTube",
-    "feature3Desc": "Publique sua faixa diretamente no seu canal do YouTube a partir do {{brand}} — sem ferramentas extras.",
-    "feature4Title": "Publicação no Facebook",
-    "feature4Desc": "Compartilhe suas músicas em páginas e grupos do Facebook automaticamente.",
-    "feature5Title": "Arte de capa IA",
-    "feature5Desc": "Cada música recebe uma arte de capa única gerada por IA que combina com o gênero e o humor da faixa.",
     "howLabel": "Como o {{brand}} funciona",
     "howTitle1": "Do briefing à publicação.",
     "howTitle2": "Em minutos.",
@@ -359,6 +345,127 @@
     "footerPrivacy": "Privacidade",
     "footerRefund": "Reembolso",
     "footerDataDeletion": "Exclusão de dados",
-    "footerContact": "Contato"
+    "footerContact": "Contato",
+    "features": {
+      "groups": {
+        "music": "Criação musical",
+        "publishing": "Publicação e compartilhamento",
+        "advanced": "Controles avançados",
+        "account": "Recursos da conta"
+      },
+      "tags": {
+        "genres": "38+ gêneros",
+        "customLyrics": "Letra personalizada",
+        "aiVocals": "Vocais IA",
+        "instrumental": "Modo instrumental"
+      },
+      "cards": {
+        "songGenerator": {
+          "title": "Gerador de músicas IA",
+          "desc": "Transforme um briefing de texto em uma música original completa — letra por Claude AI, áudio por Suno. Letra e vocais em 60 segundos."
+        },
+        "genres": {
+          "title": "38+ gêneros",
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline e mais de 20 outros."
+        },
+        "coverArt": {
+          "title": "Arte de capa cinematográfica",
+          "desc": "Toda capa ganha um suave efeito cinematográfico Ken Burns — grátis para todos. Faça upgrade para a Animação em Vídeo HD com Kling AI e tenha capas em vídeo de verdade."
+        },
+        "avatarVideos": {
+          "title": "Vídeos avatar lip-sync",
+          "desc": "Um artista de IA canta sua faixa em vídeo HD. Perfeito para YouTube, Instagram Reels e divulgação musical."
+        },
+        "genreBlending": {
+          "title": "Mistura de gêneros",
+          "desc": "Combine dois gêneros e crie um som híbrido único — Grime-Trap, Afro-Soul ou qualquer mistura que imaginar. Inclui troca de gênero no estilo DJ."
+        },
+        "djMixer": {
+          "title": "Mixer DJ",
+          "desc": "Misture suas músicas e grave seu set — um deck de DJ integrado para mesclar suas faixas de IA."
+        },
+        "voiceToText": {
+          "title": "Voz para texto",
+          "desc": "Descreva sua música falando, sem digitar. Toque no microfone e o Zeus transcreve sua ideia na hora."
+        },
+        "templates": {
+          "title": "Modelos de música",
+          "desc": "Pontos de partida em um clique: Club Banger, R&B Emotivo, Grime Bars e mais — fuja da página em branco."
+        },
+        "stemSeparator": {
+          "title": "Separador de stems",
+          "desc": "Separe qualquer música em vocais, bateria, baixo e instrumental. Baixe cada faixa individualmente."
+        },
+        "youtube": {
+          "title": "Upload para YouTube",
+          "desc": "Um clique e a música vai ao ar no seu canal. O Zeus envia o áudio, define o título e cuida de tudo."
+        },
+        "facebookInstagram": {
+          "title": "Facebook e Instagram",
+          "desc": "Publique no Facebook ou compartilhe no Instagram direto do Zeus Beats — legenda pronta, imagem inclusa, sem trocar de app."
+        },
+        "discoverFeed": {
+          "title": "Feed de descobertas",
+          "desc": "Explore e ouça músicas de usuários do Zeus Beats no mundo todo — uma comunidade musical pública dentro do app."
+        },
+        "playlist": {
+          "title": "Playlist e reprodução automática",
+          "desc": "Monte playlists com sua biblioteca e deixe tocar sozinho — você faz a curadoria e o Zeus Beats cuida da fila."
+        },
+        "musicSearch": {
+          "title": "Busca musical",
+          "desc": "Encontre qualquer artista, copie o estilo e gere sua versão — busque inspiração e faça dela a sua cara."
+        },
+        "modelSelector": {
+          "title": "Seletor de modelo",
+          "desc": "Escolha seu modelo Suno — V4, V5 ou V5.5 para a mais recente qualidade de som e recursos."
+        },
+        "vocalGender": {
+          "title": "Gênero vocal",
+          "desc": "Masculino, feminino ou dueto — escolha quem canta sua faixa."
+        },
+        "accents": {
+          "title": "27+ sotaques",
+          "desc": "Punjabi, jamaicano, Grime MC, africano ocidental, colombiano, porto-riquenho, britânico, hip-hop americano, irlandês, escocês e mais."
+        },
+        "explicit": {
+          "title": "Modo explícito",
+          "desc": "Ative o conteúdo explícito para Grime, Drill e gêneros de rua — linguagem autêntica onde faz sentido."
+        },
+        "weirdness": {
+          "title": "Controle de criatividade",
+          "desc": "Deslize de Seguro a Experimental — defina o quanto sua faixa soa convencional ou ousada."
+        },
+        "avoidTags": {
+          "title": "Tags a evitar",
+          "desc": "Diga ao Zeus o que NÃO incluir — sem piano, sem trompete, sem partes lentas. O controle é seu."
+        },
+        "inspiredBy": {
+          "title": "Inspirado por artista",
+          "desc": "Digite o nome de qualquer artista como inspiração — o Zeus captura a vibe sem copiar o som."
+        },
+        "artistName": {
+          "title": "Nome artístico",
+          "desc": "Defina seu nome de palco — ele aparece automaticamente em todas as suas músicas e vídeos."
+        },
+        "favourites": {
+          "title": "Favoritos",
+          "desc": "Marque com ★ e salve suas melhores músicas. Encontre seus hits na hora, sem rolar tudo."
+        },
+        "songFilters": {
+          "title": "Filtros de músicas",
+          "desc": "Todas, Favoritos, Recentes — encontre exatamente o que precisa em segundos."
+        },
+        "multiLanguage": {
+          "title": "Multi-idioma",
+          "desc": "13 idiomas, incluindo francês, espanhol, alemão, japonês, chinês e árabe — o Zeus Beats fala a sua língua."
+        }
+      }
+    }
+  },
+  "cookies": {
+    "message": "Usamos cookies para melhorar sua experiência. Ao usar o Zeus Beats, você concorda com nossa <privacy>Política de Privacidade</privacy>.",
+    "learnMore": "Saiba mais",
+    "accept": "Aceitar"
   }
 }

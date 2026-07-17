@@ -312,20 +312,6 @@
     "featuresTitle": "Todo para la música IA.",
     "featuresTitle2": "Nada que no necesitas.",
     "featuresSub": "Del brief a la canción publicada en minutos — {{brand}} gestiona la letra, el audio, la portada y la distribución.",
-    "feature1Title": "Generador de canciones IA",
-    "feature1Desc": "Convierte un brief de texto en una canción original completa — letra por Claude AI, audio por Suno. Elige entre más de 20 géneros.",
-    "feature1Tag1": "20+ géneros",
-    "feature1Tag2": "Letra personalizada",
-    "feature1Tag3": "Voces IA",
-    "feature1Tag4": "Modo instrumental",
-    "feature2Title": "Vídeos avatar lip-sync",
-    "feature2Desc": "Convierte tu canción en un vídeo con un avatar IA realista que sincroniza sus labios con tu pista.",
-    "feature3Title": "Subida a YouTube",
-    "feature3Desc": "Publica tu pista directamente en tu canal de YouTube desde {{brand}} — sin herramientas adicionales.",
-    "feature4Title": "Publicación en Facebook",
-    "feature4Desc": "Comparte tus canciones en páginas y grupos de Facebook automáticamente.",
-    "feature5Title": "Portada IA",
-    "feature5Desc": "Cada canción recibe una portada única generada por IA que coincide con el género y el estado de ánimo.",
     "howLabel": "Cómo funciona {{brand}}",
     "howTitle1": "Del brief a la publicación.",
     "howTitle2": "En minutos.",
@@ -359,6 +345,127 @@
     "footerPrivacy": "Privacidad",
     "footerRefund": "Reembolso",
     "footerDataDeletion": "Eliminación de datos",
-    "footerContact": "Contacto"
+    "footerContact": "Contacto",
+    "features": {
+      "groups": {
+        "music": "Creación musical",
+        "publishing": "Publicar y compartir",
+        "advanced": "Controles avanzados",
+        "account": "Funciones de cuenta"
+      },
+      "tags": {
+        "genres": "Más de 38 géneros",
+        "customLyrics": "Letra personalizada",
+        "aiVocals": "Voces IA",
+        "instrumental": "Modo instrumental"
+      },
+      "cards": {
+        "songGenerator": {
+          "title": "Generador de canciones IA",
+          "desc": "Convierte un brief de texto en una canción original completa — letra por Claude AI, audio por Suno. Letra y voces en 60 segundos."
+        },
+        "genres": {
+          "title": "Más de 38 géneros",
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline y otros 20 más."
+        },
+        "coverArt": {
+          "title": "Portada cinematográfica",
+          "desc": "Cada portada lleva un suave efecto de movimiento cinematográfico Ken Burns — gratis para todos. Mejora a Animación de Vídeo HD con Kling AI para portadas en vídeo real."
+        },
+        "avatarVideos": {
+          "title": "Vídeos avatar lip-sync",
+          "desc": "Un artista IA canta tu pista en vídeo HD. Perfecto para YouTube, Instagram Reels y promoción musical."
+        },
+        "genreBlending": {
+          "title": "Mezcla de géneros",
+          "desc": "Combina dos géneros para un sonido híbrido único — Grime-Trap, Afro-Soul o la mezcla que imagines. Incluye cambio de género estilo DJ."
+        },
+        "djMixer": {
+          "title": "Mezclador DJ",
+          "desc": "Mezcla tus canciones y graba tu sesión — una cabina de DJ integrada para combinar tus pistas IA."
+        },
+        "voiceToText": {
+          "title": "Voz a texto",
+          "desc": "Describe tu canción hablando, sin teclear. Pulsa el micro y Zeus transcribe tu idea al instante."
+        },
+        "templates": {
+          "title": "Plantillas de canciones",
+          "desc": "Arranques en un clic: temazo de club, R&B emotivo, barras de Grime y más — olvídate de la página en blanco."
+        },
+        "stemSeparator": {
+          "title": "Separador de pistas",
+          "desc": "Divide cualquier canción en voces, batería, bajo e instrumental por separado. Descarga cada pista de forma individual."
+        },
+        "youtube": {
+          "title": "Subida a YouTube",
+          "desc": "Un clic y tu canción está en tu canal. Zeus sube el audio, pone el título y se encarga de todo."
+        },
+        "facebookInstagram": {
+          "title": "Facebook e Instagram",
+          "desc": "Publica en Facebook o comparte en Instagram desde Zeus Beats — con el texto escrito y la imagen incluida, sin cambiar de app."
+        },
+        "discoverFeed": {
+          "title": "Feed Descubre",
+          "desc": "Explora y escucha canciones de usuarios de Zeus Beats de todo el mundo — una comunidad musical pública integrada en la app."
+        },
+        "playlist": {
+          "title": "Listas y reproducción automática",
+          "desc": "Crea listas con tu biblioteca y déjalas en reproducción automática — tú eliges el repertorio y Zeus Beats gestiona la cola."
+        },
+        "musicSearch": {
+          "title": "Búsqueda musical",
+          "desc": "Encuentra cualquier artista, copia su estilo y genera tu versión — busca inspiración y hazla tuya."
+        },
+        "modelSelector": {
+          "title": "Selector de modelo",
+          "desc": "Elige tu modelo de Suno — V4, V5 o V5.5 para la mejor calidad de sonido y las últimas funciones."
+        },
+        "vocalGender": {
+          "title": "Género vocal",
+          "desc": "Masculino, femenino o dúo — tú decides quién canta tu pista."
+        },
+        "accents": {
+          "title": "Más de 27 acentos",
+          "desc": "Punyabí, jamaicano, Grime MC, africano occidental, colombiano, puertorriqueño, británico, hip-hop estadounidense, irlandés, escocés y más."
+        },
+        "explicit": {
+          "title": "Modo explícito",
+          "desc": "Activa el contenido explícito para grime, drill y géneros de calle — lenguaje auténtico donde encaja."
+        },
+        "weirdness": {
+          "title": "Control de creatividad",
+          "desc": "Desliza de Seguro a Experimental — controla si tu pista suena convencional o rompedora."
+        },
+        "avoidTags": {
+          "title": "Etiquetas a evitar",
+          "desc": "Dile a Zeus lo que NO quieres — sin piano, sin trompeta, sin partes lentas. Tú mandas."
+        },
+        "inspiredBy": {
+          "title": "Inspirado en un artista",
+          "desc": "Escribe el nombre de cualquier artista como inspiración — Zeus capta la esencia sin copiar el sonido."
+        },
+        "artistName": {
+          "title": "Nombre artístico",
+          "desc": "Elige tu nombre de artista — aparece automáticamente en todas tus canciones y vídeos."
+        },
+        "favourites": {
+          "title": "Favoritos",
+          "desc": "Marca y guarda tus mejores canciones. Encuentra tus éxitos al instante sin buscar entre todas."
+        },
+        "songFilters": {
+          "title": "Filtros de canciones",
+          "desc": "Todas, Favoritos, Recientes — encuentra justo lo que buscas en segundos."
+        },
+        "multiLanguage": {
+          "title": "Multiidioma",
+          "desc": "13 idiomas, incluidos francés, español, alemán, japonés, chino y árabe — Zeus Beats habla tu idioma."
+        }
+      }
+    }
+  },
+  "cookies": {
+    "message": "Usamos cookies para mejorar tu experiencia. Al usar Zeus Beats aceptas nuestra <privacy>Política de privacidad</privacy>.",
+    "learnMore": "Más información",
+    "accept": "Aceptar"
   }
 }

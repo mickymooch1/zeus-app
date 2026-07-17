@@ -314,22 +314,6 @@
     "featuresTitle": "必要なものがすべて揃っています。",
     "featuresTitle2": "余分なものは何もない。",
     "featuresSub": "アイデアから公開済みトラックまで数分で — {{brand}}が歌詞、音声、カバーアート、配信を処理します。",
-    "feature1Title": "30以上のジャンル",
-    "feature1Desc": "Soul、Grime、D&B、Afrobeats、Amapiano、Jazz、Drill、Jungleなど。",
-    "feature1Tag1": "Soul",
-    "feature1Tag2": "Grime",
-    "feature1Tag3": "D&B",
-    "feature1Tag4": "Afrobeats",
-    "feature2Title": "あなたの楽曲、あなたの権利",
-    "feature2Desc": "すべての楽曲を商業的に使用できます。販売、配信、投稿 — あなたの音楽、あなたのお金。",
-    "feature3Title": "アニメーションカバーアート",
-    "feature3Desc": "AIが自動的にアートワークを生成・アニメーション化します。",
-    "feature4Title": "ワンクリックYouTubeアップロード",
-    "feature4Desc": "数秒でチャンネルにライブ配信。",
-    "feature5Title": "AIアバター動画",
-    "feature5Desc": "パフォーマーがHDで楽曲に口パク。YouTube、Instagram Reelsに最適。",
-    "feature6Title": "DJミキサー",
-    "feature6Desc": "楽曲をミックスしてセットを録音。Telegramで共有またはダウンロード。",
     "howLabel": "使い方",
     "howTitle1": "3ステップ。",
     "howTitle2": "60秒。",
@@ -361,6 +345,127 @@
     "footerPrivacy": "プライバシー",
     "footerRefund": "返金ポリシー",
     "footerDataDeletion": "データ削除",
-    "footerContact": "お問い合わせ"
+    "footerContact": "お問い合わせ",
+    "features": {
+      "groups": {
+        "music": "楽曲制作",
+        "publishing": "公開とシェア",
+        "advanced": "詳細設定",
+        "account": "アカウント機能"
+      },
+      "tags": {
+        "genres": "38以上のジャンル",
+        "customLyrics": "オリジナル歌詞",
+        "aiVocals": "AIボーカル",
+        "instrumental": "インストゥルメンタルモード"
+      },
+      "cards": {
+        "songGenerator": {
+          "title": "AI楽曲ジェネレーター",
+          "desc": "テキストで説明するだけで完全なオリジナル楽曲に。歌詞はClaude AI、音源はSuno。歌詞もボーカルも60秒で完成します。"
+        },
+        "genres": {
+          "title": "38以上のジャンル",
+          "desc": "Grime、Afrobeats、Reggaeton、Latin Trap、Bhangra、Metal、Rockney、D&B、Jungle、Drill、Amapiano、UK Garage、Lo-Fi、Reggae、Bassline など、さらに20以上。"
+        },
+        "coverArt": {
+          "title": "シネマティックなカバーアート",
+          "desc": "すべてのカバーにKen Burns風の滑らかなカメラワークが付きます（全ユーザー無料）。Kling AI搭載のHD動画アニメーションにアップグレードすれば、本格的な動画カバーに。"
+        },
+        "avatarVideos": {
+          "title": "アバターのリップシンク動画",
+          "desc": "AIパフォーマーがあなたの楽曲をHD動画で歌います。YouTubeやInstagram Reels、プロモーションに最適です。"
+        },
+        "genreBlending": {
+          "title": "ジャンルブレンド",
+          "desc": "2つのジャンルを掛け合わせて独自のサウンドに。Grime-Trap、Afro-Soulなど組み合わせは自由自在。DJ風のジャンル切り替えも使えます。"
+        },
+        "djMixer": {
+          "title": "DJミキサー",
+          "desc": "楽曲同士をミックスしてセットを録音。AIトラックをつなげる本格的なDJデッキを内蔵しています。"
+        },
+        "voiceToText": {
+          "title": "音声入力",
+          "desc": "入力する代わりに話すだけで楽曲を説明できます。マイクを押せばZeusがその場で文字起こしします。"
+        },
+        "templates": {
+          "title": "楽曲テンプレート",
+          "desc": "Club Banger、Emotional R&B、Grime Barsなどワンクリックで着手。ゼロから考える必要はありません。"
+        },
+        "stemSeparator": {
+          "title": "ステム分離",
+          "desc": "楽曲をボーカル、ドラム、ベース、インストゥルメンタルに分離。それぞれ個別にダウンロードできます。"
+        },
+        "youtube": {
+          "title": "YouTubeアップロード",
+          "desc": "ワンクリックでチャンネルに公開。音源のアップロードからタイトル設定まで、Zeusがすべて行います。"
+        },
+        "facebookInstagram": {
+          "title": "FacebookとInstagram",
+          "desc": "Zeus Beatsから直接Facebookに投稿、Instagramにシェア。キャプションも画像も付いて、アプリを行き来する必要はありません。"
+        },
+        "discoverFeed": {
+          "title": "ディスカバーフィード",
+          "desc": "世界中のZeus Beatsユーザーの楽曲を聴けます。アプリに組み込まれた音楽コミュニティです。"
+        },
+        "playlist": {
+          "title": "プレイリストと自動再生",
+          "desc": "ライブラリからプレイリストを作って自動再生。曲を選んだら、あとはZeus Beatsにおまかせです。"
+        },
+        "musicSearch": {
+          "title": "ミュージック検索",
+          "desc": "好きなアーティストを検索してスタイルを取り込み、自分だけのバージョンに。インスピレーション探しに最適です。"
+        },
+        "modelSelector": {
+          "title": "モデル選択",
+          "desc": "Sunoのモデルを選択 — V4、V5、V5.5で最新の音質と機能を。"
+        },
+        "vocalGender": {
+          "title": "ボーカルの性別",
+          "desc": "男性、女性、デュエット — 誰が歌うかを自由に選べます。"
+        },
+        "accents": {
+          "title": "27以上のアクセント",
+          "desc": "パンジャブ、ジャマイカ、グライムMC、西アフリカ、コロンビア、プエルトリコ、イギリス、アメリカンヒップホップ、アイルランド、スコットランドなど。"
+        },
+        "explicit": {
+          "title": "過激なコンテンツの切り替え",
+          "desc": "Grime、Drill、ストリート系のジャンルでは過激な表現をオンに。リアルな言葉づかいを楽曲に。"
+        },
+        "weirdness": {
+          "title": "独創性の調整",
+          "desc": "「安全」から「実験的」までスライダーで調整。王道にも、攻めたサウンドにも仕上げられます。"
+        },
+        "avoidTags": {
+          "title": "除外タグ",
+          "desc": "入れてほしくない要素を指定できます。ピアノなし、トランペットなし、スローな展開なし — 思いのままに。"
+        },
+        "inspiredBy": {
+          "title": "参考アーティスト",
+          "desc": "アーティスト名を入力すればスタイルの参考に。Zeusはサウンドを真似ずに雰囲気だけを取り込みます。"
+        },
+        "artistName": {
+          "title": "アーティスト名",
+          "desc": "アーティスト名を設定すれば、すべての楽曲と動画に自動で表示されます。"
+        },
+        "favourites": {
+          "title": "お気に入り",
+          "desc": "自信作に★を付けて保存。スクロールして探さなくても、すぐに見つかります。"
+        },
+        "songFilters": {
+          "title": "楽曲フィルター",
+          "desc": "すべての楽曲、お気に入り、最近 — 必要な曲が数秒で見つかります。"
+        },
+        "multiLanguage": {
+          "title": "多言語対応",
+          "desc": "フランス語、スペイン語、ドイツ語、日本語、中国語、アラビア語を含む13言語。Zeus Beatsはあなたの言語で使えます。"
+        }
+      }
+    }
+  },
+  "cookies": {
+    "message": "当サイトでは、より良い体験のためにCookieを使用しています。Zeus Beatsをご利用いただくことで、<privacy>プライバシーポリシー</privacy>に同意したものとみなされます。",
+    "learnMore": "詳細を見る",
+    "accept": "同意する"
   }
 }

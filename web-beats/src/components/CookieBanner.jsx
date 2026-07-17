@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 
 const STORAGE_KEY = 'zeus_cookie_accepted';
 
 export default function CookieBanner() {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(() => !localStorage.getItem(STORAGE_KEY));
 
   if (!visible) return null;
@@ -30,10 +32,14 @@ export default function CookieBanner() {
       flexWrap: 'wrap',
     }}>
       <p style={{ color: '#e2d9f3', fontSize: '13px', lineHeight: 1.5, flex: 1, minWidth: '220px' }}>
-        We use cookies to improve your experience. By using Zeus Beats you agree to our{' '}
-        <Link to="/privacy" style={{ color: '#a78bfa', textDecoration: 'underline' }}>
-          Privacy Policy
-        </Link>.
+        {/* Trans, not t() — the Privacy Policy link sits mid-sentence and languages
+            place it differently. The <privacy> tag lets each locale position it. */}
+        <Trans
+          i18nKey="cookies.message"
+          components={{
+            privacy: <Link to="/privacy" style={{ color: '#a78bfa', textDecoration: 'underline' }} />,
+          }}
+        />
       </p>
       <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
         <Link
@@ -49,7 +55,7 @@ export default function CookieBanner() {
             whiteSpace: 'nowrap',
           }}
         >
-          Learn More
+          {t('cookies.learnMore')}
         </Link>
         <button
           onClick={accept}
@@ -65,7 +71,7 @@ export default function CookieBanner() {
             whiteSpace: 'nowrap',
           }}
         >
-          Accept
+          {t('cookies.accept')}
         </button>
       </div>
     </div>

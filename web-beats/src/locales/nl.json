@@ -314,22 +314,6 @@
     "featuresTitle": "Alles wat je nodig hebt.",
     "featuresTitle2": "Niets wat je niet nodig hebt.",
     "featuresSub": "Van brief tot gepubliceerde track in minuten — {{brand}} regelt teksten, audio, hoesafbeeldingen en distributie.",
-    "feature1Title": "30+ Genres",
-    "feature1Desc": "Soul, Grime, D&B, Afrobeats, Amapiano, Jazz, Drill, Jungle en meer.",
-    "feature1Tag1": "Soul",
-    "feature1Tag2": "Grime",
-    "feature1Tag3": "D&B",
-    "feature1Tag4": "Afrobeats",
-    "feature2Title": "Jouw nummers, jouw rechten",
-    "feature2Desc": "Je kunt elk nummer commercieel gebruiken. Verkoop het, stream het, post het.",
-    "feature3Title": "Geanimeerde hoes",
-    "feature3Desc": "AI genereert en animeert je artwork automatisch. Elke track krijgt een unieke cinematische hoes.",
-    "feature4Title": "YouTube-upload met één klik",
-    "feature4Desc": "Je nummer staat in seconden live op je kanaal.",
-    "feature5Title": "AI-avatarvideo's",
-    "feature5Desc": "Een performer lipsyncet je track in HD. Perfect voor YouTube, Instagram Reels en muziekpromotie.",
-    "feature6Title": "DJ Mixer",
-    "feature6Desc": "Mix je nummers en neem je set op. Deel je mix op Telegram of download het.",
     "howLabel": "Hoe het werkt",
     "howTitle1": "Drie stappen.",
     "howTitle2": "60 seconden.",
@@ -361,6 +345,127 @@
     "footerPrivacy": "Privacy",
     "footerRefund": "Terugbetalingsbeleid",
     "footerDataDeletion": "Gegevensverwijdering",
-    "footerContact": "Contact"
+    "footerContact": "Contact",
+    "features": {
+      "groups": {
+        "music": "Muziek maken",
+        "publishing": "Publiceren en delen",
+        "advanced": "Geavanceerde opties",
+        "account": "Accountfuncties"
+      },
+      "tags": {
+        "genres": "38+ genres",
+        "customLyrics": "Eigen tekst",
+        "aiVocals": "AI-zang",
+        "instrumental": "Instrumentale modus"
+      },
+      "cards": {
+        "songGenerator": {
+          "title": "AI-nummergenerator",
+          "desc": "Maak van een korte beschrijving een volledig origineel nummer — tekst van Claude AI, audio van Suno. Volledige tekst en zang in 60 seconden."
+        },
+        "genres": {
+          "title": "38+ genres",
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline en nog 20+ andere."
+        },
+        "coverArt": {
+          "title": "Filmische hoes",
+          "desc": "Elke hoes krijgt een vloeiend cinematisch Ken Burns-effect — gratis voor alle gebruikers. Upgrade naar HD-videoanimatie van Kling AI voor echte videohoezen."
+        },
+        "avatarVideos": {
+          "title": "Avatar-lipsyncvideo's",
+          "desc": "Een AI-performer zingt je track in HD-video. Perfect voor YouTube, Instagram Reels en muziekpromotie."
+        },
+        "genreBlending": {
+          "title": "Genres mengen",
+          "desc": "Combineer twee genres voor een unieke hybride sound — Grime-Trap, Afro-Soul of elke mix die je bedenkt. Inclusief genrewissels in DJ-stijl."
+        },
+        "djMixer": {
+          "title": "DJ Mixer",
+          "desc": "Mix je nummers door elkaar en neem je set op — een ingebouwde DJ-mixer om je AI-tracks te blenden."
+        },
+        "voiceToText": {
+          "title": "Spraak naar tekst",
+          "desc": "Beschrijf je nummer door te spreken in plaats van te typen. Druk op de microfoon en Zeus zet je idee direct om in tekst."
+        },
+        "templates": {
+          "title": "Nummersjablonen",
+          "desc": "Starters met één klik: Club Banger, Emotional R&B, Grime Bars en meer — nooit meer een blanco pagina."
+        },
+        "stemSeparator": {
+          "title": "Stems scheiden",
+          "desc": "Splits elk nummer los in zang, drums, bas en instrumentaal. Download elk spoor apart."
+        },
+        "youtube": {
+          "title": "YouTube-upload",
+          "desc": "Eén klik en je nummer staat live op je kanaal. Zeus uploadt de audio, zet de titel klaar en regelt de rest."
+        },
+        "facebookInstagram": {
+          "title": "Facebook en Instagram",
+          "desc": "Post naar Facebook of deel naar Instagram, direct vanuit Zeus Beats — bijschrift geschreven, afbeelding erbij, geen appwissels."
+        },
+        "discoverFeed": {
+          "title": "Ontdek-feed",
+          "desc": "Blader door nummers van Zeus Beats-gebruikers wereldwijd en luister mee — een publieke muziekcommunity in de app."
+        },
+        "playlist": {
+          "title": "Afspeellijst en autoplay",
+          "desc": "Stel afspeellijsten samen uit je bibliotheek en laat ze automatisch doorlopen — jij kiest de set, Zeus Beats regelt de wachtrij."
+        },
+        "musicSearch": {
+          "title": "Muziek zoeken",
+          "desc": "Vind elke artiest, kopieer hun stijl en genereer je eigen versie — zoek inspiratie en maak het van jezelf."
+        },
+        "modelSelector": {
+          "title": "Modelkeuze",
+          "desc": "Kies je Suno-model — V4, V5 of V5.5 voor de nieuwste geluidskwaliteit en functies."
+        },
+        "vocalGender": {
+          "title": "Stem geslacht",
+          "desc": "Mannelijk, vrouwelijk of duet — bepaal wie je track zingt."
+        },
+        "accents": {
+          "title": "27+ accenten",
+          "desc": "Punjabi, Jamaicaans, Grime MC, West-Afrikaans, Colombiaans, Puerto Ricaans, Brits, American Hip-Hop, Iers, Schots en meer."
+        },
+        "explicit": {
+          "title": "Expliciet aan/uit",
+          "desc": "Zet expliciete inhoud aan voor Grime, Drill en straatgenres — authentiek taalgebruik waar het past."
+        },
+        "weirdness": {
+          "title": "Vreemdheid regelen",
+          "desc": "Schuif van Veilig naar Experimenteel — bepaal hoe conventioneel of grensverleggend je track klinkt."
+        },
+        "avoidTags": {
+          "title": "Vermijd-tags",
+          "desc": "Vertel Zeus wat er NIET in mag — geen piano, geen trompet, geen trage stukken. Jij bepaalt."
+        },
+        "inspiredBy": {
+          "title": "Geïnspireerd door artiest",
+          "desc": "Typ een artiestennaam als stijlinspiratie — Zeus vangt de vibe zonder het geluid te kopiëren."
+        },
+        "artistName": {
+          "title": "Artiestennaam",
+          "desc": "Stel je artiestennaam in — die staat automatisch op al je nummers en video's."
+        },
+        "favourites": {
+          "title": "Favorieten",
+          "desc": "Markeer je beste nummers met een ster. Vind je hits direct terug zonder eindeloos scrollen."
+        },
+        "songFilters": {
+          "title": "Nummerfilters",
+          "desc": "Alle nummers, Favorieten, Recent — vind in seconden precies wat je zoekt."
+        },
+        "multiLanguage": {
+          "title": "Meertalig",
+          "desc": "13 talen, waaronder Frans, Spaans, Duits, Japans, Chinees en Arabisch — Zeus Beats spreekt jouw taal."
+        }
+      }
+    }
+  },
+  "cookies": {
+    "message": "We gebruiken cookies om je ervaring te verbeteren. Door Zeus Beats te gebruiken ga je akkoord met ons <privacy>Privacybeleid</privacy>.",
+    "learnMore": "Meer info",
+    "accept": "Accepteren"
   }
 }

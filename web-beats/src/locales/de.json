@@ -312,20 +312,6 @@
     "featuresTitle": "Alles für KI-Musik.",
     "featuresTitle2": "Nichts, was du nicht brauchst.",
     "featuresSub": "Vom Brief zur veröffentlichten Spur in Minuten — {{brand}} übernimmt Text, Audio, Cover und Vertrieb.",
-    "feature1Title": "KI-Songenerator",
-    "feature1Desc": "Verwandle ein Textbrief in einen vollständigen Originalsong — Texte von Claude AI, Audio von Suno. Wähle aus über 20 Genres.",
-    "feature1Tag1": "20+ Genres",
-    "feature1Tag2": "Benutzerdefinierter Text",
-    "feature1Tag3": "KI-Gesang",
-    "feature1Tag4": "Instrumentalmodus",
-    "feature2Title": "Avatar-Lippensync-Videos",
-    "feature2Desc": "Verwandle deinen Song in ein Video mit einem realistischen KI-Avatar, der die Lippen auf deine Spur synchronisiert.",
-    "feature3Title": "YouTube-Upload",
-    "feature3Desc": "Veröffentliche deine Spur direkt auf deinem YouTube-Kanal aus {{brand}} heraus — keine zusätzlichen Tools.",
-    "feature4Title": "Facebook-Veröffentlichung",
-    "feature4Desc": "Teile deine Songs automatisch auf Facebook-Seiten und Gruppen.",
-    "feature5Title": "KI-Cover",
-    "feature5Desc": "Jeder Song erhält ein einzigartiges KI-generiertes Cover, das zum Genre und zur Stimmung passt.",
     "howLabel": "So funktioniert {{brand}}",
     "howTitle1": "Vom Brief zur Veröffentlichung.",
     "howTitle2": "In Minuten.",
@@ -359,6 +345,127 @@
     "footerPrivacy": "Datenschutz",
     "footerRefund": "Rückerstattung",
     "footerDataDeletion": "Datenlöschung",
-    "footerContact": "Kontakt"
+    "footerContact": "Kontakt",
+    "features": {
+      "groups": {
+        "music": "Musik erstellen",
+        "publishing": "Veröffentlichen & Teilen",
+        "advanced": "Erweiterte Optionen",
+        "account": "Konto-Funktionen"
+      },
+      "tags": {
+        "genres": "38+ Genres",
+        "customLyrics": "Eigener Text",
+        "aiVocals": "KI-Gesang",
+        "instrumental": "Instrumentalmodus"
+      },
+      "cards": {
+        "songGenerator": {
+          "title": "KI-Songgenerator",
+          "desc": "Aus einem kurzen Text wird ein kompletter Originalsong — Text von Claude AI, Audio von Suno. Voller Text und Gesang in 60 Sekunden."
+        },
+        "genres": {
+          "title": "38+ Genres",
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline und 20+ weitere."
+        },
+        "coverArt": {
+          "title": "Cinematisches Cover",
+          "desc": "Jedes Cover bekommt einen sanften Ken Burns-Effekt — kostenlos für alle. Upgrade auf HD-Videoanimation mit Kling AI für echte Video-Cover."
+        },
+        "avatarVideos": {
+          "title": "Avatar-Lippensync-Videos",
+          "desc": "Ein KI-Performer singt deinen Track im HD-Video. Perfekt für YouTube, Instagram Reels und Musikpromo."
+        },
+        "genreBlending": {
+          "title": "Genre-Mix",
+          "desc": "Kombiniere zwei Genres zu einem eigenen Hybrid-Sound — Grime-Trap, Afro-Soul oder was du dir vorstellst. Genre-Wechsel im DJ-Stil inklusive."
+        },
+        "djMixer": {
+          "title": "DJ-Mixer",
+          "desc": "Mische deine Songs und nimm dein Set auf — ein eingebautes DJ-Deck für deine KI-Tracks."
+        },
+        "voiceToText": {
+          "title": "Sprache zu Text",
+          "desc": "Beschreibe deinen Song per Stimme statt per Tastatur. Mikro antippen und Zeus schreibt deine Idee sofort mit."
+        },
+        "templates": {
+          "title": "Song-Vorlagen",
+          "desc": "Starter mit einem Klick: Club Banger, Emotional R&B, Grime Bars und mehr — kein leeres Blatt mehr."
+        },
+        "stemSeparator": {
+          "title": "Stem-Separator",
+          "desc": "Zerlege jeden Song in Gesang, Drums, Bass und Instrumental. Lade jede Spur einzeln herunter."
+        },
+        "youtube": {
+          "title": "YouTube-Upload",
+          "desc": "Ein Klick — dein Song ist live auf deinem Kanal. Zeus lädt das Audio hoch, setzt den Titel und regelt den Rest."
+        },
+        "facebookInstagram": {
+          "title": "Facebook & Instagram",
+          "desc": "Poste direkt aus Zeus Beats auf Facebook oder teile auf Instagram — Caption fertig, Bild dabei, kein App-Wechsel."
+        },
+        "discoverFeed": {
+          "title": "Discover-Feed",
+          "desc": "Stöbere in Songs von Zeus Beats-Nutzern weltweit und hör rein — eine öffentliche Musik-Community direkt in der App."
+        },
+        "playlist": {
+          "title": "Playlist & Autoplay",
+          "desc": "Bau Playlists aus deiner Bibliothek und lass sie per Autoplay laufen — du kuratierst, Zeus Beats übernimmt die Warteschlange."
+        },
+        "musicSearch": {
+          "title": "Musiksuche",
+          "desc": "Finde jeden Künstler, übernimm seinen Stil, generiere deine Version — such dir Inspiration und mach sie zu deiner."
+        },
+        "modelSelector": {
+          "title": "Modellauswahl",
+          "desc": "Wähle dein Suno-Modell — V4, V5 oder V5.5 für die neueste Klangqualität und Features."
+        },
+        "vocalGender": {
+          "title": "Geschlecht der Stimme",
+          "desc": "Männlich, weiblich oder Duett — du bestimmst, wer deinen Track singt."
+        },
+        "accents": {
+          "title": "27+ Akzente",
+          "desc": "Punjabi, jamaikanisch, Grime MC, westafrikanisch, kolumbianisch, puerto-ricanisch, britisch, US-Hip-Hop, irisch, schottisch und mehr."
+        },
+        "explicit": {
+          "title": "Explizit-Schalter",
+          "desc": "Aktiviere explizite Inhalte für Grime, Drill und Street-Genres — authentische Sprache, wo sie passt."
+        },
+        "weirdness": {
+          "title": "Kreativitätsregler",
+          "desc": "Regle von Sicher bis Experimentell — bestimme, wie konventionell oder grenzüberschreitend dein Track klingt."
+        },
+        "avoidTags": {
+          "title": "Vermeiden-Tags",
+          "desc": "Sag Zeus, was NICHT rein soll — kein Klavier, keine Trompete, keine langsamen Parts. Du hast die Kontrolle."
+        },
+        "inspiredBy": {
+          "title": "Inspiriert von Künstler",
+          "desc": "Gib einen Künstlernamen als Stil-Inspiration ein — Zeus trifft den Vibe, ohne den Sound zu kopieren."
+        },
+        "artistName": {
+          "title": "Künstlername",
+          "desc": "Leg deinen Bühnennamen fest — er erscheint automatisch auf allen deinen Songs und Videos."
+        },
+        "favourites": {
+          "title": "Favoriten",
+          "desc": "Markiere deine besten Songs mit ★ und speichere sie. Finde deine Hits sofort, ohne endloses Scrollen."
+        },
+        "songFilters": {
+          "title": "Song-Filter",
+          "desc": "Alle Songs, Favoriten, Zuletzt — finde in Sekunden genau das, was du suchst."
+        },
+        "multiLanguage": {
+          "title": "Mehrsprachig",
+          "desc": "13 Sprachen, darunter Französisch, Spanisch, Deutsch, Japanisch, Chinesisch und Arabisch — Zeus Beats spricht deine Sprache."
+        }
+      }
+    }
+  },
+  "cookies": {
+    "message": "Wir verwenden Cookies, um deine Erfahrung zu verbessern. Mit der Nutzung von Zeus Beats stimmst du unserer <privacy>Datenschutzerklärung</privacy> zu.",
+    "learnMore": "Mehr erfahren",
+    "accept": "Akzeptieren"
   }
 }

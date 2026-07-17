@@ -314,22 +314,6 @@
     "featuresTitle": "您需要的一切。",
     "featuresTitle2": "没有多余的东西。",
     "featuresSub": "从创意到发布曲目只需几分钟 — {{brand}}处理歌词、音频、封面和发行。",
-    "feature1Title": "30多种风格",
-    "feature1Desc": "Soul、Grime、D&B、Afrobeats、Amapiano、Jazz、Drill、Jungle等等。",
-    "feature1Tag1": "Soul",
-    "feature1Tag2": "Grime",
-    "feature1Tag3": "D&B",
-    "feature1Tag4": "Afrobeats",
-    "feature2Title": "您的歌曲，您的权利",
-    "feature2Desc": "每首歌曲都可以商业使用。出售、流媒体、发布 — 您的音乐，您的钱。",
-    "feature3Title": "动态封面",
-    "feature3Desc": "AI自动生成并动态化您的艺术作品。每首曲目都有独特的电影风格封面。",
-    "feature4Title": "一键YouTube上传",
-    "feature4Desc": "歌曲在几秒内上线您的频道。",
-    "feature5Title": "AI头像视频",
-    "feature5Desc": "表演者以高清口型同步您的曲目。适合YouTube、Instagram Reels。",
-    "feature6Title": "DJ混音器",
-    "feature6Desc": "混合您的歌曲并录制您的混音集。分享到Telegram或下载。",
     "howLabel": "使用方法",
     "howTitle1": "三步。",
     "howTitle2": "60秒。",
@@ -361,6 +345,127 @@
     "footerPrivacy": "隐私",
     "footerRefund": "退款政策",
     "footerDataDeletion": "数据删除",
-    "footerContact": "联系我们"
+    "footerContact": "联系我们",
+    "features": {
+      "groups": {
+        "music": "音乐创作",
+        "publishing": "发布与分享",
+        "advanced": "高级控制",
+        "account": "账户功能"
+      },
+      "tags": {
+        "genres": "38+种风格",
+        "customLyrics": "自定义歌词",
+        "aiVocals": "AI人声",
+        "instrumental": "纯音乐模式"
+      },
+      "cards": {
+        "songGenerator": {
+          "title": "AI歌曲生成器",
+          "desc": "一段文字描述，就能生成完整的原创歌曲 — 歌词由Claude AI创作，音频由Suno生成。60秒内拿到完整歌词和人声。"
+        },
+        "genres": {
+          "title": "38+种风格",
+          "desc": "Grime、Afrobeats、Reggaeton、Latin Trap、Bhangra、Metal、Rockney、D&B、Jungle、Drill、Amapiano、UK Garage、Lo-Fi、Reggae、Bassline，还有20多种。"
+        },
+        "coverArt": {
+          "title": "电影级封面",
+          "desc": "每张封面都自带流畅的Ken Burns电影运镜效果，所有用户免费使用。升级即可获得Kling AI驱动的高清动态视频封面。"
+        },
+        "avatarVideos": {
+          "title": "头像口型同步视频",
+          "desc": "AI表演者以高清视频演唱您的歌曲。适合YouTube、Instagram Reels和音乐推广。"
+        },
+        "genreBlending": {
+          "title": "风格融合",
+          "desc": "两种风格自由混搭，打造独特的混血音色 — Grime-Trap、Afro-Soul，随您想象。还支持DJ式风格切换。"
+        },
+        "djMixer": {
+          "title": "DJ混音器",
+          "desc": "将您的歌曲混合在一起并录制成套混音 — 内置DJ打碟台，自由衔接您的AI曲目。"
+        },
+        "voiceToText": {
+          "title": "语音转文字",
+          "desc": "用说的代替打字来描述歌曲。点一下麦克风，Zeus立刻把您的想法转成文字。"
+        },
+        "templates": {
+          "title": "歌曲模板",
+          "desc": "一键起步：夜店热单、抒情R&B、Grime说唱等，无需从零构思。"
+        },
+        "stemSeparator": {
+          "title": "分轨提取",
+          "desc": "把任意歌曲拆分成人声、鼓组、贝斯和伴奏，每条音轨都能单独下载。"
+        },
+        "youtube": {
+          "title": "YouTube上传",
+          "desc": "一键上传，歌曲即刻上线您的频道。Zeus自动上传音频、设置标题，一切搞定。"
+        },
+        "facebookInstagram": {
+          "title": "Facebook与Instagram",
+          "desc": "直接从Zeus Beats发布到Facebook或分享到Instagram — 文案自动生成，配图一并附上，无需切换应用。"
+        },
+        "discoverFeed": {
+          "title": "发现广场",
+          "desc": "浏览并聆听全球Zeus Beats用户的作品 — 应用内置的公开音乐社区。"
+        },
+        "playlist": {
+          "title": "播放列表与自动播放",
+          "desc": "从您的曲库创建播放列表并开启自动播放 — 您负责选曲，排队交给Zeus Beats。"
+        },
+        "musicSearch": {
+          "title": "音乐搜索",
+          "desc": "找到任何艺术家，借鉴他们的风格，生成您自己的版本 — 搜索灵感，为我所用。"
+        },
+        "modelSelector": {
+          "title": "模型选择",
+          "desc": "自由选择Suno模型 — V4、V5或V5.5，享受最新的音质与功能。"
+        },
+        "vocalGender": {
+          "title": "人声性别",
+          "desc": "男声、女声或二重唱 — 由您决定谁来演唱。"
+        },
+        "accents": {
+          "title": "27+种口音",
+          "desc": "旁遮普、牙买加、Grime MC、西非、哥伦比亚、波多黎各、英式、美式嘻哈、爱尔兰、苏格兰等等。"
+        },
+        "explicit": {
+          "title": "成人内容开关",
+          "desc": "为Grime、Drill等街头风格开启露骨用词 — 该真实的地方就原汁原味。"
+        },
+        "weirdness": {
+          "title": "创意度控制",
+          "desc": "从保守滑到实验性 — 由您决定曲目是循规蹈矩还是大胆突破。"
+        },
+        "avoidTags": {
+          "title": "排除标签",
+          "desc": "告诉Zeus不要什么 — 不要钢琴、不要小号、不要慢速段落。一切由您说了算。"
+        },
+        "inspiredBy": {
+          "title": "参考艺术家",
+          "desc": "输入任意艺术家名字获取风格灵感 — Zeus抓住神韵，而不复制原声。"
+        },
+        "artistName": {
+          "title": "艺名",
+          "desc": "设置您的艺名 — 自动显示在您所有的歌曲和视频上。"
+        },
+        "favourites": {
+          "title": "收藏",
+          "desc": "给最满意的歌曲加星标保存。不用翻来翻去，热门作品一找就到。"
+        },
+        "songFilters": {
+          "title": "歌曲筛选",
+          "desc": "所有歌曲、收藏、最近 — 几秒内找到您要的那首。"
+        },
+        "multiLanguage": {
+          "title": "多语言",
+          "desc": "支持13种语言，包括法语、西班牙语、德语、日语、中文和阿拉伯语 — Zeus Beats说您的语言。"
+        }
+      }
+    }
+  },
+  "cookies": {
+    "message": "我们使用cookie来改善您的使用体验。使用Zeus Beats即表示您同意我们的<privacy>隐私政策</privacy>。",
+    "learnMore": "了解更多",
+    "accept": "接受"
   }
 }
