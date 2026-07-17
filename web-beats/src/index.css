@@ -24,7 +24,11 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html, body, #root { height: 100%; }
+/* body is the app's scroll container (height + overflow-y:auto). Using 100dvh
+   (not 100%/100vh) sizes it to the ACTUALLY-visible area on iOS Safari, whose
+   dynamic toolbar otherwise leaves the bottom of long content (e.g. the
+   expanded Advanced panel on the songs page) stranded behind the chrome. */
+html, body, #root { height: 100dvh; }
 html, body { overflow-x: hidden; }
 .app { overflow: hidden; }
 
