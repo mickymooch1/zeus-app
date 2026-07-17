@@ -4858,7 +4858,7 @@ async def image_webhook(request: Request):
 _PORICK_SYSTEM_PROMPT = (
     "You are Porick, the friendly AI assistant for Zeus Beats — an AI music creation platform at zeusbeats.com. "
     "You help users with:\n"
-    "- Creating AI songs in 30+ genres\n"
+    "- Creating AI songs in 100+ genres\n"
     "- Understanding Zeus Beats features\n"
     "- Directing users to sign up at zeusbeats.com\n"
     "- Answering questions about music generation, cover art, YouTube upload, and avatar videos\n"
@@ -6117,11 +6117,11 @@ async def serve_spa(full_path: str, request: Request):
         page_html = _re.sub(
             r"<title>[^<]*</title>",
             (
-                '<title>Zeus Beats — Create AI Music in Seconds | 30+ Genres</title>\n'
-                '    <meta name="description" content="Create original AI songs in 30+ genres including Soul, Grime, Afrobeats, D&amp;B, Jazz and more. Animated cover art, YouTube upload, avatar videos. 3 free songs on signup. No studio needed.">\n'
+                '<title>Zeus Beats — Create AI Music in Seconds | 100+ Genres</title>\n'
+                '    <meta name="description" content="Create original AI songs in 100+ genres including Soul, Grime, Afrobeats, D&amp;B, Jazz and more. Animated cover art, YouTube upload, avatar videos. 3 free songs on signup. No studio needed.">\n'
                 '    <meta name="keywords" content="AI music generator, create AI songs, grime AI, afrobeats generator, UK music AI, AI beats maker, zeus beats">\n'
                 '    <meta property="og:title" content="Zeus Beats — AI Music Creator">\n'
-                '    <meta property="og:description" content="Create original songs in seconds. 30+ genres. Free to start.">\n'
+                '    <meta property="og:description" content="Create original songs in seconds. 100+ genres. Free to start.">\n'
                 '    <meta property="og:url" content="https://zeusbeats.com">\n'
                 '    <meta property="og:type" content="website">'
             ),

@@ -293,7 +293,7 @@
         "allGenres": "全ジャンル",
         "youtube": "YouTube アップロード",
         "download": "楽曲ダウンロード＆シェア",
-        "genres": "90以上のジャンルとスタイル",
+        "genres": "100以上のジャンルとスタイル",
         "coverArt": "AIカバーアート",
         "avatar3": "月3本のリップシンク動画",
         "avatar10": "月10本のリップシンク動画",
@@ -354,7 +354,7 @@
         "account": "アカウント機能"
       },
       "tags": {
-        "genres": "90以上のジャンル",
+        "genres": "100以上のジャンル",
         "customLyrics": "オリジナル歌詞",
         "aiVocals": "AIボーカル",
         "instrumental": "インストゥルメンタルモード"
@@ -365,7 +365,7 @@
           "desc": "テキストで説明するだけで完全なオリジナル楽曲に。歌詞はClaude AI、音源はSuno。歌詞もボーカルも60秒で完成します。"
         },
         "genres": {
-          "title": "90以上のジャンル",
+          "title": "100以上のジャンル",
           "desc": "Grime、Afrobeats、Reggaeton、Latin Trap、Bhangra、Metal、Rockney、D&B、Jungle、Drill、Amapiano、UK Garage、Lo-Fi、Reggae、Bassline など、さらに80以上。"
         },
         "coverArt": {

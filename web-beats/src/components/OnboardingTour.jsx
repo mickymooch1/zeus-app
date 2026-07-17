@@ -36,12 +36,12 @@ const STEPS = [
   {
     icon: '⚡',
     title: 'Welcome to Zeus Beats ⚡',
-    text: 'Create original AI songs in 90+ genres. Let\'s show you around.',
+    text: 'Create original AI songs in 100+ genres. Let\'s show you around.',
   },
   {
     icon: '🎵',
     title: 'Pick a Genre',
-    text: 'Choose from 90+ genres including Soul, Grime, Afrobeats, D&B, Jazz and more.',
+    text: 'Choose from 100+ genres including Soul, Grime, Afrobeats, D&B, Jazz and more.',
   },
   {
     icon: '✍️',

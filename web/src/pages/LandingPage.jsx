@@ -123,9 +123,9 @@ export default function LandingPage() {
                 <span className="feat-icon">🎵</span>
                 <h3>AI Song Generator</h3>
                 <p>Turn a text brief into a full original song — lyrics by Claude AI, audio by Suno. Full lyrics and vocals in 60 seconds.</p>
-                <div className="feat-tags"><span>38+ Genres</span><span>Custom Lyrics</span><span>AI Vocals</span><span>Instrumental Mode</span></div>
+                <div className="feat-tags"><span>100+ Genres</span><span>Custom Lyrics</span><span>AI Vocals</span><span>Instrumental Mode</span></div>
               </div>
-              <div className="feat-card"><span className="feat-icon">🎸</span><h3>38+ Genres</h3><p>Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&amp;B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline and more.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎸</span><h3>100+ Genres</h3><p>Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&amp;B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline and more.</p></div>
               <div className="feat-card"><span className="feat-icon">🎨</span><h3>Animated Cover Art</h3><p>AI generates and animates your artwork automatically — every song gets a unique, genre-matched cover image that moves.</p></div>
               <div className="feat-card"><span className="feat-icon">🎬</span><h3>Avatar Lip-Sync Videos</h3><p>AI performer sings your track in HD video. Perfect for YouTube, Instagram Reels, and music promotion.</p></div>
               <div className="feat-card"><span className="feat-icon">🎛️</span><h3>DJ Mixer</h3><p>Mix your songs together and record your set — a built-in DJ deck for blending your AI tracks.</p></div>
@@ -362,7 +362,7 @@ export default function LandingPage() {
                   <li>✓ 3 animated cover arts/month</li>
                   <li>✓ YouTube upload</li>
                   <li>✓ Song download &amp; share</li>
-                  <li>✓ All 38+ genres &amp; styles</li>
+                  <li>✓ All 100+ genres &amp; styles</li>
                   <li>✓ All 27+ accents</li>
                 </ul>
                 <Link to="/register" className="btn-plan-ghost">Get Music Starter</Link>

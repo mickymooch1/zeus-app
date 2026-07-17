@@ -293,7 +293,7 @@
         "allGenres": "ทุกแนวเพลง",
         "youtube": "อัปโหลด YouTube",
         "download": "ดาวน์โหลดและแชร์เพลง",
-        "genres": "แนวเพลงและสไตล์ 90+ แบบ",
+        "genres": "แนวเพลงและสไตล์ 100+ แบบ",
         "coverArt": "ภาพปก AI",
         "avatar3": "วิดีโอ avatar พากย์ปาก 3 รายการ/เดือน",
         "avatar10": "วิดีโอ avatar พากย์ปาก 10 รายการ/เดือน",
@@ -354,7 +354,7 @@
         "account": "คุณสมบัติบัญชี"
       },
       "tags": {
-        "genres": "แนวเพลง 90+ แบบ",
+        "genres": "แนวเพลง 100+ แบบ",
         "customLyrics": "เนื้อเพลงของคุณเอง",
         "aiVocals": "เสียงร้อง AI",
         "instrumental": "โหมดบรรเลง"
@@ -365,7 +365,7 @@
           "desc": "เปลี่ยนคำอธิบายสั้นๆ ให้เป็นเพลงต้นฉบับสมบูรณ์ — เนื้อเพลงโดย Claude AI เสียงโดย Suno ได้เนื้อเพลงและเสียงร้องครบใน 60 วินาที"
         },
         "genres": {
-          "title": "แนวเพลง 90+ แบบ",
+          "title": "แนวเพลง 100+ แบบ",
           "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline และอีกกว่า 80 แนว"
         },
         "coverArt": {

@@ -293,7 +293,7 @@
         "allGenres": "모든 장르",
         "youtube": "YouTube 업로드",
         "download": "노래 다운로드 및 공유",
-        "genres": "90개 이상의 장르 및 스타일",
+        "genres": "100개 이상의 장르 및 스타일",
         "coverArt": "AI 커버 아트",
         "avatar3": "월 립싱크 영상 3개",
         "avatar10": "월 립싱크 영상 10개",
@@ -354,7 +354,7 @@
         "account": "계정 기능"
       },
       "tags": {
-        "genres": "90개 이상의 장르",
+        "genres": "100개 이상의 장르",
         "customLyrics": "직접 가사 작성",
         "aiVocals": "AI 보컬",
         "instrumental": "인스트루멘탈 모드"
@@ -365,7 +365,7 @@
           "desc": "설명만 입력하면 완전한 오리지널 노래가 완성됩니다 — 가사는 Claude AI, 오디오는 Suno. 가사와 보컬까지 60초 만에."
         },
         "genres": {
-          "title": "90개 이상의 장르",
+          "title": "100개 이상의 장르",
           "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline 외 80가지 이상."
         },
         "coverArt": {

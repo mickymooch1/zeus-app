@@ -293,7 +293,7 @@
         "allGenres": "Все жанры",
         "youtube": "Загрузка на YouTube",
         "download": "Скачивание и публикация",
-        "genres": "Все 90+ жанров и стилей",
+        "genres": "Все 100+ жанров и стилей",
         "coverArt": "AI-обложка",
         "avatar3": "3 lip-sync видео/месяц",
         "avatar10": "10 lip-sync видео/месяц",
@@ -354,7 +354,7 @@
         "account": "Возможности аккаунта"
       },
       "tags": {
-        "genres": "90+ жанров",
+        "genres": "100+ жанров",
         "customLyrics": "Свой текст",
         "aiVocals": "AI-вокал",
         "instrumental": "Режим инструментала"
@@ -365,7 +365,7 @@
           "desc": "Превратите короткое описание в полноценную оригинальную песню — текст от Claude AI, звук от Suno. Готовый текст и вокал за 60 секунд."
         },
         "genres": {
-          "title": "90+ жанров",
+          "title": "100+ жанров",
           "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline и ещё 80+."
         },
         "coverArt": {

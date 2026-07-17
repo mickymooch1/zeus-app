@@ -290,7 +290,7 @@
         "allGenres": "Alle Genres",
         "youtube": "YouTube-Upload",
         "download": "Song-Download & Teilen",
-        "genres": "Alle 90+ Genres & Stile",
+        "genres": "Alle 100+ Genres & Stile",
         "coverArt": "KI-Cover",
         "avatar3": "3 Lippensync-Avatar-Videos/Monat",
         "avatar10": "10 Lippensync-Avatar-Videos/Monat",
@@ -354,7 +354,7 @@
         "account": "Konto-Funktionen"
       },
       "tags": {
-        "genres": "90+ Genres",
+        "genres": "100+ Genres",
         "customLyrics": "Eigener Text",
         "aiVocals": "KI-Gesang",
         "instrumental": "Instrumentalmodus"
@@ -365,7 +365,7 @@
           "desc": "Aus einem kurzen Text wird ein kompletter Originalsong — Text von Claude AI, Audio von Suno. Voller Text und Gesang in 60 Sekunden."
         },
         "genres": {
-          "title": "90+ Genres",
+          "title": "100+ Genres",
           "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline und 80+ weitere."
         },
         "coverArt": {
