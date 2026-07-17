@@ -201,7 +201,11 @@
       "cancel": "Annuler",
       "create": "Créer la vidéo",
       "submitting": "Envoi…"
-    }
+    },
+    "animatedCoverOn": "Pochette animée",
+    "animatedCoverOff": "Pochette animée (désactivée)",
+    "negativeTagsLabel": "À éviter",
+    "negativeTagsPlaceholder": "ex. pas de piano, pas de trompette (500 caractères max)"
   },
   "billing": {
     "title": "Facturation & Abonnement",
@@ -292,7 +296,8 @@
         "avatar10": "10 vidéos lip-sync avatar/mois",
         "facebook": "Publication Facebook"
       }
-    }
+    },
+    "disconnectYoutube": "Déconnecter"
   },
   "landing": {
     "badge": "Propulsé par IA · Création musicale",

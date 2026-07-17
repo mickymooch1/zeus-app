@@ -201,7 +201,11 @@
       "cancel": "Abbrechen",
       "create": "Video erstellen",
       "submitting": "Einreichen…"
-    }
+    },
+    "animatedCoverOn": "Animiertes Cover",
+    "animatedCoverOff": "Animiertes Cover (aus)",
+    "negativeTagsLabel": "Vermeiden",
+    "negativeTagsPlaceholder": "z.B. kein Klavier, keine Trompete (max. 500 Zeichen)"
   },
   "billing": {
     "title": "Abrechnung & Abonnement",
@@ -292,7 +296,8 @@
         "avatar10": "10 Lippensync-Avatar-Videos/Monat",
         "facebook": "Facebook-Veröffentlichung"
       }
-    }
+    },
+    "disconnectYoutube": "Trennen"
   },
   "landing": {
     "badge": "KI-betrieben · Musikerstellung",

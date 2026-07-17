@@ -201,7 +201,11 @@
       "cancel": "Cancelar",
       "create": "Crear vídeo",
       "submitting": "Enviando…"
-    }
+    },
+    "animatedCoverOn": "Portada animada",
+    "animatedCoverOff": "Portada animada (desactivada)",
+    "negativeTagsLabel": "Evitar",
+    "negativeTagsPlaceholder": "ej. sin piano, sin trompeta (máx. 500 caracteres)"
   },
   "billing": {
     "title": "Facturación y Suscripción",
@@ -292,7 +296,8 @@
         "avatar10": "10 vídeos lip-sync avatar/mes",
         "facebook": "Publicación en Facebook"
       }
-    }
+    },
+    "disconnectYoutube": "Desconectar"
   },
   "landing": {
     "badge": "Impulsado por IA · Creación musical",
