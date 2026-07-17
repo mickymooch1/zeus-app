@@ -722,6 +722,12 @@ _BLOCKED_EMAIL_DOMAINS: frozenset = frozenset({
     "spamgourmet.com", "spamgourmet.net", "spamgourmet.org", "discard.email",
     "fakeinbox.com", "fakeinbox.net", "mailnull.com", "spamfree24.org",
     "anonbox.net", "mailexpire.com", "spaml.com", "spammotel.com", "spaml.de",
+    # Added 2026-07-17 when the email-verification gate was removed — signup-time
+    # blocking now carries more of the anti-bot weight.
+    "web-library.net", "temp-mail.org", "tempmail.net", "tempr.email",
+    "mohmal.com", "moakt.com", "emailondeck.com", "getnada.com", "nada.email",
+    "mailsac.com", "inboxkitten.com", "mintemail.com", "tmpmail.org",
+    "1secmail.com", "1secmail.org", "1secmail.net", "burnermail.io",
 })
 
 # Domains that auto-verify as genuine school accounts
@@ -2204,15 +2210,11 @@ async def songs_generate(
     import songs as _songs_mod
     from songs import InsufficientCreditsError
 
-    if not current_user.get("email_verified"):
-        log.warning(
-            "songs_generate: blocked — email not verified user_id=%s email=%s",
-            current_user.get("id"), current_user.get("email"),
-        )
-        raise HTTPException(
-            status_code=403,
-            detail="Please verify your email address before generating songs.",
-        )
+    # Email verification is NOT gated (deliberate, 2026-07-17): new + existing users
+    # can generate immediately. Verification is still sent and tracked (email_verified),
+    # but only softly nudged via EmailVerificationBanner — never a hard wall, including
+    # after free credits and before purchase. Anti-bot lives at signup (disposable-domain
+    # blocklist + IP + device-fingerprint checks), not here.
 
     db_path = db.get_db_path()
     user_id = current_user["id"]

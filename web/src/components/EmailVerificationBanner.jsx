@@ -34,7 +34,7 @@ export function EmailVerificationBanner({ user, token, app = 'ai' }) {
       fontSize: '0.875rem',
       color: '#ca8a04',
     }}>
-      <span>⚠ Please verify your email address to generate songs.</span>
+      <span>🔒 Secure your account — verify your email so you never lose access to your songs.</span>
       {resendStatus === 'sent' ? (
         <span style={{ color: '#16a34a', fontWeight: 600 }}>Verification email sent!</span>
       ) : resendStatus === 'error' ? (

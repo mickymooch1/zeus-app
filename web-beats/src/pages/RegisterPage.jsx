@@ -70,7 +70,8 @@ export default function RegisterPage() {
     try {
       const fingerprint = collectFingerprint();
       await register(email, password, '', tcAccepted, 'beats', referral, fingerprint);
-      navigate('/pricing', { replace: true });
+      // Land straight in the app to make a song — no verification wall, no pricing detour.
+      navigate('/songs', { replace: true });
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
