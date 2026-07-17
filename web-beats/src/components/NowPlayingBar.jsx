@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNowPlaying } from '../contexts/NowPlayingContext';
+import LyricsModal from './LyricsModal';
 
 const GENRE_LABEL = {
   hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk',
@@ -81,6 +82,8 @@ export default function NowPlayingBar() {
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' && window.innerWidth < 640,
   );
+  const [showLyrics, setShowLyrics] = useState(false);
+  const hasLyrics = currentSong?.lyric_id != null;
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
@@ -113,6 +116,7 @@ export default function NowPlayingBar() {
   // ── Mobile layout: 2 rows ─────────────────────────────────────────────────
   if (isMobile) {
     return (
+      <>
       <div style={{ ...barBase, padding: '8px 14px 10px' }}>
         <button
           onClick={dismiss}
@@ -142,7 +146,7 @@ export default function NowPlayingBar() {
           </div>
         </div>
 
-        {/* Row 2: current time + seek bar + time remaining */}
+        {/* Row 2: current time + seek bar + time remaining + lyrics */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 11, color: '#64748b', flexShrink: 0, fontVariantNumeric: 'tabular-nums', minWidth: 30 }}>
             {fmt(currentTime)}
@@ -151,13 +155,26 @@ export default function NowPlayingBar() {
           <span style={{ fontSize: 11, color: '#64748b', flexShrink: 0, fontVariantNumeric: 'tabular-nums', minWidth: 38, textAlign: 'right' }}>
             -{fmt(remaining)}
           </span>
+          {hasLyrics && (
+            <button
+              onClick={() => setShowLyrics(true)}
+              aria-label="Show lyrics"
+              title="Lyrics"
+              style={{ ...mBtn, width: 40, height: 40, fontSize: 18, flexShrink: 0 }}
+            >📜</button>
+          )}
         </div>
       </div>
+      {showLyrics && hasLyrics && (
+        <LyricsModal lyricId={currentSong.lyric_id} title={currentSong.title} onClose={() => setShowLyrics(false)} />
+      )}
+      </>
     );
   }
 
   // ── Desktop layout: single row ────────────────────────────────────────────
   return (
+    <>
     <div style={{ ...barBase, padding: '10px 20px 14px', display: 'flex', alignItems: 'center', gap: 16, paddingRight: 40 }}>
       {/* Thumb + info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: '0 0 200px', maxWidth: 200 }}>
@@ -210,8 +227,16 @@ export default function NowPlayingBar() {
         </span>
       </div>
 
-      {/* Shuffle / Repeat */}
+      {/* Lyrics / Shuffle / Repeat */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        {hasLyrics && (
+          <button
+            onClick={() => setShowLyrics(true)}
+            style={{ ...dBtn, fontSize: 16 }}
+            aria-label="Show lyrics"
+            title="Lyrics"
+          >📜</button>
+        )}
         <button
           onClick={toggleShuffle}
           style={{ ...dBtn, color: shuffle ? '#00f0ff' : '#475569', fontSize: 16 }}
@@ -233,6 +258,10 @@ export default function NowPlayingBar() {
         style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', color: '#475569', fontSize: 16, cursor: 'pointer', lineHeight: 1, padding: 4 }}
       >✕</button>
     </div>
+    {showLyrics && hasLyrics && (
+      <LyricsModal lyricId={currentSong.lyric_id} title={currentSong.title} onClose={() => setShowLyrics(false)} />
+    )}
+    </>
   );
 }
 
