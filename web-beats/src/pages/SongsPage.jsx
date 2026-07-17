@@ -2355,7 +2355,7 @@ export default function SongsPage() {
       <div style={{ background: '#0b0b14', minHeight: '100vh', color: '#f0eeff', overflowX: 'hidden' }}>
 
         <BeatsDashboardHeader />
-        <EmailVerificationBanner user={user} token={token} app="beats" />
+        <EmailVerificationBanner user={user} token={token} app="beats" hasSongs={library.length > 0} />
 
         <div className="songs-bar-wrap" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '10px 24px' }}>
           <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
