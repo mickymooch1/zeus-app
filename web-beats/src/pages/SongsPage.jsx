@@ -14,6 +14,7 @@ import { useOnlineStatus }  from '../hooks/useOnlineStatus';
 import { useOfflineSongs }  from '../hooks/useOfflineSongs';
 import OfflineBanner        from '../components/OfflineBanner';
 import { useNowPlaying }    from '../contexts/NowPlayingContext';
+import LyricsModal          from '../components/LyricsModal';
 
 const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','deephouse','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos','healingfrequency','purebassline'];
 const GENRE_LABEL = { bluegrass:'Bluegrass', britpop:'Britpop', indierock:'Indie Rock', folk:'Folk', acousticballad:'Acoustic Ballad', folkblues:'Folk Blues', roots:'Roots', acousticblues:'Acoustic Blues', patriotic:'Patriotic', hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', deephouse:'Deep House', dancehouse:'Dance House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', bluesrock:'Blues Rock', hardrock:'Hard Rock', punkrock:'Punk Rock', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', countrypop:'Country Pop', southemsoul:'Southern Soul', soulrnb:'Soul R&B', orchestralsoul:'Orchestral Soul', classicfunk:'Classic Funk', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', westcoasthiphop:'West Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', trance:'Trance', triphop:'Trip-Hop', salsa:'Salsa', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', ambient:'Ambient', christmas:'Christmas', corridos:'Corridos', healingfrequency:'Healing Frequencies', naturesounds:'Nature Sounds', whalesong:'Whale Song', cracklingfire:'Crackling Fire', thunderstorm:'Thunderstorm', oceanwaves:'Ocean Waves', forest:'Forest', nightsounds:'Night Sounds', purebassline:'Pure Bassline', psychedelicguitar:'Psychedelic Guitar', saxophone:'Saxophone', pianosolo:'Piano', violinsolo:'Violin', electricbluesguitar:'Blues Guitar', trumpet:'Trumpet', flamencoguitar:'Flamenco Guitar' };
@@ -452,11 +453,15 @@ const SongCard = memo(function SongCard({
   premiumCredits, stemsData: stemsProp, onGetStems, onOpenCover, onUpgrade,
   soundPersonaVariantId, onLockSound,
   isSaved, isDownloading, onSaveOffline, onRemoveSaved, onPlayOffline,
+  lyricId,
 }) {
   const { t } = useTranslation();
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
   const [playing, setPlaying]     = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const effectiveLyricId = lyricId ?? variant.lyric_id;
+  const hasLyrics = effectiveLyricId != null;
   const [wsReady, setWsReady]     = useState(false);
   const [copied, setCopied]       = useState(false);
   const [tgPosting, setTgPosting]       = useState(false);
@@ -768,6 +773,30 @@ const SongCard = memo(function SongCard({
           >
             {playing ? '⏸' : '▶'}
           </button>
+        )}
+        {!isFailed && hasLyrics && (
+          <button
+            onClick={() => setShowLyrics(true)}
+            aria-label="Show lyrics"
+            title="Lyrics"
+            style={{
+              position: 'absolute', bottom: 8, left: 56,
+              width: 40, height: 40, borderRadius: '50%',
+              border: '1.5px solid rgba(255,255,255,0.7)',
+              background: 'rgba(0,0,0,0.6)',
+              color: '#fff', fontSize: 16,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(6px)',
+              transition: 'all 0.2s',
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 10px rgba(0,240,255,0.6)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
+          >📜</button>
+        )}
+        {showLyrics && hasLyrics && (
+          <LyricsModal lyricId={effectiveLyricId} title={title} onClose={() => setShowLyrics(false)} />
         )}
         <button
           className="fav-star-btn"
@@ -3692,6 +3721,7 @@ export default function SongsPage() {
                         key={v.variant_id}
                         variant={v}
                         title={activeJob.title}
+                        lyricId={activeJob.lyric_id}
                         activeWsRef={activeWsRef}
                         canYouTube={canYouTube}
                         ytConnected={youtubeConnected}
