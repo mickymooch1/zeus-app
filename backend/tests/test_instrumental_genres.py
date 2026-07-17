@@ -83,3 +83,37 @@ class TestInstrumentalRegistry:
         ui_genres = _category_genres(picker.read_text(encoding="utf-8"), "instrumental_solo")
         missing = [g for g in ui_genres if "no vocals" not in GENRE_PRESETS[g]]
         assert missing == [], f"{missing} lack a 'no vocals' tail in their style string"
+
+
+class TestLyricsSkippedForInstrumentalGenres:
+    """One lyric row is shared by every variant, so lyrics may only be skipped
+    when no variant could possibly sing them."""
+
+    def test_all_instrumental_selection_skips_lyrics(self):
+        from songs import all_genres_instrumental
+
+        assert all_genres_instrumental(["saxophone", "psychedelicguitar"]) is True
+
+    def test_mixed_selection_still_writes_lyrics(self):
+        from songs import all_genres_instrumental
+
+        # The rock variant shares this lyric row — skipping would leave it silent.
+        assert all_genres_instrumental(["saxophone", "rock"]) is False
+
+    def test_vocal_selection_writes_lyrics(self):
+        from songs import all_genres_instrumental
+
+        assert all_genres_instrumental(["rock"]) is False
+
+    def test_empty_selection_writes_lyrics(self):
+        from songs import all_genres_instrumental
+
+        assert all_genres_instrumental([]) is False
+        assert all_genres_instrumental(None) is False
+
+    def test_unregistered_genres_are_ignored(self):
+        from songs import all_genres_instrumental
+
+        # generate_multiple_variants drops non-preset genres, so only a saxophone
+        # variant is built — nothing can sing, lyrics are safe to skip.
+        assert all_genres_instrumental(["saxophone", "notarealgenre"]) is True

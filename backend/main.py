@@ -2256,6 +2256,19 @@ async def songs_generate(
         log.info("kids_%s: accent=%s age_range=%s genres=%s brief=%r user_id=%s",
                  body.kids_mode or 'song', body.accent, body.kids_age_range, list(body.genres), body.brief[:120], user_id)
 
+    # Instrumental genres force sunoParams.instrumental per-variant later (songs.py),
+    # by which point Claude has already written lyrics Suno will discard. Decide here
+    # instead so the API call is skipped outright. Kids Story keeps its lyrics — they
+    # are the narration text, and the instrumental flag only silences the backing.
+    _genre_instrumental = (
+        _songs_mod.all_genres_instrumental(list(body.genres)) and not body.kids_story
+    )
+    _effective_instrumental = bool(body.instrumental) or _genre_instrumental
+    log.info(
+        "Lyrics mode: toggle=%s genre_instrumental=%s effective_instrumental=%s genres=%r",
+        body.instrumental, _genre_instrumental, _effective_instrumental, list(body.genres),
+    )
+
     try:
         if body.custom_lyrics:
             lyric_result = _lyrics_mod.store_custom_lyrics(
@@ -2269,7 +2282,7 @@ async def songs_generate(
             )
         else:
             _genre_lang = _GENRE_LANGUAGE_MAP.get((list(body.genres)[0] if body.genres else ''), None)
-            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=bool(body.instrumental), song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None, lyrics_language=_genre_lang, roast_mode=bool(body.is_roast), roast_name=body.roast_name or None, roast_details=body.roast_details or None, roast_vibe=body.roast_vibe or 'gentle', bilingual_mode=bool(body.bilingual_mode), intermittent_vocals=bool(body.intermittent_vocals and not body.instrumental))
+            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=_effective_instrumental, song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None, lyrics_language=_genre_lang, roast_mode=bool(body.is_roast), roast_name=body.roast_name or None, roast_details=body.roast_details or None, roast_vibe=body.roast_vibe or 'gentle', bilingual_mode=bool(body.bilingual_mode), intermittent_vocals=bool(body.intermittent_vocals and not body.instrumental))
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")

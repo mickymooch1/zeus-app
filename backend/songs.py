@@ -9,6 +9,22 @@ import requests
 
 INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency', 'naturesounds', 'whalesong', 'cracklingfire', 'thunderstorm', 'oceanwaves', 'forest', 'nightsounds', 'saxophone', 'pianosolo', 'violinsolo', 'trumpet', 'flamencoguitar', 'electricbluesguitar', 'psychedelicguitar'})
 
+
+def all_genres_instrumental(genres: list[str] | None) -> bool:
+    """True when every variant this request builds will be forced instrumental.
+
+    One lyric row is shared by all variants (see generate_multiple_variants), so
+    lyrics may only be skipped when nothing can sing them — a mixed selection like
+    saxophone + rock still needs real lyrics for the rock variant. Mirrors that
+    function's GENRE_PRESETS filter so unregistered genres, which never become a
+    variant, don't force a pointless lyrics call.
+    """
+    from song_genres import GENRE_PRESETS
+
+    valid = [g for g in (genres or []) if g in GENRE_PRESETS]
+    return bool(valid) and all(g in INSTRUMENTAL_GENRES for g in valid)
+
+
 # Genres that should render as pure sound (no music at all) — pushed via Suno negative_tags.
 _NATURE_SOUND_NEG = "music, instruments, melody, beat, rhythm, drums, bass"
 GENRE_NEGATIVE_TAGS: dict[str, str] = {
