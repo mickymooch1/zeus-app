@@ -15,6 +15,24 @@ import zh from './locales/zh.json';
 import ar from './locales/ar.json';
 import th from './locales/th.json';
 
+// Locales that read right-to-left. Arabic ships fully translated, so without this
+// its text rendered correctly inside an LTR layout — worse than not shipping it.
+const RTL_LANGUAGES = new Set(['ar', 'he', 'fa', 'ur']);
+
+function applyDocumentDirection() {
+  if (typeof document === 'undefined') return;
+  // Must read the RESOLVED language, not the requested one. A Hebrew visitor
+  // requests 'he', which has no resources and falls back to English text — keying
+  // off the request would render that English in an RTL layout. resolvedLanguage
+  // also collapses region codes ('ar-EG' -> 'ar').
+  const base = (i18n.resolvedLanguage || i18n.language || 'en').split('-')[0].toLowerCase();
+  document.documentElement.dir = RTL_LANGUAGES.has(base) ? 'rtl' : 'ltr';
+  document.documentElement.lang = base;
+}
+
+// Registered before init() so the languageChanged that init itself emits is caught.
+i18n.on('languageChanged', applyDocumentDirection);
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -42,6 +60,6 @@ i18n
       caches: ['localStorage'],
       lookupLocalStorage: 'zeus_beats_lang',
     },
-  });
+  }, () => applyDocumentDirection());
 
 export default i18n;
