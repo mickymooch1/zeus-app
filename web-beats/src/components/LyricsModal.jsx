@@ -46,6 +46,7 @@ export default function LyricsModal({ lyricId, title, onClose }) {
       : { status: 'loading', text: '' },
   );
   const closeRef = useRef(null);
+  const bodyRef = useRef(null);
 
   // Fetch lyrics for this lyricId (unless already cached).
   useEffect(() => {
@@ -73,13 +74,20 @@ export default function LyricsModal({ lyricId, title, onClose }) {
     return () => { cancelled = true; };
   }, [lyricId, token]);
 
-  // Escape to close; focus the close button on open.
+  // Escape to close; focus the close button on open (preventScroll so focusing
+  // the header button can't nudge the scroll position).
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
-    closeRef.current?.focus();
+    closeRef.current?.focus({ preventScroll: true });
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  // Always open at the first line. Runs on mount and whenever the loaded lyrics
+  // change, so a long song never starts part-way down.
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [lyricId, state.status]);
 
   const blocks = state.status === 'loaded' ? parseLyrics(state.text) : [];
   const instrumental = state.status === 'loaded' && isInstrumental(state.text);
@@ -140,7 +148,7 @@ export default function LyricsModal({ lyricId, title, onClose }) {
         </div>
 
         {/* Body */}
-        <div style={{
+        <div ref={bodyRef} style={{
           flex: 1, overflowY: 'auto', padding: '20px 22px 32px',
           WebkitOverflowScrolling: 'touch',
         }}>
