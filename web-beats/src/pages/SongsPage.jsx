@@ -2352,7 +2352,7 @@ export default function SongsPage() {
         style={{ display: 'none' }}
         onChange={handlePhotoUpload}
       />
-      <div style={{ background: '#0b0b14', minHeight: '100vh', color: '#f0eeff', overflowX: 'hidden' }}>
+      <div style={{ background: '#0b0b14', minHeight: '100dvh', color: '#f0eeff', overflowX: 'hidden' }}>
 
         <BeatsDashboardHeader />
         <EmailVerificationBanner user={user} token={token} app="beats" />

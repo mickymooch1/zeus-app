@@ -704,8 +704,11 @@ body {
   .dashboard-email-link { display: none !important; }
   .dashboard-email-icon { display: inline-flex !important; }
 
-  /* Songs page mobile */
-  .songs-content-wrap { padding: 20px 12px 60px !important; }
+  /* Songs page mobile — bottom padding clears iOS Safari's toolbar + home-bar
+     safe area so the last content (e.g. the expanded Advanced panel) is never
+     stranded behind the browser chrome. Pairs with min-height:100dvh on the
+     page root, which fixes the 100vh dead zone under iOS's dynamic address bar. */
+  .songs-content-wrap { padding: 20px 12px calc(80px + env(safe-area-inset-bottom)) !important; }
   .adv-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
   .adv-grid > * { grid-column: auto !important; }
 
