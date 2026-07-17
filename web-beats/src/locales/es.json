@@ -290,7 +290,7 @@
         "allGenres": "Todos los géneros",
         "youtube": "Subida a YouTube",
         "download": "Descarga y compartir",
-        "genres": "Más de 20 géneros y estilos",
+        "genres": "Más de 90 géneros y estilos",
         "coverArt": "Portada IA",
         "avatar3": "3 vídeos lip-sync avatar/mes",
         "avatar10": "10 vídeos lip-sync avatar/mes",
@@ -354,7 +354,7 @@
         "account": "Funciones de cuenta"
       },
       "tags": {
-        "genres": "Más de 38 géneros",
+        "genres": "Más de 90 géneros",
         "customLyrics": "Letra personalizada",
         "aiVocals": "Voces IA",
         "instrumental": "Modo instrumental"
@@ -365,8 +365,8 @@
           "desc": "Convierte un brief de texto en una canción original completa — letra por Claude AI, audio por Suno. Letra y voces en 60 segundos."
         },
         "genres": {
-          "title": "Más de 38 géneros",
-          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline y otros 20 más."
+          "title": "Más de 90 géneros",
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline y otros 80 más."
         },
         "coverArt": {
           "title": "Portada cinematográfica",

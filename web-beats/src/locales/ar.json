@@ -293,7 +293,7 @@
         "allGenres": "جميع الأنواع",
         "youtube": "رفع YouTube",
         "download": "تحميل ومشاركة الأغاني",
-        "genres": "جميع 20+ أنواع وأساليب",
+        "genres": "جميع 90+ أنواع وأساليب",
         "coverArt": "غلاف AI",
         "avatar3": "3 فيديوهات مزامنة شفاه/شهر",
         "avatar10": "10 فيديوهات مزامنة شفاه/شهر",
@@ -354,7 +354,7 @@
         "account": "مميزات الحساب"
       },
       "tags": {
-        "genres": "38+ نوعاً",
+        "genres": "90+ نوعاً",
         "customLyrics": "كلمات مخصصة",
         "aiVocals": "غناء AI",
         "instrumental": "وضع موسيقى فقط"
@@ -365,8 +365,8 @@
           "desc": "حوّل وصفاً نصياً إلى أغنية أصلية كاملة — الكلمات من Claude AI والموسيقى من Suno. كلمات وغناء كاملان في 60 ثانية."
         },
         "genres": {
-          "title": "38+ نوعاً موسيقياً",
-          "desc": "Grime، Afrobeats، Reggaeton، Latin Trap، Bhangra، Metal، Rockney، D&B، Jungle، Drill، Amapiano، UK Garage، Lo-Fi، Reggae، Bassline و20+ نوعاً آخر."
+          "title": "90+ نوعاً موسيقياً",
+          "desc": "Grime، Afrobeats، Reggaeton، Latin Trap، Bhangra، Metal، Rockney، D&B، Jungle، Drill، Amapiano، UK Garage، Lo-Fi، Reggae، Bassline و80+ نوعاً آخر."
         },
         "coverArt": {
           "title": "غلاف سينمائي",

@@ -293,7 +293,7 @@
         "allGenres": "All genres",
         "youtube": "YouTube upload",
         "download": "Song download & share",
-        "genres": "All 20+ genres & styles",
+        "genres": "All 90+ genres & styles",
         "coverArt": "AI cover art",
         "avatar3": "3 avatar lip-sync videos/month",
         "avatar10": "10 avatar lip-sync videos/month",
@@ -354,7 +354,7 @@
         "account": "Account Features"
       },
       "tags": {
-        "genres": "38+ Genres",
+        "genres": "90+ Genres",
         "customLyrics": "Custom Lyrics",
         "aiVocals": "AI Vocals",
         "instrumental": "Instrumental Mode"
@@ -365,8 +365,8 @@
           "desc": "Turn a text brief into a full original song — lyrics by Claude AI, audio by Suno. Full lyrics and vocals in 60 seconds."
         },
         "genres": {
-          "title": "38+ Genres",
-          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline and 20+ more."
+          "title": "90+ Genres",
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline and 80+ more."
         },
         "coverArt": {
           "title": "Cinematic Cover Art",

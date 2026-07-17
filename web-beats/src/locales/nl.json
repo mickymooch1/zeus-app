@@ -293,7 +293,7 @@
         "allGenres": "Alle genres",
         "youtube": "YouTube-upload",
         "download": "Nummers downloaden en delen",
-        "genres": "Alle 20+ genres en stijlen",
+        "genres": "Alle 90+ genres en stijlen",
         "coverArt": "AI-hoes",
         "avatar3": "3 lipsync-video's/maand",
         "avatar10": "10 lipsync-video's/maand",
@@ -354,7 +354,7 @@
         "account": "Accountfuncties"
       },
       "tags": {
-        "genres": "38+ genres",
+        "genres": "90+ genres",
         "customLyrics": "Eigen tekst",
         "aiVocals": "AI-zang",
         "instrumental": "Instrumentale modus"
@@ -365,8 +365,8 @@
           "desc": "Maak van een korte beschrijving een volledig origineel nummer — tekst van Claude AI, audio van Suno. Volledige tekst en zang in 60 seconden."
         },
         "genres": {
-          "title": "38+ genres",
-          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline en nog 20+ andere."
+          "title": "90+ genres",
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline en nog 80+ andere."
         },
         "coverArt": {
           "title": "Filmische hoes",

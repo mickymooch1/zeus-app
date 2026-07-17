@@ -293,7 +293,7 @@
         "allGenres": "Tutti i generi",
         "youtube": "Caricamento YouTube",
         "download": "Download e condivisione canzoni",
-        "genres": "Tutti i 20+ generi e stili",
+        "genres": "Tutti i 90+ generi e stili",
         "coverArt": "Copertina AI",
         "avatar3": "3 video lip-sync/mese",
         "avatar10": "10 video lip-sync/mese",
@@ -354,7 +354,7 @@
         "account": "Funzioni account"
       },
       "tags": {
-        "genres": "38+ generi",
+        "genres": "90+ generi",
         "customLyrics": "Testi personalizzati",
         "aiVocals": "Voce AI",
         "instrumental": "Modalità strumentale"
@@ -365,8 +365,8 @@
           "desc": "Trasforma un brief di testo in una canzone originale completa — testi di Claude AI, audio di Suno. Testi e voce in 60 secondi."
         },
         "genres": {
-          "title": "38+ generi",
-          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline e altri 20+."
+          "title": "90+ generi",
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline e altri 80+."
         },
         "coverArt": {
           "title": "Copertine cinematografiche",

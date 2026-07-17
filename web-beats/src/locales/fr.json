@@ -290,7 +290,7 @@
         "allGenres": "Tous les genres",
         "youtube": "Publication YouTube",
         "download": "Téléchargement & partage",
-        "genres": "Plus de 20 genres & styles",
+        "genres": "Plus de 90 genres & styles",
         "coverArt": "Pochette IA",
         "avatar3": "3 vidéos lip-sync avatar/mois",
         "avatar10": "10 vidéos lip-sync avatar/mois",
@@ -354,7 +354,7 @@
         "account": "Fonctionnalités du compte"
       },
       "tags": {
-        "genres": "38+ genres",
+        "genres": "90+ genres",
         "customLyrics": "Paroles personnalisées",
         "aiVocals": "Voix IA",
         "instrumental": "Mode instrumental"
@@ -365,8 +365,8 @@
           "desc": "Transformez un brief textuel en chanson originale complète — paroles par Claude AI, audio par Suno. Paroles et voix en 60 secondes."
         },
         "genres": {
-          "title": "38+ genres",
-          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline et plus de 20 autres."
+          "title": "90+ genres",
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline et plus de 80 autres."
         },
         "coverArt": {
           "title": "Pochette cinématique",

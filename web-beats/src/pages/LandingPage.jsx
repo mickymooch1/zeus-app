@@ -479,7 +479,7 @@ export default function LandingPage() {
               <p className="plan-desc">Start creating with no commitment.</p>
               <ul className="plan-features">
                 <li>✓ 3 songs to get started</li>
-                <li>✓ All 38+ genres</li>
+                <li>✓ All 90+ genres</li>
                 <li>✓ Cinematic Motion Covers</li>
                 <li>✓ Discover feed access</li>
                 <li>❌ No stems</li>
@@ -498,7 +498,7 @@ export default function LandingPage() {
                 <li>✓ 25 songs/month</li>
                 <li>✓ 3 premium credits (animations OR stems)</li>
                 <li>✓ YouTube upload</li>
-                <li>✓ All 38+ genres</li>
+                <li>✓ All 90+ genres</li>
                 <li>✓ All 27+ accents</li>
               </ul>
               <Link to="/register" className="btn-plan-ghost">Get Music Starter</Link>

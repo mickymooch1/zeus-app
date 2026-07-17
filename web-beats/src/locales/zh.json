@@ -293,7 +293,7 @@
         "allGenres": "所有风格",
         "youtube": "YouTube上传",
         "download": "歌曲下载与分享",
-        "genres": "所有20+风格类型",
+        "genres": "所有90+风格类型",
         "coverArt": "AI封面",
         "avatar3": "每月3个口型同步视频",
         "avatar10": "每月10个口型同步视频",
@@ -354,7 +354,7 @@
         "account": "账户功能"
       },
       "tags": {
-        "genres": "38+种风格",
+        "genres": "90+种风格",
         "customLyrics": "自定义歌词",
         "aiVocals": "AI人声",
         "instrumental": "纯音乐模式"
@@ -365,8 +365,8 @@
           "desc": "一段文字描述，就能生成完整的原创歌曲 — 歌词由Claude AI创作，音频由Suno生成。60秒内拿到完整歌词和人声。"
         },
         "genres": {
-          "title": "38+种风格",
-          "desc": "Grime、Afrobeats、Reggaeton、Latin Trap、Bhangra、Metal、Rockney、D&B、Jungle、Drill、Amapiano、UK Garage、Lo-Fi、Reggae、Bassline，还有20多种。"
+          "title": "90+种风格",
+          "desc": "Grime、Afrobeats、Reggaeton、Latin Trap、Bhangra、Metal、Rockney、D&B、Jungle、Drill、Amapiano、UK Garage、Lo-Fi、Reggae、Bassline，还有80多种。"
         },
         "coverArt": {
           "title": "电影级封面",

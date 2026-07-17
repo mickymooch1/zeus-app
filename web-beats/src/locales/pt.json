@@ -290,7 +290,7 @@
         "allGenres": "Todos os gêneros",
         "youtube": "Upload para YouTube",
         "download": "Download e compartilhamento",
-        "genres": "Mais de 20 gêneros e estilos",
+        "genres": "Mais de 90 gêneros e estilos",
         "coverArt": "Arte de capa IA",
         "avatar3": "3 vídeos lip-sync avatar/mês",
         "avatar10": "10 vídeos lip-sync avatar/mês",
@@ -354,7 +354,7 @@
         "account": "Recursos da conta"
       },
       "tags": {
-        "genres": "38+ gêneros",
+        "genres": "90+ gêneros",
         "customLyrics": "Letra personalizada",
         "aiVocals": "Vocais IA",
         "instrumental": "Modo instrumental"
@@ -365,8 +365,8 @@
           "desc": "Transforme um briefing de texto em uma música original completa — letra por Claude AI, áudio por Suno. Letra e vocais em 60 segundos."
         },
         "genres": {
-          "title": "38+ gêneros",
-          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline e mais de 20 outros."
+          "title": "90+ gêneros",
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline e mais de 80 outros."
         },
         "coverArt": {
           "title": "Arte de capa cinematográfica",
