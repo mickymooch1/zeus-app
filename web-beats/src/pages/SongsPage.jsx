@@ -2877,7 +2877,7 @@ export default function SongsPage() {
               }}>
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.vocalGenderLabel')}</p>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {[['', t('songs.vocalEither')], ['m', t('songs.vocalMale')], ['f', t('songs.vocalFemale')], ['duet', t('songs.vocalDuet')]].map(([val, label]) => (
                       <button
                         key={val}

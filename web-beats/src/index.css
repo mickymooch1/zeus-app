@@ -714,7 +714,10 @@ body {
      page root, which fixes the 100vh dead zone under iOS's dynamic address bar. */
   .songs-content-wrap { padding: 20px 12px calc(80px + env(safe-area-inset-bottom)) !important; }
   .adv-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
-  .adv-grid > * { grid-column: auto !important; }
+  /* min-width:0 lets each row shrink below its content's min-content so no row
+     (e.g. the Vocal Gender button row) can force the panel wider than the phone
+     and clip the right edge — iOS Safari won't shrink these on its own. */
+  .adv-grid > * { grid-column: auto !important; min-width: 0 !important; }
 
   /* Content pages */
   .content-page { padding: 90px 16px 60px; }
