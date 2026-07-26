@@ -632,6 +632,7 @@ def generate_multiple_variants(
         if suffix_parts is not None:
             # New path: whole-descriptor, priority-aware trim (genre core protected,
             # dropped descriptors named in the log). Common case is byte-identical.
+            # assemble_variant_style already enforces hard_cap internally.
             style = assemble_variant_style(genre_style, suffix_parts, tail,
                                            hard_cap=hard_cap, genre=genre)
         elif tempo_suffix:
@@ -646,14 +647,17 @@ def generate_multiple_variants(
                     len(tempo_suffix), len(suffix), genre,
                 )
             style = f"{suffix}, {genre_style}{tail}" if suffix else f"{genre_style}{tail}"
-            if len(style) > hard_cap:
-                logger.warning(
-                    "style string hard-truncated from %d to %d chars for genre=%r blend=%s",
-                    len(style), hard_cap, genre, bool(genre_b),
-                )
-                style = style[:hard_cap]
         else:
             style = f"{genre_style}{tail}"
+        # Final safety net: genre core + tail alone exceeding the cap. Runs on ALL
+        # paths, exactly as the original code did. No-op on the new path (the helper
+        # already enforced hard_cap).
+        if len(style) > hard_cap:
+            logger.warning(
+                "style string hard-truncated from %d to %d chars for genre=%r blend=%s",
+                len(style), hard_cap, genre, bool(genre_b),
+            )
+            style = style[:hard_cap]
         logger.info("BLEND_STYLE genre=%r genre_b=%r len=%d style=%r", genre, genre_b, len(style), style)
         # Genre tag encodes the blend so the frontend can display "Soul × Grime"
         genre_tag = f"{genre}__{genre_b}" if genre_b and genre_b in GENRE_PRESETS else genre
