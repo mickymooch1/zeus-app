@@ -7,6 +7,8 @@ import time
 import threading
 import requests
 
+from style_assembly import assemble_variant_style
+
 INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency', 'naturesounds', 'whalesong', 'cracklingfire', 'thunderstorm', 'oceanwaves', 'forest', 'nightsounds', 'saxophone', 'pianosolo', 'violinsolo', 'trumpet', 'flamencoguitar', 'electricbluesguitar', 'psychedelicguitar'})
 
 
@@ -545,6 +547,7 @@ def generate_multiple_variants(
     db_path: str,
     extra_suno_params: dict | None = None,
     tempo_suffix: str | None = None,
+    suffix_parts: list[str] | None = None,
     is_admin: bool = False,
     inspired_by_descriptors: str | None = None,
     animate_cover: bool = True,
@@ -626,8 +629,15 @@ def generate_multiple_variants(
         genre_style = style
         safe_inspired_by = sanitize_inspired_by_descriptors(inspired_by_descriptors)
         tail = f", {safe_inspired_by}" if safe_inspired_by else ""
-        if tempo_suffix:
-            suffix_budget = hard_cap - len(genre_style) - len(tail) - 2  # 2 for ", " join
+        if suffix_parts is not None:
+            # New path: whole-descriptor, priority-aware trim (genre core protected,
+            # dropped descriptors named in the log). Common case is byte-identical.
+            style = assemble_variant_style(genre_style, suffix_parts, tail,
+                                           hard_cap=hard_cap, genre=genre)
+        elif tempo_suffix:
+            # Legacy path (only the zeus_agent caller, which passes no suffix_parts).
+            # Unchanged char-level trim.
+            suffix_budget = hard_cap - len(genre_style) - len(tail) - 2
             suffix = tempo_suffix
             if len(suffix) > max(0, suffix_budget):
                 suffix = suffix[:max(0, suffix_budget)].rstrip(" ,")
@@ -636,15 +646,14 @@ def generate_multiple_variants(
                     len(tempo_suffix), len(suffix), genre,
                 )
             style = f"{suffix}, {genre_style}{tail}" if suffix else f"{genre_style}{tail}"
+            if len(style) > hard_cap:
+                logger.warning(
+                    "style string hard-truncated from %d to %d chars for genre=%r blend=%s",
+                    len(style), hard_cap, genre, bool(genre_b),
+                )
+                style = style[:hard_cap]
         else:
             style = f"{genre_style}{tail}"
-        # Final safety net (e.g. genre + inspired_by alone exceeding the cap)
-        if len(style) > hard_cap:
-            logger.warning(
-                "style string hard-truncated from %d to %d chars for genre=%r blend=%s",
-                len(style), hard_cap, genre, bool(genre_b),
-            )
-            style = style[:hard_cap]
         logger.info("BLEND_STYLE genre=%r genre_b=%r len=%d style=%r", genre, genre_b, len(style), style)
         # Genre tag encodes the blend so the frontend can display "Soul × Grime"
         genre_tag = f"{genre}__{genre_b}" if genre_b and genre_b in GENRE_PRESETS else genre
