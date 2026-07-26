@@ -114,3 +114,74 @@ GENRE_PRESETS = {
     "trumpet":           "solo trumpet, jazz trumpet virtuoso, bright brass tone, expressive improvisation, smooth jazz backing, 100 BPM, soulful muted trumpet, sophisticated brass melody, instrumental only, no vocals, no singing",
     "flamencoguitar":    "flamenco guitar, rapid fingerpicking, Spanish classical guitar, passionate rhythmic playing, percussive guitar techniques, 110 BPM, fiery Spanish melody, virtuoso nylon string guitar, instrumental only, no vocals, no singing",
 }
+
+# ── Sound Control (Advanced area) ─────────────────────────────────────────────
+# Curated Suno-optimised descriptor phrases. Lives here (not the frontend) so
+# phrasing can be tuned without a frontend rebuild, exactly like GENRE_PRESETS.
+# No artist or place names — pure descriptive production language.
+SOUND_CONTROL_PHRASES = {
+    "bass": {
+        "Sub Bass":         "deep sub bass",
+        "808":              "heavy 808 bass",
+        "Reese Bass":       "growling reese bass",
+        "Slap Bass":        "funky slap bass",
+        "Upright/Acoustic": "warm upright acoustic bass",
+        "Wobble Bass":      "wobbling dubstep bass",
+        "Deep Bass":        "deep resonant bass",
+        "Distorted Bass":   "gritty distorted bass",
+    },
+    "drums": {
+        "Punchy":            "punchy hard-hitting drums",
+        "Lo-fi":             "lo-fi dusty drums",
+        "Trap Hi-hats":      "rapid rolling trap hi-hats",
+        "Acoustic Kit":      "live acoustic drum kit",
+        "Four-to-the-floor": "steady four-on-the-floor kick drums",
+        "Breakbeat":         "chopped breakbeat drums",
+        "Minimal":           "sparse minimal percussion",
+        "Hard-hitting":      "hard-hitting punchy drums",
+    },
+    "vocals": {
+        "Soft":              "soft gentle vocals",
+        "Powerful":          "powerful belting vocals",
+        "Layered":           "lush layered vocal harmonies",
+        "Choppy/Chopped":    "chopped stuttering vocals",
+        "Breathy":           "soft breathy vocals",
+        "Aggressive":        "aggressive intense vocals",
+        "Auto-tuned":        "melodic auto-tune vocals",
+        "None/Instrumental": "instrumental, no lead vocals",  # SPECIAL: sets instrumental flag
+    },
+    "production": {
+        "Polished":      "polished radio-ready production",
+        "Lo-fi":         "lo-fi vintage production",
+        "Vintage":       "warm vintage analog production",
+        "Cinematic":     "cinematic layered production",
+        "Stripped-back": "stripped-back minimal production",
+        "Wall-of-sound": "dense wall-of-sound production",
+    },
+}
+
+
+def resolve_sound_control(sound_control):
+    """Resolve a sound_control dict into (descriptors, instrumental).
+
+    descriptors: ordered phrases to append (bass, drums, vocals, production, notes).
+    instrumental: True when vocals == "None/Instrumental" (caller ORs it into the
+                  real Suno instrumental param; INSTRUMENTAL_SUFFIX supplies the text,
+                  so no vocals descriptor is appended in that case).
+    Known labels map to curated phrases; custom values and notes pass through verbatim.
+    """
+    sc = sound_control or {}
+    descriptors = []
+    instrumental = False
+    for section in ("bass", "drums", "vocals", "production"):
+        val = (sc.get(section) or "").strip()[:200]
+        if not val:
+            continue
+        if section == "vocals" and val == "None/Instrumental":
+            instrumental = True
+            continue
+        descriptors.append(SOUND_CONTROL_PHRASES.get(section, {}).get(val, val))
+    notes = (sc.get("notes") or "").strip()[:300]
+    if notes:
+        descriptors.append(notes)
+    return descriptors, instrumental
