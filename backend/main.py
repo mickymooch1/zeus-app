@@ -2081,6 +2081,7 @@ class SongsGenerateRequest(BaseModel):
     character_voice: str | None = None   # other character voice key (dragon/villain etc.)
     child_voice: str | None = None       # child hero voice key — enables narrator+child+character 3-voice mode
     healing_frequency: str | None = None # e.g. "432" | "528" | "396" — appended to healingfrequency genre style
+    sound_control: dict | None = None    # {bass,drums,vocals,production,notes} → style descriptors
     is_roast: bool = False               # Roast / Funny Song Mode — uses comedy prompt
     roast_name: str | None = Field(default=None, max_length=120)   # who the song is about
     roast_details: str | None = Field(default=None, max_length=800) # funny facts about them
@@ -2265,6 +2266,10 @@ async def songs_generate(
     _genre_instrumental = (
         _songs_mod.all_genres_instrumental(list(body.genres)) and not body.kids_story
     )
+    from song_genres import resolve_sound_control
+    _sc_descriptors, _sc_instrumental = resolve_sound_control(body.sound_control)
+    if _sc_instrumental:
+        body.instrumental = True   # "None/Instrumental" → real Suno instrumental param + suffix + intermittent guard
     _effective_instrumental = bool(body.instrumental) or _genre_instrumental
     log.info(
         "Lyrics mode: toggle=%s genre_instrumental=%s effective_instrumental=%s genres=%r",
@@ -2819,6 +2824,8 @@ async def songs_generate(
         _hz = body.healing_frequency.strip().replace(" Hz", "").replace("Hz", "")
         if _hz in _valid_hz:
             style_suffix_parts.append(f"{_hz} Hz solfeggio healing frequency tuning, {_hz} Hz resonance")
+    if _sc_descriptors:
+        style_suffix_parts.extend(_sc_descriptors)   # appended last = lowest truncation priority
     tempo_suffix = ", ".join(style_suffix_parts) or None
     if body.kids_story:
         log.info("kids_%s: tempo_suffix=%r", body.kids_mode or 'song', tempo_suffix)
@@ -2916,6 +2923,7 @@ async def songs_generate(
             db_path=str(db_path),
             extra_suno_params=extra_suno_params or None,
             tempo_suffix=tempo_suffix,
+            suffix_parts=style_suffix_parts,
             is_admin=is_admin,
             inspired_by_descriptors=safe_inspired_by,
             animate_cover=body.animate_cover,
