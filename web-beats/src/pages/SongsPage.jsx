@@ -38,6 +38,18 @@ const GENRE_CATEGORIES = [
   { id: 'instrumental_solo', label: '🎷 Instrumental & Solo', color: '#a78bfa',
     genres: ['saxophone','pianosolo','violinsolo','electricbluesguitar','psychedelicguitar','trumpet','flamencoguitar'] },
 ];
+const SOUND_PRESETS = {
+  bass:       ['Sub Bass','808','Reese Bass','Slap Bass','Upright/Acoustic','Wobble Bass','Deep Bass','Distorted Bass'],
+  drums:      ['Punchy','Lo-fi','Trap Hi-hats','Acoustic Kit','Four-to-the-floor','Breakbeat','Minimal','Hard-hitting'],
+  vocals:     ['Soft','Powerful','Layered','Choppy/Chopped','Breathy','Aggressive','Auto-tuned','None/Instrumental'],
+  production: ['Polished','Lo-fi','Vintage','Cinematic','Stripped-back','Wall-of-sound'],
+};
+const SOUND_SECTIONS = [
+  { key: 'bass',       label: '🔊 Bass' },
+  { key: 'drums',      label: '🥁 Drums' },
+  { key: 'vocals',     label: '🎤 Vocals' },
+  { key: 'production', label: '🎚️ Production' },
+];
 const _genreColorMap = Object.fromEntries(
   GENRE_CATEGORIES.flatMap(cat => cat.genres.map(g => [g, cat.color]))
 );
@@ -1215,6 +1227,11 @@ export default function SongsPage() {
   const [topupLoading, setTopupLoading] = useState(null);
 
   const [showAdvanced, setShowAdvanced]   = useState(() => window.innerWidth >= 600 || !!(location.state?.prefillStyle || location.state?.prefillGenre));
+  const [showSoundControl, setShowSoundControl] = useState(false);
+  const [soundControl, setSoundControl] = useState({
+    bass: '', bassCustom: '', drums: '', drumsCustom: '',
+    vocals: '', vocalsCustom: '', production: '', productionCustom: '', notes: '',
+  });
   const [vocalGender, setVocalGender]     = useState('');
   const [accent, setAccent]               = useState('');
   // Genre blend
@@ -1749,6 +1766,14 @@ export default function SongsPage() {
       } else {
         console.log('animate_cover:', animateCover);
         if (genreBlend && genreB) console.log('Genre blend:', genreB, 'ratio:', blendRatio);
+        const _resolveSC = (sec) =>
+          soundControl[sec] === 'Custom' ? soundControl[`${sec}Custom`].trim() : soundControl[sec];
+        const _scPayload = {
+          bass: _resolveSC('bass'), drums: _resolveSC('drums'),
+          vocals: _resolveSC('vocals'), production: _resolveSC('production'),
+          notes: soundControl.notes.trim(),
+        };
+        const soundControlPayload = Object.values(_scPayload).some(Boolean) ? _scPayload : undefined;
         requestBody = {
           brief: useCustomLyrics ? (songTitle.trim() || 'Custom song') : brief.trim(),
           genres: Array.from(selGenres),
@@ -1769,6 +1794,7 @@ export default function SongsPage() {
             negative_tags: negativeTags.trim() || undefined,
             genre_b: genreBlend && genreB ? genreB : undefined,
             blend_ratio: genreBlend && genreB ? blendRatio : undefined,
+            sound_control: soundControlPayload,
             healing_frequency: selGenres.has('healingfrequency') ? healingFrequency : undefined,
           } : {}),
         };
@@ -3208,6 +3234,81 @@ export default function SongsPage() {
                         {t('songs.explicitWarning')}
                       </p>
                     )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showAdvanced && (
+              <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowSoundControl(v => !v)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    width: '100%', minHeight: 44, padding: '0 4px', background: 'transparent',
+                    border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  }}
+                  aria-expanded={showSoundControl}
+                >
+                  <span>🎛️ Sound Control <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>— optional</span></span>
+                  <span style={{ transform: showSoundControl ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>▾</span>
+                </button>
+
+                {showSoundControl && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+                    {SOUND_SECTIONS.map(({ key, label }) => (
+                      <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{label}</label>
+                        <select
+                          value={soundControl[key]}
+                          onChange={e => setSoundControl(s => ({ ...s, [key]: e.target.value }))}
+                          style={{
+                            width: '100%', minHeight: 44, borderRadius: 8, padding: '0 10px',
+                            background: 'rgba(255,255,255,0.06)', color: '#fff',
+                            border: '1px solid rgba(255,255,255,0.2)', fontSize: 14,
+                          }}
+                        >
+                          <option value="" style={{ color: '#000' }}>— none —</option>
+                          {SOUND_PRESETS[key].map(p => (
+                            <option key={p} value={p} style={{ color: '#000' }}>{p}</option>
+                          ))}
+                          <option value="Custom" style={{ color: '#000' }}>Custom…</option>
+                        </select>
+                        {key === 'vocals' && soundControl.vocals === 'None/Instrumental' && (
+                          <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11 }}>(makes the track instrumental)</span>
+                        )}
+                        {soundControl[key] === 'Custom' && (
+                          <input
+                            type="text"
+                            maxLength={200}
+                            value={soundControl[`${key}Custom`]}
+                            onChange={e => setSoundControl(s => ({ ...s, [`${key}Custom`]: e.target.value }))}
+                            placeholder={`Describe the ${key} you want…`}
+                            style={{
+                              width: '100%', minHeight: 44, borderRadius: 8, padding: '0 10px',
+                              background: 'rgba(255,255,255,0.06)', color: '#fff',
+                              border: '1px solid rgba(255,255,255,0.2)', fontSize: 14, boxSizing: 'border-box',
+                            }}
+                          />
+                        )}
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <label style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>📝 Custom sound notes</label>
+                      <textarea
+                        maxLength={300}
+                        value={soundControl.notes}
+                        onChange={e => setSoundControl(s => ({ ...s, notes: e.target.value }))}
+                        placeholder="Anything else about the sound…"
+                        rows={2}
+                        style={{
+                          width: '100%', borderRadius: 8, padding: 10, resize: 'vertical',
+                          background: 'rgba(255,255,255,0.06)', color: '#fff',
+                          border: '1px solid rgba(255,255,255,0.2)', fontSize: 14, boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
