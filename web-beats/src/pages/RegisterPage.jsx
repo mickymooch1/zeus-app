@@ -25,6 +25,7 @@ export default function RegisterPage() {
   const [searchParams] = useSearchParams();
   const referral = searchParams.get('ref') || null;
 
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [tcAccepted, setTcAccepted] = useState(false);
@@ -69,7 +70,9 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const fingerprint = collectFingerprint();
-      await register(email, password, '', tcAccepted, 'beats', referral, fingerprint);
+      // name is optional — empty string is a perfectly valid signup. Users who
+      // skip it get asked again after their first song.
+      await register(email, password, name.trim(), tcAccepted, 'beats', referral, fingerprint);
       // Land straight in the app to make a song — no verification wall, no pricing detour.
       navigate('/songs', { replace: true });
     } catch (err) {
@@ -98,6 +101,24 @@ export default function RegisterPage() {
         {error && <div className="form-error form-error--banner">{error}</div>}
 
         <form onSubmit={handleSubmit} className="auth-form">
+          {/* Optional by design — never validated, never blocks submit. */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="name">
+              First name{' '}
+              <span style={{ color: '#8b93a7', fontWeight: 400 }}>(optional)</span>
+            </label>
+            <input
+              id="name"
+              type="text"
+              className="form-input"
+              placeholder="What should we call you?"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={60}
+              autoComplete="given-name"
+            />
+          </div>
+
           <div className="form-group">
             <label className="form-label" htmlFor="email">{t('auth.register.emailLabel')}</label>
             <input

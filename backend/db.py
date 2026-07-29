@@ -324,60 +324,165 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_variants ADD COLUMN subtitles_url TEXT",
             "ALTER TABLE lyrics ADD COLUMN kids_story INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN custom_voice_id TEXT",
+            # Canonical (normalised) email — defeats the Gmail +alias/dot tricks.
+            # Deliberately NOT UNIQUE: historical duplicates may already exist and
+            # must not break startup or logins.
+            "ALTER TABLE users ADD COLUMN email_canonical TEXT",
+            "CREATE INDEX IF NOT EXISTS idx_users_email_canonical ON users (email_canonical)",
+            # One row per signup per device — the legacy device_fingerprints table
+            # has fp_hash UNIQUE, so it can only ever hold one account per device
+            # and cannot answer "how many accounts came from here?".
+            """CREATE TABLE IF NOT EXISTS device_signups (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                fp_hash    TEXT NOT NULL,
+                user_id    TEXT,
+                created_at TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_device_signups_fp ON device_signups (fp_hash)",
+            # Soft abuse signals. Recorded, alerted on, never used to block.
+            """CREATE TABLE IF NOT EXISTS signup_flags (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    TEXT,
+                email      TEXT,
+                ip_address TEXT,
+                reason     TEXT NOT NULL,
+                detail     TEXT,
+                created_at TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_signup_flags_created ON signup_flags (created_at)",
         ]:
             try:
                 conn.execute(_migration)
                 conn.commit()
             except Exception:
                 pass
+
+        _backfill_email_canonical(conn)
     finally:
         conn.close()
 
 
-def check_and_record_registration_attempt(db_path: pathlib.Path, ip_address: str) -> bool:
-    """Return True (allowed) if no registration from this IP in the last 7 days.
-    Records the attempt when allowed; returns False when the limit is reached."""
+def _backfill_email_canonical(conn) -> None:
+    """Populate users.email_canonical for rows predating the column.
+
+    Only touches NULL rows, so this costs nothing after the first boot. Gmail dot
+    stripping can't be expressed in SQL, hence the Python loop.
+    """
+    try:
+        import signup_guard
+        rows = conn.execute(
+            "SELECT id, email FROM users WHERE email_canonical IS NULL AND email IS NOT NULL"
+        ).fetchall()
+        for row in rows:
+            conn.execute(
+                "UPDATE users SET email_canonical = ? WHERE id = ?",
+                (signup_guard.normalize_email(row["email"]), row["id"]),
+            )
+        if rows:
+            conn.commit()
+            _log.info("db: backfilled email_canonical for %d user(s)", len(rows))
+    except Exception:
+        _log.exception("db: email_canonical backfill failed (non-fatal)")
+
+
+def record_registration_attempt(db_path: pathlib.Path, ip_address: str) -> None:
+    """Log a signup attempt against an IP. Always succeeds, never blocks."""
+    from datetime import datetime, timezone
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "INSERT INTO registration_attempts (ip_address, attempted_at) VALUES (?, ?)",
+            (ip_address, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def count_registrations_from_ip(db_path: pathlib.Path, ip_address: str, hours: int) -> int:
+    """How many signups this IP has attempted in the last `hours` hours."""
     from datetime import datetime, timedelta, timezone
-    import os
-    allowlist = {ip.strip() for ip in os.environ.get("REGISTRATION_ALLOWLIST", "").split(",") if ip.strip()}
-    if ip_address in allowlist:
-        return True
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
     conn = _conn(db_path)
     try:
         row = conn.execute(
             "SELECT COUNT(*) FROM registration_attempts WHERE ip_address = ? AND attempted_at > ?",
             (ip_address, cutoff),
         ).fetchone()
-        if row[0] >= 1:
-            return False
-        conn.execute(
-            "INSERT INTO registration_attempts (ip_address, attempted_at) VALUES (?, ?)",
-            (ip_address, datetime.now(timezone.utc).isoformat()),
-        )
-        conn.commit()
-        return True
+        return int(row[0]) if row else 0
     finally:
         conn.close()
 
 
-def check_and_record_device_fingerprint(db_path: pathlib.Path, fp_hash: str, user_id: str) -> bool:
-    """Return True (allowed) if this device fingerprint hasn't registered before.
-    Records it when allowed; returns False if it already exists."""
+def is_ip_allowlisted(ip_address: str) -> bool:
+    """True if REGISTRATION_ALLOWLIST names this IP — exempt from the hard cap."""
+    import os
+    allowlist = {ip.strip() for ip in os.environ.get("REGISTRATION_ALLOWLIST", "").split(",") if ip.strip()}
+    return bool(ip_address) and ip_address in allowlist
+
+
+def count_device_signups(db_path: pathlib.Path, fp_hash: str) -> int:
+    """How many accounts have been created from this device fingerprint.
+
+    Reads `device_signups`, which (unlike the legacy `device_fingerprints`
+    table, whose fp_hash is UNIQUE) records every signup — so reuse is
+    countable. Used as a soft flag only; shared devices are normal.
+    """
     conn = _conn(db_path)
     try:
         row = conn.execute(
-            "SELECT id FROM device_fingerprints WHERE fp_hash = ?",
-            (fp_hash,),
+            "SELECT COUNT(*) FROM device_signups WHERE fp_hash = ?", (fp_hash,)
         ).fetchone()
-        if row:
-            return False
+        return int(row[0]) if row else 0
+    finally:
+        conn.close()
+
+
+def record_device_signup(db_path: pathlib.Path, fp_hash: str, user_id: str) -> None:
+    """Append a (device, user) signup pair. One row per signup, never deduped."""
+    from datetime import datetime, timezone
+    conn = _conn(db_path)
+    try:
         conn.execute(
-            "INSERT OR IGNORE INTO device_fingerprints (fp_hash, user_id) VALUES (?, ?)",
-            (fp_hash, user_id),
+            "INSERT INTO device_signups (fp_hash, user_id, created_at) VALUES (?, ?, ?)",
+            (fp_hash, user_id, datetime.now(timezone.utc).isoformat()),
         )
         conn.commit()
-        return True
+    finally:
+        conn.close()
+
+
+def record_signup_flag(
+    db_path: pathlib.Path,
+    user_id: str,
+    email: str,
+    ip_address: str,
+    reason: str,
+    detail: str = "",
+) -> None:
+    """Record a soft abuse signal for later review. Never affects the signup."""
+    from datetime import datetime, timezone
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """INSERT INTO signup_flags (user_id, email, ip_address, reason, detail, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (user_id, email, ip_address, reason, detail,
+             datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_recent_signup_flags(db_path: pathlib.Path, limit: int = 100) -> list[dict]:
+    """Most recent soft abuse signals, newest first — for admin review."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT * FROM signup_flags ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+        return [dict(r) for r in rows]
     finally:
         conn.close()
 
@@ -418,20 +523,42 @@ def create_user(
     tc_accepted_at: str,
 ) -> dict:
     """Insert a new user and return the user dict."""
+    import signup_guard
     now = datetime.now(timezone.utc).isoformat()
     user_id = str(uuid.uuid4())
     conn = _conn(db_path)
     try:
         conn.execute(
             """
-            INSERT INTO users (id, email, password_hash, name, subscription_status,
-                               tc_accepted_at, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 'free', ?, ?, ?)
+            INSERT INTO users (id, email, email_canonical, password_hash, name,
+                               subscription_status, tc_accepted_at, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, 'free', ?, ?, ?)
             """,
-            (user_id, email.lower().strip(), password_hash, name, tc_accepted_at, now, now),
+            (user_id, email.lower().strip(), signup_guard.normalize_email(email),
+             password_hash, name, tc_accepted_at, now, now),
         )
         conn.commit()
         return get_user_by_id(db_path, user_id)
+    finally:
+        conn.close()
+
+
+def get_user_by_canonical_email(db_path: pathlib.Path, email: str) -> dict | None:
+    """Find a user whose normalised email matches this address.
+
+    Catches the Gmail +alias and dot tricks: name+1@gmail.com and n.a.m.e@gmail.com
+    both resolve to the same canonical form as name@gmail.com.
+    """
+    import signup_guard
+    canonical = signup_guard.normalize_email(email)
+    if not canonical:
+        return None
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM users WHERE email_canonical = ?", (canonical,)
+        ).fetchone()
+        return _row_to_dict(row)
     finally:
         conn.close()
 
