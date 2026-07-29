@@ -314,10 +314,12 @@ def ph_monitor() -> None:
 
 # ── Welcome email ─────────────────────────────────────────────────────────────
 
-def on_new_signup(user_id: str, email: str) -> None:
+def on_new_signup(user_id: str, email: str, name: str = "") -> None:
     """Send a welcome email to a newly registered user.
 
     Called from main.py immediately after the user row is created.
+    `name` is optional — it's an optional signup field, and is also collected
+    after the user's first song. Greeting falls back to no name when absent.
     Fire-and-forget — never raises.
     """
     try:
@@ -327,9 +329,11 @@ def on_new_signup(user_id: str, email: str) -> None:
             return
         from telegram_admin import _send_one_email
         subject = "Welcome to Zeus Beats 🎵"
+        first_name = (name or "").strip().split(" ")[0]
+        greeting = f"You're in, {first_name}!" if first_name else "You're in!"
         body = (
-            "You're in!\n\n"
-            "Your account is ready and you have 5 free songs waiting.\n\n"
+            f"{greeting}\n\n"
+            "Your account is ready and you have 3 free songs waiting.\n\n"
             "Here's how to get started:\n\n"
             "1. Tell Zeus what kind of song you want — describe the vibe, genre, or mood\n"
             "2. Zeus writes the lyrics and generates your track\n"
@@ -348,15 +352,17 @@ def on_new_signup(user_id: str, email: str) -> None:
 
 # ── Song failure retry ────────────────────────────────────────────────────────
 
-def _send_failure_email(email: str, variant_id: int) -> None:
+def _send_failure_email(email: str, variant_id: int, name: str = "") -> None:
     try:
         api_key = os.environ.get("RESEND_API_KEY", "").strip()
         if not api_key:
             return
         from telegram_admin import _send_one_email
         subject = "Your Zeus Beats song credit has been refunded"
+        first_name = (name or "").strip().split(" ")[0]
+        opener = f"Sorry {first_name} — your song" if first_name else "Sorry — your song"
         body = (
-            "Sorry — your song failed to generate this time.\n\n"
+            f"{opener} failed to generate this time.\n\n"
             "We automatically retried but hit the same error, so we've refunded your credit "
             "and you can try again straight away.\n\n"
             "This is usually a temporary blip with our music AI. Just head back to Zeus Beats "
@@ -463,7 +469,7 @@ def _refund_and_notify(variant_id: int) -> None:
         conn.row_factory = sqlite3.Row
         try:
             row = conn.execute(
-                """SELECT sv.user_id, u.email
+                """SELECT sv.user_id, u.email, u.name
                    FROM song_variants sv JOIN users u ON u.id = sv.user_id
                    WHERE sv.id = ?""",
                 (variant_id,),
@@ -479,7 +485,7 @@ def _refund_and_notify(variant_id: int) -> None:
             log.info("ops_agent: refunded credit for user %s (variant %d)", row["user_id"], variant_id)
         finally:
             conn.close()
-        _send_failure_email(row["email"], variant_id)
+        _send_failure_email(row["email"], variant_id, name=row["name"] or "")
     except Exception:
         log.exception("ops_agent: _refund_and_notify raised for variant %d", variant_id)
 

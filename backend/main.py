@@ -48,6 +48,7 @@ import billing
 import cometapi as _cometapi_mod
 import did_uploader
 import scheduler as _scheduler_mod
+import signup_guard
 import telegram_admin as _tg_admin
 import webhooks as _webhooks_mod
 import youtube_uploader
@@ -713,22 +714,9 @@ def _safe_user(user: dict) -> dict:
 
 # ── Pydantic request models ───────────────────────────────────────────────────
 
-_BLOCKED_EMAIL_DOMAINS: frozenset = frozenset({
-    "mailinator.com", "tempmail.com", "guerrillamail.com", "10minutemail.com",
-    "throwaway.email", "yopmail.com", "sharklasers.com", "guerrillamail.info",
-    "guerrillamail.biz", "guerrillamail.de", "guerrillamail.net", "guerrillamail.org",
-    "spam4.me", "trashmail.com", "trashmail.me", "trashmail.net", "trashmail.org",
-    "trashmail.at", "trashmail.io", "dispostable.com", "maildrop.cc",
-    "spamgourmet.com", "spamgourmet.net", "spamgourmet.org", "discard.email",
-    "fakeinbox.com", "fakeinbox.net", "mailnull.com", "spamfree24.org",
-    "anonbox.net", "mailexpire.com", "spaml.com", "spammotel.com", "spaml.de",
-    # Added 2026-07-17 when the email-verification gate was removed — signup-time
-    # blocking now carries more of the anti-bot weight.
-    "web-library.net", "temp-mail.org", "tempmail.net", "tempr.email",
-    "mohmal.com", "moakt.com", "emailondeck.com", "getnada.com", "nada.email",
-    "mailsac.com", "inboxkitten.com", "mintemail.com", "tmpmail.org",
-    "1secmail.com", "1secmail.org", "1secmail.net", "burnermail.io",
-})
+# Owned by signup_guard.py — aliased here because callers and tests reference it
+# under this name. See signup_guard for the matching rules (parent domains too).
+_BLOCKED_EMAIL_DOMAINS: frozenset = signup_guard.DISPOSABLE_DOMAINS
 
 # Domains that auto-verify as genuine school accounts
 _SCHOOL_DOMAINS = {".sch.uk", ".edu", ".ac.uk", ".school", ".k12.us", ".k12"}
@@ -742,7 +730,9 @@ def _is_school_domain(email: str) -> bool:
 class RegisterRequest(BaseModel):
     email: str
     password: str
-    name: str
+    # Optional by design — signup friction was removed deliberately (2026-07-29).
+    # Names are also collected after the user's first song, where resistance is low.
+    name: str = Field("", max_length=60)
     tc_accepted: bool
     app: str = "ai"
     referral: str | None = None
@@ -833,6 +823,17 @@ class ContactMessage(BaseModel):
 
 # ── Auth routes ───────────────────────────────────────────────────────────────
 
+def _record_signup_flag(db_path, user: dict, ip: str, reason: str, detail: str) -> None:
+    """Persist + alert a soft abuse signal. Never raises, never blocks a signup."""
+    try:
+        db.record_signup_flag(db_path, user["id"], user["email"], ip, reason, detail)
+        log.warning("register: FLAG %s — email=%s ip=%s (%s)", reason, user["email"], ip, detail)
+        import alerts as _alerts
+        _alerts.alert_signup_flag(user["email"], reason, detail)
+    except Exception:
+        log.exception("register: failed to record signup flag %s (non-fatal)", reason)
+
+
 @app.post("/auth/register")
 @limiter.limit("10/minute")
 async def register(request: Request, body: RegisterRequest):
@@ -842,8 +843,9 @@ async def register(request: Request, body: RegisterRequest):
     if not body.email or "@" not in body.email:
         raise HTTPException(status_code=400, detail="Invalid email address")
 
-    email_domain = body.email.split("@")[-1].lower()
-    if email_domain in _BLOCKED_EMAIL_DOMAINS:
+    # Hard block 1 of 2: known throwaway domains (incl. subdomains). These are
+    # almost never a genuine user.
+    if signup_guard.is_disposable_domain(body.email):
         raise HTTPException(status_code=400, detail="Please use a real email address to register.")
 
     if len(body.password) < 8:
@@ -855,29 +857,47 @@ async def register(request: Request, body: RegisterRequest):
         log.exception("register: failed to get DB path")
         raise HTTPException(status_code=500, detail=f"Database unavailable: {exc}")
 
-    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
-    if not db.check_and_record_registration_attempt(db_path, ip):
-        raise HTTPException(
-            status_code=429,
-            detail="An account has already been created from this device recently. Please try again in 7 days.",
+    # Hard block 2 of 2: the account already exists. Checked both exactly and
+    # against the normalised form, so name+1@gmail.com / n.a.m.e@gmail.com can't
+    # farm fresh credits off one real inbox.
+    if db.get_user_by_email(db_path, body.email):
+        raise HTTPException(status_code=409, detail="An account with that email already exists")
+    canonical_match = db.get_user_by_canonical_email(db_path, body.email)
+    if canonical_match:
+        log.info(
+            "register: blocked alias of existing account — attempted=%s canonical=%s",
+            body.email, canonical_match.get("email_canonical"),
         )
-
-    existing = db.get_user_by_email(db_path, body.email)
-    if existing:
         raise HTTPException(status_code=409, detail="An account with that email already exists")
 
-    # Device fingerprint pre-check BEFORE create_user — prevents ghost accounts with no credits
-    # (old flow: create_user ran first, then fingerprint check failed → user existed but never got credits)
-    import hashlib
-    fp_hash = hashlib.sha256(body.fingerprint.encode()).hexdigest() if body.fingerprint else None
-    _fp_allowlist = {v.strip() for v in os.environ.get("DEVICE_FINGERPRINT_ALLOWLIST", "").split(",") if v.strip()}
-    _fp_allowed = body.fingerprint and body.fingerprint in _fp_allowlist
-    if not _fp_allowed and fp_hash and db.check_device_fingerprint_exists(db_path, fp_hash):
-        log.warning("register: duplicate device fingerprint pre-check blocked email=%s", body.email)
+    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    db.record_registration_attempt(db_path, ip)
+
+    # IP velocity. Deliberately NOT a per-family block — shared IPs (homes,
+    # offices, cafés, student halls) are normal. Only script-scale volume stops.
+    ip_recent = db.count_registrations_from_ip(db_path, ip, signup_guard.IP_BLOCK_WINDOW_HOURS)
+    if ip_recent > signup_guard.IP_BLOCK_COUNT and not db.is_ip_allowlisted(ip):
+        log.warning(
+            "register: IP hard cap hit — ip=%s count=%d/%dh email=%s",
+            ip, ip_recent, signup_guard.IP_BLOCK_WINDOW_HOURS, body.email,
+        )
         raise HTTPException(
             status_code=429,
-            detail="An account has already been created from this device. Please log in instead.",
+            detail="Too many accounts have been created from this network just now. Please try again shortly.",
         )
+
+    ip_day_count = db.count_registrations_from_ip(db_path, ip, signup_guard.IP_FLAG_WINDOW_HOURS)
+
+    # Device fingerprint is a SOFT signal only — families share one laptop and
+    # must never be locked out. Counted here, flagged after the user row exists.
+    import hashlib
+    fp_hash = hashlib.sha256(body.fingerprint.encode()).hexdigest() if body.fingerprint else None
+    device_count = 0
+    if fp_hash:
+        device_count = db.count_device_signups(db_path, fp_hash)
+        # Legacy table holds one row per device from before device_signups existed.
+        if device_count == 0 and db.check_device_fingerprint_exists(db_path, fp_hash):
+            device_count = 1
 
     try:
         password_hash = auth.hash_password(body.password)
@@ -917,7 +937,8 @@ async def register(request: Request, body: RegisterRequest):
 
     # Record fingerprint AFTER credits are safely granted — no more ghost accounts
     if fp_hash:
-        db.record_device_fingerprint(db_path, fp_hash, user["id"])
+        db.record_device_signup(db_path, fp_hash, user["id"])
+        db.record_device_fingerprint(db_path, fp_hash, user["id"])  # legacy table, kept for history
 
     token = auth.create_token(user["id"], user["email"], is_admin=bool(user.get("is_admin", 0)))
     safe_user = _safe_user(user)
@@ -928,8 +949,22 @@ async def register(request: Request, body: RegisterRequest):
     import alerts as _alerts
     _alerts.alert_new_user(user["email"])
 
+    # Soft abuse signals — recorded and alerted, never blocking. Signup already
+    # succeeded by this point.
+    device_total = device_count + 1 if fp_hash else 0
+    if device_total >= signup_guard.DEVICE_FLAG_COUNT:
+        _record_signup_flag(
+            db_path, user, ip, "device_reuse",
+            f"{device_total} accounts from this device",
+        )
+    if ip_day_count >= signup_guard.IP_FLAG_COUNT:
+        _record_signup_flag(
+            db_path, user, ip, "ip_velocity",
+            f"{ip_day_count} signups from this IP in {signup_guard.IP_FLAG_WINDOW_HOURS}h",
+        )
+
     import zeus_ops_agent as _ops
-    _ops.on_new_signup(user["id"], user["email"])
+    _ops.on_new_signup(user["id"], user["email"], name=user.get("name") or "")
 
     return {"token": token, "user": safe_user}
 
@@ -3484,6 +3519,27 @@ async def update_artist_name(
     db_path = db.get_db_path()
     db.update_user(db_path, current_user["id"], artist_name=body.artist_name.strip() or None)
     return {"ok": True}
+
+
+# ── Display name ─────────────────────────────────────────────────────────────
+# Set either at signup (optional field) or by the friendly prompt shown after the
+# user's first song. Never required — see docs/superpowers/specs/2026-07-29-*.
+
+class DisplayNameRequest(BaseModel):
+    name: str = Field(max_length=60)
+
+
+@app.patch("/api/users/name")
+async def update_display_name(
+    body: DisplayNameRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Please enter a name")
+    db_path = db.get_db_path()
+    db.update_user(db_path, current_user["id"], name=name)
+    return {"ok": True, "name": name}
 
 
 # ── Your Sound (sonic persona) ───────────────────────────────────────────────

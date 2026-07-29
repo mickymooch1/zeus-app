@@ -95,10 +95,29 @@ def alert_new_user(email: str) -> None:
             "👤 New signup!\n"
             f"📧 {email}\n"
             "📅 Just now\n"
-            "🎵 Plan: Free (5 songs)"
+            "🎵 Plan: Free (3 songs)"
         )
     except Exception:
         log.debug("alert_new_user failed (non-fatal)")
+
+
+_FLAG_LABELS = {
+    "device_reuse": "🖥 Same device as an existing account",
+    "ip_velocity": "🌐 Several signups from one IP",
+}
+
+
+def alert_signup_flag(email: str, reason: str, detail: str) -> None:
+    """Soft abuse signal — the signup was ALLOWED, this is for pattern-spotting."""
+    try:
+        send_admin_alert(
+            "🚩 Signup flagged (not blocked)\n"
+            f"📧 {email}\n"
+            f"{_FLAG_LABELS.get(reason, reason)}\n"
+            f"ℹ️ {detail}"
+        )
+    except Exception:
+        log.debug("alert_signup_flag failed (non-fatal)")
 
 
 def alert_payment(email: str, plan_key: str, amount_display: str) -> None:

@@ -16,6 +16,10 @@ import OfflineBanner        from '../components/OfflineBanner';
 import { useNowPlaying }    from '../contexts/NowPlayingContext';
 import LyricsModal          from '../components/LyricsModal';
 
+// Set once the post-first-song name prompt has been answered OR skipped, so a
+// user who isn't interested is never asked twice.
+const NAME_PROMPT_KEY = 'zeus_name_prompt_done';
+
 const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','deephouse','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos','healingfrequency','purebassline'];
 const GENRE_LABEL = { bluegrass:'Bluegrass', britpop:'Britpop', indierock:'Indie Rock', folk:'Folk', acousticballad:'Acoustic Ballad', folkblues:'Folk Blues', roots:'Roots', acousticblues:'Acoustic Blues', patriotic:'Patriotic', hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', deephouse:'Deep House', dancehouse:'Dance House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', bluesrock:'Blues Rock', hardrock:'Hard Rock', punkrock:'Punk Rock', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', countrypop:'Country Pop', southemsoul:'Southern Soul', soulrnb:'Soul R&B', orchestralsoul:'Orchestral Soul', classicfunk:'Classic Funk', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', westcoasthiphop:'West Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', trance:'Trance', triphop:'Trip-Hop', salsa:'Salsa', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', ambient:'Ambient', christmas:'Christmas', corridos:'Corridos', healingfrequency:'Healing Frequencies', naturesounds:'Nature Sounds', whalesong:'Whale Song', cracklingfire:'Crackling Fire', thunderstorm:'Thunderstorm', oceanwaves:'Ocean Waves', forest:'Forest', nightsounds:'Night Sounds', purebassline:'Pure Bassline', psychedelicguitar:'Psychedelic Guitar', saxophone:'Saxophone', pianosolo:'Piano', violinsolo:'Violin', electricbluesguitar:'Blues Guitar', trumpet:'Trumpet', flamencoguitar:'Flamenco Guitar' };
 const GENRE_CATEGORIES = [
@@ -1208,7 +1212,7 @@ const SongCard = memo(function SongCard({
 });
 
 export default function SongsPage() {
-  const { token, user } = useAuth();
+  const { token, user, refreshUser } = useAuth();
   const isOnline = useOnlineStatus();
   const { savedSongs, downloading, isSaved, saveForOffline, removeSaved, getOfflineAudioUrl } = useOfflineSongs();
   const { playOne } = useNowPlaying();
@@ -1276,6 +1280,12 @@ export default function SongsPage() {
   const [healingFrequency, setHealingFrequency] = useState('432');
 
   const [showWelcome, setShowWelcome] = useState(() => !!user?.is_new_user);
+
+  // "What should we call you?" — asked once, AFTER the first song lands, for
+  // users who skipped the optional name field at signup. Fully skippable.
+  const [namePrompt, setNamePrompt]         = useState(false);
+  const [namePromptValue, setNamePromptValue] = useState('');
+  const [namePromptSaving, setNamePromptSaving] = useState(false);
 
   const [ytStatus, setYtStatus]   = useState({});
   const [ytUrls, setYtUrls]       = useState({});
@@ -1582,6 +1592,12 @@ export default function SongsPage() {
       (v) => v.status === 'complete' || v.status === 'failed'
     );
     if (allSettled) {
+      // They've just heard a track — the warmest moment to ask for a name.
+      // Only if we don't have one, and only ever once.
+      const anyComplete = activeJob.variants.some((v) => v.status === 'complete');
+      if (anyComplete && !user?.name && localStorage.getItem(NAME_PROMPT_KEY) !== 'true') {
+        setNamePrompt(true);
+      }
       Promise.all([fetchCredits(), fetchLibrary()]).then(() => setActiveJob(null));
       return;
     }
@@ -1606,7 +1622,7 @@ export default function SongsPage() {
       } catch (_) {}
     }, 5000);
     return () => clearTimeout(pollTimerRef.current);
-  }, [activeJob, token, fetchCredits, fetchLibrary]);
+  }, [activeJob, token, fetchCredits, fetchLibrary, user?.name]);
 
   useEffect(() => {
     const processingIds = Object.entries(didStatus)
@@ -2084,6 +2100,32 @@ export default function SongsPage() {
     }
   }, [token]);
 
+  // Skipping is a first-class outcome — no nagging, no second ask.
+  const dismissNamePrompt = () => {
+    localStorage.setItem(NAME_PROMPT_KEY, 'true');
+    setNamePrompt(false);
+    setNamePromptValue('');
+  };
+
+  const saveNamePrompt = async () => {
+    const value = namePromptValue.trim();
+    if (!value) { dismissNamePrompt(); return; }
+    setNamePromptSaving(true);
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/users/name`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: value }),
+      });
+      if (r.ok) await refreshUser();
+    } catch {
+      // Never surface an error for something entirely optional.
+    } finally {
+      setNamePromptSaving(false);
+      dismissNamePrompt();
+    }
+  };
+
   const handleCoverSubmit = async () => {
     if (!coverModal || !coverLyrics.trim()) return;
     setCoverLoading(true);
@@ -2514,7 +2556,11 @@ export default function SongsPage() {
             }}>
               <span style={{ fontSize: 20, lineHeight: 1 }}>🎵</span>
               <div style={{ flex: 1 }}>
-                <strong style={{ color: '#00F0FF', display: 'block', marginBottom: 4 }}>Welcome to Zeus Beats!</strong>
+                <strong style={{ color: '#00F0FF', display: 'block', marginBottom: 4 }}>
+                  {user?.name?.trim()
+                    ? `Welcome to Zeus Beats, ${user.name.trim().split(' ')[0]}!`
+                    : 'Welcome to Zeus Beats!'}
+                </strong>
                 <span>You have 3 free songs to get started. Generate your first track below — pick a genre and hit Create.</span>
               </div>
               <button
@@ -4397,6 +4443,50 @@ export default function SongsPage() {
                 Upgrade from £4.50 first month
               </Link>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* "What should we call you?" — post-first-song, entirely optional */}
+      {namePrompt && (
+        <div
+          onClick={dismissNamePrompt}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#12121e', border: '1px solid rgba(0,240,255,0.25)', borderRadius: 16, padding: '26px 24px 24px', maxWidth: 400, width: '100%', textAlign: 'center' }}
+          >
+            <div style={{ fontSize: 38, marginBottom: 8 }}>🎧</div>
+            <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: '#e2e8f0' }}>
+              Nice one — your track's ready!
+            </h2>
+            <p style={{ margin: '0 0 18px', color: '#cccccc', fontSize: 14, lineHeight: 1.6 }}>
+              What should we call you? We'll use it to make Zeus feel a bit more like yours.
+            </p>
+            <input
+              type="text"
+              value={namePromptValue}
+              onChange={e => setNamePromptValue(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveNamePrompt(); }}
+              placeholder="First name"
+              maxLength={60}
+              autoFocus
+              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e2e8f0', fontSize: 15, padding: '11px 12px', outline: 'none', textAlign: 'center', marginBottom: 14, fontFamily: 'inherit' }}
+            />
+            <button
+              onClick={saveNamePrompt}
+              disabled={namePromptSaving || !namePromptValue.trim()}
+              style={{ width: '100%', padding: '12px 0', background: 'linear-gradient(135deg,#00c8d4,#00f0ff)', border: 'none', borderRadius: 10, color: '#000', fontWeight: 800, fontSize: 15, cursor: namePromptSaving || !namePromptValue.trim() ? 'not-allowed' : 'pointer', opacity: namePromptSaving || !namePromptValue.trim() ? 0.55 : 1, transition: 'opacity 0.2s' }}
+            >
+              {namePromptSaving ? 'Saving…' : 'That’s me'}
+            </button>
+            <button
+              onClick={dismissNamePrompt}
+              style={{ marginTop: 10, background: 'none', border: 'none', color: '#8b93a7', fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 4 }}
+            >
+              Maybe later
+            </button>
           </div>
         </div>
       )}
