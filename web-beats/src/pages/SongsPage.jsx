@@ -1283,6 +1283,10 @@ export default function SongsPage() {
 
   // "What should we call you?" — asked once, AFTER the first song lands, for
   // users who skipped the optional name field at signup. Fully skippable.
+  // Non-empty when the library failed to load — renders a retry instead of a
+  // silent blank page.
+  const [libraryError, setLibraryError]     = useState('');
+
   const [namePrompt, setNamePrompt]         = useState(false);
   const [namePromptValue, setNamePromptValue] = useState('');
   const [namePromptSaving, setNamePromptSaving] = useState(false);
@@ -1414,30 +1418,49 @@ export default function SongsPage() {
     finally { setCreditsLoaded(true); }
   }, [token]);
 
+  // Legacy per-lyric fan-out. Only used if /api/library is unavailable.
+  // Uses allSettled, NOT all: with Promise.all a single timed-out request
+  // rejected the whole thing and discarded every other result, which is what
+  // made the page come up blank until you refreshed enough times.
+  const fetchLibraryPerLyric = useCallback(async () => {
+    const r = await fetch(`${BACKEND_URL}/api/lyrics`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) throw new Error(`/api/lyrics returned ${r.status}`);
+    const { lyrics } = await r.json();
+    const results = await Promise.allSettled(
+      (lyrics || []).map(async (lyric) => {
+        const vr = await fetch(`${BACKEND_URL}/api/lyrics/${lyric.id}/variants`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!vr.ok) throw new Error(`variants ${lyric.id} → ${vr.status}`);
+        const d = await vr.json();
+        return (d.variants || []).map((v) => ({ ...v, title: lyric.title, lyric_id: lyric.id }));
+      })
+    );
+    const failed = results.filter(x => x.status === 'rejected').length;
+    if (failed) console.warn(`[SongsPage] ${failed}/${results.length} lyric fetches failed — showing the rest`);
+    // Partial data still renders. Everything failing is a real error.
+    if (failed === results.length && results.length > 0) throw new Error('all lyric fetches failed');
+    return results.filter(x => x.status === 'fulfilled').flatMap(x => x.value);
+  }, [token]);
+
   const fetchLibrary = useCallback(async () => {
+    setLibraryError('');
     try {
-      console.log('[SongsPage] Fetching library, token present:', !!token);
-      const r = await fetch(`${BACKEND_URL}/api/lyrics`, {
+      // ONE request for the whole library. Replaces ~1 request per song.
+      const r = await fetch(`${BACKEND_URL}/api/library`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('[SongsPage] /api/lyrics status:', r.status);
-      if (!r.ok) {
-        console.log('[SongsPage] /api/lyrics failed — body:', await r.text().catch(() => '(unreadable)'));
-        return;
+      let flat;
+      if (r.ok) {
+        const d = await r.json();
+        flat = d.variants || [];
+      } else {
+        console.warn('[SongsPage] /api/library →', r.status, '— falling back to per-lyric fetch');
+        flat = await fetchLibraryPerLyric();
       }
-      const { lyrics } = await r.json();
-      console.log('[SongsPage] lyrics count:', lyrics?.length, 'ids:', lyrics?.map(l => l.id));
-      const groups = await Promise.all(
-        (lyrics || []).map(async (lyric) => {
-          const vr = await fetch(`${BACKEND_URL}/api/lyrics/${lyric.id}/variants`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!vr.ok) return [];
-          const d = await vr.json();
-          return (d.variants || []).map((v) => ({ ...v, title: lyric.title, lyric_id: lyric.id }));
-        })
-      );
-      const flat = groups.flat().sort((a, b) => b.variant_id - a.variant_id);
+      flat = [...flat].sort((a, b) => b.variant_id - a.variant_id);
       setLibrary(flat);
       setFavourites(new Set(flat.filter(v => v.is_favourite).map(v => v.variant_id)));
       setPublicVariants(new Set(flat.filter(v => v.is_public).map(v => v.variant_id)));
@@ -1470,10 +1493,14 @@ export default function SongsPage() {
       for (const v of flat) {
         if (v.music_video_url) newMusicVideoUrls[v.variant_id] = v.music_video_url;
       }
-      console.log('[MusicVideo] variants with music_video_url:', Object.keys(newMusicVideoUrls).length, newMusicVideoUrls);
       setMusicVideoUrls((prev) => ({ ...prev, ...newMusicVideoUrls }));
-    } catch (_) {}
-  }, [token]);
+    } catch (err) {
+      // Previously `catch (_) {}` — a failed load left an empty page with no
+      // message and no retry, so the only recourse was refreshing repeatedly.
+      console.error('[SongsPage] library load failed:', err);
+      setLibraryError("We couldn't load your songs just now.");
+    }
+  }, [token, fetchLibraryPerLyric]);
 
   const fetchPlaylists = useCallback(async () => {
     try {
@@ -1650,11 +1677,21 @@ export default function SongsPage() {
     return () => clearTimeout(timer);
   }, [didStatus, token]);
 
-  // Music video URL polling (30s) — silently re-fetches library while videos are pending
+  // Music video polling (30s). The old condition was
+  //   library.some(v => v.image_url && !musicVideoUrls[v.variant_id])
+  // which is true for practically every song — cover art is normal, music videos
+  // are rare and only made on request. So this re-fetched the entire library
+  // every 30 seconds forever, permanently, in every open tab.
+  //
+  // Now it polls only while the server says a video is genuinely rendering, and
+  // gives up after MAX_MV_POLLS so a stuck job can't poll for eternity.
+  const MAX_MV_POLLS = 40;  // ~20 minutes
+  const mvPollCountRef = useRef(0);
   useEffect(() => {
-    const hasPending = library.some(v => v.image_url && !musicVideoUrls[v.variant_id]);
-    if (!hasPending) return;
-    const t = setTimeout(fetchLibrary, 30_000);
+    const hasPending = library.some(v => v.music_video_pending && !musicVideoUrls[v.variant_id]);
+    if (!hasPending) { mvPollCountRef.current = 0; return; }
+    if (mvPollCountRef.current >= MAX_MV_POLLS) return;
+    const t = setTimeout(() => { mvPollCountRef.current += 1; fetchLibrary(); }, 30_000);
     return () => clearTimeout(t);
   }, [library, musicVideoUrls, fetchLibrary]);
 
@@ -3918,6 +3955,31 @@ export default function SongsPage() {
                 )}
               </div>
             </section>
+          )}
+
+          {/* Library failed to load — say so and offer a retry, rather than
+              rendering an empty page that looks like "you have no songs". */}
+          {libraryError && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+              background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.35)',
+              borderRadius: 10, padding: '12px 16px', marginBottom: 20,
+            }}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span>
+              <span style={{ flex: 1, minWidth: 180, fontSize: 14, color: '#fca5a5' }}>
+                {libraryError} Your songs are safe — this is just a loading problem.
+              </span>
+              <button
+                onClick={fetchLibrary}
+                style={{
+                  padding: '8px 18px', borderRadius: 8, cursor: 'pointer',
+                  background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.5)',
+                  color: '#fca5a5', fontSize: 13, fontWeight: 700, flexShrink: 0,
+                }}
+              >
+                Try again
+              </button>
+            </div>
           )}
 
           {filteredLibrary.length > 0 && (
