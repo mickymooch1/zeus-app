@@ -235,6 +235,47 @@ def sanitize_inspired_by_descriptors(raw: str | None) -> str | None:
     return ", ".join(safe_parts)[:500] or None
 
 
+def sanitize_inspired_by_theme(raw: str | None) -> str | None:
+    """Make an extracted reference theme safe to feed into lyrics generation.
+
+    Unlike sanitize_inspired_by_descriptors, this deliberately PRESERVES the
+    sentence — the whole point is to keep the subject matter ("a woman taking a
+    man for a fool") so the new song is about the same kind of situation. It only
+    removes things that identify the source: artist names, song/album titles in
+    quotes, and "by X" / "X's song" attributions. The rule that no artist, song
+    or place names reach Suno still holds, since the lyrics Claude writes from
+    this are original.
+    """
+    if not raw:
+        return None
+
+    text = " ".join(raw.split())
+    if not text or text.lower().strip(" .") in {"unknown", "n/a", "none"}:
+        return None
+
+    # Drop quoted titles — "Cry Me a River" etc.
+    text = re.sub(r"[\"“”'‘’]([^\"“”'‘’]{2,60})[\"“”'‘’]", "", text)
+    # Drop explicit attributions.
+    text = re.sub(r"\b(by|from|off)\s+[A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,3}", "", text)
+    text = re.sub(r"\b[A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,3}'s\s+(song|track|album|hit|single)\b", "", text, flags=re.IGNORECASE)
+    # Drop the known-artist names we already maintain for the style path.
+    for artist in DIRECT_ARTIST_STYLE_MAP:
+        text = re.sub(rf"\b{re.escape(artist)}\b", "", text, flags=re.IGNORECASE)
+    # Drop any remaining multi-word Proper Noun runs (names of people/places),
+    # but leave sentence-initial capitalisation alone.
+    text = re.sub(r"(?<!^)(?<![.!?]\s)\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b", "", text)
+
+    text = re.sub(r"\s+([,.;:])", r"\1", text)
+    text = re.sub(r"[ ]{2,}", " ", text)
+    text = re.sub(r"(^|\s)[,;:]+", r"\1", text)
+    text = text.strip(" ,.;:-")
+
+    # Too little left to be a usable brief.
+    if len(text) < 12:
+        return None
+    return text[:400]
+
+
 _VOCAL_CUE_KEYWORDS = ("vocal", "singing", "singer", "sung", "sings", "acapella", "a cappella")
 
 _HOOK_CUE_BY_GENDER = {

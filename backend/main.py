@@ -2103,7 +2103,8 @@ class SongsGenerateRequest(BaseModel):
     explicit: bool = False               # agency/enterprise only — loosens Suno content filter
     instrumental: bool = False           # skip lyrics; append instrumental style suffix
     intermittent_vocals: bool = False    # mostly instrumental with sparse vocal hooks/ad libs
-    inspired_by_descriptors: str | None = None  # from /api/songs/artist-style
+    inspired_by_descriptors: str | None = None  # from /api/songs/artist-style — SOUND, goes to Suno style
+    inspired_by_theme: str | None = Field(default=None, max_length=400)  # same lookup — SUBJECT, goes to lyrics
     negative_tags: str | None = Field(default=None, max_length=500)  # → sunoParams.negative_tags
     song_title: str | None = None        # optional user-supplied title; overrides AI-generated title
     animate_cover: bool = True           # generate Kling animated video after song completes
@@ -2324,7 +2325,7 @@ async def songs_generate(
             )
         else:
             _genre_lang = _GENRE_LANGUAGE_MAP.get((list(body.genres)[0] if body.genres else ''), None)
-            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=_effective_instrumental, song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None, lyrics_language=_genre_lang, roast_mode=bool(body.is_roast), roast_name=body.roast_name or None, roast_details=body.roast_details or None, roast_vibe=body.roast_vibe or 'gentle', bilingual_mode=bool(body.bilingual_mode), intermittent_vocals=bool(body.intermittent_vocals and not body.instrumental))
+            lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=_effective_instrumental, song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None, lyrics_language=_genre_lang, roast_mode=bool(body.is_roast), roast_name=body.roast_name or None, roast_details=body.roast_details or None, roast_vibe=body.roast_vibe or 'gentle', bilingual_mode=bool(body.bilingual_mode), intermittent_vocals=bool(body.intermittent_vocals and not body.instrumental), inspired_by_theme=_songs_mod.sanitize_inspired_by_theme(body.inspired_by_theme))
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
@@ -3666,60 +3667,116 @@ async def artist_style(
     current_user: dict = Depends(auth.get_current_user),
 ):
     """
-    Look up an artist's musical style via Serper, then distil to style descriptors
-    using Claude Haiku. Returns {"style_descriptors": "comma, separated, list"}.
+    Look up a reference artist/song via Serper, then distil TWO things with Haiku:
+
+      * style_descriptors — how it SOUNDS. Goes into the Suno style prompt, so it
+        must never contain artist, song or place names.
+      * theme            — what it's ABOUT. Goes into the lyrics prompt, so the
+        generated song shares the reference's subject matter and sentiment
+        (e.g. "a woman taking a man for a fool" -> betrayal, being played,
+        outsmarting someone), not merely its sound.
+
+    Before 2026-08-02 only the style half existed, so an inspired-by song matched
+    the sound while its lyrics got a RANDOM theme from a fixed list.
     """
     serper_key = os.environ.get("SERPER_API_KEY", "").strip()
     if not serper_key:
         raise HTTPException(status_code=503, detail="Artist style lookup not configured (SERPER_API_KEY missing)")
 
     artist = body.artist_name.strip()
-    query = f"{artist} music style genre instruments tempo vocal characteristics"
+    # Two focused searches beat one blended query: Google returns much better
+    # subject-matter snippets for "what is X about" than for a style query.
+    style_query = f"{artist} music style genre instruments tempo vocal characteristics"
+    theme_query = f"{artist} song meaning what is it about themes story subject"
 
-    try:
+    async def _serper(q: str) -> dict:
         async with httpx.AsyncClient(timeout=15) as client:
-            serper_resp = await client.post(
+            resp = await client.post(
                 "https://google.serper.dev/search",
                 headers={"X-API-KEY": serper_key, "Content-Type": "application/json"},
-                json={"q": query, "num": 5},
+                json={"q": q, "num": 5},
             )
-        serper_resp.raise_for_status()
-        serper_data = serper_resp.json()
+        resp.raise_for_status()
+        return resp.json()
+
+    try:
+        style_data, theme_data = await asyncio.gather(_serper(style_query), _serper(theme_query))
     except Exception as exc:
         log.warning("artist_style: Serper call failed for %r: %s", artist, exc)
         raise HTTPException(status_code=502, detail="Style lookup failed — try again")
 
-    snippets = [
-        item.get("snippet", "").strip()
-        for item in serper_data.get("organic", [])[:3]
-        if item.get("snippet", "").strip()
-    ]
-    if not snippets:
-        raise HTTPException(status_code=404, detail=f"No style information found for '{artist}'")
+    def _snippets(data: dict, limit: int) -> list[str]:
+        out = []
+        if data.get("answerBox", {}).get("snippet"):
+            out.append(data["answerBox"]["snippet"].strip())
+        out += [
+            item.get("snippet", "").strip()
+            for item in data.get("organic", [])[:limit]
+            if item.get("snippet", "").strip()
+        ]
+        return out
 
-    search_text = "\n".join(snippets)
+    style_snippets = _snippets(style_data, 3)
+    theme_snippets = _snippets(theme_data, 3)
+    if not style_snippets and not theme_snippets:
+        raise HTTPException(status_code=404, detail=f"No information found for '{artist}'")
+
+    search_text = (
+        "=== HOW IT SOUNDS ===\n" + "\n".join(style_snippets)
+        + "\n\n=== WHAT IT IS ABOUT ===\n" + "\n".join(theme_snippets)
+    )
 
     try:
-        haiku = get_anthropic_client().messages.create(
+        # NOTE: get_anthropic_client() returns AsyncAnthropic — this MUST be
+        # awaited. It wasn't until 2026-08-02, so .content raised AttributeError
+        # on a coroutine and this endpoint 500'd on every call. The identical bug
+        # was fixed in music_search (eee5753) but missed here.
+        haiku = await get_anthropic_client().messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=200,
+            max_tokens=400,
             system=(
-                f"Extract 8-12 music style descriptors from these search results about {artist}. "
-                "Output ONLY a comma-separated list of descriptors suitable for a music generation "
-                "style prompt. Example: reggae, off-beat rhythm guitar, warm bassline, political "
-                "lyrics, 80 BPM, Jamaican vocal delivery. Nothing else."
+                f"You are analysing the reference '{artist}' for a songwriter.\n"
+                "Output EXACTLY two lines, nothing else:\n\n"
+                "STYLE: 8-12 comma-separated musical descriptors (genre, tempo, instruments, "
+                "vocal delivery, production). Describe only how it SOUNDS.\n"
+                "THEME: one sentence describing what the song is ABOUT — its subject, story "
+                "and emotional sentiment.\n\n"
+                "Example:\n"
+                "STYLE: reggae, off-beat rhythm guitar, warm bassline, 80 BPM, laid-back vocal delivery\n"
+                "THEME: a woman who plays a man for a fool and leaves him humiliated — betrayal, "
+                "wounded pride and being outsmarted.\n\n"
+                "CRITICAL RULES:\n"
+                "- NEVER include artist names, band names, song titles, album names, record "
+                "labels or place names on EITHER line. Describe qualities, not identities.\n"
+                "- THEME must describe the subject in general human terms so a NEW original "
+                "song can be written about the same kind of situation.\n"
+                "- If the search results reveal nothing about the subject matter, write "
+                "'THEME: unknown'."
             ),
             messages=[{"role": "user", "content": search_text}],
         )
-    except Exception as exc:
+    except Exception:
         log.exception("artist_style: Haiku call failed for %r", artist)
         raise HTTPException(status_code=500, detail="Style extraction failed — try again")
 
-    from songs import sanitize_inspired_by_descriptors
+    from songs import sanitize_inspired_by_descriptors, sanitize_inspired_by_theme
 
-    descriptors = sanitize_inspired_by_descriptors(haiku.content[0].text.strip()) or ""
-    log.info("artist_style: artist=%r descriptors=%r", artist, descriptors[:80])
-    return {"style_descriptors": descriptors}
+    raw = haiku.content[0].text.strip()
+    raw_style, raw_theme = "", ""
+    for line in raw.splitlines():
+        s = line.strip()
+        if s.upper().startswith("STYLE:"):
+            raw_style = s[6:].strip()
+        elif s.upper().startswith("THEME:"):
+            raw_theme = s[6:].strip()
+    # Tolerate a model that ignored the format and returned a bare descriptor list.
+    if not raw_style and not raw_theme:
+        raw_style = raw
+
+    descriptors = sanitize_inspired_by_descriptors(raw_style) or ""
+    theme = sanitize_inspired_by_theme(raw_theme) or ""
+    log.info("artist_style: ref=%r descriptors=%r theme=%r", artist, descriptors[:60], theme[:80])
+    return {"style_descriptors": descriptors, "theme": theme}
 
 
 # ── Music search ─────────────────────────────────────────────────────────────

@@ -506,7 +506,7 @@ def _apply_rapidfire_section_tags(lyrics_text: str) -> str:
     return text
 
 
-def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None, roast_mode: bool = False, roast_name: str | None = None, roast_details: str | None = None, roast_vibe: str | None = None, bilingual_mode: bool = False, intermittent_vocals: bool = False) -> dict:
+def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None, roast_mode: bool = False, roast_name: str | None = None, roast_details: str | None = None, roast_vibe: str | None = None, bilingual_mode: bool = False, intermittent_vocals: bool = False, inspired_by_theme: str | None = None) -> dict:
     _need_translation = False  # initialised here so all code paths have a value
     if instrumental:
         title = song_title or "Instrumental"
@@ -805,7 +805,11 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
 
     structure = random.choice(_SONG_STRUCTURES)
     mood = random.choice(_MOODS)
-    theme = random.choice(_THEMES)
+    # When the user picked an "Inspired By" reference, the song must be ABOUT the
+    # same kind of subject as that reference. Previously the reference only shaped
+    # the Suno style string and the lyrics got a random theme from _THEMES, so an
+    # inspired-by song matched the sound but not the story.
+    theme = (inspired_by_theme or "").strip() or random.choice(_THEMES)
     system = _LYRIC_SYSTEM_BASE.format(structure=structure, mood=mood)
     if explicit:
         system += _EXPLICIT_ADDENDUM
@@ -851,6 +855,17 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         f"\n\nTheme: {theme}. Song structure: {structure}. Mood: {mood}. "
         "Make this song completely unique and unlike anything generated before."
     )
+    if (inspired_by_theme or "").strip():
+        # Stated explicitly because a one-word slot ("Theme: betrayal") is easy to
+        # gloss over, whereas the reference's actual subject is the whole point.
+        user_message += (
+            f"\n\nSUBJECT MATTER (most important): this song must be ABOUT the following — "
+            f"{inspired_by_theme.strip()}\n"
+            "Write ORIGINAL lyrics telling your own version of that kind of story, with the "
+            "same emotional sentiment and point of view. Do not copy any existing lyrics, and "
+            "do not name any real artist, song or place. If a brief was also given above, keep "
+            "its details but make the subject matter above the emotional core of the song."
+        )
     all_genres = (genres or []) + ([genre_b] if genre_b else [])
     if all_genres:
         vocab_lines = [
