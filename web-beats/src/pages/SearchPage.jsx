@@ -26,7 +26,7 @@ function parseStyleAnalysis(text) {
   const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
   const result = {};
   for (const line of lines) {
-    const m = line.match(/^(GENRE|TEMPO|MOOD|INSTRUMENTS|STYLE):\s*(.+)$/i);
+    const m = line.match(/^(GENRE|TEMPO|MOOD|INSTRUMENTS|STYLE|THEME):\s*(.+)$/i);
     if (m) result[m[1].toUpperCase()] = m[2].trim();
   }
   return result;
@@ -79,8 +79,17 @@ export default function SearchPage() {
     }
   };
 
-  const goToSongs = ({ style = '', genre = '', tempo = '', mood = '' } = {}) => {
-    navigate('/songs', { state: { prefillStyle: style, prefillGenre: genre, prefillTempo: tempo, prefillMood: mood } });
+  // `theme` is what the reference is ABOUT. Without it the create page received
+  // only sound descriptors, so a search-based inspiration produced a song in the
+  // right style about a completely unrelated subject. SongsPage already reads
+  // prefillTheme; it was simply never being sent.
+  const goToSongs = ({ style = '', genre = '', tempo = '', mood = '', theme = '' } = {}) => {
+    navigate('/songs', {
+      state: {
+        prefillStyle: style, prefillGenre: genre, prefillTempo: tempo,
+        prefillMood: mood, prefillTheme: theme,
+      },
+    });
   };
 
   return (
@@ -221,7 +230,7 @@ function StyleResult({ data, query, onUse }) {
           <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>{query}</h3>
         </div>
         <button
-          onClick={() => onUse({ style: styleString, genre: parsed.GENRE || '', tempo: parsed.TEMPO || '', mood: parsed.MOOD || '' })}
+          onClick={() => onUse({ style: styleString, genre: parsed.GENRE || '', tempo: parsed.TEMPO || '', mood: parsed.MOOD || '', theme: data.theme || parsed.THEME || '' })}
           style={{
             padding: '10px 20px',
             background: '#00f0ff',
@@ -258,6 +267,19 @@ function StyleResult({ data, query, onUse }) {
           ))}
         </div>
       ) : null}
+
+      {/* What the reference is ABOUT — carried into the lyrics, so show it. */}
+      {(data.theme || parsed.THEME) && (
+        <div style={{
+          background: 'rgba(255,0,153,0.05)', border: '1px solid rgba(255,0,153,0.18)',
+          borderRadius: 10, padding: '12px 14px', marginBottom: 20,
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#ff0099', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+            Theme — your song will be about this
+          </div>
+          <div style={{ fontSize: 13, color: '#ddd', lineHeight: 1.55 }}>{data.theme || parsed.THEME}</div>
+        </div>
+      )}
 
       {parsed.STYLE && (
         <div>
@@ -367,7 +389,7 @@ function LyricsResult({ data, query, onUse }) {
           <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>{query}</h3>
         </div>
         <button
-          onClick={() => onUse({ style: style || query + ' inspired style' })}
+          onClick={() => onUse({ style: style || query + ' inspired style', theme: data.theme || summary || '' })}
           style={{
             padding: '10px 20px',
             background: '#ff0099',

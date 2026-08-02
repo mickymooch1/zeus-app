@@ -141,3 +141,46 @@ def test_artist_style_returns_both_halves():
     assert '"style_descriptors"' in src and '"theme"' in src
     # It must ask for the subject matter, not only the sound.
     assert "THEME:" in src and "STYLE:" in src
+
+
+# ── Search -> Create path (2026-08-02) ───────────────────────────────────────
+# The Inspired By field extracted a theme correctly, but the Search page is a
+# separate pipeline: it ran search_type="style", whose prompt asked only for
+# GENRE/TEMPO/MOOD/INSTRUMENTS/STYLE, and its "Generate a song like this" button
+# navigated with prefillStyle/Genre/Tempo/Mood but no theme. So a search-based
+# inspiration produced the right sound about an unrelated subject.
+
+def test_style_search_prompt_now_asks_for_the_theme():
+    import main
+    src = inspect.getsource(main.music_search)
+    assert "THEME:" in src, "the style-mode prompt must request subject matter"
+    assert "what the song is ABOUT" in src
+
+
+def test_style_search_also_searches_for_meaning():
+    """A 'music style genre tempo' query alone never surfaces subject matter."""
+    import main
+    src = inspect.getsource(main.music_search)
+    assert "song meaning what is it about" in src
+
+
+def test_music_search_returns_a_theme_field():
+    import main
+    src = inspect.getsource(main.music_search)
+    assert '"theme": theme' in src
+    assert "sanitize_inspired_by_theme" in src, "the theme must be name-scrubbed"
+
+
+def test_search_page_passes_prefill_theme_through_navigation():
+    """SongsPage already read prefillTheme — SearchPage simply never sent it."""
+    page = (pathlib.Path(__file__).parent.parent.parent
+            / "web-beats" / "src" / "pages" / "SearchPage.jsx").read_text(encoding="utf-8")
+    assert "prefillTheme" in page, "SearchPage must forward the theme"
+    assert "theme = ''" in page or "theme: data.theme" in page
+
+
+def test_songs_page_consumes_prefill_theme():
+    page = (pathlib.Path(__file__).parent.parent.parent
+            / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
+    assert "prefillTheme" in page
+    assert "inspired_by_theme" in page
