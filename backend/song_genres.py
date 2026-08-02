@@ -69,6 +69,11 @@ GENRE_PRESETS = {
     "purebassline":    "heavy modulated sub bass with extreme LFO pitch wobble, four to the floor kick drum, syncopated hi-hats, chopped pitched-up female vocal samples, Roland organ stabs, 140 BPM, pumping compression on the kick, dark atmospheric synth pads, bouncy dancefloor energy, hard hitting bass drops every 8 bars",
     "jazz":            "jazz, smooth improvised saxophone, upright bass walking lines, brushed drums, jazz piano chords, bebop influence, warm intimate club sound, 120 BPM swing",
     "swing":           "swing jazz, big band, upbeat swing rhythm, brass section, walking bassline, 1940s swing era, lively horns, swing drums with brushes, danceable swing groove, vintage big band sound, energetic jazz orchestra",
+    # Style descriptors only — no artist names. The sung content is steered by
+    # GENRE_MOOD_DIRECTIVES["scat"] in lyrics.py, which makes the "lyrics"
+    # vocables rather than words; without that Suno sings ordinary words over a
+    # jazz backing and it isn't scat at all.
+    "scat":            "vintage jazz, scat singing, improvised wordless vocals, nonsense syllables, doo-bop vocables, swing rhythm, upright bass, brushed drums, walking bassline, playful improvised vocal solos emulating horn phrasing, warm big band jazz, 1940s-50s jazz vocal sound",
     "vocaljazz":       "vocal jazz, smooth jazz vocals, intimate crooning, piano and upright bass, brushed drums, sophisticated jazz harmony, lounge jazz atmosphere, warm emotional delivery, classic jazz standards feel, velvet smooth singing, late night jazz club mood",
     "electronicfunk":  "electronic funk, talk box vocoder vocals, smooth slow funk groove, electronic synthesizer bassline, French electronic funk production style, 95 BPM, soulful R&B feeling, warm analogue synths, silky smooth production, 80s electro funk, vocoder robot voice effect, late night smooth groove",
     "syntheticpop":    "synthetic pop, bright catchy synthesizers, four on the floor beat, polished production, euphoric pop hooks, 128 BPM, 80s synth pop influence, glossy electronic sound, irresistible chorus",
