@@ -15,7 +15,7 @@ const GENRE_LABEL = {
   synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul',
   meditation:'Meditation', christmas:'Christmas', corridos:'Corridos',
   healingfrequency:'Healing Frequency',
-  swing:'Swing', vocaljazz:'Vocal Jazz', traditionalpop:'Traditional Pop',
+  swing:'Swing', vocaljazz:'Vocal Jazz', scat:'Scat Jazz', traditionalpop:'Traditional Pop',
   rocknroll:'Rock \'n\' Roll', southemsoul:'Southern Soul', countryamericana:'Country Americana',
 };
 
