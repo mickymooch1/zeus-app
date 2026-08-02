@@ -350,6 +350,9 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 created_at TEXT NOT NULL
             )""",
             "CREATE INDEX IF NOT EXISTS idx_signup_flags_created ON signup_flags (created_at)",
+            # Supports the single-query library load (get_all_variants_for_user),
+            # which filters song_variants by user_id.
+            "CREATE INDEX IF NOT EXISTS idx_song_variants_user ON song_variants (user_id)",
         ]:
             try:
                 conn.execute(_migration)
@@ -1445,6 +1448,31 @@ def list_lyrics_for_user(db_path: pathlib.Path, user_id: str) -> list[dict]:
     try:
         rows = conn.execute(
             "SELECT id, title, created_at FROM lyrics WHERE user_id = ? ORDER BY id DESC",
+            (user_id,),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_all_variants_for_user(db_path: pathlib.Path, user_id: str) -> list[dict]:
+    """Every variant the user owns, with its lyric title — in ONE query.
+
+    Replaces the old library load, which issued a separate request (and three
+    SQLite connection opens) per lyric. On an account with ~400 songs that was
+    ~400 HTTP requests and ~1200 connection opens to render one page, which
+    saturated the single uvicorn worker and made loads fail intermittently.
+
+    Ordered newest-variant-first so the caller doesn't need to re-sort.
+    """
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            """SELECT sv.*, l.title AS lyric_title
+               FROM song_variants sv
+               JOIN lyrics l ON l.id = sv.lyric_id
+               WHERE sv.user_id = ?
+               ORDER BY sv.id DESC""",
             (user_id,),
         ).fetchall()
         return [_row_to_dict(r) for r in rows]

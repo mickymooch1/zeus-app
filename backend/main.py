@@ -3037,6 +3037,53 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
                 "video_url": v.get("video_url"),
                 "youtube_url": v.get("youtube_url"),
                 "music_video_url": v.get("music_video_url"),
+                "music_video_pending": bool(v.get("kling_request_id") and not v.get("music_video_url")),
+                "is_favourite": bool(v.get("is_favourite", 0)),
+                "is_public": bool(v.get("is_public", 0)),
+                "subtitles_url": v.get("subtitles_url"),
+            }
+            for v in (variants or [])
+        ],
+    }
+
+
+# NOTE: deliberately mounted at /api/library, NOT /api/lyrics/variants — the
+# latter would be shadowed by /api/lyrics/{lyric_id}, whose int path param would
+# reject "variants" with a 422 rather than falling through to this handler.
+@app.get("/api/library")
+async def get_library(current_user: dict = Depends(auth.get_current_user)):
+    """The user's whole library in ONE request.
+
+    Replaces the per-lyric fan-out the songs page used to do (one request per
+    song — ~400 concurrent requests on a large account, which saturated the
+    single worker and made the page fail to load until you refreshed enough
+    times for every one of them to land).
+
+    Shape matches the flattened list the client used to assemble itself, so
+    `title` and `lyric_id` are already attached to each variant.
+    """
+    db_path = db.get_db_path()
+    user_id = current_user["id"]
+    variants = db.get_all_variants_for_user(db_path, user_id)
+    return {
+        "variants": [
+            {
+                "variant_id": v["id"],
+                "lyric_id": v["lyric_id"],
+                "title": v.get("lyric_title"),
+                "genre_tag": v["genre_tag"],
+                "take_number": v["take_number"],
+                "status": v["status"],
+                "mp3_url": v["mp3_url"],
+                "image_url": v["image_url"],
+                "duration_seconds": v["duration_seconds"],
+                "did_job_id": v.get("did_job_id"),
+                "video_url": v.get("video_url"),
+                "youtube_url": v.get("youtube_url"),
+                "music_video_url": v.get("music_video_url"),
+                # Lets the client poll for a music video ONLY when one was
+                # actually requested, instead of re-fetching the library forever.
+                "music_video_pending": bool(v.get("kling_request_id") and not v.get("music_video_url")),
                 "is_favourite": bool(v.get("is_favourite", 0)),
                 "is_public": bool(v.get("is_public", 0)),
                 "subtitles_url": v.get("subtitles_url"),
