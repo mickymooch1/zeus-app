@@ -221,52 +221,96 @@ def alert_subscription_cancelled(email: str, plan_key: str) -> None:
 
 
 # ── Health checks ─────────────────────────────────────────────────────────────
+#
+# Verified live 2026-08-02. BOTH previous endpoints were dead and every failure
+# was swallowed at log.debug, so health_check() reported "all OK" for months
+# while it could not read either balance — which is how the fal.ai account ran
+# to zero unnoticed and every song's cover art started failing with HTTP 403.
+#
+#   fal.ai   : GET https://rest.alpha.fal.ai/billing/user_balance
+#              header  Authorization: Key <FAL_API_KEY>
+#              returns a BARE JSON number, e.g.  10.0
+#              (old https://api.fal.ai/billing/balance -> 404 Route not found)
+#
+#   Apiframe : GET https://api.apiframe.ai/v2/me
+#              header  X-API-Key: <APIFRAME_API_KEY>
+#              returns {"team": {"credits": 3644, "plan": "af_basic"}, ...}
+#              (old .../account -> 400 "your key starts with afk_ ... that
+#               endpoint is Apiframe v1")
+#
+# RULE: a checker returns None ONLY when it positively read a healthy balance.
+# If it cannot read one, it returns a loud warning. A monitor that can't check
+# must scream, not stay silent.
+
+FAL_BALANCE_URL = "https://rest.alpha.fal.ai/billing/user_balance"
+APIFRAME_ACCOUNT_URL = "https://api.apiframe.ai/v2/me"
+
+# Warn while there is still time to top up, not at the moment of failure.
+# Tuned so a routine top-up doesn't immediately re-trigger the warning: a $10
+# top-up reads as ~$9.95 within minutes, so a $10 threshold would nag daily
+# forever. $5 still leaves a few hundred covers of runway at typical Flux cost.
+FAL_LOW_BALANCE_USD = 5.0
+APIFRAME_LOW_CREDITS = 500
+
 
 def _check_fal_balance() -> str | None:
-    """Return a warning string if fal.ai balance is below $5, else None."""
+    """fal.ai balance. Returns None only if it read a healthy balance."""
     fal_key = os.environ.get("FAL_API_KEY", "").strip()
     if not fal_key:
-        return None
+        return "⁉️ fal.ai balance UNREADABLE — FAL_API_KEY is not set. Cover art and video generation cannot work."
     try:
-        resp = requests.get(
-            "https://api.fal.ai/billing/balance",
-            headers={"Authorization": f"Key {fal_key}"},
-            timeout=8,
-        )
-        if resp.status_code == 200:
-            balance = resp.json().get("balance")
-            if balance is not None and float(balance) < 5.0:
-                return f"❌ fal.ai balance low: ${float(balance):.2f}"
-        else:
-            log.debug("fal.ai balance check: status=%d", resp.status_code)
+        resp = requests.get(FAL_BALANCE_URL, headers={"Authorization": f"Key {fal_key}"}, timeout=10)
     except Exception as exc:
-        log.debug("fal.ai balance check failed: %s", exc)
+        return f"⁉️ fal.ai balance UNREADABLE — {type(exc).__name__} calling {FAL_BALANCE_URL}: {exc}"
+
+    if resp.status_code != 200:
+        return (f"⁉️ fal.ai balance UNREADABLE — HTTP {resp.status_code} from {FAL_BALANCE_URL}. "
+                f"The endpoint may have moved again. Body: {resp.text[:120]}")
+    try:
+        data = resp.json()
+        # Documented shape is a bare number; tolerate {"balance": n} if it changes.
+        balance = float(data.get("balance") if isinstance(data, dict) else data)
+    except Exception as exc:
+        return (f"⁉️ fal.ai balance UNREADABLE — could not parse response ({type(exc).__name__}). "
+                f"Body: {resp.text[:120]}")
+
+    if balance <= 0:
+        return (f"🛑 fal.ai balance EXHAUSTED (${balance:.2f}) — cover art and video are FAILING RIGHT NOW. "
+                "Top up: https://fal.ai/dashboard/billing")
+    if balance < FAL_LOW_BALANCE_USD:
+        return (f"⚠️ fal.ai balance low: ${balance:.2f} (warn below ${FAL_LOW_BALANCE_USD:.0f}) — "
+                "top up at https://fal.ai/dashboard/billing before cover art starts failing.")
     return None
 
 
 def _check_apiframe_credits() -> str | None:
-    """Return a warning string if Apiframe credits are below 100, else None."""
+    """Apiframe credits. Returns None only if it read a healthy balance."""
     api_key = os.environ.get("APIFRAME_API_KEY", "").strip()
     if not api_key:
-        return None
+        return "⁉️ Apiframe credits UNREADABLE — APIFRAME_API_KEY is not set. Song generation cannot work."
     try:
-        resp = requests.get(
-            "https://api.apiframe.ai/account",
-            headers={"X-API-Key": api_key},
-            timeout=8,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            # Try both possible response shapes
-            remaining = (data.get("credits") or {}).get("remaining")
-            if remaining is None:
-                remaining = data.get("remaining_credits")
-            if remaining is not None and int(remaining) < 100:
-                return f"❌ Apiframe credits low: {int(remaining)} remaining"
-        else:
-            log.debug("Apiframe credits check: status=%d", resp.status_code)
+        resp = requests.get(APIFRAME_ACCOUNT_URL, headers={"X-API-Key": api_key}, timeout=10)
     except Exception as exc:
-        log.debug("Apiframe credits check failed: %s", exc)
+        return f"⁉️ Apiframe credits UNREADABLE — {type(exc).__name__} calling {APIFRAME_ACCOUNT_URL}: {exc}"
+
+    if resp.status_code != 200:
+        return (f"⁉️ Apiframe credits UNREADABLE — HTTP {resp.status_code} from {APIFRAME_ACCOUNT_URL}. "
+                f"The endpoint may have moved again. Body: {resp.text[:120]}")
+    try:
+        data = resp.json()
+        credits = (data.get("team") or {}).get("credits")
+        if credits is None:                      # tolerate older/flatter shapes
+            credits = data.get("credits")
+        credits = int(credits)
+    except Exception as exc:
+        return (f"⁉️ Apiframe credits UNREADABLE — response shape changed ({type(exc).__name__}). "
+                f"Body: {resp.text[:120]}")
+
+    if credits <= 0:
+        return f"🛑 Apiframe credits EXHAUSTED ({credits}) — song generation is FAILING RIGHT NOW. Top up at apiframe.ai."
+    if credits < APIFRAME_LOW_CREDITS:
+        return (f"⚠️ Apiframe credits low: {credits} (warn below {APIFRAME_LOW_CREDITS}) — "
+                "top up at apiframe.ai before song generation starts failing.")
     return None
 
 
