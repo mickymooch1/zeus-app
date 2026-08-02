@@ -53,7 +53,11 @@ GENRE_VOCABULARY: dict[str, str] = {
     "soul":        "testify, church, gospel, amen, spirit, move me, feel it",
     "hiphop":      "hustle, grind, stack, flex, drip, plug, bag, real talk",
     "jungle":      "rewind, selector, massive, jungle fever, dark and lovely",
-    "niche":       "proper job, mint, banging, Sheffield, lass, lad, mental",
+    # No city names here — this list is injected verbatim into the lyric prompt
+    # as "Use authentic niche vocabulary and slang: ...", so any place name in it
+    # is a direct instruction to Claude to sing that place name. The Yorkshire
+    # dialect words carry the regional flavour without naming anywhere.
+    "niche":       "proper job, mint, banging, lass, lad, mental, belter, sound",
     "drumandbass": "amen break, rewind, selector, massive, liquid, dark, rollers",
     "ukdrill":     "opps, trap, 150, sliders, smoke, woadie, on site, bits",
     "afroswing":   "gyallis, ting, wavey, plug, buss, wul, oshun, agege",
@@ -62,7 +66,7 @@ GENRE_VOCABULARY: dict[str, str] = {
     "bluessoul":   "low down dirty shame, crossroads, testify, mojo, 12-bar",
     "rnb":         "vibe, situationship, soft life, real love, body, drip, finesse",
     "ukgarage":    "rewind, two-step, selector, garage ting, bare, mandem, swerve",
-    "bassline":    "banger, rave, proper, dark, filthy, Sheffield, bounce, wobble",
+    "bassline":    "banger, rave, proper, dark, filthy, bounce, wobble, skanking",
     "rockney":     "Write in authentic Cockney style — use Cockney rhyming slang, reference East End London life, pubs, markets, football, family. Cheerful singalong verses with a big catchy pub chorus everyone can join in with. Think traditional London street culture.",
 }
 
