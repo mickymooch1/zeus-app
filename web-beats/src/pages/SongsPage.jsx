@@ -1300,6 +1300,9 @@ export default function SongsPage() {
 
   const [inspiredBy, setInspiredBy]               = useState('');
   const [artistDescriptors, setArtistDescriptors] = useState(() => [location.state?.prefillStyle || '', location.state?.prefillMood || ''].filter(Boolean).join(', '));
+  // Subject matter of the "Inspired By" reference — drives the LYRICS, whereas
+  // artistDescriptors drives the Suno style string.
+  const [artistTheme, setArtistTheme] = useState(() => location.state?.prefillTheme || '');
   const [artistLoading, setArtistLoading]         = useState(false);
 
   const [avatarModal, setAvatarModal]             = useState(null);
@@ -1832,6 +1835,7 @@ export default function SongsPage() {
           genres: Array.from(selGenres),
           custom_lyrics: useCustomLyrics ? customLyricsText.trim() : undefined,
           inspired_by_descriptors: artistDescriptors || undefined,
+          inspired_by_theme: artistTheme || undefined,
           song_title: songTitle.trim() || undefined,
           animate_cover: animateCover,
           ...(showAdvanced ? {
@@ -1967,10 +1971,16 @@ export default function SongsPage() {
         body: JSON.stringify({ artist_name: name }),
       });
       const d = await r.json();
-      if (r.ok) setArtistDescriptors(d.style_descriptors || '');
-      else setArtistDescriptors('');
+      if (r.ok) {
+        setArtistDescriptors(d.style_descriptors || '');
+        setArtistTheme(d.theme || '');   // what it's ABOUT — feeds the lyrics
+      } else {
+        setArtistDescriptors('');
+        setArtistTheme('');
+      }
     } catch (_) {
       setArtistDescriptors('');
+      setArtistTheme('');
     } finally {
       setArtistLoading(false);
     }
@@ -2928,6 +2938,7 @@ export default function SongsPage() {
                   onChange={(e) => {
                     setInspiredBy(e.target.value);
                     if (artistDescriptors) setArtistDescriptors('');
+                    if (artistTheme) setArtistTheme('');
                   }}
                   onBlur={handleArtistLookup}
                   placeholder={t('songs.artistPlaceholder')}
@@ -2959,6 +2970,14 @@ export default function SongsPage() {
                       {d.trim()}
                     </span>
                   ))}
+                </div>
+              )}
+              {/* What the reference is ABOUT — this drives the lyrics, so show it
+                  back to the user rather than leaving it invisible. */}
+              {artistTheme && !artistLoading && (
+                <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 11, color: '#444', fontWeight: 600, letterSpacing: '0.4px', textTransform: 'uppercase', flexShrink: 0, marginTop: 2 }}>Theme</span>
+                  <span style={{ fontSize: 12, color: '#9b8ec4', lineHeight: 1.5 }}>{artistTheme}</span>
                 </div>
               )}
             </div>
