@@ -3840,31 +3840,53 @@ async def music_search(
         else:
             serper_q = f"{q} music style genre tempo"
 
-        try:
+        async def _serper_search(query_text: str) -> dict:
             async with httpx.AsyncClient(timeout=15) as client:
                 sr = await client.post(
                     "https://google.serper.dev/search",
                     headers={"X-API-KEY": serper_key, "Content-Type": "application/json"},
-                    json={"q": serper_q, "num": 5},
+                    json={"q": query_text, "num": 5},
                 )
             sr.raise_for_status()
-            serper_data = sr.json()
+            return sr.json()
+
+        def _snips(data: dict) -> list[str]:
+            out = []
+            if data.get("answerBox", {}).get("snippet"):
+                out.append(data["answerBox"]["snippet"].strip())
+            out += [
+                item.get("snippet", "").strip()
+                for item in data.get("organic", [])[:4]
+                if item.get("snippet", "").strip()
+            ]
+            return out
+
+        # A style search asked only "...music style genre tempo", so Google never
+        # returned anything about the song's subject and Haiku was never asked for
+        # it. Searching meaning in parallel lets a style lookup carry a THEME too,
+        # so the Search -> Create path matches the Inspired By field.
+        try:
+            if stype == "lyrics":
+                serper_data = await _serper_search(serper_q)
+                theme_snippets = []
+            else:
+                serper_data, theme_data = await asyncio.gather(
+                    _serper_search(serper_q),
+                    _serper_search(f"{q} song meaning what is it about themes story"),
+                )
+                theme_snippets = _snips(theme_data)
         except Exception as exc:
             log.warning("music_search: Serper /search failed for %r: %s", q, exc)
             raise HTTPException(status_code=502, detail=f"Search request failed: {exc}")
 
-        snippets = [
-            item.get("snippet", "").strip()
-            for item in serper_data.get("organic", [])[:4]
-            if item.get("snippet", "").strip()
-        ]
-        if serper_data.get("answerBox", {}).get("snippet"):
-            snippets.insert(0, serper_data["answerBox"]["snippet"])
+        snippets = _snips(serper_data)
 
-        if not snippets:
+        if not snippets and not theme_snippets:
             raise HTTPException(status_code=404, detail=f"No results found for '{q}'")
 
         search_text = "\n".join(snippets[:4])
+        if theme_snippets:
+            search_text += "\n\n=== WHAT IT IS ABOUT ===\n" + "\n".join(theme_snippets[:4])
 
         if stype == "lyrics":
             system_prompt = (
@@ -3885,7 +3907,13 @@ async def music_search(
                 "MOOD: <emotional qualities>\n"
                 "INSTRUMENTS: <key instruments>\n"
                 "STYLE: <8-12 comma-separated generation-ready descriptors>\n"
-                "Nothing else."
+                "THEME: <one sentence describing what the song is ABOUT — its subject, "
+                "story and emotional sentiment>\n"
+                "Nothing else.\n\n"
+                "Rules for THEME: describe the situation in general human terms so a NEW "
+                "original song can be written about the same kind of story. Never include "
+                "artist names, song titles or place names. If the results reveal nothing "
+                "about the subject matter, write 'THEME: unknown'."
             )
 
         try:
@@ -3900,8 +3928,25 @@ async def music_search(
             raise HTTPException(status_code=500, detail=f"Analysis failed: {exc}")
 
         analysis = haiku.content[0].text.strip()
-        log.info("music_search: done query=%r type=%s analysis_preview=%.80s", q, stype, analysis)
-        return {"analysis": analysis, "search_type": stype, "query": q}
+
+        # Surface the subject matter as its own field so the client can carry it
+        # into song generation, instead of it living only inside the prose blob.
+        from songs import sanitize_inspired_by_theme
+        raw_theme = ""
+        for line in analysis.splitlines():
+            s = line.strip()
+            if s.upper().startswith("THEME:"):
+                raw_theme = s[6:].strip()
+                break
+        if not raw_theme and stype == "lyrics":
+            # The lyrics mode writes a prose summary of the themes rather than a
+            # labelled line — use it, minus the trailing STYLE: descriptor list.
+            raw_theme = _re.sub(r"^STYLE:.*$", "", analysis, flags=_re.IGNORECASE | _re.MULTILINE).strip()
+        theme = sanitize_inspired_by_theme(raw_theme) or ""
+
+        log.info("music_search: done query=%r type=%s analysis_preview=%.80s theme=%.120r",
+                 q, stype, analysis, theme)
+        return {"analysis": analysis, "search_type": stype, "query": q, "theme": theme}
 
     except HTTPException:
         raise
