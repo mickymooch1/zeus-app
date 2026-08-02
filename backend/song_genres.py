@@ -37,7 +37,10 @@ GENRE_PRESETS = {
     "grime":       "grime, aggressive 140 BPM beat, dark synth stabs, UK drill influence, fast paced MCing, East London sound",
     "ukgarage":    "UK garage, 2-step rhythm, pitched vocals, 130 BPM, shuffled hi-hats, bouncy bassline, late 90s London underground sound",
     "jungle":      "jungle music, Amen breakbeat, reggae samples, ragga vocals, sub bass, 160 BPM, early 90s UK rave sound, dark atmospheric",
-    "bassline":    "bassline house, heavy 4x4 kick, wobbling sub bassline, pitched male vocals, 130 BPM, Sheffield underground sound, raw club energy",
+    # No place or club names in style strings — Suno bleeds them into the sung
+    # words. Describe the SOUND, never where it comes from. ("Sheffield
+    # underground sound" removed 2026-08-02.)
+    "bassline":    "bassline house, heavy 4x4 kick, wobbling sub bassline, pitched male vocals, 130 BPM, organ bass stabs, raw underground club energy, gritty northern dance sound",
     "house":       "house music, 4x4 kick drum, soulful vocals, deep bassline, 126 BPM, Chicago roots, uplifting club energy, classic house piano",
     "deephouse":   "deep house, warm soulful bassline, minimal percussion, atmospheric pads, 124 BPM, late night club feel, hypnotic groove, subtle chord progressions, organic textures, deep rolling bass, sophisticated underground house sound, smooth melodic elements, Chicago house influence",
     "dancehouse":  "dance house music, four to the floor kick drum, euphoric uplifting synths, driving bassline, 128 BPM, hands in the air energy, anthemic breakdown and build, bright piano chords, vocal samples and hooks, energetic dancefloor feel, classic house piano stabs, punchy drums, euphoric drop, late night club energy, uplifting melodic house, festival dancefloor sound",
@@ -45,7 +48,9 @@ GENRE_PRESETS = {
     "ukdrill":     "UK drill, dark 808 bassline, sliding minor melodies, aggressive flow, 140 BPM, South London sound, trap hi-hats",
     "kpop":        "K-pop, polished production, catchy hook, bright synth melody, precise rhythm, 120 BPM, Korean pop aesthetic, energetic and clean",
     "deepsoulblues": "deep soul blues, raw emotional vocals, slow burning guitar, gospel undertones, heavy heartfelt delivery, southern blues roots, 60-75 BPM",
-    "niche":          "niche music, UK bassline, fast bouncy 4x4 kick drum, pitched female vocals, speed garage influence, 138 BPM, Northern underground club energy, wobbling sub bass, speed garage hookline feel",
+    # "niche music" removed — Niche was a club name, and Suno sang it. Pure
+    # sonic descriptors only.
+    "niche":          "UK bassline, fast bouncy 4x4 kick drum, pitched-up chopped female vocal samples, speed garage influence, 138 BPM, heavy wobbling sub bass, organ bass stabs, northern underground club energy, speed garage hookline feel",
     "ukstreetsoul":   "UK street soul, melancholic underground production, smooth soulful vocals, lush minor-key synthesizer pads, slow 95 BPM groove, intimate late-night aesthetic, British urban soul, muted trumpet stabs, warm Rhodes piano, subtle percussion, deep emotional storytelling, London underground soul sound, hushed intimate delivery, sophisticated minor chord progressions",
     "triphop":        "trip-hop, downtempo broken beat, dusty vinyl breakbeat, 90 BPM, heavy dubby sub bass, smoky cinematic strings, melancholic minor-key atmosphere, sparse haunting vocals, 90s Bristol underground sound, filtered soul samples, brooding noir production, tape hiss and vinyl crackle, spacious moody arrangement",
     "classical":      "classical orchestral, strings, piano, full orchestra, dynamic composition, cinematic arrangement",
@@ -59,7 +64,8 @@ GENRE_PRESETS = {
     "jerseyclub":     "Jersey Club, chopped vocal samples, rapid hi-hat patterns, 140 BPM, Newark NJ club sound, energetic dance floor energy",
     "afroswing":      "afroswing, smooth UK R&B vocals, gentle afrobeats percussion underneath, melodic guitar, 90 BPM, romantic intimate feel, British urban sound, melodic British Afro-pop vibe, laid back swing rhythm, NOT heavy afrobeats drums",
     "rastadub":       "rasta dub, heavy echo and reverb, deep rolling bassline, roots reggae rhythm, spiritual Rastafarian lyrics, slow burning groove, 70 BPM, Jamaican sound system culture, conscious message",
-    "deeprotbassline": "UK bassline, heavy 4x4 kick drum, deep rolling sub bass, 138 BPM, Nottingham bassline sound, UK garage influence, chopped female vocals, euphoric rave energy, modern bass music",
+    # "Nottingham bassline sound" removed — same place-name bleed as bassline/niche.
+    "deeprotbassline": "UK bassline, heavy 4x4 kick drum, deep rolling sub bass, 138 BPM, organ stab hooks, UK garage influence, chopped female vocals, euphoric rave energy, modern bass music",
     "purebassline":    "heavy modulated sub bass with extreme LFO pitch wobble, four to the floor kick drum, syncopated hi-hats, chopped pitched-up female vocal samples, Roland organ stabs, 140 BPM, pumping compression on the kick, dark atmospheric synth pads, bouncy dancefloor energy, hard hitting bass drops every 8 bars",
     "jazz":            "jazz, smooth improvised saxophone, upright bass walking lines, brushed drums, jazz piano chords, bebop influence, warm intimate club sound, 120 BPM swing",
     "swing":           "swing jazz, big band, upbeat swing rhythm, brass section, walking bassline, 1940s swing era, lively horns, swing drums with brushes, danceable swing groove, vintage big band sound, energetic jazz orchestra",
