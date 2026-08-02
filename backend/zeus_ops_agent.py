@@ -100,16 +100,27 @@ def health_check() -> None:
 
     warnings.extend(_fix_stuck_songs())
 
+    # A checker returns None ONLY when it positively read a healthy balance —
+    # "couldn't check" comes back as a loud warning, never silence. If a checker
+    # itself blows up, that is also reported rather than swallowed: a monitor
+    # that fails quietly is worse than no monitor (see alerts.py header).
     for checker in (_check_fal_balance, _check_apiframe_credits):
-        w = checker()
+        # getattr guard: this is the error path, so it must not be able to throw.
+        name = getattr(checker, "__name__", str(checker))
+        try:
+            w = checker()
+        except Exception as exc:
+            log.exception("ops_agent health_check: %s raised", name)
+            w = (f"⁉️ {name} CRASHED — {type(exc).__name__}: {exc}. "
+                 "Provider balance is currently unmonitored.")
         if w:
             warnings.append(w)
 
     if warnings:
         send_admin_alert("🚨 <b>Zeus Ops</b> — issues detected!\n" + "\n".join(warnings))
-        log.warning("ops_agent health_check: %d warning(s) sent", len(warnings))
+        log.warning("ops_agent health_check: %d warning(s) sent — %s", len(warnings), warnings)
     else:
-        log.info("ops_agent health_check: all OK")
+        log.info("ops_agent health_check: all OK (both provider balances read successfully)")
 
 
 # ── Daily report ──────────────────────────────────────────────────────────────

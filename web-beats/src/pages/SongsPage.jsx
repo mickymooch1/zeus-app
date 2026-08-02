@@ -1814,10 +1814,9 @@ export default function SongsPage() {
           roast_name: roastName.trim(),
           roast_details: roastDetails.trim() || undefined,
           roast_vibe: roastVibe,
-          ...(showAdvanced ? {
-            accent: accent || undefined,
-            model_version: modelVersion,
-          } : {}),
+          // Sent unconditionally — see the note in the standard branch below.
+          accent: accent || undefined,
+          model_version: modelVersion,
         };
       } else {
         console.log('animate_cover:', animateCover);
@@ -1838,22 +1837,25 @@ export default function SongsPage() {
           inspired_by_theme: artistTheme || undefined,
           song_title: songTitle.trim() || undefined,
           animate_cover: animateCover,
-          ...(showAdvanced ? {
-            vocal_gender: vocalGender || undefined,
-            accent: accent || undefined,
-
-            tempo: tempo || undefined,
-            tempo_bpm: tempo === 'custom' ? tempoBpm : undefined,
-            model_version: modelVersion,
-            explicit: explicit || undefined,
-            instrumental: vocalMode === 'instrumental' || undefined,
-            intermittent_vocals: vocalMode === 'intermittent' || undefined,
-            negative_tags: negativeTags.trim() || undefined,
-            genre_b: genreBlend && genreB ? genreB : undefined,
-            blend_ratio: genreBlend && genreB ? blendRatio : undefined,
-            sound_control: soundControlPayload,
-            healing_frequency: selGenres.has('healingfrequency') ? healingFrequency : undefined,
-          } : {}),
+          // Advanced settings are sent ALWAYS — never gated on `showAdvanced`.
+          // Collapsing the panel only hides the controls; it does not clear the
+          // state, so gating on visibility silently discarded choices the UI was
+          // still showing as selected. That made "I picked Intermittent and it
+          // ignored me" (and the same for accent, tempo, Sound Control and genre
+          // blend) look like a backend fault. The state is the source of truth.
+          vocal_gender: vocalGender || undefined,
+          accent: accent || undefined,
+          tempo: tempo || undefined,
+          tempo_bpm: tempo === 'custom' ? tempoBpm : undefined,
+          model_version: modelVersion,
+          explicit: explicit || undefined,
+          instrumental: vocalMode === 'instrumental' || undefined,
+          intermittent_vocals: vocalMode === 'intermittent' || undefined,
+          negative_tags: negativeTags.trim() || undefined,
+          genre_b: genreBlend && genreB ? genreB : undefined,
+          blend_ratio: genreBlend && genreB ? blendRatio : undefined,
+          sound_control: soundControlPayload,
+          healing_frequency: selGenres.has('healingfrequency') ? healingFrequency : undefined,
         };
       }
       const r = await fetch(`${BACKEND_URL}/api/songs/generate`, {
