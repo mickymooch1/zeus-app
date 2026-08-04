@@ -38,7 +38,11 @@ Just talk to me naturally, mate! Examples:
 • <i>"Show me the logs"</i>
 • <i>"Refund people who had failures"</i>
 • <i>"What's today's revenue?"</i>
-• <i>"Top genres this week"</i>
+• <i>"Top genres"</i> / <i>"top genres this week"</i>
+• <i>"How many people are actually active?"</i>
+• <i>"What have people been making?"</i>
+• <i>"What are people asking for?"</i>
+• <i>"How many songs has laky120@yahoo.com made?"</i>
 • <i>"Tell Claude Code to fix the stems button on mobile"</i>
 • <i>"Log a feature: dark mode for the app"</i>
 
@@ -491,31 +495,226 @@ def _cmd_revenue() -> str:
         return f"❌ Stripe error: {exc}"
 
 
-# ── Top genres ───────────────────────────────────────────────────────────────
+# ── Usage insight: who is actually creating, and what ────────────────────────
+#
+# TIMESTAMP GOTCHA — read before editing any query below.
+# The two tables store created_at in DIFFERENT formats:
+#   song_variants.created_at -> schema DEFAULT CURRENT_TIMESTAMP
+#                               "2026-08-04 12:00:00"        (space separator)
+#   users.created_at         -> Python datetime.isoformat()
+#                               "2026-08-04T12:00:00.123456+00:00"  (T + offset)
+# Comparing the ISO form directly against datetime('now', ...) misreads the
+# boundary day, because 'T' (0x54) sorts after ' ' (0x20). Every window filter
+# here normalises with replace(created_at,'T',' ') first, which is a no-op on
+# the already-correct column and a fix on the other. Keep that if you edit these.
 
-def _cmd_top_genres(n: int = 5) -> str:
+_TS = "replace({col}, 'T', ' ')"          # normalise either format for comparison
+
+
+def _ro_conn():
+    """Read-only connection to the live DB."""
+    import db as _db
+    conn = sqlite3.connect(f"file:{_db.get_db_path()}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _esc(v) -> str:
+    """Escape for Telegram HTML. User-supplied text (emails, prompts, titles)
+    goes into an HTML-parsed message — an unescaped '<' breaks the whole send."""
+    import html as _html
+    return _html.escape(str(v if v is not None else ""))
+
+
+def _cmd_active() -> str:
+    """Genuine engagement: signed up vs actually created something.
+
+    Covers every client — the web app, the Android TWA and the iOS app all
+    authenticate against this same backend and write to this same database, so
+    there is no separate 'app' population to miss. (There is no per-platform
+    column, so the split web-vs-app cannot be shown; the totals are complete.)
+    """
     try:
-        import db as _db
-        db_path = _db.get_db_path()
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        conn.row_factory = sqlite3.Row
+        conn = _ro_conn()
+        try:
+            def one(sql, *a):
+                r = conn.execute(sql, a).fetchone()
+                return r[0] if r else 0
+
+            total_users = one("SELECT COUNT(*) FROM users")
+            ever_created = one(
+                "SELECT COUNT(DISTINCT user_id) FROM song_variants WHERE user_id IS NOT NULL")
+
+            act = {}
+            for label, window in (("24h", "-1 day"), ("7d", "-7 days"), ("30d", "-30 days")):
+                act[label] = one(
+                    f"SELECT COUNT(DISTINCT user_id) FROM song_variants "
+                    f"WHERE {_TS.format(col='created_at')} >= datetime('now', ?)", window)
+
+            new_7d = one(
+                f"SELECT COUNT(*) FROM users "
+                f"WHERE {_TS.format(col='created_at')} >= datetime('now', '-7 days')")
+            songs_total = one("SELECT COUNT(*) FROM song_variants")
+            songs_done = one("SELECT COUNT(*) FROM song_variants WHERE status='complete'")
+            songs_7d = one(
+                f"SELECT COUNT(*) FROM song_variants "
+                f"WHERE {_TS.format(col='created_at')} >= datetime('now', '-7 days')")
+        finally:
+            conn.close()
+
+        pct = lambda n, d: f"{(n / d * 100):.0f}%" if d else "—"
+        return (
+            "📊 <b>Real engagement</b> (web + Android + iOS combined)\n\n"
+            f"👥 Signed up: <b>{total_users}</b>  (+{new_7d} this week)\n"
+            f"🎵 Ever made a song: <b>{ever_created}</b> "
+            f"({pct(ever_created, total_users)} of signups)\n\n"
+            "<b>Active — actually created something</b>\n"
+            f"• Last 24h: <b>{act['24h']}</b> {'user' if act['24h'] == 1 else 'users'}\n"
+            f"• Last 7 days: <b>{act['7d']}</b> ({pct(act['7d'], total_users)} of all signups)\n"
+            f"• Last 30 days: <b>{act['30d']}</b> ({pct(act['30d'], total_users)})\n\n"
+            "<b>Songs</b>\n"
+            f"• Total: <b>{songs_total}</b> ({songs_done} completed)\n"
+            f"• Last 7 days: <b>{songs_7d}</b>\n\n"
+            f"<i>{total_users - ever_created} signed up but never made a song.</i>"
+        )
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
+def _cmd_activity(n: int = 20) -> str:
+    """Recent song feed — who, what genre, when."""
+    try:
+        conn = _ro_conn()
         try:
             rows = conn.execute(
-                """SELECT genre_tag, COUNT(*) AS cnt FROM song_variants
-                   WHERE status = 'complete'
-                     AND created_at >= datetime('now', '-7 days')
-                     AND genre_tag IS NOT NULL AND genre_tag != ''
-                   GROUP BY genre_tag ORDER BY cnt DESC LIMIT ?""",
-                (n,),
-            ).fetchall()
+                """SELECT sv.created_at, sv.genre_tag, sv.status,
+                          u.email, l.title
+                   FROM song_variants sv
+                   LEFT JOIN users u  ON u.id = sv.user_id
+                   LEFT JOIN lyrics l ON l.id = sv.lyric_id
+                   ORDER BY sv.id DESC LIMIT ?""", (n,)).fetchall()
         finally:
             conn.close()
         if not rows:
-            return "No completed songs this week yet"
-        lines = [f"🎼 <b>Top genres this week</b>"]
-        medals = ["🥇", "🥈", "🥉"] + ["🎵"] * 10
-        for i, r in enumerate(rows):
-            lines.append(f"{medals[i]} {r['genre_tag']}: <b>{r['cnt']}</b>")
+            return "No songs yet"
+        icon = {"complete": "✅", "failed": "❌", "pending": "⏳", "generating": "⏳"}
+        out = [f"🎧 <b>Last {len(rows)} songs</b>"]
+        for r in rows:
+            when = (r["created_at"] or "")[5:16].replace("T", " ")   # MM-DD HH:MM
+            who = (r["email"] or "?").split("@")[0]
+            out.append(
+                f"{icon.get(r['status'], '•')} <code>{when}</code> "
+                f"{_esc(who)} — <b>{_esc(r['genre_tag'] or '?')}</b>"
+                + (f" · {_esc((r['title'] or '')[:28])}" if r["title"] else "")
+            )
+        return "\n".join(out)
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
+def _cmd_prompts(n: int = 15) -> str:
+    """What people are actually typing — the brief behind each song.
+
+    This is the only view of lyrics.brief anywhere in the product, and it is the
+    clearest signal of what users think Zeus Beats is for.
+    """
+    try:
+        conn = _ro_conn()
+        try:
+            rows = conn.execute(
+                """SELECT l.brief, l.created_at, u.email
+                   FROM lyrics l
+                   LEFT JOIN users u ON u.id = l.user_id
+                   WHERE TRIM(COALESCE(l.brief, '')) != ''
+                   ORDER BY l.id DESC LIMIT ?""", (n,)).fetchall()
+        finally:
+            conn.close()
+        if not rows:
+            return "No prompts yet — everyone has left the brief blank so far"
+        out = [f"💭 <b>Last {len(rows)} prompts</b>"]
+        for r in rows:
+            who = (r["email"] or "?").split("@")[0]
+            brief = " ".join((r["brief"] or "").split())[:160]
+            out.append(f"\n• <b>{_esc(who)}</b>: <i>{_esc(brief)}</i>")
+        return "\n".join(out)
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
+def _cmd_user_songs(email: str) -> str:
+    """Per-user breakdown: how many songs, which genres, when they were last on."""
+    try:
+        conn = _ro_conn()
+        try:
+            u = conn.execute(
+                "SELECT id, email, created_at, subscription_plan, subscription_status "
+                "FROM users WHERE lower(email) = lower(?)", (email.strip(),)).fetchone()
+            if not u:
+                return f"❌ No user found for {_esc(email)}"
+            tot = conn.execute(
+                "SELECT COUNT(*) c, SUM(status='complete') done, MAX(created_at) last "
+                "FROM song_variants WHERE user_id = ?", (u["id"],)).fetchone()
+            genres = conn.execute(
+                """SELECT genre_tag, COUNT(*) c FROM song_variants
+                   WHERE user_id = ? AND COALESCE(genre_tag,'') != ''
+                   GROUP BY genre_tag ORDER BY c DESC LIMIT 8""", (u["id"],)).fetchall()
+            briefs = conn.execute(
+                """SELECT brief FROM lyrics
+                   WHERE user_id = ? AND TRIM(COALESCE(brief,'')) != ''
+                   ORDER BY id DESC LIMIT 3""", (u["id"],)).fetchall()
+        finally:
+            conn.close()
+
+        out = [f"👤 <b>{_esc(u['email'])}</b>",
+               f"Plan: {_esc(u['subscription_plan'] or 'free')} "
+               f"({_esc(u['subscription_status'] or 'free')})",
+               f"Joined: <code>{_esc((u['created_at'] or '')[:10])}</code>",
+               "",
+               f"🎵 Songs: <b>{tot['c'] or 0}</b> ({tot['done'] or 0} completed)",
+               f"Last activity: <code>{_esc((tot['last'] or '—')[:16].replace('T',' '))}</code>"]
+        if genres:
+            out.append("\n<b>Genres</b>")
+            out += [f"• {_esc(g['genre_tag'])}: {g['c']}" for g in genres]
+        if briefs:
+            out.append("\n<b>Recent prompts</b>")
+            out += [f"• <i>{_esc(' '.join((b['brief'] or '').split())[:110])}</i>" for b in briefs]
+        return "\n".join(out)
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
+# ── Top genres ───────────────────────────────────────────────────────────────
+
+def _cmd_top_genres(n: int = 15, days: int | None = None) -> str:
+    """Most-used genres. Defaults widened 2026-08-04: all time and top 15,
+    because 'completed in the last 7 days only' reads as no-data on a small
+    tester group and hides everything people attempted."""
+    try:
+        conn = _ro_conn()
+        try:
+            where = "WHERE COALESCE(genre_tag,'') != ''"
+            args: list = []
+            if days:
+                where += f" AND {_TS.format(col='created_at')} >= datetime('now', ?)"
+                args.append(f"-{int(days)} days")
+            args.append(n)
+            rows = conn.execute(
+                f"""SELECT genre_tag,
+                           COUNT(*) AS cnt,
+                           SUM(status='complete') AS done
+                    FROM song_variants {where}
+                    GROUP BY genre_tag ORDER BY cnt DESC LIMIT ?""", args).fetchall()
+        finally:
+            conn.close()
+        if not rows:
+            return "No songs with a genre recorded yet"
+        header = f"🎼 <b>Top genres</b> ({'last %d days' % days if days else 'all time'})"
+        medals = ["🥇", "🥈", "🥉"] + ["🎵"] * 50
+        lines = [header] + [
+            f"{medals[i]} {_esc(r['genre_tag'])}: <b>{r['cnt']}</b>"
+            + (f" <i>({r['done']} done)</i>" if (r['done'] or 0) != r['cnt'] else "")
+            for i, r in enumerate(rows)
+        ]
         return "\n".join(lines)
     except Exception as exc:
         return f"❌ DB error: {exc}"
@@ -1430,7 +1629,11 @@ Your capabilities:
 - refund_failures — refund song credits for songs that failed in last 24h
 - recent_users — last 5 signups
 - revenue — today / week / month revenue from Stripe
-- top_genres — most popular genres this week
+- top_genres — most-used genres (all time by default; pass "days" to narrow)
+- active — real engagement: signups vs users who actually made a song (24h/7d/30d)
+- activity — recent song feed: who made what genre, and when
+- prompts — what people are actually typing into the brief box
+- user_songs — one user's song count, genres and recent prompts (needs email)
 - tell_claude_code — queue a message for Claude Code review
 - feature_request — log a feature idea
 - web_search — search the web for current info (use when you need up-to-date facts)
@@ -1461,7 +1664,11 @@ Action schemas (all include "type": "action"):
 {"type": "action", "action": "refund_failures"}
 {"type": "action", "action": "recent_users"}
 {"type": "action", "action": "revenue"}
-{"type": "action", "action": "top_genres"}
+{"type": "action", "action": "top_genres", "days": 7, "limit": 15}
+{"type": "action", "action": "active"}
+{"type": "action", "action": "activity", "limit": 20}
+{"type": "action", "action": "prompts", "limit": 15}
+{"type": "action", "action": "user_songs", "email": "..."}
 {"type": "action", "action": "tell_claude_code", "message": "..."}
 {"type": "action", "action": "feature_request", "description": "..."}
 {"type": "action", "action": "web_search", "query": "..."}
@@ -1683,7 +1890,23 @@ def _execute_action(action: dict, chat_id: str = "") -> str:
         return _cmd_revenue()
 
     if act == "top_genres":
-        return _cmd_top_genres()
+        return _cmd_top_genres(int(action.get("limit") or 15),
+                               int(action["days"]) if action.get("days") else None)
+
+    if act == "active":
+        return _cmd_active()
+
+    if act == "activity":
+        return _cmd_activity(int(action.get("limit") or 20))
+
+    if act == "prompts":
+        return _cmd_prompts(int(action.get("limit") or 15))
+
+    if act == "user_songs":
+        email = (action.get("email") or "").strip()
+        if not email:
+            return "❌ No email address"
+        return _cmd_user_songs(email)
 
     if act == "tell_claude_code":
         msg = action.get("message", "").strip()
