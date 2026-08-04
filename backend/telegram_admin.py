@@ -41,6 +41,7 @@ Just talk to me naturally, mate! Examples:
 • <i>"Top genres"</i> / <i>"top genres this week"</i>
 • <i>"How many people are actually active?"</i>
 • <i>"Web vs Android — which is busier?"</i>
+• <i>"How many songs from people outside my circle?"</i>
 • <i>"What have people been making?"</i>
 • <i>"What are people asking for?"</i>
 • <i>"How many songs has laky120@yahoo.com made?"</i>
@@ -578,6 +579,85 @@ def _cmd_active() -> str:
             f"• Last 7 days: <b>{songs_7d}</b>\n\n"
             f"<i>{total_users - ever_created} signed up but never made a song.</i>"
         )
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
+# Accounts belonging to Michael and his family. Excluded from "real usage" so
+# the headline number reflects genuine outside adoption, not the founder's own
+# testing. Substrings, matched case-insensitively against the whole address.
+# Override without a deploy via Porick:  var set INSIDER_EMAILS=a,b,c
+_DEFAULT_INSIDERS = ("dwrowle", "laky120", "danielrowle", "dominic.rowle")
+
+
+def _insiders() -> tuple[str, ...]:
+    raw = os.environ.get("INSIDER_EMAILS", "").strip()
+    if raw:
+        return tuple(p.strip().lower() for p in raw.split(",") if p.strip())
+    return _DEFAULT_INSIDERS
+
+
+def _cmd_real_users(limit: int = 40) -> str:
+    """Everyone who has ever made a song, over all history, with the founder's
+    own circle separated out — the honest measure of independent adoption."""
+    try:
+        ins = _insiders()
+        conn = _ro_conn()
+        try:
+            rows = conn.execute(
+                """SELECT COALESCE(u.email,'(deleted user)') email,
+                          COUNT(*) songs,
+                          SUM(sv.status='complete') done,
+                          MIN(sv.created_at) first_song,
+                          MAX(sv.created_at) last_song
+                   FROM song_variants sv
+                   LEFT JOIN users u ON u.id = sv.user_id
+                   GROUP BY sv.user_id
+                   ORDER BY songs DESC""").fetchall()
+        finally:
+            conn.close()
+        if not rows:
+            return "No songs have been made yet"
+
+        def is_insider(email: str) -> bool:
+            e = (email or "").lower()
+            return any(tag in e for tag in ins)
+
+        outside = [r for r in rows if not is_insider(r["email"])]
+        inside = [r for r in rows if is_insider(r["email"])]
+        out_songs = sum(r["songs"] for r in outside)
+        in_songs = sum(r["songs"] for r in inside)
+        total = out_songs + in_songs
+
+        pct = f" ({(out_songs / total * 100):.0f}% independent)" if total else ""
+        out = [
+            "🧍 <b>Real usage — outside your circle</b>",
+            "",
+            f"👥 People who've made a song: <b>{len(rows)}</b> "
+            f"(<b>{len(outside)}</b> outside, {len(inside)} yours)",
+            f"🎵 Songs: <b>{out_songs}</b> outside · {in_songs} yours{pct}",
+            "",
+        ]
+        if not outside:
+            out.append("<i>No songs yet from anyone outside your circle.</i>")
+        else:
+            shown = outside[:limit]
+            out.append(f"<b>Outside users — all time</b>")
+            for r in shown:
+                who = _esc((r["email"] or "?").split("@")[0])
+                first = (r["first_song"] or "")[:10]
+                last = (r["last_song"] or "")[:10]
+                span = first if first == last else f"{first} → {last}"
+                out.append(
+                    f"• <b>{who}</b>: {r['songs']} "
+                    f"<i>({r['done'] or 0} done)</i>  <code>{_esc(span)}</code>")
+            if len(outside) > limit:
+                out.append(f"<i>…and {len(outside) - limit} more</i>")
+            repeat = sum(1 for r in outside if r["songs"] >= 3)
+            out += ["", f"🔁 Made 3+ songs: <b>{repeat}</b> of {len(outside)} outside users"]
+        out += ["", f"<i>Excluding: {_esc(', '.join(ins))}</i>"]
+        return "\n".join(out)
+
     except Exception as exc:
         return f"❌ DB error: {exc}"
 
@@ -1673,6 +1753,7 @@ Your capabilities:
 - revenue — today / week / month revenue from Stripe
 - top_genres — most-used genres (all time by default; pass "days" to narrow)
 - active — real engagement: signups vs users who actually made a song (24h/7d/30d)
+- real_users — everyone who has made a song, all time, with your own/family accounts separated out
 - platforms — web vs Android vs iOS: signups and songs made on each
 - activity — recent song feed: who made what genre, and when
 - prompts — what people are actually typing into the brief box
@@ -1709,6 +1790,7 @@ Action schemas (all include "type": "action"):
 {"type": "action", "action": "revenue"}
 {"type": "action", "action": "top_genres", "days": 7, "limit": 15}
 {"type": "action", "action": "active"}
+{"type": "action", "action": "real_users", "limit": 40}
 {"type": "action", "action": "platforms"}
 {"type": "action", "action": "activity", "limit": 20}
 {"type": "action", "action": "prompts", "limit": 15}
@@ -1939,6 +2021,9 @@ def _execute_action(action: dict, chat_id: str = "") -> str:
 
     if act == "active":
         return _cmd_active()
+
+    if act == "real_users":
+        return _cmd_real_users(int(action.get("limit") or 40))
 
     if act == "platforms":
         return _cmd_platforms()
