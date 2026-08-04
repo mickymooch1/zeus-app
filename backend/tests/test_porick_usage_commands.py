@@ -173,3 +173,96 @@ def test_all_commands_are_dispatched_and_documented():
         assert f'if act == "{act}"' in src, f"{act} not dispatched"
         assert f'"action": "{act}"' in src, f"{act} missing from the agent prompt schema"
         assert f"- {act} —" in src, f"{act} missing from the capability list"
+
+
+# ── real_users: adoption outside the founder's own circle ────────────────────
+
+@pytest.fixture()
+def circle_db(tmp_path, monkeypatch):
+    """Founder + family + genuine outside users, spread over months."""
+    monkeypatch.setenv("ZEUS_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("INSIDER_EMAILS", raising=False)
+    import importlib
+    import db as _db
+    importlib.reload(_db)
+    import telegram_admin as _T
+    importlib.reload(_T)
+
+    p = _db.get_db_path()
+    now = datetime.now(timezone.utc)
+    for email, n, days_ago in [
+        ("dominic.rowle@yahoo.com", 40, 120),   # founder
+        ("dwrowle@gmail.com", 12, 100),         # family
+        ("laky120@yahoo.com", 6, 90),           # family
+        ("danielrowle@gmail.com", 4, 60),       # family
+        ("sarah.jones@gmail.com", 9, 45),       # outside
+        ("mike_t@hotmail.com", 2, 30),          # outside, light user
+    ]:
+        u = _db.create_user(p, email=email, password_hash="x", name="N", tc_accepted_at="n")
+        c = _db._conn(p)
+        c.execute("INSERT INTO lyrics (user_id,title,brief,lyrics_text,created_at) "
+                  "VALUES (?,?,?,?,datetime('now'))", (u["id"], "T", "b", "la"))
+        lid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
+        for i in range(n):
+            ts = (now - timedelta(days=max(0, days_ago - i))).strftime("%Y-%m-%d %H:%M:%S")
+            c.execute("""INSERT INTO song_variants
+                         (lyric_id,user_id,genre_tag,style_prompt,take_number,status,
+                          duration_seconds,created_at)
+                         VALUES (?,?,'grime','s',1,'complete',120,?)""", (lid, u["id"], ts))
+        c.commit()
+        c.close()
+    # Signed up, never created — must not be counted as a maker.
+    _db.create_user(p, email="lurker@gmail.com", password_hash="x", name="L", tc_accepted_at="n")
+    return _T
+
+
+def test_real_users_separates_the_circle_from_genuine_adoption(circle_db):
+    out = circle_db._cmd_real_users()
+    assert "<b>2</b> outside" in out          # sarah + mike
+    assert "4 yours" in out                   # founder + 3 family
+
+
+def test_real_users_counts_songs_not_just_people(circle_db):
+    """9 + 2 outside vs 40 + 12 + 6 + 4 = 62 inside."""
+    out = circle_db._cmd_real_users()
+    assert "<b>11</b> outside" in out
+    assert "62 yours" in out
+
+
+def test_real_users_covers_all_history_not_a_recent_window(circle_db):
+    """The oldest outside song is 45 days old and must still be included."""
+    out = circle_db._cmd_real_users()
+    assert "sarah.jones" in out and "9" in out
+
+
+def test_real_users_excludes_people_who_never_created(circle_db):
+    assert "lurker" not in circle_db._cmd_real_users()
+
+
+def test_real_users_names_who_it_excluded(circle_db):
+    """The number is meaningless without knowing what was filtered out."""
+    out = circle_db._cmd_real_users()
+    assert "Excluding:" in out
+    for tag in ["dwrowle", "laky120", "danielrowle", "dominic.rowle"]:
+        assert tag in out
+
+
+def test_insider_list_is_overridable_without_a_deploy(circle_db, monkeypatch):
+    """Porick: var set INSIDER_EMAILS=... — family then counts as outside."""
+    monkeypatch.setenv("INSIDER_EMAILS", "dominic.rowle")
+    out = circle_db._cmd_real_users()
+    assert "<b>5</b> outside" in out
+    assert "1 yours" in out
+
+
+def test_real_users_matching_is_case_insensitive(circle_db, monkeypatch):
+    monkeypatch.setenv("INSIDER_EMAILS", "DOMINIC.ROWLE")
+    assert "1 yours" in circle_db._cmd_real_users()
+
+
+def test_real_users_is_wired_up():
+    import telegram_admin as T
+    src = pathlib.Path(T.__file__).read_text(encoding="utf-8")
+    assert 'if act == "real_users"' in src
+    assert '"action": "real_users"' in src
+    assert "- real_users —" in src
