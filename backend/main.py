@@ -733,6 +733,7 @@ class RegisterRequest(BaseModel):
     # Optional by design — signup friction was removed deliberately (2026-07-29).
     # Names are also collected after the user's first song, where resistance is low.
     name: str = Field("", max_length=60)
+    platform: str | None = Field(default=None, max_length=20)  # web | android | ios
     tc_accepted: bool
     app: str = "ai"
     referral: str | None = None
@@ -819,6 +820,42 @@ class ContactMessage(BaseModel):
     email: str
     subject: str
     message: str
+
+
+# ── Platform attribution ─────────────────────────────────────────────────────
+
+_PLATFORMS = {"web", "android", "ios"}
+
+
+def _detect_platform(request: Request, explicit: str | None = None) -> str:
+    """Which client made this request: web | android | ios | unknown.
+
+    The client tells us via the X-Zeus-Platform header (or an explicit body
+    field), because the server CANNOT reliably work it out alone: an Android TWA
+    is backed by Chrome and sends an ordinary Chrome User-Agent. The reliable
+    signals are client-side — document.referrer starting "android-app://" for a
+    TWA, and the ?platform=ios-app param / window.webkit for the iOS shell.
+
+    The User-Agent check below is only a weak fallback so older app builds that
+    don't send the header still land somewhere better than "unknown". Anything
+    unrecognised stays "unknown" rather than being guessed into a real bucket.
+    """
+    raw = (explicit or request.headers.get("x-zeus-platform") or "").strip().lower()
+    # Accept the finer-grained values the clients may send.
+    alias = {"android-twa": "android", "twa": "android",
+             "ios-app": "ios", "ios-native": "ios", "ios-webview": "ios",
+             "browser": "web", "pwa": "web"}
+    raw = alias.get(raw, raw)
+    if raw in _PLATFORMS:
+        return raw
+
+    ua = (request.headers.get("user-agent") or "").lower()
+    if "zeusbeats" in ua:                       # native app custom UA, if ever set
+        if "android" in ua:
+            return "android"
+        if "iphone" in ua or "ipad" in ua or "ios" in ua:
+            return "ios"
+    return "unknown"
 
 
 # ── Auth routes ───────────────────────────────────────────────────────────────
@@ -918,6 +955,15 @@ async def register(request: Request, body: RegisterRequest):
     except Exception as exc:
         log.exception("register: create_user failed")
         raise HTTPException(status_code=500, detail=f"Could not create account: {exc}")
+
+    # Where this account came from — web, Play Store or App Store.
+    _platform = _detect_platform(request, body.platform)
+    try:
+        db.update_user(db_path, user["id"], signup_platform=_platform)
+        user["signup_platform"] = _platform
+    except Exception:
+        log.exception("register: failed to stamp signup_platform (non-fatal)")
+    log.info("register: platform=%s email=%s", _platform, body.email)
 
     # Create Stripe customer if Stripe is enabled
     if billing.stripe_enabled():
@@ -2105,6 +2151,7 @@ class SongsGenerateRequest(BaseModel):
     intermittent_vocals: bool = False    # mostly instrumental with sparse vocal hooks/ad libs
     inspired_by_descriptors: str | None = None  # from /api/songs/artist-style — SOUND, goes to Suno style
     inspired_by_theme: str | None = Field(default=None, max_length=400)  # same lookup — SUBJECT, goes to lyrics
+    platform: str | None = Field(default=None, max_length=20)  # web | android | ios — attribution only
     negative_tags: str | None = Field(default=None, max_length=500)  # → sunoParams.negative_tags
     song_title: str | None = None        # optional user-supplied title; overrides AI-generated title
     animate_cover: bool = True           # generate Kling animated video after song completes
@@ -2968,6 +3015,7 @@ async def songs_generate(
             kids_story=_is_story,
             intermittent_vocals=bool(body.intermittent_vocals and not body.instrumental),
             vocal_gender=body.vocal_gender or None,
+            platform=_detect_platform(request, body.platform),
         )
         log.info(
             "songs_generate: Apiframe submission ok user_id=%s lyric_id=%s variants=%r",

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { BACKEND_URL } from '../brand';
+import { PLATFORM } from '../utils/platform';
 
 const TOKEN_KEY = 'zeus_token';
 const USER_CACHE_KEY = 'zeus_user_cache';
@@ -136,7 +137,7 @@ export function AuthProvider({ children }) {
     const res = await fetch(`${BACKEND_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name, tc_accepted: tcAccepted, app, referral, fingerprint }),
+      body: JSON.stringify({ email, password, name, tc_accepted: tcAccepted, app, referral, fingerprint, platform: PLATFORM }),
     });
 
     const data = await res.json();

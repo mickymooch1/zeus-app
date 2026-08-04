@@ -8,6 +8,7 @@ import { EmailVerificationBanner } from '../components/EmailVerificationBanner';
 import { BACKEND_URL } from '../brand';
 import OnboardingTour from '../components/OnboardingTour';
 import { audioManager } from '../utils/audioManager';
+import { PLATFORM } from '../utils/platform';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
 import IOSWebViewBanner from '../components/IOSWebViewBanner';
 import { useOnlineStatus }  from '../hooks/useOnlineStatus';
@@ -1854,6 +1855,7 @@ export default function SongsPage() {
           negative_tags: negativeTags.trim() || undefined,
           genre_b: genreBlend && genreB ? genreB : undefined,
           blend_ratio: genreBlend && genreB ? blendRatio : undefined,
+          platform: PLATFORM,
           sound_control: soundControlPayload,
           healing_frequency: selGenres.has('healingfrequency') ? healingFrequency : undefined,
         };

@@ -40,6 +40,7 @@ Just talk to me naturally, mate! Examples:
 • <i>"What's today's revenue?"</i>
 • <i>"Top genres"</i> / <i>"top genres this week"</i>
 • <i>"How many people are actually active?"</i>
+• <i>"Web vs Android — which is busier?"</i>
 • <i>"What have people been making?"</i>
 • <i>"What are people asking for?"</i>
 • <i>"How many songs has laky120@yahoo.com made?"</i>
@@ -577,6 +578,47 @@ def _cmd_active() -> str:
             f"• Last 7 days: <b>{songs_7d}</b>\n\n"
             f"<i>{total_users - ever_created} signed up but never made a song.</i>"
         )
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+
+def _cmd_platforms() -> str:
+    """Web vs Android vs iOS — signups and songs.
+
+    Stamping started 2026-08-04 and CANNOT be backfilled, so everything created
+    before then reads as "unknown". That is reported as its own line rather than
+    hidden, otherwise early numbers look like a platform with no users.
+    """
+    try:
+        conn = _ro_conn()
+        try:
+            users = conn.execute(
+                "SELECT COALESCE(NULLIF(signup_platform,''),'unknown') p, COUNT(*) c "
+                "FROM users GROUP BY p ORDER BY c DESC").fetchall()
+            songs = conn.execute(
+                "SELECT COALESCE(NULLIF(platform,''),'unknown') p, COUNT(*) c, "
+                "       COUNT(DISTINCT user_id) u "
+                "FROM song_variants GROUP BY p ORDER BY c DESC").fetchall()
+            recent = conn.execute(
+                f"""SELECT COALESCE(NULLIF(platform,''),'unknown') p, COUNT(*) c
+                    FROM song_variants
+                    WHERE {_TS.format(col='created_at')} >= datetime('now','-7 days')
+                    GROUP BY p ORDER BY c DESC""").fetchall()
+        finally:
+            conn.close()
+
+        emoji = {"web": "🌐", "android": "🤖", "ios": "🍏", "unknown": "❔"}
+        out = ["📱 <b>Platform split</b>", "", "<b>Signups</b>"]
+        out += [f"{emoji.get(r['p'],'•')} {_esc(r['p'])}: <b>{r['c']}</b>" for r in users] or ["—"]
+        out += ["", "<b>Songs made (all time)</b>"]
+        out += [f"{emoji.get(r['p'],'•')} {_esc(r['p'])}: <b>{r['c']}</b> "
+                f"<i>({r['u']} {'user' if r['u'] == 1 else 'users'})</i>" for r in songs] or ["—"]
+        if recent:
+            out += ["", "<b>Songs — last 7 days</b>"]
+            out += [f"{emoji.get(r['p'],'•')} {_esc(r['p'])}: <b>{r['c']}</b>" for r in recent]
+        out += ["", "<i>Platform stamping began 4 Aug 2026 — anything older "
+                    "counts as unknown and can't be backfilled.</i>"]
+        return "\n".join(out)
     except Exception as exc:
         return f"❌ DB error: {exc}"
 
@@ -1631,6 +1673,7 @@ Your capabilities:
 - revenue — today / week / month revenue from Stripe
 - top_genres — most-used genres (all time by default; pass "days" to narrow)
 - active — real engagement: signups vs users who actually made a song (24h/7d/30d)
+- platforms — web vs Android vs iOS: signups and songs made on each
 - activity — recent song feed: who made what genre, and when
 - prompts — what people are actually typing into the brief box
 - user_songs — one user's song count, genres and recent prompts (needs email)
@@ -1666,6 +1709,7 @@ Action schemas (all include "type": "action"):
 {"type": "action", "action": "revenue"}
 {"type": "action", "action": "top_genres", "days": 7, "limit": 15}
 {"type": "action", "action": "active"}
+{"type": "action", "action": "platforms"}
 {"type": "action", "action": "activity", "limit": 20}
 {"type": "action", "action": "prompts", "limit": 15}
 {"type": "action", "action": "user_songs", "email": "..."}
@@ -1895,6 +1939,9 @@ def _execute_action(action: dict, chat_id: str = "") -> str:
 
     if act == "active":
         return _cmd_active()
+
+    if act == "platforms":
+        return _cmd_platforms()
 
     if act == "activity":
         return _cmd_activity(int(action.get("limit") or 20))

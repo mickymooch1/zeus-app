@@ -353,6 +353,14 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             # Supports the single-query library load (get_all_variants_for_user),
             # which filters song_variants by user_id.
             "CREATE INDEX IF NOT EXISTS idx_song_variants_user ON song_variants (user_id)",
+            # Platform attribution (added 2026-08-04). One of web / android / ios
+            # / unknown. Cannot be backfilled — rows created before this ships stay
+            # NULL, so always report "since <date>" rather than implying all-time.
+            # signup_platform = where the account was acquired;
+            # song_variants.platform = where each song was actually made.
+            "ALTER TABLE users ADD COLUMN signup_platform TEXT",
+            "ALTER TABLE song_variants ADD COLUMN platform TEXT",
+            "CREATE INDEX IF NOT EXISTS idx_song_variants_platform ON song_variants (platform)",
         ]:
             try:
                 conn.execute(_migration)
