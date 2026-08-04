@@ -153,6 +153,7 @@ export function CreateSongScreen() {
           genres:              [genre],
           instrumental:        vocalMode === 'instrumental' || undefined,
           intermittent_vocals: vocalMode === 'intermittent' || undefined,
+          platform:            'ios',   // attribution — which store this song came from
         }),
       });
 
