@@ -513,10 +513,84 @@ def _apply_rapidfire_section_tags(lyrics_text: str) -> str:
     return text
 
 
+# ── Title generation ─────────────────────────────────────────────────────────
+
+_TITLE_MODEL = "claude-haiku-4-5-20251001"
+
+_TITLE_SYSTEM = """You name songs. Given a song's lyrics, genre and brief, return ONE title.
+
+Rules:
+- 2 to 5 words. Short and memorable beats clever and long.
+- It must fit THIS genre's world. A grime track and an opera aria should not
+  sound like they were named by the same person.
+- Pull an actual image, phrase or hook from the lyrics where you can — a title
+  that echoes a line people will remember is far better than an abstract mood word.
+- Never reuse the title of a real, existing song. Invent something original.
+- No quotation marks, no punctuation at the end, no explanation, no markdown.
+- Title Case.
+
+Return ONLY the title text. Nothing else."""
+
+
+def generate_song_title(
+    lyrics_text: str | None,
+    brief: str | None = None,
+    genres: list[str] | None = None,
+    fallback: str = "Untitled",
+) -> str:
+    """Name a song with Haiku, from its lyrics, genre and brief.
+
+    Added 2026-08-05. Previously titles were an afterthought: the lyric prompt
+    asked for a "title" field with no guidance at all among its 18 rules about
+    lyrics, and two paths had no AI title whatsoever — every instrumental was
+    called "Instrumental" and every custom-lyrics song "Custom Song".
+
+    Never raises and never returns empty: on any failure the caller's existing
+    title stands, because a mediocre title must never cost someone their song.
+    """
+    genre_str = ", ".join(genres or []) or "unspecified"
+    body = (lyrics_text or "").strip()
+    if not body and not (brief or "").strip():
+        return fallback
+
+    parts = [f"Genre: {genre_str}"]
+    if (brief or "").strip():
+        parts.append(f"Brief: {brief.strip()[:300]}")
+    if body:
+        parts.append(f"Lyrics:\n{body[:2000]}")
+    else:
+        parts.append("This is an instrumental — there are no lyrics. "
+                     "Name it from the genre and brief.")
+
+    try:
+        resp = Anthropic().messages.create(
+            model=_TITLE_MODEL,
+            max_tokens=32,
+            temperature=1.0,
+            system=_TITLE_SYSTEM,
+            messages=[{"role": "user", "content": "\n\n".join(parts)}],
+        )
+        title = (resp.content[0].text or "").strip()
+    except Exception:
+        logger.exception("generate_song_title: Haiku call failed — keeping %r", fallback)
+        return fallback
+
+    # Haiku occasionally wraps it or adds a trailing full stop despite the rules.
+    title = title.strip().strip('"').strip("'").strip()
+    title = title.split("\n")[0].strip().rstrip(".")
+    if not title or len(title) > 60:
+        logger.warning("generate_song_title: unusable title %r — keeping %r", title[:80], fallback)
+        return fallback
+    logger.info("generate_song_title: genre=%r title=%r", genre_str, title)
+    return title
+
+
 def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: bool = False, instrumental: bool = False, song_title: str | None = None, genres: list[str] | None = None, genre_b: str | None = None, blend_ratio: int | None = None, kids_story: bool = False, kids_mode: str = 'song', accent: str | None = None, story_language: str | None = None, character_voice: str | None = None, child_voice: str | None = None, lyrics_language: str | None = None, roast_mode: bool = False, roast_name: str | None = None, roast_details: str | None = None, roast_vibe: str | None = None, bilingual_mode: bool = False, intermittent_vocals: bool = False, inspired_by_theme: str | None = None) -> dict:
     _need_translation = False  # initialised here so all code paths have a value
     if instrumental:
-        title = song_title or "Instrumental"
+        # Was literally "Instrumental" for every instrumental ever made.
+        title = song_title or generate_song_title(
+            None, brief=brief, genres=genres, fallback="Instrumental")
         conn = db._conn(db_path)
         try:
             cur = conn.cursor()
@@ -939,7 +1013,10 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         logger.exception("generate_lyrics: JSON parse failed — raw=%r", raw[:500])
         raise
 
-    final_title = song_title or parsed["title"]
+    # A user-supplied title always wins. Otherwise name it properly from the
+    # finished lyrics rather than using the unguided one Sonnet tacked on.
+    final_title = song_title or generate_song_title(
+        parsed["lyrics"], brief=brief, genres=genres, fallback=parsed["title"])
 
     _lyrics_text = parsed["lyrics"]
     if intermittent_vocals:
@@ -974,7 +1051,10 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
 
 def store_custom_lyrics(user_id: str, brief: str, lyrics_text: str, db_path: pathlib.Path, song_title: str | None = None, intermittent_vocals: bool = False, genre: str | None = None) -> dict:
     """Store user-supplied lyrics directly without calling Claude."""
-    title = song_title or "Custom Song"
+    # Was literally "Custom Song" every time. Their words, so name it from them —
+    # this is the only Claude call on this path and it costs a fraction of a second.
+    title = song_title or generate_song_title(
+        lyrics_text, brief=brief, genres=[genre] if genre else None, fallback="Custom Song")
     if intermittent_vocals:
         lyrics_text = build_intermittent_hook(lyrics_text, genre=genre)
     conn = db._conn(db_path)
