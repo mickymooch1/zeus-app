@@ -9,6 +9,7 @@ import { BACKEND_URL } from '../brand';
 import OnboardingTour from '../components/OnboardingTour';
 import { audioManager } from '../utils/audioManager';
 import { PLATFORM } from '../utils/platform';
+import { startGenerationPoll } from '../utils/generationPoller';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
 import IOSWebViewBanner from '../components/IOSWebViewBanner';
 import { useOnlineStatus }  from '../hooks/useOnlineStatus';
@@ -21,12 +22,6 @@ import LyricsModal          from '../components/LyricsModal';
 // user who isn't interested is never asked twice.
 const NAME_PROMPT_KEY = 'zeus_name_prompt_done';
 
-// Generation progress polling. Measured end-to-end time in production is
-// ~1m45s–2m45s, so the ceiling sits well clear of a normal slow run while still
-// guaranteeing the card cannot spin forever.
-const POLL_INTERVAL_MS = 5_000;
-const MAX_JOB_MS = 5 * 60 * 1000;
-const POLL_FAILURES_BEFORE_WARNING = 6;   // ~30s of consecutive failures
 
 const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','deephouse','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','scat','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos','healingfrequency','purebassline'];
 const GENRE_LABEL = { bluegrass:'Bluegrass', britpop:'Britpop', indierock:'Indie Rock', folk:'Folk', acousticballad:'Acoustic Ballad', folkblues:'Folk Blues', roots:'Roots', acousticblues:'Acoustic Blues', patriotic:'Patriotic', hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', deephouse:'Deep House', dancehouse:'Dance House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', scat:'Scat Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', bluesrock:'Blues Rock', hardrock:'Hard Rock', punkrock:'Punk Rock', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', countrypop:'Country Pop', southemsoul:'Southern Soul', soulrnb:'Soul R&B', orchestralsoul:'Orchestral Soul', classicfunk:'Classic Funk', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', westcoasthiphop:'West Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', trance:'Trance', triphop:'Trip-Hop', salsa:'Salsa', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', ambient:'Ambient', christmas:'Christmas', corridos:'Corridos', healingfrequency:'Healing Frequencies', naturesounds:'Nature Sounds', whalesong:'Whale Song', cracklingfire:'Crackling Fire', thunderstorm:'Thunderstorm', oceanwaves:'Ocean Waves', forest:'Forest', nightsounds:'Night Sounds', purebassline:'Pure Bassline', psychedelicguitar:'Psychedelic Guitar', saxophone:'Saxophone', pianosolo:'Piano', violinsolo:'Violin', electricbluesguitar:'Blues Guitar', trumpet:'Trumpet', flamencoguitar:'Flamenco Guitar' };
@@ -1653,71 +1648,47 @@ export default function SongsPage() {
     pollFailuresRef.current = 0;
     setPollWarning('');
 
-    const trackedIds = new Set(activeJob.variants.map((v) => v.variant_id));
-    let stopped = false;
-
-    const finish = async () => {
-      if (stopped) return;
-      stopped = true;
-      clearInterval(pollTimerRef.current);
-      setPollWarning('');
-      try { await Promise.all([fetchCredits(), fetchLibrary()]); } catch (_) {}
-      setActiveJob(null);
-    };
-
-    const tick = async () => {
-      if (stopped) return;
-
-      // Safety net: never spin indefinitely. Generation measures ~2 min; past
-      // MAX_JOB_MS something is wrong upstream, so fall back to the library —
-      // where a finished song will be waiting — instead of showing a dead card.
-      if (Date.now() - jobStartedRef.current.at > MAX_JOB_MS) {
-        console.warn('[SongsPage] generation exceeded the time limit — falling back to the library');
-        await finish();
-        return;
-      }
-
-      try {
+    const poller = startGenerationPoll({
+      trackedIds: activeJob.variants.map((v) => v.variant_id),
+      fetchVariants: async () => {
         const r = await fetch(`${BACKEND_URL}/api/lyrics/${lyricId}/variants`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!r.ok) throw new Error(`variants → ${r.status}`);
-        const d = await r.json();
-
-        pollFailuresRef.current = 0;
+        return (await r.json()).variants;
+      },
+      onUpdate: (mine) => {
+        setActiveJob((prev) => (prev ? {
+          ...prev,
+          variants: mine.map((v) => ({ ...v, title: prev.title })),
+        } : prev));
+      },
+      onSettled: async ({ anyComplete, reason }) => {
+        if (reason === 'expired') {
+          console.warn('[SongsPage] generation exceeded the time limit — reloading the library');
+        }
+        if (anyComplete && !user?.name &&
+            localStorage.getItem(NAME_PROMPT_KEY) !== 'true') {
+          setNamePrompt(true);
+        }
         setPollWarning('');
+        // Always reload: on the expiry path this is what makes a finished song
+        // appear by itself, with no manual refresh.
+        try { await Promise.all([fetchCredits(), fetchLibrary()]); } catch (_) {}
+        setActiveJob(null);
+      },
+      onTrouble: (failures) => {
+        pollFailuresRef.current = failures;
+        setPollWarning(failures
+          ? "Still working — we're having trouble checking progress, but your song is being made."
+          : '');
+      },
+      now: () => Date.now(),
+      startedAt: jobStartedRef.current.at,
+    });
+    pollTimerRef.current = poller;
 
-        const mine = (d.variants || []).filter((v) => trackedIds.has(v.variant_id));
-        if (mine.length) {
-          setActiveJob((prev) => (prev ? {
-            ...prev,
-            variants: mine.map((v) => ({ ...v, title: prev.title })),
-          } : prev));
-        }
-
-        // Requires mine.length — an empty response must not read as "settled"
-        // ([].every() is vacuously true). If it stays empty the wall clock ends it.
-        const settled = mine.length > 0 &&
-          mine.every((v) => v.status === 'complete' || v.status === 'failed');
-        if (settled) {
-          if (mine.some((v) => v.status === 'complete') && !user?.name &&
-              localStorage.getItem(NAME_PROMPT_KEY) !== 'true') {
-            setNamePrompt(true);
-          }
-          await finish();
-        }
-      } catch (err) {
-        // Keep polling. One bad request must never end the loop.
-        pollFailuresRef.current += 1;
-        if (pollFailuresRef.current === POLL_FAILURES_BEFORE_WARNING) {
-          console.warn('[SongsPage] progress checks failing:', err);
-          setPollWarning("Still working — we're having trouble checking progress, but your song is being made.");
-        }
-      }
-    };
-
-    pollTimerRef.current = setInterval(tick, POLL_INTERVAL_MS);
-    return () => { stopped = true; clearInterval(pollTimerRef.current); };
+    return () => poller.stop();
   }, [activeJob?.lyric_id, token, fetchCredits, fetchLibrary, user?.name]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
