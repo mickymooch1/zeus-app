@@ -73,6 +73,9 @@ GENRE_PRESETS = {
     # GENRE_MOOD_DIRECTIVES["scat"] in lyrics.py, which makes the "lyrics"
     # vocables rather than words; without that Suno sings ordinary words over a
     # jazz backing and it isn't scat at all.
+    # Descriptors only — no composer or singer names (see the bassline-family
+    # place-name bleed: anything named in the style string can end up sung).
+    "opera":           "classical opera, powerful operatic vocals, soaring dramatic soprano and tenor, grand orchestral accompaniment, sweeping strings, rich vibrato, theatrical emotional delivery, classical aria structure, cinematic orchestration, majestic and dramatic, bel canto vocal style",
     "scat":            "vintage jazz, scat singing, improvised wordless vocals, nonsense syllables, doo-bop vocables, swing rhythm, upright bass, brushed drums, walking bassline, playful improvised vocal solos emulating horn phrasing, warm big band jazz, 1940s-50s jazz vocal sound",
     "vocaljazz":       "vocal jazz, smooth jazz vocals, intimate crooning, piano and upright bass, brushed drums, sophisticated jazz harmony, lounge jazz atmosphere, warm emotional delivery, classic jazz standards feel, velvet smooth singing, late night jazz club mood",
     "electronicfunk":  "electronic funk, talk box vocoder vocals, smooth slow funk groove, electronic synthesizer bassline, French electronic funk production style, 95 BPM, soulful R&B feeling, warm analogue synths, silky smooth production, 80s electro funk, vocoder robot voice effect, late night smooth groove",

@@ -26,7 +26,7 @@ const GENRE_LABEL = {
   trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap',
   synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul',
   meditation:'Meditation', christmas:'Christmas', corridos:'Corridos',
-  healingfrequency:'Healing Frequency', swing:'Swing', vocaljazz:'Vocal Jazz', scat:'Scat Jazz',
+  healingfrequency:'Healing Frequency', swing:'Swing', vocaljazz:'Vocal Jazz', scat:'Scat Jazz', opera:'Opera',
   traditionalpop:'Traditional Pop', rocknroll:"Rock 'n' Roll",
   southemsoul:'Southern Soul', countryamericana:'Country Americana',
 };

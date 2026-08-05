@@ -1,4 +1,4 @@
-"""Scat Jazz genre registration (2026-08-02).
+"""Vocal-forward genre registration: Scat Jazz (2026-08-02), Opera (2026-08-05).
 
 Two things make this genre work, and the second is easy to forget: the style
 string tells Suno how it should SOUND, and the lyric directive makes the sung
@@ -72,3 +72,59 @@ def test_scat_label_present_in_display_maps():
                 "web-beats/src/pages/SongSharePage.jsx"]:
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert "scat:" in s, rel
+
+
+# ── Opera (2026-08-05) ───────────────────────────────────────────────────────
+# Descriptors only. Composer and singer names are barred for the same reason
+# place names were stripped from the bassline family: anything named in a style
+# string can end up sung, and it invites impersonation of real performers.
+
+_OPERA_NAMES = ["pavarotti", "callas", "verdi", "puccini", "mozart", "domingo",
+                "bocelli", "wagner", "rossini", "bizet", "sutherland"]
+
+
+def test_opera_preset_exists():
+    assert "opera" in GENRE_PRESETS
+    assert len(GENRE_PRESETS["opera"]) > 80
+
+
+def test_opera_style_has_no_composer_or_singer_names():
+    style = GENRE_PRESETS["opera"].lower()
+    for name in _OPERA_NAMES:
+        assert name not in style, f"opera style names {name!r}"
+
+
+def test_opera_style_describes_the_voice_and_the_orchestra():
+    style = GENRE_PRESETS["opera"].lower()
+    for token in ["operatic vocals", "soprano", "orchestral", "vibrato", "bel canto"]:
+        assert token in style, token
+
+
+def test_opera_registered_in_web_app():
+    s = (_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
+    assert "'opera'" in s, "missing from the GENRES list"
+    assert "opera:'Opera'" in s, "missing its label"
+    assert "'classical','opera'" in s, "missing from the classical category group"
+    assert s.count("opera:'Opera'") == 1, "duplicate object key"
+
+
+def test_opera_registered_in_ios_app():
+    s = (_ROOT / "zeus-beats-ios" / "src" / "screens" / "CreateSongScreen.tsx").read_text(encoding="utf-8")
+    assert "opera:'Opera'" in s
+    assert "'classical','opera'" in s
+    assert s.count("opera:'Opera'") == 1, "duplicate object key"
+
+
+def test_opera_label_present_in_display_maps():
+    for rel in ["web-beats/src/components/NowPlayingBar.jsx",
+                "web-beats/src/pages/PlaylistPage.jsx",
+                "web-beats/src/pages/SongSharePage.jsx"]:
+        s = (_ROOT / rel).read_text(encoding="utf-8")
+        assert "opera:'Opera'" in s, rel
+        assert s.count("opera:'Opera'") == 1, f"duplicate key in {rel}"
+
+
+def test_searching_opera_maps_to_the_genre():
+    """The Search page's fuzzy text->genre matcher should resolve "opera"."""
+    s = (_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
+    assert "['opera', 'opera']" in s

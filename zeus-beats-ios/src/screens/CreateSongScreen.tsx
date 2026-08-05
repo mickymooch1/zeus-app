@@ -44,7 +44,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'pop',        label: '🎶 Pop & Hip Hop',       color: '#f472b6',
     genres: ['pop','patriotic','trap','eastcoasthiphop','westcoasthiphop','poprap','kpop','hiphop'] },
   { id: 'chill',      label: '🧘 Chill & Wellness',    color: '#e2e8f0',
-    genres: ['lofi','meditation','ambient','healingfrequency','naturesounds','whalesong','cracklingfire','thunderstorm','oceanwaves','forest','nightsounds','classical','acoustic','jazz','irishfolk','irishjig','christmas'] },
+    genres: ['lofi','meditation','ambient','healingfrequency','naturesounds','whalesong','cracklingfire','thunderstorm','oceanwaves','forest','nightsounds','classical','opera','acoustic','jazz','irishfolk','irishjig','christmas'] },
   { id: 'instrumental_solo', label: '🎷 Instrumental & Solo', color: '#a78bfa',
     genres: ['saxophone','pianosolo','violinsolo','electricbluesguitar','psychedelicguitar','trumpet','flamencoguitar'] },
 ];
@@ -58,7 +58,7 @@ const GENRE_LABEL: Record<string, string> = {
   loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues',
   ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk',
   jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub',
-  deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', scat:'Scat Jazz',
+  deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', scat:'Scat Jazz', opera:'Opera',
   electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga',
   dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', bluesrock:'Blues Rock', hardrock:'Hard Rock', punkrock:'Punk Rock',
   reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae',
