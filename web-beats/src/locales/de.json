@@ -106,7 +106,7 @@
     "selectStyleBtn": "Wähle einen Stil zum Generieren",
     "generatingBtn": "Text wird generiert…",
     "redirecting": "Weiterleitung…",
-    "generatingStatus": "Wird generiert — in ca. 60 Sekunden fertig",
+    "generatingStatus": "Wird generiert — meist in etwa 2 Minuten fertig",
     "yourSongs": "Deine Songs",
     "loadMore": "Mehr laden ({{count}} verbleibend)",
     "emptySongs": "Noch keine Songs — erstelle deinen ersten oben.",

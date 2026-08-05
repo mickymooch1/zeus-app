@@ -112,7 +112,7 @@
     "selectStyleBtn": "选择风格以生成",
     "generatingBtn": "正在生成歌词…",
     "redirecting": "跳转中…",
-    "generatingStatus": "生成中 — 通常60秒内完成",
+    "generatingStatus": "生成中 — 通常2分钟左右完成",
     "yourSongs": "我的歌曲",
     "loadMore": "加载更多（剩余{{count}}首）",
     "emptySongs": "暂无歌曲 — 在上方创建您的第一首。",

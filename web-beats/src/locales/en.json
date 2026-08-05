@@ -112,7 +112,7 @@
     "selectStyleBtn": "Select a style to generate",
     "generatingBtn": "Generating lyrics…",
     "redirecting": "Redirecting…",
-    "generatingStatus": "Generating — usually ready in 60 seconds",
+    "generatingStatus": "Generating — usually ready in about 2 minutes",
     "yourSongs": "Your Songs",
     "loadMore": "Load more ({{count}} remaining)",
     "emptySongs": "No songs yet — create your first one above.",

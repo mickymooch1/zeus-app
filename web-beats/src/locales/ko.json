@@ -112,7 +112,7 @@
     "selectStyleBtn": "스타일을 선택하여 생성",
     "generatingBtn": "가사 생성 중…",
     "redirecting": "이동 중…",
-    "generatingStatus": "생성 중 — 보통 60초 안에 완성",
+    "generatingStatus": "생성 중 — 보통 2분 정도면 완성",
     "yourSongs": "내 노래",
     "loadMore": "더 불러오기 ({{count}}개 남음)",
     "emptySongs": "노래가 없습니다 — 위에서 첫 번째 곡을 만들어보세요.",
