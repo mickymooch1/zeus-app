@@ -21,6 +21,13 @@ import LyricsModal          from '../components/LyricsModal';
 // user who isn't interested is never asked twice.
 const NAME_PROMPT_KEY = 'zeus_name_prompt_done';
 
+// Generation progress polling. Measured end-to-end time in production is
+// ~1m45s–2m45s, so the ceiling sits well clear of a normal slow run while still
+// guaranteeing the card cannot spin forever.
+const POLL_INTERVAL_MS = 5_000;
+const MAX_JOB_MS = 5 * 60 * 1000;
+const POLL_FAILURES_BEFORE_WARNING = 6;   // ~30s of consecutive failures
+
 const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','deephouse','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','deeprotbassline','jazz','swing','vocaljazz','scat','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos','healingfrequency','purebassline'];
 const GENRE_LABEL = { bluegrass:'Bluegrass', britpop:'Britpop', indierock:'Indie Rock', folk:'Folk', acousticballad:'Acoustic Ballad', folkblues:'Folk Blues', roots:'Roots', acousticblues:'Acoustic Blues', patriotic:'Patriotic', hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', deephouse:'Deep House', dancehouse:'Dance House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', scat:'Scat Jazz', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', bluesrock:'Blues Rock', hardrock:'Hard Rock', punkrock:'Punk Rock', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', countrypop:'Country Pop', southemsoul:'Southern Soul', soulrnb:'Soul R&B', orchestralsoul:'Orchestral Soul', classicfunk:'Classic Funk', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', westcoasthiphop:'West Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', trance:'Trance', triphop:'Trip-Hop', salsa:'Salsa', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', ambient:'Ambient', christmas:'Christmas', corridos:'Corridos', healingfrequency:'Healing Frequencies', naturesounds:'Nature Sounds', whalesong:'Whale Song', cracklingfire:'Crackling Fire', thunderstorm:'Thunderstorm', oceanwaves:'Ocean Waves', forest:'Forest', nightsounds:'Night Sounds', purebassline:'Pure Bassline', psychedelicguitar:'Psychedelic Guitar', saxophone:'Saxophone', pianosolo:'Piano', violinsolo:'Violin', electricbluesguitar:'Blues Guitar', trumpet:'Trumpet', flamencoguitar:'Flamenco Guitar' };
 const GENRE_CATEGORIES = [
@@ -259,7 +266,7 @@ function SkeletonCard({ genre }) {
         <div style={{ height: 13, borderRadius: 4, background: 'rgba(255,255,255,0.04)', width: '60%', marginBottom: 10 }} />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {genre && <span style={{ ...S.pill, color: genreColor(genre), borderColor: genreColor(genre) + '55', background: genreColor(genre) + '14' }}>{gLabel(genre)}</span>}
-          <span style={{ color: '#444', fontSize: 12 }}>~60s</span>
+          <span style={{ color: '#444', fontSize: 12 }}>~2 min</span>
         </div>
       </div>
     </div>
@@ -1381,6 +1388,10 @@ export default function SongsPage() {
 
   const activeWsRef     = useRef(null);
   const pollTimerRef    = useRef(null);
+  const pollFailuresRef = useRef(0);
+  const jobStartedRef   = useRef({ id: null, at: 0 });
+  // Shown only after repeated failures — a single blip is invisible and harmless.
+  const [pollWarning, setPollWarning] = useState('');
   const photoInputRef   = useRef(null);
   const portraitPollRef = useRef(null);
   const recognitionRef  = useRef(null);
@@ -1617,43 +1628,97 @@ export default function SongsPage() {
     return () => clearTimeout(t);
   }, [showWelcome]);
 
+  // Generation progress polling.
+  //
+  // This used to be a one-shot setTimeout that re-armed ONLY as a side effect of
+  // succeeding: the next poll was scheduled by the effect re-running, and the
+  // effect only re-ran because setActiveJob changed `activeJob`. So a single
+  // failed request — a timeout, a dropped connection, a 502, a throttled
+  // background tab — skipped setActiveJob, the effect never re-ran, and polling
+  // stopped DEAD. The song finished perfectly on the server while the card sat
+  // on "usually ready in…" until the user refreshed the page.
+  //
+  // Now: a setInterval keyed to the job (not to the mutable activeJob object),
+  // so ticks keep coming regardless of any individual failure, plus a wall-clock
+  // stop so nothing can spin forever.
   useEffect(() => {
-    if (!activeJob) return;
-    const allSettled = activeJob.variants.every(
-      (v) => v.status === 'complete' || v.status === 'failed'
-    );
-    if (allSettled) {
-      // They've just heard a track — the warmest moment to ask for a name.
-      // Only if we don't have one, and only ever once.
-      const anyComplete = activeJob.variants.some((v) => v.status === 'complete');
-      if (anyComplete && !user?.name && localStorage.getItem(NAME_PROMPT_KEY) !== 'true') {
-        setNamePrompt(true);
-      }
-      Promise.all([fetchCredits(), fetchLibrary()]).then(() => setActiveJob(null));
-      return;
+    const lyricId = activeJob?.lyric_id;
+    if (!lyricId) return;
+
+    // Anchored to the job id so an effect restart (e.g. user?.name changing when
+    // the name prompt is answered) can't silently extend the deadline.
+    if (jobStartedRef.current.id !== lyricId) {
+      jobStartedRef.current = { id: lyricId, at: Date.now() };
     }
-    pollTimerRef.current = setTimeout(async () => {
+    pollFailuresRef.current = 0;
+    setPollWarning('');
+
+    const trackedIds = new Set(activeJob.variants.map((v) => v.variant_id));
+    let stopped = false;
+
+    const finish = async () => {
+      if (stopped) return;
+      stopped = true;
+      clearInterval(pollTimerRef.current);
+      setPollWarning('');
+      try { await Promise.all([fetchCredits(), fetchLibrary()]); } catch (_) {}
+      setActiveJob(null);
+    };
+
+    const tick = async () => {
+      if (stopped) return;
+
+      // Safety net: never spin indefinitely. Generation measures ~2 min; past
+      // MAX_JOB_MS something is wrong upstream, so fall back to the library —
+      // where a finished song will be waiting — instead of showing a dead card.
+      if (Date.now() - jobStartedRef.current.at > MAX_JOB_MS) {
+        console.warn('[SongsPage] generation exceeded the time limit — falling back to the library');
+        await finish();
+        return;
+      }
+
       try {
-        const r = await fetch(`${BACKEND_URL}/api/lyrics/${activeJob.lyric_id}/variants`, {
+        const r = await fetch(`${BACKEND_URL}/api/lyrics/${lyricId}/variants`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (r.ok) {
-          const d = await r.json();
-          setActiveJob((prev) => {
-            if (!prev) return null;
-            const tracked = new Set(prev.variants.map((v) => v.variant_id));
-            return {
-              ...prev,
-              variants: d.variants
-                .filter((v) => tracked.has(v.variant_id))
-                .map((v) => ({ ...v, title: prev.title })),
-            };
-          });
+        if (!r.ok) throw new Error(`variants → ${r.status}`);
+        const d = await r.json();
+
+        pollFailuresRef.current = 0;
+        setPollWarning('');
+
+        const mine = (d.variants || []).filter((v) => trackedIds.has(v.variant_id));
+        if (mine.length) {
+          setActiveJob((prev) => (prev ? {
+            ...prev,
+            variants: mine.map((v) => ({ ...v, title: prev.title })),
+          } : prev));
         }
-      } catch (_) {}
-    }, 5000);
-    return () => clearTimeout(pollTimerRef.current);
-  }, [activeJob, token, fetchCredits, fetchLibrary, user?.name]);
+
+        // Requires mine.length — an empty response must not read as "settled"
+        // ([].every() is vacuously true). If it stays empty the wall clock ends it.
+        const settled = mine.length > 0 &&
+          mine.every((v) => v.status === 'complete' || v.status === 'failed');
+        if (settled) {
+          if (mine.some((v) => v.status === 'complete') && !user?.name &&
+              localStorage.getItem(NAME_PROMPT_KEY) !== 'true') {
+            setNamePrompt(true);
+          }
+          await finish();
+        }
+      } catch (err) {
+        // Keep polling. One bad request must never end the loop.
+        pollFailuresRef.current += 1;
+        if (pollFailuresRef.current === POLL_FAILURES_BEFORE_WARNING) {
+          console.warn('[SongsPage] progress checks failing:', err);
+          setPollWarning("Still working — we're having trouble checking progress, but your song is being made.");
+        }
+      }
+    };
+
+    pollTimerRef.current = setInterval(tick, POLL_INTERVAL_MS);
+    return () => { stopped = true; clearInterval(pollTimerRef.current); };
+  }, [activeJob?.lyric_id, token, fetchCredits, fetchLibrary, user?.name]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const processingIds = Object.entries(didStatus)
@@ -3912,6 +3977,11 @@ export default function SongsPage() {
                   {t('songs.generatingStatus')}
                 </span>
               </div>
+              {pollWarning && (
+                <p style={{ margin: '0 0 12px', fontSize: 12, color: '#fbbf24', lineHeight: 1.5 }}>
+                  ⏳ {pollWarning}
+                </p>
+              )}
               <div className="songs-grid" style={S.grid}>
                 {activeJob.variants.map((v) =>
                   v.status === 'complete' || v.status === 'failed' ? (

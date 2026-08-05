@@ -106,7 +106,7 @@
     "selectStyleBtn": "Sélectionnez un style pour générer",
     "generatingBtn": "Génération des paroles…",
     "redirecting": "Redirection…",
-    "generatingStatus": "Génération — prête en général en 60 secondes",
+    "generatingStatus": "Génération — prête en général en 2 minutes environ",
     "yourSongs": "Vos chansons",
     "loadMore": "Charger plus ({{count}} restants)",
     "emptySongs": "Pas encore de chansons — créez votre première ci-dessus.",

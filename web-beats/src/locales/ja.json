@@ -112,7 +112,7 @@
     "selectStyleBtn": "スタイルを選択して生成",
     "generatingBtn": "歌詞を生成中…",
     "redirecting": "リダイレクト中…",
-    "generatingStatus": "生成中 — 通常60秒以内に完成",
+    "generatingStatus": "生成中 — 通常2分ほどで完成",
     "yourSongs": "あなたの楽曲",
     "loadMore": "もっと読み込む（残り{{count}}曲）",
     "emptySongs": "楽曲がありません — 上で最初の曲を作成してください。",
