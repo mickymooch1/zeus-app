@@ -101,8 +101,6 @@
     "vocalsOn": "🎵 有人声",
     "vocalsOff": "🎹 纯音乐",
     "vocalsIntermittent": "🎤 偶尔人声",
-    "animatedCoverOn": "动态封面",
-    "animatedCoverOff": "动态封面（关）",
     "explicitLabel": "成人内容",
     "explicitWarning": "可能包含强烈语言。您对生成的内容负责。",
     "creditInfo": "将使用您剩余{{balance}}个积分中的{{cost}}个。",
@@ -370,7 +368,7 @@
         },
         "coverArt": {
           "title": "电影级封面",
-          "desc": "每张封面都自带流畅的Ken Burns电影运镜效果，所有用户免费使用。升级即可获得Kling AI驱动的高清动态视频封面。"
+          "desc": "每张封面都自带流畅的Ken Burns电影运镜效果，所有用户免费使用。"
         },
         "avatarVideos": {
           "title": "头像口型同步视频",

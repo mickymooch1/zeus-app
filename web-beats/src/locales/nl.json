@@ -101,8 +101,6 @@
     "vocalsOn": "🎵 Zang",
     "vocalsOff": "🎹 Instrumentaal",
     "vocalsIntermittent": "🎤 Incidentele zang",
-    "animatedCoverOn": "Geanimeerde hoes",
-    "animatedCoverOff": "Geanimeerde hoes (uit)",
     "explicitLabel": "Expliciete inhoud",
     "explicitWarning": "Kan sterk taalgebruik bevatten. Jij bent verantwoordelijk voor de gegenereerde inhoud.",
     "creditInfo": "Gebruikt {{cost}} van je {{balance}} resterende credits.",
@@ -370,7 +368,7 @@
         },
         "coverArt": {
           "title": "Filmische hoes",
-          "desc": "Elke hoes krijgt een vloeiend cinematisch Ken Burns-effect — gratis voor alle gebruikers. Upgrade naar HD-videoanimatie van Kling AI voor echte videohoezen."
+          "desc": "Elke hoes krijgt een vloeiend cinematisch Ken Burns-effect — gratis voor alle gebruikers."
         },
         "avatarVideos": {
           "title": "Avatar-lipsyncvideo's",

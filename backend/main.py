@@ -4510,80 +4510,10 @@ async def create_avatar_video(
     return {"job_id": job_id, "status": "processing"}
 
 
-@app.post("/api/songs/variants/{variant_id}/generate-video")
-async def generate_video_for_variant(
-    variant_id: int,
-    current_user: dict = Depends(auth.get_current_user),
-):
-    """Manually trigger Kling video generation for an existing completed song."""
-    from webhooks import _kling_pipeline, FAL_API_KEY as _FAL_API_KEY, _generate_flux_cover
-
-    db_path = db.get_db_path()
-    variant = db.get_song_variant_by_id(db_path, variant_id)
-    if not variant:
-        raise HTTPException(status_code=404, detail="Song variant not found")
-
-    is_admin = bool(current_user.get("is_admin", 0))
-    if variant["user_id"] != current_user["id"] and not is_admin:
-        raise HTTPException(status_code=403, detail="Not your song")
-    if variant["status"] != "complete":
-        raise HTTPException(status_code=400, detail=f"Song not ready (status={variant['status']})")
-
-    if not _FAL_API_KEY:
-        raise HTTPException(status_code=503, detail="Video generation unavailable — FAL_API_KEY not configured")
-
-    song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
-    mp3_path = str(song_storage / f"{variant_id}.mp3")
-    if not pathlib.Path(mp3_path).exists():
-        raise HTTPException(status_code=404, detail="MP3 file not found on disk")
-
-    cover_url = variant.get("image_url")
-    if not cover_url:
-        # No cover stored — generate a fresh Flux one synchronously
-        genre_tag = variant.get("genre_tag")
-        title = ""
-        artist = ""
-        lyric_id = variant.get("lyric_id")
-        user_id = variant.get("user_id")
-        if lyric_id:
-            import sqlite3 as _sq
-            with _sq.connect(db_path) as _c:
-                _r = _c.execute("SELECT title FROM lyrics WHERE id = ?", (lyric_id,)).fetchone()
-                title = (_r[0] or "") if _r else ""
-        if user_id:
-            import sqlite3 as _sq
-            with _sq.connect(db_path) as _c:
-                _r = _c.execute("SELECT artist_name FROM users WHERE id = ?", (user_id,)).fetchone()
-                artist = (_r[0] or "") if _r else ""
-        cover_url = _generate_flux_cover(variant_id, genre_tag, title, artist)
-        if cover_url:
-            db.update_song_variant(db_path, variant_id, image_url=cover_url)
-
-    if not cover_url:
-        raise HTTPException(
-            status_code=400,
-            detail="No cover art available — ensure FAL_API_KEY is set for Flux generation",
-        )
-
-    duration = variant.get("duration_seconds") or 60
-    genre_tag = variant.get("genre_tag")
-    log.info(
-        "generate_video_for_variant: starting Kling variant_id=%d cover=%s mp3=%s duration=%s genre=%s",
-        variant_id, cover_url, mp3_path, duration, genre_tag,
-    )
-    threading.Thread(
-        target=_kling_pipeline,
-        args=(variant_id, cover_url, mp3_path, duration, genre_tag),
-        daemon=True,
-    ).start()
-
-    return {
-        "ok": True,
-        "variant_id": variant_id,
-        "cover_url": cover_url,
-        "message": "Kling video generation started — check back in 2–3 minutes",
-    }
-
+# POST /api/songs/variants/{id}/generate-video removed 2026-08-06 with animated
+# covers. It let a user manually commission a Kling clip for an existing song —
+# the same ~$1.40 spend by another route, and it imported _kling_pipeline, so it
+# would have raised ImportError once that was deleted.
 
 @app.delete("/api/songs/variants/{variant_id}")
 async def delete_song_variant(

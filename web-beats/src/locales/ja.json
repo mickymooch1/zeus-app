@@ -101,8 +101,6 @@
     "vocalsOn": "🎵 ボーカルあり",
     "vocalsOff": "🎹 インストゥルメンタル",
     "vocalsIntermittent": "🎤 散発的なボーカル",
-    "animatedCoverOn": "アニメーションカバー",
-    "animatedCoverOff": "アニメーションカバー（オフ）",
     "explicitLabel": "過激なコンテンツ",
     "explicitWarning": "強い言葉が含まれる場合があります。生成されたコンテンツはお客様の責任となります。",
     "creditInfo": "残り{{balance}}クレジットのうち{{cost}}を使用します。",
@@ -370,7 +368,7 @@
         },
         "coverArt": {
           "title": "シネマティックなカバーアート",
-          "desc": "すべてのカバーにKen Burns風の滑らかなカメラワークが付きます（全ユーザー無料）。Kling AI搭載のHD動画アニメーションにアップグレードすれば、本格的な動画カバーに。"
+          "desc": "すべてのカバーにKen Burns風の滑らかなカメラワークが付きます（全ユーザー無料）。"
         },
         "avatarVideos": {
           "title": "アバターのリップシンク動画",

@@ -202,8 +202,6 @@
       "create": "Créer la vidéo",
       "submitting": "Envoi…"
     },
-    "animatedCoverOn": "Pochette animée",
-    "animatedCoverOff": "Pochette animée (désactivée)",
     "negativeTagsLabel": "À éviter",
     "negativeTagsPlaceholder": "ex. pas de piano, pas de trompette (500 caractères max)"
   },
@@ -370,7 +368,7 @@
         },
         "coverArt": {
           "title": "Pochette cinématique",
-          "desc": "Chaque pochette bénéficie d'un effet de mouvement cinématique Ken Burns — gratuit pour tous. Passez à l'animation vidéo HD propulsée par Kling AI pour de vraies pochettes vidéo."
+          "desc": "Chaque pochette bénéficie d'un effet de mouvement cinématique Ken Burns — gratuit pour tous."
         },
         "avatarVideos": {
           "title": "Vidéos avatar lip-sync",

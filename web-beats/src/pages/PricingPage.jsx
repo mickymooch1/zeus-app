@@ -38,7 +38,7 @@ const DEFAULT_PLANS = {
       'Song download & share',
       'All 100+ genres & styles',
       'Cinematic Motion Covers (free)',
-      'HD Video Animation (1 premium credit)',
+      'Stem separation (1 premium credit)',
       'Facebook posting',
     ],
   },

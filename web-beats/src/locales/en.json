@@ -101,8 +101,6 @@
     "vocalsOn": "🎵 Full Vocals",
     "vocalsOff": "🎹 Instrumental",
     "vocalsIntermittent": "🎤 Intermittent Vocals",
-    "animatedCoverOn": "Animated Cover Art",
-    "animatedCoverOff": "Animated Cover Art (off)",
     "explicitLabel": "Explicit content",
     "explicitWarning": "May include strong language. You are responsible for content generated.",
     "creditInfo": "Will use {{cost}} of your {{balance}} remaining credits.",
@@ -320,7 +318,7 @@
     "step1Title": "Type your idea",
     "step1Desc": "Describe your track in plain English. \"A sad R&B song about moving on\" or \"Hard grime bars about making it\" — that's all you need.",
     "step2Title": "Zeus creates it",
-    "step2Desc": "AI writes the lyrics, produces the track, generates animated cover art. Done in under 2 minutes.",
+    "step2Desc": "AI writes the lyrics, produces the track, generates the cover art. Done in about 2 minutes.",
     "step3Title": "Post everywhere",
     "step3Desc": "Upload to YouTube in one click. Share to Facebook, Telegram. Your music, live instantly.",
     "pricingLabel": "Pricing",
@@ -370,7 +368,7 @@
         },
         "coverArt": {
           "title": "Cinematic Cover Art",
-          "desc": "Every cover gets a smooth Ken Burns cinematic motion effect — free for all users. Upgrade to HD Video Animation powered by Kling AI for true video covers."
+          "desc": "Every cover gets a smooth Ken Burns cinematic motion effect — free for all users."
         },
         "avatarVideos": {
           "title": "Avatar Lip-Sync Videos",

@@ -101,8 +101,6 @@
     "vocalsOn": "🎵 보컬",
     "vocalsOff": "🎹 인스트루멘탈",
     "vocalsIntermittent": "🎤 간헐적 보컬",
-    "animatedCoverOn": "애니메이션 커버",
-    "animatedCoverOff": "애니메이션 커버 (끔)",
     "explicitLabel": "성인 콘텐츠",
     "explicitWarning": "강한 언어가 포함될 수 있습니다. 생성된 콘텐츠에 대한 책임은 본인에게 있습니다.",
     "creditInfo": "남은 {{balance}} 크레딧 중 {{cost}}를 사용합니다.",
@@ -370,7 +368,7 @@
         },
         "coverArt": {
           "title": "시네마틱 커버 아트",
-          "desc": "모든 커버에 부드러운 Ken Burns 모션 효과가 적용됩니다 — 전 사용자 무료. Kling AI 기반 HD 영상 애니메이션으로 업그레이드하면 진짜 영상 커버를 만들 수 있습니다."
+          "desc": "모든 커버에 부드러운 Ken Burns 모션 효과가 적용됩니다 — 전 사용자 무료."
         },
         "avatarVideos": {
           "title": "아바타 립싱크 영상",

@@ -9,16 +9,7 @@ const SECTIONS = [
       'Pick a genre from the colour-coded pills',
       'Optional: describe your song or leave blank',
       'Click Generate',
-      'Wait 60–90 seconds for your song',
-    ],
-  },
-  {
-    icon: '🎨',
-    title: 'Animated Cover Art',
-    steps: [
-      'Toggle "Animated Cover Art" ON in Advanced Options (paid users only)',
-      'Costs 1 premium credit per animation',
-      'Your cover art becomes a 5-second video loop',
+      'Wait about 2 minutes for your song',
     ],
   },
   {
