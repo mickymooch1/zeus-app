@@ -84,12 +84,49 @@ export default function SearchPage() {
   // right style about a completely unrelated subject. SongsPage already reads
   // prefillTheme; it was simply never being sent.
   const goToSongs = ({ style = '', genre = '', tempo = '', mood = '', theme = '' } = {}) => {
-    navigate('/songs', {
-      state: {
-        prefillStyle: style, prefillGenre: genre, prefillTempo: tempo,
-        prefillMood: mood, prefillTheme: theme,
-      },
-    });
+    const state = {
+      prefillStyle: style, prefillGenre: genre, prefillTempo: tempo,
+      prefillMood: mood, prefillTheme: theme,
+    };
+    // Diagnostic: if the create page opens empty, this line shows whether the
+    // handoff actually carried anything.
+    console.log('[SearchPage] → /songs with', state);
+    navigate('/songs', { state });
+  };
+
+  // The YouTube tab only ever had a video title, so "Use as inspiration" handed
+  // over a vague "<title> inspired style" and nothing else — no genre, no theme.
+  // Run the same style+theme lookup the Style tab uses, then hand over the full
+  // reference. Falls back to the old title-only behaviour if the lookup fails,
+  // so the button always does something.
+  const [useLoading, setUseLoading] = useState('');
+  const useYoutubeAsInspiration = async (title) => {
+    setUseLoading(title);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/search/music`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ query: title, search_type: 'style' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const parsed = parseStyleAnalysis(data.analysis || '');
+        goToSongs({
+          style: parsed.STYLE || data.analysis || `${title} inspired style`,
+          genre: parsed.GENRE || '',
+          tempo: parsed.TEMPO || '',
+          mood:  parsed.MOOD  || '',
+          theme: data.theme || parsed.THEME || '',
+        });
+        return;
+      }
+      console.warn('[SearchPage] style lookup failed:', res.status);
+    } catch (err) {
+      console.warn('[SearchPage] style lookup error:', err);
+    } finally {
+      setUseLoading('');
+    }
+    goToSongs({ style: `${title} inspired style` });   // fallback: never dead-end
   };
 
   return (
@@ -203,7 +240,7 @@ export default function SearchPage() {
           <StyleResult data={result} query={query} onUse={goToSongs} />
         )}
         {result && result.search_type === 'youtube' && (
-          <YoutubeResults data={result} onUse={goToSongs} />
+          <YoutubeResults data={result} onUseYoutube={useYoutubeAsInspiration} useLoading={useLoading} />
         )}
         {result && result.search_type === 'lyrics' && (
           <LyricsResult data={result} query={query} onUse={goToSongs} />
@@ -306,7 +343,7 @@ function StyleResult({ data, query, onUse }) {
   );
 }
 
-function YoutubeResults({ data, onUse }) {
+function YoutubeResults({ data, onUseYoutube, useLoading }) {
   const results = data.results || [];
   if (!results.length) {
     return <p style={{ color: '#666', fontSize: 14 }}>No YouTube results found. Try a different search.</p>;
@@ -349,7 +386,8 @@ function YoutubeResults({ data, onUse }) {
               </p>
             )}
             <button
-              onClick={() => onUse({ style: `${r.title} inspired style` })}
+              onClick={() => onUseYoutube(r.title)}
+              disabled={useLoading === r.title}
               style={{
                 padding: '6px 14px',
                 background: 'transparent',
@@ -364,7 +402,7 @@ function YoutubeResults({ data, onUse }) {
               onMouseOver={e => { e.target.style.background = 'rgba(0,240,255,0.10)'; }}
               onMouseOut={e => { e.target.style.background = 'transparent'; }}
             >
-              Use as inspiration →
+              {useLoading === r.title ? 'Reading the style…' : 'Use as inspiration →'}
             </button>
           </div>
         </div>
