@@ -2154,7 +2154,13 @@ class SongsGenerateRequest(BaseModel):
     platform: str | None = Field(default=None, max_length=20)  # web | android | ios — attribution only
     negative_tags: str | None = Field(default=None, max_length=500)  # → sunoParams.negative_tags
     song_title: str | None = None        # optional user-supplied title; overrides AI-generated title
-    animate_cover: bool = True           # generate Kling animated video after song completes
+    # Kling animated cover. Defaults OFF (changed 2026-08-06) because it is by far
+    # the most expensive thing in the stack: a 5s Kling v2 Master clip is ~$1.40,
+    # and both takes animate, so ~$2.80 per song — roughly 8x the cost of the
+    # 14 Flux images in the same period. Defaulting to True meant any client that
+    # simply omitted the field opted its users in; the iOS app did exactly that.
+    # A missing field must fail cheap, not expensive.
+    animate_cover: bool = False
     genre_b: str | None = None           # second genre for fusion blend mode
     blend_ratio: int | None = None       # 0–100: how much of genre_b vs genre_a (default 50)
     kids_story: bool = False             # Kids Mode — uses child-appropriate Claude prompt
