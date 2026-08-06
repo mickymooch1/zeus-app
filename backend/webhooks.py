@@ -253,201 +253,10 @@ WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 APIFRAME_BASE = "https://api.apiframe.ai"
 
 
-def _kling_pipeline(variant_id: int, cover_url: str, mp3_path: str, duration_seconds: int, genre_tag: str | None) -> None:
-    """Background thread: submit cover art to Kling, loop clip with FFmpeg, save music video."""
-    import time
-    import subprocess
-    logger.info(
-        "Kling pipeline START: variant_id=%d cover_url=%s mp3_path=%s duration=%s genre=%s FAL_KEY_len=%d",
-        variant_id, cover_url, mp3_path, duration_seconds, genre_tag, len(FAL_API_KEY) if FAL_API_KEY else 0,
-    )
-    try:
-        if not FAL_API_KEY:
-            logger.warning("Kling pipeline: FAL_API_KEY not set — skipping variant_id=%d", variant_id)
-            return
-
-        # Gate: only paid users (subscription or PAYG purchase) get Kling animation
-        _kling_conn = sqlite3.connect(DB_PATH)
-        try:
-            _user_row = _kling_conn.execute(
-                "SELECT u.id, u.subscription_status, u.subscription_plan, u.has_paid "
-                "FROM song_variants sv JOIN users u ON u.id = sv.user_id WHERE sv.id = ?",
-                (variant_id,),
-            ).fetchone()
-        finally:
-            _kling_conn.close()
-
-        if _user_row:
-            _user_id, _sub_status, _plan, _has_paid = _user_row
-            _is_eligible = (_sub_status and _sub_status != "free") or bool(_plan) or bool(_has_paid)
-        else:
-            _user_id = None
-            _is_eligible = False
-            logger.warning("Kling pipeline: user lookup failed for variant_id=%d — skipping", variant_id)
-
-        if not _is_eligible:
-            logger.info(
-                "Kling skipped for variant_id=%d: free tier user "
-                "(status=%r plan=%r has_paid=%r) — static cover art only",
-                variant_id,
-                _user_row[1] if _user_row else None,
-                _user_row[2] if _user_row else None,
-                _user_row[3] if _user_row else None,
-            )
-            return
-
-        logger.info("Kling eligible: variant_id=%d status=%r plan=%r has_paid=%r",
-                    variant_id, _user_row[1], _user_row[2], _user_row[3])
-
-        # Gate: deduct 1 animation credit; skip if user has none remaining
-        if _user_id:
-            _has_anim_credit = _db.check_and_deduct_premium_credit(pathlib.Path(DB_PATH), _user_id)
-            if not _has_anim_credit:
-                logger.info(
-                    "Kling skipped for variant_id=%d: no premium credits remaining for user %s",
-                    variant_id, _user_id,
-                )
-                return
-            logger.info("Kling premium credit deducted for user %s (variant_id=%d)", _user_id, variant_id)
-        else:
-            logger.warning("Kling pipeline: no user_id for variant_id=%d — skipping animation credit check", variant_id)
-            return
-
-        from songs import GENRE_MOTION_PROMPTS
-        prompt = GENRE_MOTION_PROMPTS.get(
-            genre_tag or "",
-            "smooth cinematic camera motion, atmospheric lighting, dynamic visual movement",
-        )
-
-        fal_headers = {"Authorization": f"Key {FAL_API_KEY}", "Content-Type": "application/json"}
-        kling_payload = {"image_url": cover_url, "prompt": prompt, "duration": "5", "aspect_ratio": "1:1"}
-
-        # Submit to Kling via fal.ai async queue
-        logger.info("Kling API request: variant_id=%d payload=%r", variant_id, kling_payload)
-        resp = requests.post(
-            "https://queue.fal.run/fal-ai/kling-video/v2/master/image-to-video",
-            headers=fal_headers,
-            json=kling_payload,
-            timeout=30,
-        )
-        logger.info(
-            "Kling API response: variant_id=%d status=%d body=%r",
-            variant_id, resp.status_code, resp.text[:800],
-        )
-        if resp.status_code == 403:
-            raise RuntimeError(
-                f"Kling: 403 Forbidden — fal.ai balance likely exhausted. "
-                f"Top up at fal.ai/dashboard/billing. Body: {resp.text[:300]}"
-            )
-        resp.raise_for_status()
-        body = resp.json()
-        request_id = body.get("request_id")
-        if not request_id:
-            raise RuntimeError(f"Kling: no request_id in response: {body!r}")
-        status_url = body.get("status_url")
-        result_url = body.get("response_url")
-        if not status_url or not result_url:
-            raise RuntimeError(
-                "Kling: response missing status_url or response_url "
-                f"for request_id={request_id}: keys={list(body.keys())!r}"
-            )
-
-        logger.info("Kling submitted: variant_id=%d request_id=%s", variant_id, request_id)
-        conn = sqlite3.connect(DB_PATH)
-        try:
-            conn.execute("UPDATE song_variants SET kling_request_id = ? WHERE id = ?", (request_id, variant_id))
-            conn.commit()
-        finally:
-            conn.close()
-
-        # Poll for completion (max 15 min)
-        poll_headers = {"Authorization": f"Key {FAL_API_KEY}"}
-        completed = False
-        max_attempts = 60
-        for attempt in range(1, max_attempts + 1):
-            time.sleep(15)
-            sr = requests.get(status_url, headers=poll_headers, timeout=15)
-            if sr.status_code == 405:
-                logger.error(
-                    "Kling status poll returned 405: method=GET variant_id=%d request_id=%s url=%s",
-                    variant_id, request_id, status_url,
-                )
-            sr.raise_for_status()
-            status = sr.json().get("status")
-            logger.info(
-                "Kling poll: variant_id=%d request_id=%s attempt=%d status=%s",
-                variant_id, request_id, attempt, status,
-            )
-            if status == "COMPLETED":
-                completed = True
-                break
-            if status == "FAILED":
-                raise RuntimeError(f"Kling job {request_id} reported FAILED")
-
-        if not completed:
-            logger.error("Kling polling timed out: variant_id=%d request_id=%s", variant_id, request_id)
-            raise RuntimeError(f"Kling job {request_id} timed out after 15 min")
-
-        # Fetch result
-        rr = requests.get(result_url, headers=poll_headers, timeout=15)
-        if rr.status_code == 405:
-            logger.error(
-                "Kling result fetch returned 405: method=GET variant_id=%d request_id=%s url=%s",
-                variant_id, request_id, result_url,
-            )
-        rr.raise_for_status()
-        result_data = rr.json()
-        video_dl_url = (result_data.get("video") or {}).get("url")
-        if not video_dl_url:
-            raise RuntimeError(f"Kling result missing video URL: {result_data!r}")
-
-        # Download 5s clip to temp
-        clip_path = f"/tmp/kling_{variant_id}_clip.mp4"
-        clip_resp = requests.get(video_dl_url, timeout=120)
-        clip_resp.raise_for_status()
-        with open(clip_path, "wb") as fh:
-            fh.write(clip_resp.content)
-
-        # FFmpeg: loop clip to full song duration, mux with MP3
-        output_path = os.path.join(STORAGE_PATH, f"{variant_id}_music_video.mp4")
-        duration = max(int(duration_seconds or 60), 5)
-        proc = subprocess.run(
-            [
-                "ffmpeg", "-y",
-                "-stream_loop", "-1", "-i", clip_path,
-                "-i", mp3_path,
-                "-t", str(duration),
-                "-map", "0:v",
-                "-map", "1:a",
-                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                "-c:a", "aac", "-b:a", "192k",
-                "-shortest",
-                output_path,
-            ],
-            capture_output=True,
-            timeout=300,
-        )
-        try:
-            os.remove(clip_path)
-        except Exception:
-            pass
-
-        if proc.returncode != 0:
-            raise RuntimeError(f"FFmpeg failed (rc={proc.returncode}): {proc.stderr.decode()[:400]}")
-
-        music_video_url = f"{PUBLIC_BASE_URL}/{variant_id}_music_video.mp4"
-        conn = sqlite3.connect(DB_PATH)
-        try:
-            conn.execute("UPDATE song_variants SET music_video_url = ? WHERE id = ?", (music_video_url, variant_id))
-            conn.commit()
-        finally:
-            conn.close()
-
-        logger.info("Kling pipeline complete: variant_id=%d → %s", variant_id, music_video_url)
-
-    except Exception as exc:
-        logger.error("Kling pipeline failed for variant_id=%d: %s", variant_id, exc)
-
+# _kling_pipeline() removed 2026-08-06 along with animated covers. A 5s Kling
+# clip cost ~$1.40 against a ~35-40p credit, and was ~90% of fal.ai spend for a
+# feature users actively turned off. Premium credits live on as the currency for
+# stem separation. Existing music videos still play — only new ones stopped.
 
 def _stem_pipeline(variant_id: int, user_id: str, mp3_url: str) -> None:
     """Background thread: submit song to fal.ai Demucs, poll for result, save stem URLs."""
@@ -1039,48 +848,11 @@ async def apiframe_webhook(request: Request):
     if orig:
         _maybe_extend_short_song(variant_id, local_path1, duration1, orig[2], orig[0])
 
-    # Pre-query paid status so all conditions are visible in one log line
-    _kling_is_paid1 = False
-    if orig:
-        try:
-            _pc1 = sqlite3.connect(DB_PATH)
-            try:
-                _pr1 = _pc1.execute(
-                    "SELECT subscription_status, subscription_plan, has_paid FROM users WHERE id = ?",
-                    (orig[1],),
-                ).fetchone()
-                if _pr1:
-                    _kling_is_paid1 = (_pr1[0] and _pr1[0] != "free") or bool(_pr1[1]) or bool(_pr1[2])
-                    logger.info(
-                        "Kling user lookup: variant_id=%d sub_status=%r plan=%r has_paid=%r → is_paid=%s",
-                        variant_id, _pr1[0], _pr1[1], _pr1[2], _kling_is_paid1,
-                    )
-                else:
-                    logger.warning("Kling user lookup: no user row found for variant_id=%d user_id=%s", variant_id, orig[1])
-            finally:
-                _pc1.close()
-        except Exception as _pe1:
-            logger.warning("Kling pre-check take1: user plan lookup failed: %s", _pe1)
-
-    logger.info(
-        "Kling check: has_cover=%s has_fal_key=%s duration=%s is_paid=%s animate_cover=%s",
-        bool(permanent_image_url1), bool(FAL_API_KEY), duration1, _kling_is_paid1, orig_animate_cover,
-    )
-    if not orig_animate_cover:
-        logger.info("Kling skipped: user turned off animated cover art for variant_id=%d", variant_id)
-    elif not permanent_image_url1:
-        logger.warning("Kling skipped: no cover art at all for variant_id=%d", variant_id)
-    elif not duration1:
-        logger.warning("Kling skipped: duration is 0 for variant_id=%d", variant_id)
-    elif not FAL_API_KEY:
-        logger.warning("Kling skipped: FAL_API_KEY environment variable not set")
-    else:
-        logger.info("Kling thread STARTING for variant_id=%d", variant_id)
-        threading.Thread(
-            target=_kling_pipeline,
-            args=(variant_id, permanent_image_url1, local_path1, duration1, genre_tag),
-            daemon=True,
-        ).start()
+    # Animated covers were removed 2026-08-06. A 5s Kling clip cost ~$1.40 while
+    # an animation credit sold for ~35-40p, and it was ~90% of fal.ai spend for a
+    # feature users actively switched off. Premium credits remain — they are the
+    # currency for stem separation. Existing music videos still play; only new
+    # generation stopped.
 
     # ── Take 2: insert new row, download second track if present ─────────────
     take2_variant_id = None
@@ -1189,25 +961,6 @@ async def apiframe_webhook(request: Request):
                         conn.close()
                     logger.info("Apiframe webhook take 2 complete: variant_id=%d url=%s", take2_variant_id, permanent_url2)
 
-                    logger.info(
-                        "Kling check (take2): has_cover=%s has_fal_key=%s duration=%s is_paid=%s animate_cover=%s",
-                        bool(permanent_image_url2), bool(FAL_API_KEY), duration2, _kling_is_paid1, orig_animate_cover,
-                    )
-                    if not orig_animate_cover:
-                        logger.info("Kling skipped (take2): user turned off animated cover art for variant_id=%d", take2_variant_id)
-                    elif not permanent_image_url2:
-                        logger.warning("Kling skipped (take2): no cover art (Flux failed for variant_id=%d)", take2_variant_id)
-                    elif not duration2:
-                        logger.warning("Kling skipped (take2): duration is 0 for variant_id=%d", take2_variant_id)
-                    elif not FAL_API_KEY:
-                        logger.warning("Kling skipped (take2): FAL_API_KEY not set")
-                    else:
-                        logger.info("Kling thread STARTING for variant_id=%d (take2)", take2_variant_id)
-                        threading.Thread(
-                            target=_kling_pipeline,
-                            args=(take2_variant_id, permanent_image_url2, local_path2, duration2, genre_tag),
-                            daemon=True,
-                        ).start()
 
     payload = {"ok": True, "status": "complete", "take1_url": permanent_url1}
     if take2_variant_id:
@@ -1525,19 +1278,7 @@ async def cometapi_webhook(request: Request):
 
     logger.info("CometAPI webhook: complete variant_id=%d mp3=%s", variant_id, public_mp3_url)
 
-    # Trigger Kling animation if enabled and resources available
-    if animate_cover and flux_cover and duration and FAL_API_KEY:
-        logger.info("CometAPI webhook: starting Kling animation for variant_id=%d", variant_id)
-        threading.Thread(
-            target=_kling_pipeline,
-            args=(variant_id, flux_cover, local_path, duration, genre_tag),
-            daemon=True,
-        ).start()
-    else:
-        logger.info(
-            "CometAPI webhook: Kling skipped animate_cover=%s flux=%s duration=%s fal_key=%s",
-            animate_cover, bool(flux_cover), duration, bool(FAL_API_KEY),
-        )
+    # Animated covers removed 2026-08-06 — see the note in the Apiframe webhook.
 
     return {"ok": True, "status": "complete"}
 
@@ -1701,16 +1442,6 @@ async def goapi_webhook(request: Request):
 
     logger.info("GoAPI webhook: complete variant_id=%d mp3=%s", variant_id, public_mp3_url)
 
-    if animate_cover and flux_cover and duration and FAL_API_KEY:
-        threading.Thread(
-            target=_kling_pipeline,
-            args=(variant_id, flux_cover, local_path, duration, genre_tag),
-            daemon=True,
-        ).start()
-    else:
-        logger.info(
-            "GoAPI webhook: Kling skipped animate_cover=%s flux=%s duration=%s fal_key=%s",
-            animate_cover, bool(flux_cover), duration, bool(FAL_API_KEY),
-        )
+    # Animated covers removed 2026-08-06 — see the note in the Apiframe webhook.
 
     return {"ok": True, "status": "complete"}

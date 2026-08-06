@@ -202,8 +202,6 @@
       "create": "Crear vídeo",
       "submitting": "Enviando…"
     },
-    "animatedCoverOn": "Portada animada",
-    "animatedCoverOff": "Portada animada (desactivada)",
     "negativeTagsLabel": "Evitar",
     "negativeTagsPlaceholder": "ej. sin piano, sin trompeta (máx. 500 caracteres)"
   },
@@ -370,7 +368,7 @@
         },
         "coverArt": {
           "title": "Portada cinematográfica",
-          "desc": "Cada portada lleva un suave efecto de movimiento cinematográfico Ken Burns — gratis para todos. Mejora a Animación de Vídeo HD con Kling AI para portadas en vídeo real."
+          "desc": "Cada portada lleva un suave efecto de movimiento cinematográfico Ken Burns — gratis para todos."
         },
         "avatarVideos": {
           "title": "Vídeos avatar lip-sync",

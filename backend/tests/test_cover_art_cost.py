@@ -51,20 +51,14 @@ def test_flux_still_runs_when_suno_art_is_missing():
     assert _SRC.count("(no Suno artwork)") == 2
 
 
-def test_kling_gates_on_the_actual_cover_not_the_flux_result():
-    """If this regressed to flux_cover*, animation would silently stop for
-    everyone, since Flux no longer runs on the normal path."""
-    assert "elif not flux_cover1:" not in _SRC
-    assert "elif not flux_cover2:" not in _SRC
-    assert "elif not permanent_image_url1:" in _SRC
-    assert "elif not permanent_image_url2:" in _SRC
-
-
-def test_kling_is_handed_the_actual_cover_url():
-    assert "args=(variant_id, permanent_image_url1, local_path1" in _SRC
-    assert "args=(take2_variant_id, permanent_image_url2, local_path2" in _SRC
-    assert "flux_cover1, local_path1" not in _SRC
-    assert "flux_cover2, local_path2" not in _SRC
+def test_no_kling_invocation_remains():
+    """Superseded 2026-08-06: animated covers were removed outright, so there is
+    no Kling gate left to point anywhere. Nothing may start that pipeline again —
+    it was ~90% of fal.ai spend."""
+    assert "_kling_pipeline," not in _SRC, "a Kling thread target is back"
+    assert "target=_kling_pipeline" not in _SRC
+    for marker in ("elif not flux_cover1:", "elif not flux_cover2:"):
+        assert marker not in _SRC
 
 
 def test_no_undefined_flux_variable_can_leak_out_of_the_fallback():

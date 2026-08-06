@@ -56,10 +56,60 @@ def test_ios_sends_animate_cover_explicitly():
     assert "animate_cover:       false" in src or "animate_cover: false" in src
 
 
-def test_web_still_sends_its_own_choice_on_every_path():
-    """Flipping the default must not silently disable animation for web users who
-    turned it ON — all three request bodies (kids, roast, standard) send it."""
+def test_web_no_longer_requests_animation_at_all():
+    """Superseded 2026-08-06: animated covers were removed entirely, so the web
+    client stopped sending the field. The backend default staying False is what
+    now guarantees no animation is ever requested."""
     src = (_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
-    assert src.count("animate_cover: animateCover") == 3, (
-        "expected all three web request bodies to send animate_cover explicitly"
-    )
+    assert "animate_cover" not in src, "web should no longer mention animate_cover"
+
+
+# ── Animated covers removed entirely (2026-08-06) ────────────────────────────
+
+def test_no_kling_call_survives_anywhere_in_the_backend():
+    """~90% of fal.ai spend. Nothing may start that pipeline again."""
+    backend = pathlib.Path(__file__).parent.parent
+    for f in backend.glob("*.py"):
+        src = f.read_text(encoding="utf-8")
+        assert "target=_kling_pipeline" not in src, f"Kling thread started in {f.name}"
+        assert "def _kling_pipeline" not in src, f"Kling pipeline redefined in {f.name}"
+
+
+def test_the_manual_generate_video_endpoint_is_gone():
+    """It commissioned the same ~$1.40 clip by another route."""
+    src = (pathlib.Path(__file__).parent.parent / "main.py").read_text(encoding="utf-8")
+    assert '@app.post("/api/songs/variants/{variant_id}/generate-video")' not in src
+
+
+def test_premium_credits_survive_for_stem_separation():
+    """Animations are gone but premium credits are NOT — they are the currency for
+    stems, and removing them would leave stems with no top-up route."""
+    src = (pathlib.Path(__file__).parent.parent / "main.py").read_text(encoding="utf-8")
+    assert "check_and_deduct_premium_credit" in src, "stems must still spend premium credits"
+    import billing
+    assert billing.PREMIUM_PACKS, "there must still be a way to buy premium credits"
+    for pack in billing.PREMIUM_PACKS.values():
+        assert "animation" not in pack["label"].lower(), f"stale label: {pack['label']}"
+
+
+def test_pack_keys_are_unchanged_so_stripe_keeps_working():
+    """Labels changed; keys must not — Stripe price IDs and the crediting webhook
+    are keyed on them, so renaming would strand in-flight payments."""
+    import billing
+    assert set(billing.PREMIUM_PACKS) == {"animation_pack_5", "animation_pack_15"}
+
+
+def test_no_user_facing_copy_still_sells_animation():
+    root = pathlib.Path(__file__).parent.parent.parent / "web-beats" / "src"
+    import json
+    for loc in (root / "locales").glob("*.json"):
+        blob = json.dumps(json.loads(loc.read_text(encoding="utf-8")), ensure_ascii=False).lower()
+        # "kling" as a substring also matches German "klingt" (= sounds), which is
+        # legitimate copy — match the brand name instead.
+        assert "kling ai" not in blob, f"{loc.name} still mentions Kling AI"
+        assert "kling-video" not in blob, f"{loc.name} still references the Kling model"
+        assert "animatedcover" not in blob, f"{loc.name} still has the toggle strings"
+    for page in ("LandingPage.jsx", "PricingPage.jsx", "TutorialPage.jsx"):
+        txt = (root / "pages" / page).read_text(encoding="utf-8")
+        assert "Kling" not in txt, f"{page} still mentions Kling"
+        assert "HD Video Animation" not in txt, f"{page} still advertises animation"

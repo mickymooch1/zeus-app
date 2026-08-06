@@ -434,7 +434,7 @@ export default function LandingPage() {
                   </Link>
                 ))}
               </div>
-              <p style={{ fontSize: 12, color: '#555', marginTop: 10 }}>Use for HD Video Animation or stem separation · Credits never expire</p>
+              <p style={{ fontSize: 12, color: '#555', marginTop: 10 }}>Use for stem separation · Credits never expire</p>
             </div>
           </div>
 
@@ -496,7 +496,7 @@ export default function LandingPage() {
               <p className="plan-desc">For artists getting started with AI music creation.</p>
               <ul className="plan-features">
                 <li>✓ 25 songs/month</li>
-                <li>✓ 3 premium credits (animations OR stems)</li>
+                <li>✓ 3 premium credits (stem separation)</li>
                 <li>✓ YouTube upload</li>
                 <li>✓ All 100+ genres</li>
                 <li>✓ All 27+ accents</li>
@@ -513,7 +513,7 @@ export default function LandingPage() {
               <p className="plan-desc">For active creators who want avatar videos.</p>
               <ul className="plan-features">
                 <li>✓ 55 songs/month</li>
-                <li>✓ 10 premium credits (animations OR stems)</li>
+                <li>✓ 10 premium credits (stem separation)</li>
                 <li>✓ 3 avatar videos/month</li>
                 <li>✓ YouTube upload</li>
                 <li>✓ Genre blending</li>
@@ -531,7 +531,7 @@ export default function LandingPage() {
               <p className="plan-desc">For prolific creators and label teams.</p>
               <ul className="plan-features">
                 <li>✓ 110 songs/month</li>
-                <li>✓ 20 premium credits (animations OR stems)</li>
+                <li>✓ 20 premium credits (stem separation)</li>
                 <li>✓ 10 avatar videos/month</li>
                 <li>✓ YouTube upload</li>
                 <li>✓ Genre blending</li>
@@ -556,13 +556,13 @@ export default function LandingPage() {
             What are Premium Credits?
           </h2>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', marginBottom: 40, lineHeight: 1.7 }}>
-            Premium credits unlock advanced features — use them for HD Video Animation or stem separation, your choice.
+            Premium credits unlock stem separation — split any song into vocals, drums, bass and instrumental.
           </p>
           <div style={{ display: 'flex', gap: 20, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 40 }}>
             <div style={{ flex: '1 1 240px', maxWidth: 280, padding: '28px 24px', borderRadius: 16, border: '1px solid rgba(255,0,153,0.3)', background: 'rgba(255,0,153,0.05)', textAlign: 'left' }}>
-              <div style={{ fontSize: 28, marginBottom: 12 }}>🎬</div>
-              <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 15, fontWeight: 700, color: '#ff0099', marginBottom: 8 }}>HD Video Animation</h3>
-              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, margin: 0 }}>Bring your cover to life with Kling AI — true HD video matched to your genre. (Cinematic motion covers are free for everyone.)</p>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>🎚️</div>
+              <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 15, fontWeight: 700, color: '#ff0099', marginBottom: 8 }}>Stem Separation</h3>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, margin: 0 }}>Split any song into vocals, drums, bass and instrumental — ready to remix, sample or sing over.</p>
             </div>
             <div style={{ flex: '1 1 240px', maxWidth: 280, padding: '28px 24px', borderRadius: 16, border: '1px solid rgba(255,0,153,0.3)', background: 'rgba(255,0,153,0.05)', textAlign: 'left' }}>
               <div style={{ fontSize: 28, marginBottom: 12 }}>🎚️</div>

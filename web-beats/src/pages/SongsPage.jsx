@@ -112,9 +112,11 @@ const SONG_PACKS = [
   { pack: 'song_pack_400', label: '10 Songs', price: '£4.00' },
 ];
 
-const ANIMATION_PACKS = [
-  { pack: 'animation_pack_5',  label: '5 premium credits',  price: '£2' },
-  { pack: 'animation_pack_15', label: '15 premium credits', price: '£5' },
+// Premium Credit top-ups. Keys stay 'animation_pack_*' because Stripe price IDs
+// and the crediting webhook are keyed on them — only the labels changed.
+const PREMIUM_PACKS = [
+  { pack: 'animation_pack_5',  label: '5 Premium Credits',  price: '£2' },
+  { pack: 'animation_pack_15', label: '15 Premium Credits', price: '£5' },
 ];
 
 const PAGE_CSS = `
@@ -466,7 +468,7 @@ const SongCard = memo(function SongCard({
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, ytError, onYouTubeClick,
   canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
   onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick, onRegenerate,
-  isFavourite, onToggleFavourite, isFreeTier, animateCover,
+  isFavourite, onToggleFavourite, isFreeTier,
   isPublic, onShareToggle,
   playlists, onAddToPlaylist,
   premiumCredits, stemsData: stemsProp, onGetStems, onOpenCover, onUpgrade,
@@ -659,7 +661,7 @@ const SongCard = memo(function SongCard({
   const durStr = dur ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}` : '';
   const isFailed = variant.status === 'failed';
   const safeFilename = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
-  const displayMusicVideoUrl = !isFreeTier && animateCover && musicVideoUrl;
+  const displayMusicVideoUrl = !isFreeTier && musicVideoUrl;   // existing videos still play
 
   const avatarStyle = { ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.55)' };
   let avatarBtn;
@@ -1276,9 +1278,6 @@ export default function SongsPage() {
   const [pinInput, setPinInput]           = useState('');
   const [pinError, setPinError]           = useState('');
   const [vocalMode, setVocalMode]         = useState('full'); // 'full' | 'intermittent' | 'instrumental'
-  const [animateCoverPref, setAnimateCoverPref] = useState(
-    () => localStorage.getItem('zeus_animated_covers') === 'true'
-  );
   const [songTitle, setSongTitle]         = useState('');
   const [healingFrequency, setHealingFrequency] = useState('432');
 
@@ -1393,7 +1392,6 @@ export default function SongsPage() {
 
   const isAdmin          = credits.is_admin;
   const isFreeTier       = !isAdmin && !credits.plan && !credits.has_paid;
-  const animateCover     = !isFreeTier && animateCoverPref;
   const isMusicPlan      = ['music_starter', 'music_pro', 'music_agency'].includes(credits.plan);
   const canShowExplicit  = true;
   const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan) || isMusicPlan;
@@ -1613,9 +1611,6 @@ export default function SongsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAutoGen, selGenres]);
 
-  useEffect(() => {
-    localStorage.setItem('zeus_animated_covers', animateCoverPref ? 'true' : 'false');
-  }, [animateCoverPref]);
 
   useEffect(() => {
     if (!showWelcome) return;
@@ -1831,7 +1826,6 @@ export default function SongsPage() {
           brief: kidsBrief,
           genres: KIDS_MUSIC_GENRES[kidsMusicStyle] || ['pop'],
           song_title: songTitle.trim() || undefined,
-          animate_cover: animateCover,
           kids_story: true,
           kids_mode: kidsSubMode,
           kids_age_range: kidsAgeRange || undefined,
@@ -1846,7 +1840,6 @@ export default function SongsPage() {
           brief: `Roast song about ${roastName.trim()}`,
           genres: Array.from(selGenres),
           song_title: songTitle.trim() || undefined,
-          animate_cover: animateCover,
           is_roast: true,
           roast_name: roastName.trim(),
           roast_details: roastDetails.trim() || undefined,
@@ -1856,7 +1849,6 @@ export default function SongsPage() {
           model_version: modelVersion,
         };
       } else {
-        console.log('animate_cover:', animateCover);
         if (genreBlend && genreB) console.log('Genre blend:', genreB, 'ratio:', blendRatio);
         const _resolveSC = (sec) =>
           soundControl[sec] === 'Custom' ? soundControl[`${sec}Custom`].trim() : soundControl[sec];
@@ -1873,7 +1865,6 @@ export default function SongsPage() {
           inspired_by_descriptors: artistDescriptors || undefined,
           inspired_by_theme: artistTheme || undefined,
           song_title: songTitle.trim() || undefined,
-          animate_cover: animateCover,
           // Advanced settings are sent ALWAYS — never gated on `showAdvanced`.
           // Collapsing the panel only hides the controls; it does not clear the
           // state, so gating on visibility silently discarded choices the UI was
@@ -1983,7 +1974,7 @@ export default function SongsPage() {
     }
   };
 
-  const handleAnimationTopup = async (pack) => {
+  const handlePremiumTopup = async (pack) => {
     setTopupLoading(pack);
     try {
       const r = await fetch(`${BACKEND_URL}/api/songs/animation-topup`, {
@@ -2582,17 +2573,17 @@ export default function SongsPage() {
           </div>
         )}
 
-        {!isAdmin && !isFreeTier && animateCoverPref && credits.premium_credits === 0 && (
+        {!isAdmin && !isFreeTier && credits.premium_credits === 0 && (
           <div style={{ borderBottom: '1px solid rgba(167,139,250,0.12)', padding: '16px 24px' }}>
             <div style={{ maxWidth: 880, margin: '0 auto', padding: '20px 24px', borderRadius: 14, border: '1px solid rgba(167,139,250,0.4)', background: 'rgba(124,58,237,0.04)' }}>
               <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 13, fontWeight: 700, color: '#c4b5fd', marginBottom: 14, letterSpacing: '0.5px' }}>
                 🎬 Buy Premium Credits
               </h3>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {ANIMATION_PACKS.map(({ pack, label, price }) => (
+                {PREMIUM_PACKS.map(({ pack, label, price }) => (
                   <button
                     key={pack}
-                    onClick={() => handleAnimationTopup(pack)}
+                    onClick={() => handlePremiumTopup(pack)}
                     disabled={topupLoading !== null}
                     style={{ padding: '11px 22px', borderRadius: 10, border: '1px solid rgba(167,139,250,0.5)', background: 'linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(139,92,246,0.08) 100%)', color: '#c4b5fd', fontSize: 13, fontWeight: 700, cursor: topupLoading ? 'default' : 'pointer', transition: 'all 0.2s', letterSpacing: '0.3px' }}
                   >
@@ -3306,27 +3297,6 @@ export default function SongsPage() {
                 </div>
                 )}
 
-                {!isFreeTier && (
-                  <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                      <div
-                        onClick={() => setAnimateCoverPref((v) => !v)}
-                        style={{ width: 36, height: 20, borderRadius: 10, background: animateCoverPref ? '#7c3aed' : 'rgba(255,255,255,0.08)', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}
-                      >
-                        <div style={{ position: 'absolute', top: 3, left: animateCoverPref ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
-                      </div>
-                      <span style={{ fontSize: 12, color: animateCoverPref ? '#c4b5fd' : '#cccccc', fontWeight: 500 }}>
-                        {animateCoverPref ? t('songs.animatedCoverOn') : t('songs.animatedCoverOff')}
-                      </span>
-                    </label>
-                    {animateCoverPref && !isAdmin && credits.premium_credits === 0 && (
-                      <p style={{ fontSize: 11, color: '#f87171', margin: '6px 0 0 46px' }}>
-                        No premium credits left this month.{!isIOSWebView && <> <button onClick={() => handleAnimationTopup('animation_pack_5')} disabled={topupLoading !== null} style={{ background: 'none', border: 'none', color: '#f87171', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: 11 }}>Buy more</button> or <Link to="/billing" style={{ color: '#f87171' }}>upgrade</Link>.</>}
-                      </p>
-                    )}
-                  </div>
-                )}
-
                 {/* PIN modal for explicit content */}
                 {pinModalOpen && (
                   <div
@@ -3994,7 +3964,6 @@ export default function SongsPage() {
                         isFavourite={favourites.has(v.variant_id)}
                         onToggleFavourite={handleToggleFavourite}
                         isFreeTier={isFreeTier}
-                        animateCover={animateCover}
                         isPublic={publicVariants.has(v.variant_id)}
                         onShareToggle={handleShareToggle}
                         playlists={playlists}
@@ -4168,7 +4137,6 @@ export default function SongsPage() {
                       isFavourite={favourites.has(v.variant_id)}
                       onToggleFavourite={handleToggleFavourite}
                       isFreeTier={isFreeTier}
-                      animateCover={animateCover}
                       isPublic={publicVariants.has(v.variant_id)}
                       onShareToggle={handleShareToggle}
                       playlists={playlists}

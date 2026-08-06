@@ -155,20 +155,29 @@ MUSIC_PLANS: dict = {
 STRIPE_ANIMATION_PACK_5_PRICE_ID  = os.environ.get("STRIPE_ANIMATION_PACK_5_PRICE_ID", "")
 STRIPE_ANIMATION_PACK_15_PRICE_ID = os.environ.get("STRIPE_ANIMATION_PACK_15_PRICE_ID", "")
 
-ANIMATION_PACKS = {
+# Premium Credits. Renamed from "animations" 2026-08-06 when animated covers were
+# removed — these credits now buy stem separation, which is what they are sold for.
+#
+# The DICT KEYS are deliberately unchanged. They are embedded in Stripe metadata,
+# in live checkout sessions and in the webhook that grants credits, so renaming
+# them would strand any in-flight payment. Only the user-facing labels changed.
+PREMIUM_PACKS = {
     "animation_pack_5": {
         "credits": 5,
-        "label": "5 animations",
+        "label": "5 Premium Credits",
         "price": "£2",
         "price_id": STRIPE_ANIMATION_PACK_5_PRICE_ID,
     },
     "animation_pack_15": {
         "credits": 15,
-        "label": "15 animations",
+        "label": "15 Premium Credits",
         "price": "£5",
         "price_id": STRIPE_ANIMATION_PACK_15_PRICE_ID,
     },
 }
+
+# Backwards-compatible alias — other modules still import the old name.
+ANIMATION_PACKS = PREMIUM_PACKS
 
 SONG_PACKS = {
     # Pay-as-you-go packs (small, no subscription required)

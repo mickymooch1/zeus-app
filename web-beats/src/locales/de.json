@@ -202,8 +202,6 @@
       "create": "Video erstellen",
       "submitting": "Einreichen…"
     },
-    "animatedCoverOn": "Animiertes Cover",
-    "animatedCoverOff": "Animiertes Cover (aus)",
     "negativeTagsLabel": "Vermeiden",
     "negativeTagsPlaceholder": "z.B. kein Klavier, keine Trompete (max. 500 Zeichen)"
   },
@@ -370,7 +368,7 @@
         },
         "coverArt": {
           "title": "Cinematisches Cover",
-          "desc": "Jedes Cover bekommt einen sanften Ken Burns-Effekt — kostenlos für alle. Upgrade auf HD-Videoanimation mit Kling AI für echte Video-Cover."
+          "desc": "Jedes Cover bekommt einen sanften Ken Burns-Effekt — kostenlos für alle."
         },
         "avatarVideos": {
           "title": "Avatar-Lippensync-Videos",

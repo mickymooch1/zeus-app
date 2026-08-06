@@ -101,8 +101,6 @@
     "vocalsOn": "🎵 Voce",
     "vocalsOff": "🎹 Strumentale",
     "vocalsIntermittent": "🎤 Voce intermittente",
-    "animatedCoverOn": "Copertina animata",
-    "animatedCoverOff": "Copertina animata (off)",
     "explicitLabel": "Contenuto esplicito",
     "explicitWarning": "Può includere linguaggio forte. Sei responsabile del contenuto generato.",
     "creditInfo": "Userà {{cost}} dei tuoi {{balance}} crediti rimanenti.",
@@ -320,7 +318,7 @@
     "step1Title": "Scrivi la tua idea",
     "step1Desc": "Descrivi la tua traccia in parole semplici — è tutto ciò di cui hai bisogno.",
     "step2Title": "Zeus la crea",
-    "step2Desc": "L'AI scrive i testi, produce la traccia, genera copertine animate. In meno di 2 minuti.",
+    "step2Desc": "L'AI scrive i testi, produce la traccia, genera la copertina. In circa 2 minuti.",
     "step3Title": "Pubblica ovunque",
     "step3Desc": "Carica su YouTube con un clic. Condividi su Facebook, Telegram.",
     "pricingLabel": "Prezzi",
@@ -370,7 +368,7 @@
         },
         "coverArt": {
           "title": "Copertine cinematografiche",
-          "desc": "Ogni copertina ha un fluido effetto di movimento Ken Burns — gratis per tutti. Passa all'animazione video HD con Kling AI per vere copertine in video."
+          "desc": "Ogni copertina ha un fluido effetto di movimento Ken Burns — gratis per tutti."
         },
         "avatarVideos": {
           "title": "Video avatar in lip-sync",
