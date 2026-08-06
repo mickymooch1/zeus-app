@@ -246,10 +246,13 @@ FAL_BALANCE_URL = "https://rest.alpha.fal.ai/billing/user_balance"
 APIFRAME_ACCOUNT_URL = "https://api.apiframe.ai/v2/me"
 
 # Warn while there is still time to top up, not at the moment of failure.
-# Tuned so a routine top-up doesn't immediately re-trigger the warning: a $10
-# top-up reads as ~$9.95 within minutes, so a $10 threshold would nag daily
-# forever. $5 still leaves a few hundred covers of runway at typical Flux cost.
-FAL_LOW_BALANCE_USD = 5.0
+# Raised 5 -> 10 on 2026-08-06 once cover art moved to Flux on every take: at
+# ~$0.05 a song and ~120 songs a week the burn is ~$6/week, so $10 buys roughly
+# 10 days' notice where $5 bought five.
+#
+# NOTE: top up to comfortably MORE than this. A top-up to exactly $10 reads as
+# ~$9.95 within minutes and the warning fires daily until you go above it.
+FAL_LOW_BALANCE_USD = 10.0
 APIFRAME_LOW_CREDITS = 500
 
 

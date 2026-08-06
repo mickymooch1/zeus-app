@@ -14,6 +14,9 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 os.environ.setdefault("ANTHROPIC_API_KEY", "test-key")
 os.environ.setdefault("APIFRAME_API_KEY", "test-key")
 os.environ.setdefault("SONG_WEBHOOK_URL", "https://zeusaidesign.com/webhooks/apiframe")
+# webhooks.py reads these at import time — needed for the cover-prompt checks.
+os.environ.setdefault("SONG_STORAGE_PATH", "/tmp/test_songs")
+os.environ.setdefault("SONG_PUBLIC_BASE_URL", "https://example.com/files/songs")
 
 from song_genres import GENRE_PRESETS
 from lyrics import GENRE_MOOD_DIRECTIVES
@@ -128,3 +131,55 @@ def test_searching_opera_maps_to_the_genre():
     """The Search page's fuzzy text->genre matcher should resolve "opera"."""
     s = (_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
     assert "['opera', 'opera']" in s
+
+
+# ── Dancehall (2026-08-06) ───────────────────────────────────────────────────
+
+def test_dancehall_preset_exists_and_is_name_free():
+    assert "dancehall" in GENRE_PRESETS
+    style = GENRE_PRESETS["dancehall"].lower()
+    for name in ["vybz", "kartel", "sean paul", "shabba", "beenie", "popcaan", "kingston"]:
+        assert name not in style, f"dancehall style names {name!r}"
+
+
+def test_dancehall_is_distinct_from_ragga():
+    """ragga's style string already says "ragga dancehall ... dancehall beat", so
+    these two are adjacent by nature. They must not be interchangeable: ragga is
+    the older 90 BPM bashment sound, dancehall is modern at 100 BPM."""
+    dancehall = GENRE_PRESETS["dancehall"].lower()
+    ragga = GENRE_PRESETS["ragga"].lower()
+    assert dancehall != ragga
+    assert "100 bpm" in dancehall and "90 bpm" in ragga
+
+
+def test_dancehall_describes_the_sound():
+    style = GENRE_PRESETS["dancehall"].lower()
+    for token in ["riddim", "offbeat", "sub bass", "dancehall"]:
+        assert token in style, token
+
+
+def test_dancehall_has_its_own_cover_prompt():
+    """The gap opera and scat shipped with — a genre falling back to the generic
+    default gets untailored artwork, which is what Flux is paid to avoid."""
+    import webhooks
+    assert "dancehall" in webhooks.GENRE_COVER_PROMPTS
+    assert webhooks.GENRE_COVER_PROMPTS["dancehall"] != webhooks._DEFAULT_COVER_PROMPT
+    assert webhooks.GENRE_COVER_PROMPTS["dancehall"] != webhooks.GENRE_COVER_PROMPTS["ragga"]
+
+
+def test_dancehall_registered_in_both_apps():
+    web = (_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
+    assert "'dancehall'" in web
+    assert web.count("dancehall:'Dancehall'") == 1, "duplicate object key"
+    assert "'ragga','dancehall'" in web, "should sit with the reggae family"
+    ios = (_ROOT / "zeus-beats-ios" / "src" / "screens" / "CreateSongScreen.tsx").read_text(encoding="utf-8")
+    assert ios.count("dancehall:'Dancehall'") == 1
+    assert "'ragga','dancehall'" in ios
+
+
+def test_dancehall_label_in_display_maps():
+    for rel in ["web-beats/src/components/NowPlayingBar.jsx",
+                "web-beats/src/pages/PlaylistPage.jsx",
+                "web-beats/src/pages/SongSharePage.jsx"]:
+        s = (_ROOT / rel).read_text(encoding="utf-8")
+        assert s.count("dancehall:'Dancehall'") == 1, rel
