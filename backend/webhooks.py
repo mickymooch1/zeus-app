@@ -89,6 +89,14 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "classicfunk":      "cinematic album cover, funk band performing in foreground, dramatic 1970s stage behind, warm amber stage lighting, brass instruments, funky energy, classic soul funk aesthetic, ultra detailed professional music artwork",
     "swing":            "cinematic album cover, jazz musician in vintage suit at microphone in foreground, elegant 1940s Art Deco ballroom behind, warm golden vintage stage lighting, chandelier overhead, couples dancing, big band orchestra visible, ultra detailed professional music artwork",
     "vocaljazz":        "cinematic album cover, jazz vocalist leaning into vintage microphone in foreground, smoky intimate jazz supper club behind, warm amber candlelight, upright bass and piano visible, velvet curtains, sophisticated late-night atmosphere, ultra detailed professional music artwork",
+    # Added 2026-08-06 — these two genres shipped without cover prompts and were
+    # falling through to the generic default, which is exactly the untailored art
+    # the Flux restore is meant to fix.
+    "scat":             "cinematic album cover, jazz vocalist mid-improvisation at a vintage ribbon microphone in foreground, 1950s big band behind with brass section raised, warm golden stage lighting, upright bass and music stands, smoky supper club atmosphere, ultra detailed professional music artwork, correct ethnicity",
+    "opera":            "cinematic album cover, opera singer mid-aria in a dramatic flowing gown in foreground, grand gilded opera house behind, deep red velvet curtains and tiered balconies, enormous crystal chandelier blazing overhead, orchestra pit lit below, single theatrical spotlight, ultra detailed professional music artwork, correct ethnicity",
+    "acousticblues":    "cinematic album cover, blues musician playing a steel resonator guitar on a weathered porch in foreground, Mississippi delta cotton fields stretching behind, dusty golden late-afternoon light, slide on the finger, worn wooden boards, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
+    "folkblues":        "cinematic album cover, lone folk singer with acoustic guitar seated in foreground, sparse candlelit room behind, single window with dusk light, bare floorboards and a simple wooden chair, intimate haunting stillness, ultra detailed professional music artwork",
+    "roots":            "cinematic album cover, roots musicians with acoustic guitar banjo and fiddle in foreground, old timber barn interior behind, warm hay-lit golden light, hand-painted signage, front-porch Americana atmosphere, ultra detailed professional music artwork",
     "traditionalpop":   "cinematic album cover, classic crooner in elegant tuxedo at vintage microphone in foreground, opulent 1950s ballroom behind, warm golden spotlights, lush orchestral ensemble, glamorous sophisticated vintage atmosphere, ultra detailed professional music artwork",
     "rocknroll":        "cinematic album cover, rock and roll musician with quiff hairstyle at mic in foreground, vibrant 1950s ballroom or diner behind, neon signs blazing red and yellow, jukebox visible, rebellious youthful energy, ultra detailed professional music artwork",
     "trap":             "cinematic album cover, Black trap artist in designer streetwear in foreground, dark Atlanta cityscape at night behind, deep red and purple neon, fog rolling over concrete, 808 energy, urban darkness, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
@@ -813,20 +821,22 @@ async def apiframe_webhook(request: Request):
             artist_name = (user_row[0] or "") if user_row else ""
         finally:
             conn.close()
-    # Suno ships artwork with every take at no cost, and it has already been
-    # downloaded above. Flux used to run unconditionally and OVERWRITE it — paying
-    # ~$0.025 an image to replace one we were given for free. Flux is now a
-    # fallback for when Suno's artwork is missing or failed to download.
-    if permanent_image_url1:
-        logger.info("Cover art for variant_id=%d: using Suno artwork (free) — skipping Flux", variant_id)
+    # Genre-tailored Flux artwork. Restored 2026-08-06 after briefly falling back
+    # to Suno's own covers: at ~$0.025 an image this is negligible next to the
+    # ~$1.40 Kling clips that were the actual cost problem (now removed), and
+    # Suno's generic art was noticeably less matched to the genre.
+    #
+    # Suno's cover has already been downloaded into permanent_image_url1 above, so
+    # it stays as the fallback if Flux fails — a song is never left with no art.
+    logger.info("Starting Flux cover art for variant_id=%d genre=%s", variant_id, genre_tag)
+    flux_cover1 = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
+    if flux_cover1:
+        logger.info("Cover art complete for variant_id=%d url=%s", variant_id, flux_cover1)
+        permanent_image_url1 = flux_cover1
+    elif permanent_image_url1:
+        logger.warning("Flux failed for variant_id=%d — keeping Suno's cover art", variant_id)
     else:
-        logger.info("Starting Flux cover art for variant_id=%d genre=%s (no Suno artwork)", variant_id, genre_tag)
-        flux_cover1 = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
-        if flux_cover1:
-            logger.info("Cover art complete for variant_id=%d url=%s", variant_id, flux_cover1)
-            permanent_image_url1 = flux_cover1
-        else:
-            logger.warning("Cover art FAILED for variant_id=%d — Flux returned None", variant_id)
+        logger.warning("Cover art FAILED for variant_id=%d — no Flux and no Suno artwork", variant_id)
 
     conn = sqlite3.connect(DB_PATH)
     try:
@@ -937,18 +947,16 @@ async def apiframe_webhook(request: Request):
                         except Exception as exc:
                             logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
 
-                    # Same as take 1: Suno's artwork is free and already saved.
-                    # Flux is a fallback only.
-                    if permanent_image_url2:
-                        logger.info("Cover art for variant_id=%d (take2): using Suno artwork (free) — skipping Flux", take2_variant_id)
+                    # Same as take 1 — genre-tailored Flux art, Suno's as the fallback.
+                    logger.info("Starting Flux cover art for variant_id=%d (take2) genre=%s", take2_variant_id, genre_tag)
+                    flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
+                    if flux_cover2:
+                        logger.info("Cover art complete for variant_id=%d url=%s", take2_variant_id, flux_cover2)
+                        permanent_image_url2 = flux_cover2
+                    elif permanent_image_url2:
+                        logger.warning("Flux failed for variant_id=%d (take2) — keeping Suno's cover art", take2_variant_id)
                     else:
-                        logger.info("Starting Flux cover art for variant_id=%d (take2) genre=%s (no Suno artwork)", take2_variant_id, genre_tag)
-                        flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
-                        if flux_cover2:
-                            logger.info("Cover art complete for variant_id=%d url=%s", take2_variant_id, flux_cover2)
-                            permanent_image_url2 = flux_cover2
-                        else:
-                            logger.warning("Cover art FAILED for variant_id=%d (take2) — Flux returned None", take2_variant_id)
+                        logger.warning("Cover art FAILED for variant_id=%d (take2) — no Flux and no Suno artwork", take2_variant_id)
 
                     conn = sqlite3.connect(DB_PATH)
                     try:
