@@ -81,6 +81,10 @@ GENRE_PRESETS = {
     "electronicfunk":  "electronic funk, talk box vocoder vocals, smooth slow funk groove, electronic synthesizer bassline, French electronic funk production style, 95 BPM, soulful R&B feeling, warm analogue synths, silky smooth production, 80s electro funk, vocoder robot voice effect, late night smooth groove",
     "syntheticpop":    "synthetic pop, bright catchy synthesizers, four on the floor beat, polished production, euphoric pop hooks, 128 BPM, 80s synth pop influence, glossy electronic sound, irresistible chorus",
     "ragga":           "ragga dancehall, digital riddim, Jamaican vocals, patois delivery, bashment energy, 90 BPM, dancehall beat, Caribbean flow",
+    # Adjacent to "ragga" above, which is the older 90 BPM bashment style. This is
+    # modern dancehall at 100 BPM — kept distinct so the two don't produce the
+    # same track under different names.
+    "dancehall":       "Jamaican dancehall, bouncy digital riddim, punchy offbeat drums, deep sub bass, syncopated snare patterns, energetic rhythmic vocal delivery, bright synth stabs, island groove, 100 BPM, modern dancehall production, infectious party energy",
     "dubstep":         "dubstep, massive wobble bass, half time drum pattern, 140 BPM, dark electronic atmosphere, bass drop, heavy sub bass, UK dubstep sound, cinematic tension building, heavy UK dubstep production",
     "bhangra":         "bhangra, dhol drum, tumbi, energetic Punjabi vocals, traditional Indian folk meets modern beat, 140 BPM, wedding celebration energy, Punjabi lyrics, bhangra dance rhythm",
     "rockney":         "cockney pub rock, honky tonk piano, acoustic strumming guitar, singalong chorus, working class London storytelling, cheerful upbeat tempo, 130 BPM, East End London culture, knees up dance rhythm, traditional British pub band sound, singalong crowd vocals, jovial cockney delivery, music hall influenced, pearly kings and queens energy",
