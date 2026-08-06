@@ -154,6 +154,10 @@ export function CreateSongScreen() {
           instrumental:        vocalMode === 'instrumental' || undefined,
           intermittent_vocals: vocalMode === 'intermittent' || undefined,
           platform:            'ios',   // attribution — which store this song came from
+          // Explicit, not relying on the backend default: an animated cover is a
+          // ~$1.40 Kling clip per take. There is no toggle on this screen yet, so
+          // nobody using the app can be asked to opt in.
+          animate_cover:       false,
         }),
       });
 
