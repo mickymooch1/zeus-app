@@ -1004,13 +1004,20 @@ async def apiframe_webhook(request: Request):
             artist_name = (user_row[0] or "") if user_row else ""
         finally:
             conn.close()
-    logger.info("Starting Flux cover art for variant_id=%d genre=%s", variant_id, genre_tag)
-    flux_cover1 = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
-    if flux_cover1:
-        logger.info("Cover art complete for variant_id=%d url=%s", variant_id, flux_cover1)
-        permanent_image_url1 = flux_cover1
+    # Suno ships artwork with every take at no cost, and it has already been
+    # downloaded above. Flux used to run unconditionally and OVERWRITE it — paying
+    # ~$0.025 an image to replace one we were given for free. Flux is now a
+    # fallback for when Suno's artwork is missing or failed to download.
+    if permanent_image_url1:
+        logger.info("Cover art for variant_id=%d: using Suno artwork (free) — skipping Flux", variant_id)
     else:
-        logger.warning("Cover art FAILED for variant_id=%d — Flux returned None", variant_id)
+        logger.info("Starting Flux cover art for variant_id=%d genre=%s (no Suno artwork)", variant_id, genre_tag)
+        flux_cover1 = _generate_flux_cover(variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
+        if flux_cover1:
+            logger.info("Cover art complete for variant_id=%d url=%s", variant_id, flux_cover1)
+            permanent_image_url1 = flux_cover1
+        else:
+            logger.warning("Cover art FAILED for variant_id=%d — Flux returned None", variant_id)
 
     conn = sqlite3.connect(DB_PATH)
     try:
@@ -1057,12 +1064,12 @@ async def apiframe_webhook(request: Request):
 
     logger.info(
         "Kling check: has_cover=%s has_fal_key=%s duration=%s is_paid=%s animate_cover=%s",
-        bool(flux_cover1), bool(FAL_API_KEY), duration1, _kling_is_paid1, orig_animate_cover,
+        bool(permanent_image_url1), bool(FAL_API_KEY), duration1, _kling_is_paid1, orig_animate_cover,
     )
     if not orig_animate_cover:
         logger.info("Kling skipped: user turned off animated cover art for variant_id=%d", variant_id)
-    elif not flux_cover1:
-        logger.warning("Kling skipped: no cover art (Flux generation failed for variant_id=%d)", variant_id)
+    elif not permanent_image_url1:
+        logger.warning("Kling skipped: no cover art at all for variant_id=%d", variant_id)
     elif not duration1:
         logger.warning("Kling skipped: duration is 0 for variant_id=%d", variant_id)
     elif not FAL_API_KEY:
@@ -1071,7 +1078,7 @@ async def apiframe_webhook(request: Request):
         logger.info("Kling thread STARTING for variant_id=%d", variant_id)
         threading.Thread(
             target=_kling_pipeline,
-            args=(variant_id, flux_cover1, local_path1, duration1, genre_tag),
+            args=(variant_id, permanent_image_url1, local_path1, duration1, genre_tag),
             daemon=True,
         ).start()
 
@@ -1158,13 +1165,18 @@ async def apiframe_webhook(request: Request):
                         except Exception as exc:
                             logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
 
-                    logger.info("Starting Flux cover art for variant_id=%d (take2) genre=%s", take2_variant_id, genre_tag)
-                    flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
-                    if flux_cover2:
-                        logger.info("Cover art complete for variant_id=%d url=%s", take2_variant_id, flux_cover2)
-                        permanent_image_url2 = flux_cover2
+                    # Same as take 1: Suno's artwork is free and already saved.
+                    # Flux is a fallback only.
+                    if permanent_image_url2:
+                        logger.info("Cover art for variant_id=%d (take2): using Suno artwork (free) — skipping Flux", take2_variant_id)
                     else:
-                        logger.warning("Cover art FAILED for variant_id=%d (take2) — Flux returned None", take2_variant_id)
+                        logger.info("Starting Flux cover art for variant_id=%d (take2) genre=%s (no Suno artwork)", take2_variant_id, genre_tag)
+                        flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
+                        if flux_cover2:
+                            logger.info("Cover art complete for variant_id=%d url=%s", take2_variant_id, flux_cover2)
+                            permanent_image_url2 = flux_cover2
+                        else:
+                            logger.warning("Cover art FAILED for variant_id=%d (take2) — Flux returned None", take2_variant_id)
 
                     conn = sqlite3.connect(DB_PATH)
                     try:
@@ -1179,11 +1191,11 @@ async def apiframe_webhook(request: Request):
 
                     logger.info(
                         "Kling check (take2): has_cover=%s has_fal_key=%s duration=%s is_paid=%s animate_cover=%s",
-                        bool(flux_cover2), bool(FAL_API_KEY), duration2, _kling_is_paid1, orig_animate_cover,
+                        bool(permanent_image_url2), bool(FAL_API_KEY), duration2, _kling_is_paid1, orig_animate_cover,
                     )
                     if not orig_animate_cover:
                         logger.info("Kling skipped (take2): user turned off animated cover art for variant_id=%d", take2_variant_id)
-                    elif not flux_cover2:
+                    elif not permanent_image_url2:
                         logger.warning("Kling skipped (take2): no cover art (Flux failed for variant_id=%d)", take2_variant_id)
                     elif not duration2:
                         logger.warning("Kling skipped (take2): duration is 0 for variant_id=%d", take2_variant_id)
@@ -1193,7 +1205,7 @@ async def apiframe_webhook(request: Request):
                         logger.info("Kling thread STARTING for variant_id=%d (take2)", take2_variant_id)
                         threading.Thread(
                             target=_kling_pipeline,
-                            args=(take2_variant_id, flux_cover2, local_path2, duration2, genre_tag),
+                            args=(take2_variant_id, permanent_image_url2, local_path2, duration2, genre_tag),
                             daemon=True,
                         ).start()
 
