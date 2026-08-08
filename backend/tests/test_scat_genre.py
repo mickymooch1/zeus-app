@@ -235,3 +235,30 @@ def test_celticpunk_label_in_display_maps():
                 "web-beats/src/pages/SongSharePage.jsx"]:
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert s.count("celticpunk:'Celtic Punk'") == 1, rel
+
+
+def test_irishfolk_carries_the_traditional_instrumentation():
+    """Enriched 2026-08-08 instead of adding a third overlapping "traditionalfolk"
+    genre. Tin whistle, bodhran and lilting melodies are Irish folk markers, so
+    they belong on this genre rather than a near-duplicate of it and "folk"."""
+    style = GENRE_PRESETS["irishfolk"].lower()
+    for token in ["tin whistle", "bodhran", "mandolin", "lilting", "bpm"]:
+        assert token in style, f"irishfolk lost {token!r}"
+
+
+def test_irishfolk_stays_distinct_from_its_neighbours():
+    """It sits between folk and the other Celtic genres — it must not become
+    interchangeable with any of them."""
+    irish = GENRE_PRESETS["irishfolk"].lower()
+    for other in ("folk", "irishjig", "celticpunk", "acoustic", "roots"):
+        assert irish != GENRE_PRESETS[other].lower(), f"irishfolk collapsed into {other}"
+    # the things that make it Irish folk rather than generic folk
+    assert "tin whistle" not in GENRE_PRESETS["folk"].lower()
+    # and not the punk one
+    assert "punk" not in irish and "electric guitar" not in irish
+
+
+def test_no_traditionalfolk_genre_was_added():
+    """Deliberately not added — it duplicated folk, and its distinguishing
+    markers were Celtic ones now folded into irishfolk."""
+    assert "traditionalfolk" not in GENRE_PRESETS

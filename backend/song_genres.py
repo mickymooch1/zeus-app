@@ -31,7 +31,11 @@ GENRE_PRESETS = {
     # Punk energy with trad Celtic instrumentation — distinct from irishfolk
     # (acoustic, slow-moderate) and irishjig (instrumental dance, 160 BPM).
     "celticpunk":  "Celtic punk, driving punk rock energy with traditional Irish instrumentation, fast aggressive electric guitars, pounding drums, tin whistle and fiddle melodies, accordion and mandolin, rowdy gang vocals and shouted choruses, raucous pub singalong energy, folk melodies over punk tempo, banjo and bodhran, defiant working-class spirit",
-    "irishfolk": "Irish folk song, acoustic guitar, fiddle, storytelling vocals, slow to moderate tempo, traditional Celtic feel",
+    # Enriched 2026-08-08. The previous string was unusually thin — no tin
+    # whistle, no bodhran, no tempo — which is why a separate "traditionalfolk"
+    # genre was proposed. Those markers ARE Irish folk, so they belong here
+    # rather than in a third genre overlapping this and "folk".
+    "irishfolk": "Irish folk song, acoustic guitar and fiddle, tin whistle, bodhran and hand percussion, mandolin and banjo, warm storytelling vocals, gentle harmonies, lilting Celtic melodies, timeless rustic arrangement, intimate acoustic production, ballad structure, 90 BPM",
     "blues":     "blues, electric guitar, soulful vocals, slow to mid tempo, 12-bar blues progression",
     "soul":      "soul music, warm brass, gospel-influenced vocals, rhythm section, emotional delivery",
     "rnb":        "R&B, smooth production, silky vocals, bass-forward, contemporary feel, 90 BPM",
