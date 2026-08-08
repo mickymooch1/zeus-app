@@ -28,6 +28,9 @@ GENRE_PRESETS = {
     "edm":      "EDM, four-on-the-floor kick, big synth lead, energetic vocals, 128 BPM",
     "acoustic": "acoustic singer-songwriter, fingerpicked guitar, intimate vocals, 90 BPM",
     "irishjig":  "Irish jig, fiddle, tin whistle, accordion, fast tempo, 160 BPM, energetic traditional Irish dance music",
+    # Punk energy with trad Celtic instrumentation — distinct from irishfolk
+    # (acoustic, slow-moderate) and irishjig (instrumental dance, 160 BPM).
+    "celticpunk":  "Celtic punk, driving punk rock energy with traditional Irish instrumentation, fast aggressive electric guitars, pounding drums, tin whistle and fiddle melodies, accordion and mandolin, rowdy gang vocals and shouted choruses, raucous pub singalong energy, folk melodies over punk tempo, banjo and bodhran, defiant working-class spirit",
     "irishfolk": "Irish folk song, acoustic guitar, fiddle, storytelling vocals, slow to moderate tempo, traditional Celtic feel",
     "blues":     "blues, electric guitar, soulful vocals, slow to mid tempo, 12-bar blues progression",
     "soul":      "soul music, warm brass, gospel-influenced vocals, rhythm section, emotional delivery",

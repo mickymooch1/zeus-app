@@ -183,3 +183,55 @@ def test_dancehall_label_in_display_maps():
                 "web-beats/src/pages/SongSharePage.jsx"]:
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert s.count("dancehall:'Dancehall'") == 1, rel
+
+
+# ── Celtic Punk (2026-08-08) ─────────────────────────────────────────────────
+
+def test_celticpunk_exists_and_is_name_free():
+    assert "celticpunk" in GENRE_PRESETS
+    style = GENRE_PRESETS["celticpunk"].lower()
+    for name in ["pogues", "dropkick", "murphys", "flogging", "molly",
+                 "macgowan", "boston", "dublin", "ireland"]:
+        assert name not in style, f"celticpunk style names {name!r}"
+
+
+def test_celticpunk_is_distinct_from_the_other_celtic_genres():
+    """irishfolk is acoustic and slow-moderate; irishjig is instrumental dance at
+    160 BPM. Celtic punk is the electric, shouted one — it must not collapse into
+    either."""
+    cp = GENRE_PRESETS["celticpunk"].lower()
+    assert cp != GENRE_PRESETS["irishfolk"].lower()
+    assert cp != GENRE_PRESETS["irishjig"].lower()
+    assert "punk" in cp and "electric guitar" in cp
+    assert "punk" not in GENRE_PRESETS["irishfolk"].lower()
+
+
+def test_celticpunk_keeps_the_traditional_instrumentation():
+    """The whole point of the genre — punk tempo over trad instruments."""
+    cp = GENRE_PRESETS["celticpunk"].lower()
+    for token in ["tin whistle", "fiddle", "accordion", "bodhran"]:
+        assert token in cp, token
+
+
+def test_celticpunk_has_its_own_cover_prompt():
+    import webhooks
+    assert "celticpunk" in webhooks.GENRE_COVER_PROMPTS
+    assert webhooks.GENRE_COVER_PROMPTS["celticpunk"] != webhooks._DEFAULT_COVER_PROMPT
+
+
+def test_celticpunk_registered_in_both_apps():
+    web = (_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
+    assert "'celticpunk'" in web
+    assert web.count("celticpunk:'Celtic Punk'") == 1, "duplicate object key"
+    assert "'acousticblues','celticpunk'" in web, "should sit in Country & Folk"
+    ios = (_ROOT / "zeus-beats-ios" / "src" / "screens" / "CreateSongScreen.tsx").read_text(encoding="utf-8")
+    assert ios.count("celticpunk:'Celtic Punk'") == 1
+    assert "'acousticblues','celticpunk'" in ios
+
+
+def test_celticpunk_label_in_display_maps():
+    for rel in ["web-beats/src/components/NowPlayingBar.jsx",
+                "web-beats/src/pages/PlaylistPage.jsx",
+                "web-beats/src/pages/SongSharePage.jsx"]:
+        s = (_ROOT / rel).read_text(encoding="utf-8")
+        assert s.count("celticpunk:'Celtic Punk'") == 1, rel
