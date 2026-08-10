@@ -22,6 +22,20 @@ import LyricsModal          from '../components/LyricsModal';
 // user who isn't interested is never asked twice.
 const NAME_PROMPT_KEY = 'zeus_name_prompt_done';
 
+// Narrator voices for kids STORY mode. "My Voice" (the user's ElevenLabs clone)
+// is prepended at render time when they have one — see the picker below. The
+// standalone kids app has the same option in pages/kids/KidsStoryMode.jsx; this
+// picker simply never received it.
+const STORY_NARRATOR_VOICES = [
+  ['british',    '🇬🇧', 'British',     'Default'],
+  ['australian', '🦘',  'Australian',  'Warm'],
+  ['newzealand', '🇳🇿', 'New Zealand', 'Clear'],
+  ['indian',     '🇮🇳', 'Indian',      'Rich'],
+  ['scouse',     '🎸',  'Scouse',      'Liverpool'],
+  ['irish',      '🍀',  'Irish',       'Musical'],
+  ['scottish',   '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
+];
+
 
 const GENRES = ['country','reggae','pop','rock','hiphop','lofi','edm','acoustic','irishjig','irishfolk','celticpunk','blues','soul','rnb','bluessoul','drumandbass','grime','ukgarage','jungle','bassline','house','deephouse','loversrock','ukdrill','kpop','deepsoulblues','niche','ukstreetsoul','classical','indie','techno','technhouse','hyperpop','afrobeats','amapiano','driftphonk','jerseyclub','afroswing','rastadub','dancehall','deeprotbassline','jazz','swing','vocaljazz','scat','opera','electronicfunk','syntheticpop','ragga','dubstep','bhangra','rockney','metal','reggaeton','latintrap','rootsreggae','countryamericana','southemsoul','traditionalpop','rocknroll','trap','eastcoasthiphop','poprap','synthwave','gospel','trapsoul','meditation','christmas','corridos','healingfrequency','purebassline'];
 const GENRE_LABEL = { bluegrass:'Bluegrass', britpop:'Britpop', indierock:'Indie Rock', folk:'Folk', acousticballad:'Acoustic Ballad', folkblues:'Folk Blues', roots:'Roots', acousticblues:'Acoustic Blues', patriotic:'Patriotic', hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', celticpunk:'Celtic Punk', rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle', bassline:'Bassline House', house:'House', deephouse:'Deep House', dancehouse:'Dance House', loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House', driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', dancehall:'Dancehall', deeprotbassline:'Deeprot Bassline', jazz:'Jazz', swing:'Swing', vocaljazz:'Vocal Jazz', scat:'Scat Jazz', opera:'Opera', electronicfunk:'Electronic Funk', syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep', bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', bluesrock:'Blues Rock', hardrock:'Hard Rock', punkrock:'Punk Rock', reggaeton:'Reggaeton', latintrap:'Latin Trap', rootsreggae:'Roots Reggae', countryamericana:'Country Americana', countrypop:'Country Pop', southemsoul:'Southern Soul', soulrnb:'Soul R&B', orchestralsoul:'Orchestral Soul', classicfunk:'Classic Funk', traditionalpop:'Traditional Pop', rocknroll:'Rock & Roll', trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', westcoasthiphop:'West Coast Hip-Hop', poprap:'Pop Rap', synthwave:'Synthwave', trance:'Trance', triphop:'Trip-Hop', salsa:'Salsa', gospel:'Gospel', trapsoul:'Trap Soul', meditation:'Meditation', ambient:'Ambient', christmas:'Christmas', corridos:'Corridos', healingfrequency:'Healing Frequencies', naturesounds:'Nature Sounds', whalesong:'Whale Song', cracklingfire:'Crackling Fire', thunderstorm:'Thunderstorm', oceanwaves:'Ocean Waves', forest:'Forest', nightsounds:'Night Sounds', purebassline:'Pure Bassline', psychedelicguitar:'Psychedelic Guitar', saxophone:'Saxophone', pianosolo:'Piano', violinsolo:'Violin', electricbluesguitar:'Blues Guitar', trumpet:'Trumpet', flamencoguitar:'Flamenco Guitar' };
@@ -3593,15 +3607,10 @@ export default function SongsPage() {
                   {/* ── 📖 Narrator Voice ── */}
                   <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>📖 Narrator Voice</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
-                    {[
-                      ['british',    '🇬🇧', 'British',     'Default'],
-                      ['australian', '🦘',  'Australian',  'Warm'],
-                      ['newzealand', '🇳🇿', 'New Zealand', 'Clear'],
-                      ['indian',     '🇮🇳', 'Indian',      'Rich'],
-                      ['scouse',     '🎸',  'Scouse',      'Liverpool'],
-                      ['irish',      '🍀',  'Irish',       'Musical'],
-                      ['scottish',   '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Scottish',   'Lively'],
-                    ].map(([val, emoji, name, desc]) => (
+                    {(user?.custom_voice_id
+                      ? [['my_voice', '🎙️', 'My Voice', 'Your voice'], ...STORY_NARRATOR_VOICES]
+                      : STORY_NARRATOR_VOICES
+                    ).map(([val, emoji, name, desc]) => (
                       <div key={val} style={{ position: 'relative' }}>
                         <button
                           onClick={() => setKidsNarratorVoice(val)}
@@ -3618,6 +3627,7 @@ export default function SongsPage() {
                           <span style={{ fontSize: 11, fontWeight: 700, color: kidsNarratorVoice === val ? '#fbbf24' : 'rgba(251,191,36,0.8)' }}>{name}</span>
                           <span style={{ fontSize: 9, color: 'rgba(251,191,36,0.5)' }}>{desc}</span>
                         </button>
+                        {val !== 'my_voice' && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleVoicePreview(val); }}
                           title="Preview voice"
@@ -3630,6 +3640,7 @@ export default function SongsPage() {
                             backdropFilter: 'blur(4px)', transition: 'all 0.15s', padding: 0,
                           }}
                         >{previewingVoice === val ? '⏸' : '▶'}</button>
+                        )}
                       </div>
                     ))}
                   </div>
