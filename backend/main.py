@@ -1245,19 +1245,21 @@ async def clone_voice(request: Request, current_user: dict = Depends(auth.get_cu
     old_voice_id = current_user.get("custom_voice_id")
     if old_voice_id:
         try:
-            requests.delete(f"https://api.elevenlabs.io/v1/voices/{old_voice_id}",
-                            headers={"xi-api-key": el_key}, timeout=20)
+            async with httpx.AsyncClient(timeout=20) as _c:
+                await _c.delete(f"https://api.elevenlabs.io/v1/voices/{old_voice_id}",
+                                headers={"xi-api-key": el_key})
         except Exception:
-            pass
+            log.warning("voice clone: could not delete previous voice %s (non-fatal)", old_voice_id)
 
     try:
-        resp = requests.post(
-            "https://api.elevenlabs.io/v1/voices/add",
-            headers={"xi-api-key": el_key},
-            data={"name": voice_name, "description": "Personal narrator voice cloned in Zeus Beats"},
-            files=[("files", ("voice_sample.mp3", audio_bytes, getattr(audio, "content_type", None) or "audio/mpeg"))],
-            timeout=120,
-        )
+        async with httpx.AsyncClient(timeout=120) as _c:
+            resp = await _c.post(
+                "https://api.elevenlabs.io/v1/voices/add",
+                headers={"xi-api-key": el_key},
+                data={"name": voice_name, "description": "Personal narrator voice cloned in Zeus Beats"},
+                files=[("files", ("voice_sample.mp3", audio_bytes,
+                                  getattr(audio, "content_type", None) or "audio/mpeg"))],
+            )
     except Exception as exc:
         log.exception("voice clone: request to ElevenLabs failed user=%s", user_id)
         raise HTTPException(status_code=502, detail=f"Voice cloning failed: {exc}")
@@ -1288,8 +1290,9 @@ async def delete_voice(current_user: dict = Depends(auth.get_current_user)):
     voice_id = current_user.get("custom_voice_id")
     if voice_id and el_key:
         try:
-            requests.delete(f"https://api.elevenlabs.io/v1/voices/{voice_id}",
-                            headers={"xi-api-key": el_key}, timeout=20)
+            async with httpx.AsyncClient(timeout=20) as _c:
+                await _c.delete(f"https://api.elevenlabs.io/v1/voices/{voice_id}",
+                                headers={"xi-api-key": el_key})
         except Exception:
             log.exception("voice delete: ElevenLabs delete failed (non-fatal) user=%s", user_id)
     conn = sqlite3.connect(str(db.get_db_path()))
