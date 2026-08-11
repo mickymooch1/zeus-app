@@ -1240,6 +1240,10 @@ async def clone_voice(request: Request, current_user: dict = Depends(auth.get_cu
     user_id = current_user["id"]
     db_path = db.get_db_path()
     voice_name = f"Zeus voice — {current_user.get('email', 'user')}"[:64]
+    _upload_type = getattr(audio, "content_type", None) or "audio/mpeg"
+    _upload_name = getattr(audio, "filename", None) or (
+        "voice_sample.webm" if "webm" in _upload_type else "voice_sample.mp3")
+    log.info("voice clone: upload name=%r type=%r bytes=%d", _upload_name, _upload_type, len(audio_bytes))
 
     # Replace any existing clone (best-effort delete of the old one on ElevenLabs).
     old_voice_id = current_user.get("custom_voice_id")
@@ -1257,8 +1261,11 @@ async def clone_voice(request: Request, current_user: dict = Depends(auth.get_cu
                 "https://api.elevenlabs.io/v1/voices/add",
                 headers={"xi-api-key": el_key},
                 data={"name": voice_name, "description": "Personal narrator voice cloned in Zeus Beats"},
-                files=[("files", ("voice_sample.mp3", audio_bytes,
-                                  getattr(audio, "content_type", None) or "audio/mpeg"))],
+                # Send the REAL filename and content type. This used to hardcode
+                # "voice_sample.mp3" regardless of what arrived — browser recordings
+                # are WebM/Opus, so the extension contradicted the bytes. ElevenLabs
+                # coped here, but a mislabelled container is a decoding hazard.
+                files=[("files", (_upload_name, audio_bytes, _upload_type))],
             )
     except Exception as exc:
         log.exception("voice clone: request to ElevenLabs failed user=%s", user_id)
@@ -2398,8 +2405,10 @@ async def songs_generate(
         try:
             _story_text = lyric_result["lyrics"].strip()
             # "My Voice" narrator → the user's own cloned ElevenLabs voice.
+            _is_cloned_narrator = False
             if (body.accent or '').lower() == 'my_voice' and current_user.get('custom_voice_id'):
                 _narrator_voice_id = current_user['custom_voice_id']
+                _is_cloned_narrator = True
                 log.info("story narration: using cloned voice_id=%s for user=%s", _narrator_voice_id, user_id)
             else:
                 _narrator_voice_id = _STORY_VOICES.get((body.accent or '').lower(), 'ZEt85AU1ui8Rr8FxNslW')
@@ -2421,7 +2430,24 @@ async def songs_generate(
 
             _story_dir = pathlib.Path("/data/stories")
             _story_dir.mkdir(parents=True, exist_ok=True)
-            _tts_params = {"model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}}
+            # Stock narrators keep stability 0.75 — they are already tuned and benefit
+            # from steady delivery. A CLONED voice is different: ElevenLabs describe
+            # high stability as producing "a monotonous voice with limited emotion",
+            # which flattens the cadence that makes a voice recognisable. Lower
+            # stability plus use_speaker_boost (which exists specifically to boost
+            # similarity to the original speaker) is the better default for clones.
+            #
+            # Honest caveat: this improves any clone, but it will not overcome the
+            # ceiling of Instant Voice Cloning itself, which their own docs concede
+            # "may struggle with unique accents".
+            _tts_params = {"model_id": "eleven_multilingual_v2",
+                           "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}}
+            if _is_cloned_narrator:
+                _tts_params["voice_settings"] = {
+                    "stability": 0.4,
+                    "similarity_boost": 0.85,
+                    "use_speaker_boost": True,
+                }
 
             _bilingual = bool(body.bilingual_mode) and (body.story_language or 'english').lower() != 'english'
             _bilingual_lines = lyric_result.get("bilingual_lines") or []
