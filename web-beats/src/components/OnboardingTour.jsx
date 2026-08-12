@@ -128,6 +128,13 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance, cr
     margin: 'auto',
   };
 
+  // Deliberately NOT click-to-dismiss. Every phase already has an explicit exit
+  // ("Skip introduction", or "Skip" mid-tour), and the card is narrow on a phone
+  // so most of the screen is backdrop — a mis-tap beside the card used to end
+  // onboarding silently, on a brand-new user's first ever visit, with only the
+  // 24h retrigger banner to recover. The usual modal convention is wrong here:
+  // this overlay is the first-run flow, not a dialog interrupting existing work.
+  // (This is also why the cards carry no stopPropagation — nothing to stop.)
   const overlayStyle = {
     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
     background: 'rgba(0,0,0,0.88)',
@@ -163,8 +170,8 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance, cr
 
   if (phase === 'lang_pick') {
     return (
-      <div style={overlayStyle} onClick={() => dismiss('skip')}>
-        <div style={{ ...cardStyle, maxWidth: 480, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+      <div style={overlayStyle}>
+        <div style={{ ...cardStyle, maxWidth: 480, textAlign: 'center' }}>
           {/* Scrollable body — grows to 13 languages on a narrow screen */}
           <div style={cardBodyStyle}>
             <div style={{ fontSize: 42, marginBottom: 12 }}>🌐</div>
@@ -236,8 +243,8 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance, cr
 
   if (phase === 'genre_q') {
     return (
-      <div style={overlayStyle} onClick={() => dismiss('skip')}>
-        <div style={{ ...cardStyle, maxWidth: 440, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+      <div style={overlayStyle}>
+        <div style={{ ...cardStyle, maxWidth: 440, textAlign: 'center' }}>
           <div style={cardBodyStyle}>
             <div style={{ fontSize: 46, marginBottom: 14 }}>🎵</div>
             <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>
@@ -280,8 +287,8 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance, cr
   }
 
   return (
-    <div style={overlayStyle} onClick={() => dismiss('skip')}>
-      <div style={cardStyle} onClick={e => e.stopPropagation()}>
+    <div style={overlayStyle}>
+      <div style={cardStyle}>
        <div style={cardBodyStyle}>
 
         {/* Header */}
