@@ -465,5 +465,39 @@
     "message": "We gebruiken cookies om je ervaring te verbeteren. Door Zeus Beats te gebruiken ga je akkoord met ons <privacy>Privacybeleid</privacy>.",
     "learnMore": "Meer info",
     "accept": "Accepteren"
+  },
+  "onboarding": {
+    "language": {
+      "title": "Kies je taal",
+      "subtitle": "Selecteer de taal voor de Zeus Beats-app",
+      "continue": "Doorgaan →"
+    },
+    "genre": {
+      "title": "Wat voor muziek vind je leuk?",
+      "subtitle": "We selecteren alvast de beste genres voor je",
+      "soul_rnb": "🎤 Soul / R&B",
+      "grime_rap": "🎤 Grime / Rap / Drill",
+      "electronic": "🎶 Electronic / Dance",
+      "everything": "🎸 Al het andere"
+    },
+    "tour": {
+      "label": "Zeus Beats-rondleiding",
+      "progress": "{{current}} van {{total}}",
+      "skip": "Overslaan",
+      "next": "Volgende →",
+      "welcomeTitle": "Welkom bij Zeus Beats ⚡",
+      "welcomeText": "Maak originele AI-nummers in meer dan 100 genres. Drie stappen en je eerste staat er.",
+      "genreTitle": "Kies een genre",
+      "genreText": "Kies uit meer dan 100 genres — Soul, Grime, Afrobeats, D&B, Jazz en meer.",
+      "describeTitle": "Beschrijf je nummer",
+      "describeText": "Vertel Zeus wat je wilt — of laat het leeg en laat Zeus je verrassen.",
+      "freeSongs_one": "Je hebt {{count}} gratis nummer — laten we het meteen gebruiken!",
+      "freeSongs_other": "Je hebt {{count}} gratis nummers — laten we er meteen een gebruiken!",
+      "makeFirstSong": "🎵 Maak mijn eerste nummer",
+      "exploreMyself": "Ik kijk zelf rond",
+      "readyTitle": "Je bent klaar!",
+      "readyText": "Tik hieronder en je eerste nummer is binnen twee minuten klaar."
+    },
+    "skipIntro": "Introductie overslaan"
   }
 }

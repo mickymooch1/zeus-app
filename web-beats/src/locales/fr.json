@@ -465,5 +465,39 @@
     "message": "Nous utilisons des cookies pour améliorer votre expérience. En utilisant Zeus Beats, vous acceptez notre <privacy>Politique de confidentialité</privacy>.",
     "learnMore": "En savoir plus",
     "accept": "Accepter"
+  },
+  "onboarding": {
+    "language": {
+      "title": "Choisissez votre langue",
+      "subtitle": "Sélectionnez la langue de l'application Zeus Beats",
+      "continue": "Continuer →"
+    },
+    "genre": {
+      "title": "Quel genre de musique aimez-vous ?",
+      "subtitle": "Nous présélectionnerons les meilleurs genres pour vous",
+      "soul_rnb": "🎤 Soul / R&B",
+      "grime_rap": "🎤 Grime / Rap / Drill",
+      "electronic": "🎶 Électronique / Dance",
+      "everything": "🎸 Tout le reste"
+    },
+    "tour": {
+      "label": "Visite guidée Zeus Beats",
+      "progress": "{{current}} sur {{total}}",
+      "skip": "Passer",
+      "next": "Suivant →",
+      "welcomeTitle": "Bienvenue sur Zeus Beats ⚡",
+      "welcomeText": "Créez des chansons IA originales dans plus de 100 genres. Trois étapes et votre première est prête.",
+      "genreTitle": "Choisissez un genre",
+      "genreText": "Plus de 100 genres au choix — Soul, Grime, Afrobeats, D&B, Jazz et bien d’autres.",
+      "describeTitle": "Décrivez votre chanson",
+      "describeText": "Dites à Zeus ce que vous voulez — ou laissez le champ vide et laissez Zeus vous surprendre.",
+      "freeSongs_one": "Vous avez {{count}} chanson gratuite — utilisons-la tout de suite !",
+      "freeSongs_other": "Vous avez {{count}} chansons gratuites — utilisons-en une tout de suite !",
+      "makeFirstSong": "🎵 Créer ma première chanson",
+      "exploreMyself": "Je préfère explorer moi-même",
+      "readyTitle": "Vous êtes prêt !",
+      "readyText": "Appuyez ci-dessous et votre première chanson sera prête en moins de deux minutes."
+    },
+    "skipIntro": "Passer l'introduction"
   }
 }

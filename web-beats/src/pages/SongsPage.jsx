@@ -2496,6 +2496,7 @@ export default function SongsPage() {
       {showTour && (
         <OnboardingTour
           balance={credits.balance}
+          creditsLoaded={creditsLoaded}
           onComplete={() => setShowTour(false)}
           onAutoGenerate={(genres) => {
             setSelGenres(new Set(genres.filter(g => GENRES.includes(g))));

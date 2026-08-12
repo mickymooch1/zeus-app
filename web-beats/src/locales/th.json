@@ -465,5 +465,38 @@
     "message": "เราใช้คุกกี้เพื่อปรับปรุงประสบการณ์การใช้งานของคุณ การใช้ Zeus Beats ถือว่าคุณยอมรับ<privacy>นโยบายความเป็นส่วนตัว</privacy>ของเรา",
     "learnMore": "เรียนรู้เพิ่มเติม",
     "accept": "ยอมรับ"
+  },
+  "onboarding": {
+    "language": {
+      "title": "เลือกภาษาของคุณ",
+      "subtitle": "เลือกภาษาสำหรับแอป Zeus Beats",
+      "continue": "ดำเนินการต่อ →"
+    },
+    "genre": {
+      "title": "คุณชอบเพลงแนวไหน?",
+      "subtitle": "เราจะเลือกแนวเพลงที่เหมาะกับคุณไว้ให้ล่วงหน้า",
+      "soul_rnb": "🎤 Soul / R&B",
+      "grime_rap": "🎤 Grime / Rap / Drill",
+      "electronic": "🎶 อิเล็กทรอนิก / แดนซ์",
+      "everything": "🎸 แนวอื่น ๆ ทั้งหมด"
+    },
+    "tour": {
+      "label": "ทัวร์ Zeus Beats",
+      "progress": "{{current}} จาก {{total}}",
+      "skip": "ข้าม",
+      "next": "ถัดไป →",
+      "welcomeTitle": "ยินดีต้อนรับสู่ Zeus Beats ⚡",
+      "welcomeText": "สร้างเพลง AI ต้นฉบับกว่า 100 แนว เพียงสามขั้นตอนก็ได้เพลงแรกของคุณ",
+      "genreTitle": "เลือกแนวเพลง",
+      "genreText": "เลือกจากแนวเพลงกว่า 100 แนว — Soul, Grime, Afrobeats, D&B, Jazz และอีกมากมาย",
+      "describeTitle": "อธิบายเพลงของคุณ",
+      "describeText": "บอก Zeus ว่าคุณต้องการอะไร — หรือเว้นว่างไว้แล้วให้ Zeus เซอร์ไพรส์คุณ",
+      "freeSongs_other": "คุณมีเพลงฟรี {{count}} เพลง — มาใช้สักเพลงเลย!",
+      "makeFirstSong": "🎵 สร้างเพลงแรกของฉัน",
+      "exploreMyself": "ขอสำรวจเอง",
+      "readyTitle": "พร้อมแล้ว!",
+      "readyText": "แตะด้านล่าง แล้วเพลงแรกของคุณจะเสร็จในไม่ถึงสองนาที"
+    },
+    "skipIntro": "ข้ามการแนะนำ"
   }
 }

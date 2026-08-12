@@ -465,5 +465,42 @@
     "message": "نستخدم ملفات تعريف الارتباط لتحسين تجربتك. باستخدامك Zeus Beats فإنك توافق على <privacy>سياسة الخصوصية</privacy> الخاصة بنا.",
     "learnMore": "اعرف المزيد",
     "accept": "موافق"
+  },
+  "onboarding": {
+    "language": {
+      "title": "اختر لغتك",
+      "subtitle": "اختر لغة تطبيق Zeus Beats",
+      "continue": "متابعة"
+    },
+    "genre": {
+      "title": "ما نوع الموسيقى التي تحبها؟",
+      "subtitle": "سنختار لك أفضل الأنواع مسبقًا",
+      "soul_rnb": "🎤 Soul / R&B",
+      "grime_rap": "🎤 Grime / Rap / Drill",
+      "electronic": "🎶 إلكترونيك / رقص",
+      "everything": "🎸 كل شيء آخر"
+    },
+    "tour": {
+      "label": "جولة Zeus Beats",
+      "progress": "{{current}} من {{total}}",
+      "skip": "تخطي",
+      "next": "التالي",
+      "welcomeTitle": "مرحبًا بك في Zeus Beats ⚡",
+      "welcomeText": "أنشئ أغاني أصلية بالذكاء الاصطناعي في أكثر من 100 نوع موسيقي. ثلاث خطوات وتكون أغنيتك الأولى جاهزة.",
+      "genreTitle": "اختر نوعًا موسيقيًا",
+      "genreText": "اختر من أكثر من 100 نوع — Soul وGrime وAfrobeats وD&B وJazz وغيرها.",
+      "describeTitle": "صف أغنيتك",
+      "describeText": "أخبر Zeus بما تريد — أو اترك الحقل فارغًا ودع Zeus يفاجئك.",
+      "freeSongs_one": "لديك أغنية مجانية واحدة — لنستخدمها الآن!",
+      "freeSongs_two": "لديك أغنيتان مجانيتان — لنستخدم واحدة الآن!",
+      "freeSongs_few": "لديك {{count}} أغانٍ مجانية — لنستخدم واحدة الآن!",
+      "freeSongs_many": "لديك {{count}} أغنية مجانية — لنستخدم واحدة الآن!",
+      "freeSongs_other": "لديك {{count}} أغنية مجانية — لنستخدم واحدة الآن!",
+      "makeFirstSong": "🎵 أنشئ أغنيتي الأولى",
+      "exploreMyself": "سأستكشف بنفسي",
+      "readyTitle": "أنت جاهز!",
+      "readyText": "اضغط بالأسفل وستكون أغنيتك الأولى جاهزة في أقل من دقيقتين."
+    },
+    "skipIntro": "تخطي المقدمة"
   }
 }

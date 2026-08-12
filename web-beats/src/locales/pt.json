@@ -465,5 +465,39 @@
     "message": "Usamos cookies para melhorar sua experiência. Ao usar o Zeus Beats, você concorda com nossa <privacy>Política de Privacidade</privacy>.",
     "learnMore": "Saiba mais",
     "accept": "Aceitar"
+  },
+  "onboarding": {
+    "language": {
+      "title": "Escolha seu idioma",
+      "subtitle": "Selecione o idioma do app Zeus Beats",
+      "continue": "Continuar →"
+    },
+    "genre": {
+      "title": "Que tipo de música você curte?",
+      "subtitle": "Vamos pré-selecionar os melhores gêneros para você",
+      "soul_rnb": "🎤 Soul / R&B",
+      "grime_rap": "🎤 Grime / Rap / Drill",
+      "electronic": "🎶 Eletrônica / Dance",
+      "everything": "🎸 Todo o resto"
+    },
+    "tour": {
+      "label": "Tour do Zeus Beats",
+      "progress": "{{current}} de {{total}}",
+      "skip": "Pular",
+      "next": "Próximo →",
+      "welcomeTitle": "Bem-vindo ao Zeus Beats ⚡",
+      "welcomeText": "Crie músicas originais com IA em mais de 100 gêneros. Três passos até a primeira.",
+      "genreTitle": "Escolha um gênero",
+      "genreText": "Mais de 100 gêneros para escolher — Soul, Grime, Afrobeats, D&B, Jazz e muito mais.",
+      "describeTitle": "Descreva sua música",
+      "describeText": "Diga ao Zeus o que você quer — ou deixe em branco e deixe o Zeus te surpreender.",
+      "freeSongs_one": "Você tem {{count}} música grátis — vamos usar agora mesmo!",
+      "freeSongs_other": "Você tem {{count}} músicas grátis — vamos usar uma agora mesmo!",
+      "makeFirstSong": "🎵 Criar minha primeira música",
+      "exploreMyself": "Prefiro explorar sozinho",
+      "readyTitle": "Tudo pronto!",
+      "readyText": "Toque abaixo e sua primeira música fica pronta em menos de dois minutos."
+    },
+    "skipIntro": "Pular introdução"
   }
 }

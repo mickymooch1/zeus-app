@@ -465,5 +465,38 @@
     "message": "我们使用cookie来改善您的使用体验。使用Zeus Beats即表示您同意我们的<privacy>隐私政策</privacy>。",
     "learnMore": "了解更多",
     "accept": "接受"
+  },
+  "onboarding": {
+    "language": {
+      "title": "选择语言",
+      "subtitle": "选择 Zeus Beats 应用的语言",
+      "continue": "继续 →"
+    },
+    "genre": {
+      "title": "你喜欢什么类型的音乐？",
+      "subtitle": "我们会为你预先选好最合适的风格",
+      "soul_rnb": "🎤 Soul / R&B",
+      "grime_rap": "🎤 Grime / Rap / Drill",
+      "electronic": "🎶 电子 / 舞曲",
+      "everything": "🎸 其他全部"
+    },
+    "tour": {
+      "label": "Zeus Beats 导览",
+      "progress": "第 {{current}} 步，共 {{total}} 步",
+      "skip": "跳过",
+      "next": "下一步 →",
+      "welcomeTitle": "欢迎来到 Zeus Beats ⚡",
+      "welcomeText": "用 AI 创作 100 多种风格的原创歌曲。三步就能完成第一首。",
+      "genreTitle": "选择风格",
+      "genreText": "从 100 多种风格中选择——Soul、Grime、Afrobeats、D&B、Jazz 等等。",
+      "describeTitle": "描述你的歌曲",
+      "describeText": "告诉 Zeus 你想要什么，或者留空让 Zeus 给你惊喜。",
+      "freeSongs_other": "你有 {{count}} 首免费歌曲——现在就用一首吧！",
+      "makeFirstSong": "🎵 创作我的第一首歌",
+      "exploreMyself": "我自己看看",
+      "readyTitle": "准备就绪！",
+      "readyText": "点击下方，两分钟内就能听到你的第一首歌。"
+    },
+    "skipIntro": "跳过介绍"
   }
 }

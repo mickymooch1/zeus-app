@@ -465,5 +465,39 @@
     "message": "We use cookies to improve your experience. By using Zeus Beats you agree to our <privacy>Privacy Policy</privacy>.",
     "learnMore": "Learn More",
     "accept": "Accept"
+  },
+  "onboarding": {
+    "language": {
+      "title": "Choose your language",
+      "subtitle": "Select the language for the Zeus Beats app",
+      "continue": "Continue →"
+    },
+    "genre": {
+      "title": "What kind of music are you into?",
+      "subtitle": "We'll pre-select the best genres for you",
+      "soul_rnb": "🎤 Soul / R&B",
+      "grime_rap": "🎤 Grime / Rap / Drill",
+      "electronic": "🎶 Electronic / Dance",
+      "everything": "🎸 Everything else"
+    },
+    "tour": {
+      "label": "Zeus Beats Tour",
+      "progress": "{{current}} of {{total}}",
+      "skip": "Skip",
+      "next": "Next →",
+      "welcomeTitle": "Welcome to Zeus Beats ⚡",
+      "welcomeText": "Create original AI songs in 100+ genres. Three steps and your first one is done.",
+      "genreTitle": "Pick a Genre",
+      "genreText": "Choose from 100+ genres — Soul, Grime, Afrobeats, D&B, Jazz and more.",
+      "describeTitle": "Describe Your Song",
+      "describeText": "Tell Zeus what you want — or leave it blank and let Zeus surprise you.",
+      "freeSongs_one": "You have {{count}} free song — let's use it right now!",
+      "freeSongs_other": "You have {{count}} free songs — let's use one right now!",
+      "makeFirstSong": "🎵 Make My First Song",
+      "exploreMyself": "I'll explore myself",
+      "readyTitle": "You're ready!",
+      "readyText": "Tap below and your first song will be ready in under two minutes."
+    },
+    "skipIntro": "Skip introduction"
   }
 }

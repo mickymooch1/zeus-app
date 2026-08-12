@@ -1,8 +1,13 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 
 const CYAN = '#00f0ff';
 const PINK = '#f472b6';
+
+// Mirrors backend billing.FREE_SONG_CREDITS. Only used while the real balance is
+// still in flight — see the `freeSongs` note below.
+const FREE_SIGNUP_SONGS = 3;
 
 const ONBOARDING_LANGUAGES = [
   { code: 'en', label: 'English',    flag: '🇬🇧' },
@@ -25,57 +30,34 @@ function detectLang() {
   return ONBOARDING_LANGUAGES.find(l => l.code === nav) || ONBOARDING_LANGUAGES[0];
 }
 
+// The genre labels carry their own emoji inside the locale strings — the emoji
+// is part of the label, not a separate decoration, so translators keep it.
 const GENRE_CHOICES = [
-  { key: 'soul_rnb',    label: '🎤 Soul / R&B',          genres: ['soul', 'rnb', 'bluessoul'] },
-  { key: 'grime_rap',   label: '🎤 Grime / Rap / Drill',  genres: ['grime', 'hiphop', 'ukdrill'] },
-  { key: 'electronic',  label: '🎶 Electronic / Dance',   genres: ['edm', 'drumandbass', 'house'] },
-  { key: 'everything',  label: '🎸 Everything else',      genres: ['pop', 'rock', 'indie'] },
+  { key: 'soul_rnb',   labelKey: 'onboarding.genre.soul_rnb',   genres: ['soul', 'rnb', 'bluessoul'] },
+  { key: 'grime_rap',  labelKey: 'onboarding.genre.grime_rap',  genres: ['grime', 'hiphop', 'ukdrill'] },
+  { key: 'electronic', labelKey: 'onboarding.genre.electronic', genres: ['edm', 'drumandbass', 'house'] },
+  { key: 'everything', labelKey: 'onboarding.genre.everything', genres: ['pop', 'rock', 'indie'] },
 ];
 
+// Four cards, deliberately — this was eight. The four that went were Advanced
+// Options, Your Songs, Discover Feed and a standalone "You're ready!" card:
+// all of them described UI a first-time user cannot act on until they have a
+// song, on an overlay that isn't anchored to the thing it's describing. What's
+// left is only the critical path to the first generate. The rest of the app is
+// discoverable on its own, and the retrigger banner on SongsPage catches anyone
+// who bounces off before making anything.
 const STEPS = [
-  {
-    icon: '⚡',
-    title: 'Welcome to Zeus Beats ⚡',
-    text: 'Create original AI songs in 100+ genres. Let\'s show you around.',
-  },
-  {
-    icon: '🎵',
-    title: 'Pick a Genre',
-    text: 'Choose from 100+ genres including Soul, Grime, Afrobeats, D&B, Jazz and more.',
-  },
-  {
-    icon: '✍️',
-    title: 'Describe Your Song',
-    text: 'Tell Zeus what you want — or leave it blank and let Zeus surprise you.',
-  },
-  {
-    icon: '⚙️',
-    title: 'Advanced Options',
-    text: 'Fine tune your sound with accents, tempo, weirdness and more.',
-  },
-  {
-    icon: '🚀',
-    title: 'Generate',
-    text: 'Hit Generate and your song will be ready in under 2 minutes.',
-  },
-  {
-    icon: '🎧',
-    title: 'Your Songs',
-    text: 'Your songs appear here — download, share to Discover, upload to YouTube and more.',
-  },
-  {
-    icon: '🌐',
-    title: 'Discover Feed',
-    text: 'Check out the Discover feed to hear what other Zeus Beats users are creating.',
-  },
-  {
-    icon: '🎵',
-    title: "You're ready!",
-    isFinal: true,
-  },
+  { icon: '⚡',  titleKey: 'onboarding.tour.welcomeTitle',  textKey: 'onboarding.tour.welcomeText' },
+  { icon: '🎵', titleKey: 'onboarding.tour.genreTitle',    textKey: 'onboarding.tour.genreText' },
+  { icon: '✍️', titleKey: 'onboarding.tour.describeTitle', textKey: 'onboarding.tour.describeText' },
+  // The "You're ready" card absorbs the old standalone Generate step: it carries
+  // the balance badge and the Make My First Song CTA, so the generate promise
+  // ("under two minutes") lives in its text rather than on a card of its own.
+  { icon: '🚀', titleKey: 'onboarding.tour.readyTitle', textKey: 'onboarding.tour.readyText', isFinal: true },
 ];
 
-export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) {
+export default function OnboardingTour({ onComplete, onAutoGenerate, balance, creditsLoaded }) {
+  const { t } = useTranslation();
   const [phase, setPhase] = useState('lang_pick');
   const [selectedLang, setSelectedLang] = useState(detectLang);
   const [genrePref, setGenrePref] = useState(null);
@@ -98,6 +80,16 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
   };
 
   const cur = STEPS[step];
+
+  // Single source of truth for the free-song count on the final step. It used to
+  // be written twice with different fallbacks (`balance ?? 5` in the badge,
+  // `balance ?? 3` in the paragraph) — the two contradicted each other, and both
+  // `??` arms were unreachable anyway because SongsPage seeds credits as
+  // `{ balance: 0 }` rather than undefined. That made a brand-new account read
+  // "You have 0 free songs" whenever the tour outran the /credits request.
+  // Gate on creditsLoaded instead, so the signup grant only stands in while the
+  // real number is genuinely unknown.
+  const freeSongs = creditsLoaded ? balance : FREE_SIGNUP_SONGS;
 
   // ── Layout notes (2026-07-31, fixes a first-screen trap) ───────────────────
   // This overlay used to be `align-items:center` with no overflow. Once the card
@@ -177,10 +169,10 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
           <div style={cardBodyStyle}>
             <div style={{ fontSize: 42, marginBottom: 12 }}>🌐</div>
             <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 19, fontWeight: 800, color: '#fff', marginBottom: 8 }}>
-              Choose your language
+              {t('onboarding.language.title')}
             </h2>
             <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, marginBottom: 24 }}>
-              Select the language for the Zeus Beats app
+              {t('onboarding.language.subtitle')}
             </p>
             <div style={{
               display: 'grid',
@@ -231,10 +223,10 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
                 marginBottom: 10,
               }}
             >
-              Continue →
+              {t('onboarding.language.continue')}
             </button>
             <button onClick={() => dismiss('skip')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.28)', fontSize: 13, cursor: 'pointer' }}>
-              Skip introduction
+              {t('onboarding.skipIntro')}
             </button>
           </div>
         </div>
@@ -249,13 +241,13 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
           <div style={cardBodyStyle}>
             <div style={{ fontSize: 46, marginBottom: 14 }}>🎵</div>
             <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>
-              What kind of music are you into?
+              {t('onboarding.genre.title')}
             </h2>
             <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, marginBottom: 28 }}>
-              We'll pre-select the best genres for you
+              {t('onboarding.genre.subtitle')}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-              {GENRE_CHOICES.map(({ key, label }) => (
+              {GENRE_CHOICES.map(({ key, labelKey }) => (
                 <button
                   key={key}
                   onClick={() => {
@@ -272,14 +264,14 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
                   onMouseEnter={e => { e.currentTarget.style.borderColor = CYAN; e.currentTarget.style.background = `${CYAN}12`; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = `${CYAN}33`; e.currentTarget.style.background = 'rgba(0,240,255,0.04)'; }}
                 >
-                  {label}
+                  {t(labelKey)}
                 </button>
               ))}
             </div>
           </div>
           <div style={cardFooterStyle}>
             <button onClick={() => dismiss('skip')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.28)', fontSize: 13, cursor: 'pointer' }}>
-              Skip introduction
+              {t('onboarding.skipIntro')}
             </button>
           </div>
         </div>
@@ -295,10 +287,10 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <span style={{ fontSize: 10, color: `${CYAN}88`, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            Zeus Beats Tour
+            {t('onboarding.tour.label')}
           </span>
           <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-            {step + 1} of {STEPS.length}
+            {t('onboarding.tour.progress', { current: step + 1, total: STEPS.length })}
           </span>
         </div>
 
@@ -307,33 +299,31 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
 
         {/* Title */}
         <h2 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 19, fontWeight: 800, color: '#fff', textAlign: 'center', marginBottom: 12, lineHeight: 1.3 }}>
-          {cur.title}
+          {t(cur.titleKey)}
         </h2>
 
-        {/* Body */}
-        {cur.isFinal ? (
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        {/* Body. The final step carries the free-song badge above its text; the
+            badge is the only place the count appears now, so the two copies can
+            no longer drift apart. Hidden at zero — "You have 0 free songs, let's
+            use one" is worse than saying nothing. */}
+        {cur.isFinal && freeSongs > 0 && (
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               background: `${CYAN}10`, border: `1px solid ${CYAN}44`,
-              borderRadius: 50, padding: '9px 20px', marginBottom: 14,
+              borderRadius: 50, padding: '9px 20px',
               boxShadow: `0 0 20px ${CYAN}22`,
             }}>
               <span>⚡</span>
               <span style={{ color: CYAN, fontWeight: 700, fontSize: 14 }}>
-                You have {balance ?? 5} free songs — let's use one right now!
+                {t('onboarding.tour.freeSongs', { count: freeSongs })}
               </span>
             </div>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, lineHeight: 1.7 }}>
-              {/* Use the real balance — the hardcoded "5" contradicted the badge above it. */}
-              {balance ?? 3} free songs are waiting for you. Go make something 🎵⚡
-            </p>
           </div>
-        ) : (
-          <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 15, lineHeight: 1.7, textAlign: 'center', marginBottom: 28 }}>
-            {cur.text}
-          </p>
         )}
+        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 15, lineHeight: 1.7, textAlign: 'center', marginBottom: 28 }}>
+          {t(cur.textKey)}
+        </p>
 
        </div>
 
@@ -355,7 +345,7 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
                 boxShadow: `0 0 24px ${CYAN}44`,
               }}
             >
-              🎵 Make My First Song
+              {t('onboarding.tour.makeFirstSong')}
             </button>
             <button
               onClick={() => dismiss('completed')}
@@ -365,7 +355,7 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
                 color: 'rgba(255,255,255,0.45)', fontSize: 14, cursor: 'pointer',
               }}
             >
-              I'll explore myself
+              {t('onboarding.tour.exploreMyself')}
             </button>
           </div>
         ) : (
@@ -374,7 +364,7 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
               onClick={() => dismiss('skip')}
               style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.28)', fontSize: 13, cursor: 'pointer', padding: '8px 0' }}
             >
-              Skip
+              {t('onboarding.tour.skip')}
             </button>
             <button
               onClick={handleNext}
@@ -385,7 +375,7 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance }) 
                 boxShadow: `0 0 16px ${CYAN}44`,
               }}
             >
-              Next →
+              {t('onboarding.tour.next')}
             </button>
           </div>
         )}

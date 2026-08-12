@@ -465,5 +465,38 @@
     "message": "当サイトでは、より良い体験のためにCookieを使用しています。Zeus Beatsをご利用いただくことで、<privacy>プライバシーポリシー</privacy>に同意したものとみなされます。",
     "learnMore": "詳細を見る",
     "accept": "同意する"
+  },
+  "onboarding": {
+    "language": {
+      "title": "言語を選択",
+      "subtitle": "Zeus Beats アプリの言語を選んでください",
+      "continue": "続ける →"
+    },
+    "genre": {
+      "title": "どんな音楽が好きですか？",
+      "subtitle": "おすすめのジャンルを事前に選んでおきます",
+      "soul_rnb": "🎤 Soul / R&B",
+      "grime_rap": "🎤 Grime / Rap / Drill",
+      "electronic": "🎶 エレクトロニック / ダンス",
+      "everything": "🎸 その他すべて"
+    },
+    "tour": {
+      "label": "Zeus Beats ツアー",
+      "progress": "{{total}} 中 {{current}}",
+      "skip": "スキップ",
+      "next": "次へ →",
+      "welcomeTitle": "Zeus Beats へようこそ ⚡",
+      "welcomeText": "100 以上のジャンルでオリジナルの AI 楽曲を作成。3 ステップで 1 曲目が完成します。",
+      "genreTitle": "ジャンルを選ぶ",
+      "genreText": "Soul、Grime、Afrobeats、D&B、Jazz など 100 以上のジャンルから選べます。",
+      "describeTitle": "曲を説明する",
+      "describeText": "作りたい曲を Zeus に伝えてください。空欄のままにすれば Zeus におまかせできます。",
+      "freeSongs_other": "無料楽曲が {{count}} 曲あります — 早速 1 曲作りましょう！",
+      "makeFirstSong": "🎵 最初の曲を作る",
+      "exploreMyself": "自分で見てまわる",
+      "readyTitle": "準備完了！",
+      "readyText": "下をタップすれば、2 分以内に最初の曲が完成します。"
+    },
+    "skipIntro": "イントロをスキップ"
   }
 }
