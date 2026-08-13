@@ -284,9 +284,9 @@
       "getPro": "รับ Music Pro",
       "getAgency": "รับ Music Agency",
       "features": {
-        "songs15": "25 เพลง AI/เดือน",
-        "songs40": "55 เพลง AI/เดือน",
-        "songs80": "110 เพลง AI/เดือน",
+        "songsStarter": "25 เพลง AI/เดือน",
+        "songsPro": "55 เพลง AI/เดือน",
+        "songsAgency": "110 เพลง AI/เดือน",
         "songsFree": "3 เพลงฟรีเมื่อสมัคร",
         "allGenres": "ทุกแนวเพลง",
         "youtube": "อัปโหลด YouTube",
@@ -300,7 +300,7 @@
     }
   },
   "landing": {
-    "badge": "3 เพลงฟรีเมื่อสมัคร · ไม่ต้องใช้บัตรเครดิต",
+    "badge": "ขับเคลื่อนด้วย AI · สร้างเพลง",
     "heroTitle1": "สร้าง",
     "heroTitle2": "เพลงไวรัล",
     "heroTitle3": "ใน 60 วินาที",
@@ -323,7 +323,7 @@
     "step3Desc": "อัปโหลดไปยัง YouTube ด้วยคลิกเดียว แชร์ไปยัง Facebook Telegram ดนตรีของคุณ ออกอากาศทันที",
     "pricingLabel": "ราคา",
     "pricingTitle": "เริ่มฟรี อัปเกรดเมื่อพร้อม",
-    "pricingSub": "ไม่ต้องใช้บัตรเครดิต 3 เพลงฟรีเมื่อสมัคร",
+    "freeSongsNote": "ผู้ใช้ใหม่รับเพลงฟรี 3 เพลงเมื่อสมัคร",
     "starterName": "Music Starter",
     "starterDesc": "สำหรับศิลปินที่เริ่มต้นสร้างดนตรีด้วย AI",
     "proName": "Music Pro",

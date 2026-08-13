@@ -284,9 +284,9 @@
       "getPro": "احصل على Music Pro",
       "getAgency": "احصل على Music Agency",
       "features": {
-        "songs15": "25 أغنية AI/شهر",
-        "songs40": "55 أغنية AI/شهر",
-        "songs80": "110 أغنية AI/شهر",
+        "songsStarter": "25 أغنية AI/شهر",
+        "songsPro": "55 أغنية AI/شهر",
+        "songsAgency": "110 أغنية AI/شهر",
         "songsFree": "3 أغانٍ مجانية عند التسجيل",
         "allGenres": "جميع الأنواع",
         "youtube": "رفع YouTube",
@@ -300,7 +300,7 @@
     }
   },
   "landing": {
-    "badge": "3 أغانٍ مجانية عند التسجيل · لا بطاقة ائتمان",
+    "badge": "مدعوم بالذكاء الاصطناعي · إنشاء الموسيقى",
     "heroTitle1": "أنشئ",
     "heroTitle2": "أغاني رائجة",
     "heroTitle3": "في 60 ثانية.",
@@ -323,7 +323,7 @@
     "step3Desc": "ارفع على YouTube بنقرة واحدة. شارك على Facebook وTelegram.",
     "pricingLabel": "الأسعار",
     "pricingTitle": "ابدأ مجاناً. قم بالترقية عندما تكون مستعداً.",
-    "pricingSub": "لا بطاقة ائتمان. 3 أغانٍ مجانية عند التسجيل.",
+    "freeSongsNote": "يحصل المستخدمون الجدد على 3 أغانٍ مجانية عند التسجيل",
     "starterName": "Music Starter",
     "starterDesc": "للفنانين الذين يبدأون مع موسيقى AI.",
     "proName": "Music Pro",

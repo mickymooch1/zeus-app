@@ -284,9 +284,9 @@
       "getPro": "Ottieni Music Pro",
       "getAgency": "Ottieni Music Agency",
       "features": {
-        "songs15": "25 canzoni AI/mese",
-        "songs40": "55 canzoni AI/mese",
-        "songs80": "110 canzoni AI/mese",
+        "songsStarter": "25 canzoni AI/mese",
+        "songsPro": "55 canzoni AI/mese",
+        "songsAgency": "110 canzoni AI/mese",
         "songsFree": "3 canzoni gratuite all'iscrizione",
         "allGenres": "Tutti i generi",
         "youtube": "Caricamento YouTube",
@@ -300,7 +300,7 @@
     }
   },
   "landing": {
-    "badge": "3 canzoni gratuite · Nessuna carta di credito",
+    "badge": "Basato sull'IA · Creazione musicale",
     "heroTitle1": "Crea",
     "heroTitle2": "canzoni virali",
     "heroTitle3": "in 60 secondi.",
@@ -323,7 +323,7 @@
     "step3Desc": "Carica su YouTube con un clic. Condividi su Facebook, Telegram.",
     "pricingLabel": "Prezzi",
     "pricingTitle": "Inizia gratis. Migliora quando sei pronto.",
-    "pricingSub": "Nessuna carta di credito. 3 canzoni gratuite all'iscrizione.",
+    "freeSongsNote": "I nuovi utenti ricevono 3 canzoni gratuite all'iscrizione",
     "starterName": "Music Starter",
     "starterDesc": "Per gli artisti che iniziano con la musica AI.",
     "proName": "Music Pro",

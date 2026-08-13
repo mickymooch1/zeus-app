@@ -284,9 +284,9 @@
       "getPro": "获取Music Pro",
       "getAgency": "获取Music Agency",
       "features": {
-        "songs15": "每月25首AI歌曲",
-        "songs40": "每月55首AI歌曲",
-        "songs80": "每月110首AI歌曲",
+        "songsStarter": "每月25首AI歌曲",
+        "songsPro": "每月55首AI歌曲",
+        "songsAgency": "每月110首AI歌曲",
         "songsFree": "注册时3首免费歌曲",
         "allGenres": "所有风格",
         "youtube": "YouTube上传",
@@ -300,7 +300,7 @@
     }
   },
   "landing": {
-    "badge": "注册3首免费歌曲 · 无需信用卡",
+    "badge": "AI 驱动 · 音乐创作",
     "heroTitle1": "创作",
     "heroTitle2": "爆款歌曲",
     "heroTitle3": "60秒内。",
@@ -323,7 +323,7 @@
     "step3Desc": "一键上传到YouTube。在Facebook、Telegram上分享。",
     "pricingLabel": "定价",
     "pricingTitle": "免费开始。准备好了再升级。",
-    "pricingSub": "无需信用卡。注册时3首免费歌曲。",
+    "freeSongsNote": "新用户注册即可获得 3 首免费歌曲",
     "starterName": "Music Starter",
     "starterDesc": "适合开始AI音乐创作的艺术家。",
     "proName": "Music Pro",

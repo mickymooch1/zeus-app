@@ -284,9 +284,9 @@
       "getPro": "Music Pro halen",
       "getAgency": "Music Agency halen",
       "features": {
-        "songs15": "25 AI-nummers/maand",
-        "songs40": "55 AI-nummers/maand",
-        "songs80": "110 AI-nummers/maand",
+        "songsStarter": "25 AI-nummers/maand",
+        "songsPro": "55 AI-nummers/maand",
+        "songsAgency": "110 AI-nummers/maand",
         "songsFree": "3 gratis nummers bij aanmelding",
         "allGenres": "Alle genres",
         "youtube": "YouTube-upload",
@@ -300,7 +300,7 @@
     }
   },
   "landing": {
-    "badge": "3 gratis nummers · Geen creditcard nodig",
+    "badge": "AI-gestuurd · Muziek maken",
     "heroTitle1": "Maak",
     "heroTitle2": "virale nummers",
     "heroTitle3": "in 60 seconden.",
@@ -323,7 +323,7 @@
     "step3Desc": "Upload naar YouTube met één klik. Deel op Facebook, Telegram.",
     "pricingLabel": "Prijzen",
     "pricingTitle": "Begin gratis. Upgrade wanneer je klaar bent.",
-    "pricingSub": "Geen creditcard nodig. 3 gratis nummers bij aanmelding.",
+    "freeSongsNote": "Nieuwe gebruikers krijgen 3 gratis nummers bij aanmelding",
     "starterName": "Music Starter",
     "starterDesc": "Voor artiesten die beginnen met AI-muziek.",
     "proName": "Music Pro",

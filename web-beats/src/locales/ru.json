@@ -284,9 +284,9 @@
       "getPro": "Выбрать Music Pro",
       "getAgency": "Выбрать Music Agency",
       "features": {
-        "songs15": "25 AI-песен/месяц",
-        "songs40": "55 AI-песен/месяц",
-        "songs80": "110 AI-песен/месяц",
+        "songsStarter": "25 AI-песен/месяц",
+        "songsPro": "55 AI-песен/месяц",
+        "songsAgency": "110 AI-песен/месяц",
         "songsFree": "3 бесплатные песни при регистрации",
         "allGenres": "Все жанры",
         "youtube": "Загрузка на YouTube",
@@ -300,7 +300,7 @@
     }
   },
   "landing": {
-    "badge": "3 бесплатные песни · Карта не нужна",
+    "badge": "На базе ИИ · Создание музыки",
     "heroTitle1": "Создавайте",
     "heroTitle2": "вирусные песни",
     "heroTitle3": "за 60 секунд.",
@@ -323,7 +323,7 @@
     "step3Desc": "Загрузите на YouTube одним кликом. Делитесь в Facebook, Telegram.",
     "pricingLabel": "Цены",
     "pricingTitle": "Начните бесплатно. Улучшайте, когда будете готовы.",
-    "pricingSub": "Карта не нужна. 3 бесплатные песни при регистрации.",
+    "freeSongsNote": "Новые пользователи получают 3 бесплатные песни при регистрации",
     "starterName": "Music Starter",
     "starterDesc": "Для артистов, начинающих работу с AI-музыкой.",
     "proName": "Music Pro",

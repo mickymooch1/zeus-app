@@ -353,7 +353,7 @@ export default function LandingPage() {
           <div className="section-label">{t('landing.pricingLabel')}</div>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 48 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.3)', borderRadius: 20, padding: '6px 16px', fontSize: 13, color: '#00F0FF', fontWeight: 600 }}>
-              <span>🎵</span> New users get 3 free songs on signup
+              <span>🎵</span> {t('landing.freeSongsNote')}
             </span>
           </div>
 

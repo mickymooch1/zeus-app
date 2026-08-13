@@ -331,9 +331,9 @@ export default function BillingPage() {
   const canFacebook   = isAdmin || effectivePlan === 'music_agency';
 
   const PLAN_FEATURES = {
-    music_starter: [t('billing.plans.features.songs15'), t('billing.plans.features.youtube'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt')],
-    music_pro:     [t('billing.plans.features.songs40'), t('billing.plans.features.youtube'), t('billing.plans.features.avatar3'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt')],
-    music_agency:  [t('billing.plans.features.songs80'), t('billing.plans.features.youtube'), t('billing.plans.features.avatar10'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt'), t('billing.plans.features.facebook')],
+    music_starter: [t('billing.plans.features.songsStarter'), t('billing.plans.features.youtube'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt')],
+    music_pro:     [t('billing.plans.features.songsPro'), t('billing.plans.features.youtube'), t('billing.plans.features.avatar3'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt')],
+    music_agency:  [t('billing.plans.features.songsAgency'), t('billing.plans.features.youtube'), t('billing.plans.features.avatar10'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt'), t('billing.plans.features.facebook')],
     free:          [t('billing.plans.features.songsFree'), t('billing.plans.features.download'), t('billing.plans.features.allGenres')],
   };
   const planFeatures = (isMusicPlan && isActive)
