@@ -287,7 +287,7 @@
         "songs15": "月25曲のAI楽曲",
         "songs40": "月55曲のAI楽曲",
         "songs80": "月110曲のAI楽曲",
-        "songs5": "登録時5曲無料",
+        "songsFree": "登録時3曲無料",
         "allGenres": "全ジャンル",
         "youtube": "YouTube アップロード",
         "download": "楽曲ダウンロード＆シェア",
@@ -300,7 +300,7 @@
     }
   },
   "landing": {
-    "badge": "登録で5曲無料 · クレジットカード不要",
+    "badge": "登録で3曲無料 · クレジットカード不要",
     "heroTitle1": "作ろう",
     "heroTitle2": "バイラル楽曲",
     "heroTitle3": "60秒で。",
@@ -323,7 +323,7 @@
     "step3Desc": "ワンクリックでYouTubeにアップロード。Facebook、Telegramでシェア。",
     "pricingLabel": "料金",
     "pricingTitle": "無料で始めよう。準備ができたらアップグレード。",
-    "pricingSub": "クレジットカード不要。登録時5曲無料。",
+    "pricingSub": "クレジットカード不要。登録時3曲無料。",
     "starterName": "Music Starter",
     "starterDesc": "AI音楽制作を始めるアーティスト向け。",
     "proName": "Music Pro",

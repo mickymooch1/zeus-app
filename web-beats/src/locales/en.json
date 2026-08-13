@@ -287,7 +287,7 @@
         "songs15": "25 AI songs/month",
         "songs40": "55 AI songs/month",
         "songs80": "110 AI songs/month",
-        "songs5": "5 free songs on signup",
+        "songsFree": "3 free songs on signup",
         "allGenres": "All genres",
         "youtube": "YouTube upload",
         "download": "Song download & share",
@@ -300,7 +300,7 @@
     }
   },
   "landing": {
-    "badge": "5 free songs on signup · No credit card needed",
+    "badge": "3 free songs on signup · No credit card needed",
     "heroTitle1": "Create",
     "heroTitle2": "viral-ready songs",
     "heroTitle3": "in 60 seconds.",
@@ -323,7 +323,7 @@
     "step3Desc": "Upload to YouTube in one click. Share to Facebook, Telegram. Your music, live instantly.",
     "pricingLabel": "Pricing",
     "pricingTitle": "Start free. Upgrade when you're ready.",
-    "pricingSub": "No credit card needed. 5 free songs when you sign up.",
+    "pricingSub": "No credit card needed. 3 free songs when you sign up.",
     "starterName": "Music Starter",
     "starterDesc": "For artists getting started with AI music creation.",
     "proName": "Music Pro",

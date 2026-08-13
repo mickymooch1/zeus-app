@@ -287,7 +287,7 @@
         "songs15": "월 25곡 AI 노래",
         "songs40": "월 55곡 AI 노래",
         "songs80": "월 110곡 AI 노래",
-        "songs5": "가입 시 무료 노래 5곡",
+        "songsFree": "가입 시 무료 노래 3곡",
         "allGenres": "모든 장르",
         "youtube": "YouTube 업로드",
         "download": "노래 다운로드 및 공유",
@@ -300,7 +300,7 @@
     }
   },
   "landing": {
-    "badge": "가입 시 5곡 무료 · 신용카드 불필요",
+    "badge": "가입 시 3곡 무료 · 신용카드 불필요",
     "heroTitle1": "만들어보세요",
     "heroTitle2": "바이럴 노래를",
     "heroTitle3": "60초 안에.",
@@ -323,7 +323,7 @@
     "step3Desc": "원클릭으로 YouTube에 업로드. Facebook, Telegram에서 공유.",
     "pricingLabel": "요금제",
     "pricingTitle": "무료로 시작. 준비되면 업그레이드.",
-    "pricingSub": "신용카드 불필요. 가입 시 5곡 무료.",
+    "pricingSub": "신용카드 불필요. 가입 시 3곡 무료.",
     "starterName": "Music Starter",
     "starterDesc": "AI 음악 제작을 시작하는 아티스트를 위한.",
     "proName": "Music Pro",
