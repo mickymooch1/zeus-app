@@ -31,6 +31,7 @@ import { describe, it } from 'node:test';
 
 const SONGS_PAGE = new URL('./SongsPage.jsx', import.meta.url);
 const SONG_GENRES_PY = new URL('../../../backend/song_genres.py', import.meta.url);
+const WEBHOOKS_PY = new URL('../../../backend/webhooks.py', import.meta.url);
 
 function read(url, label) {
   try {
@@ -59,10 +60,19 @@ function presetGenres() {
   return [...block[1].matchAll(/^\s*"([A-Za-z0-9_]+)"\s*:/gm)].map(m => m[1]);
 }
 
+/** Every genre slug with its own cover-art prompt. */
+function coverPromptGenres() {
+  const src = read(WEBHOOKS_PY, 'backend/webhooks.py');
+  const block = src.match(/^GENRE_COVER_PROMPTS: dict\[str, str\] = \{([\s\S]*?)^\}/m);
+  assert.ok(block, 'could not locate GENRE_COVER_PROMPTS in backend/webhooks.py');
+  return [...block[1].matchAll(/^\s*"([A-Za-z0-9_]+)"\s*:/gm)].map(m => m[1]);
+}
+
 describe('genre catalog', () => {
-  it('parses both sources (guards against a silently-empty comparison)', () => {
+  it('parses all three sources (guards against a silently-empty comparison)', () => {
     assert.ok(pickableGenres().length > 50, 'suspiciously few genres parsed from the grid');
     assert.ok(presetGenres().length > 50, 'suspiciously few presets parsed from the backend');
+    assert.ok(coverPromptGenres().length > 50, 'suspiciously few cover prompts parsed from the backend');
   });
 
   it('lists no genre twice across categories', () => {
@@ -90,9 +100,22 @@ describe('genre catalog', () => {
     );
   });
 
-  it('the two catalogs match exactly', () => {
-    const a = [...new Set(pickableGenres())].sort();
-    const b = [...new Set(presetGenres())].sort();
-    assert.deepEqual(a, b);
+  it('every pickable genre has its own cover-art prompt', () => {
+    // _generate_flux_cover falls back to _DEFAULT_COVER_PROMPT for an unknown
+    // genre, so a missing entry is invisible: covers still generate, they just
+    // quietly stop matching the genre.
+    const covers = new Set(coverPromptGenres());
+    const orphans = [...new Set(pickableGenres())].filter(g => !covers.has(g));
+    assert.deepEqual(
+      orphans, [],
+      `no GENRE_COVER_PROMPTS entry — these would silently fall back to the ` +
+      `generic default cover: ${orphans.join(', ')}`,
+    );
+  });
+
+  it('all three catalogs match exactly', () => {
+    const grid = [...new Set(pickableGenres())].sort();
+    assert.deepEqual([...new Set(presetGenres())].sort(), grid, 'GENRE_PRESETS differs from the grid');
+    assert.deepEqual([...new Set(coverPromptGenres())].sort(), grid, 'GENRE_COVER_PROMPTS differs from the grid');
   });
 });

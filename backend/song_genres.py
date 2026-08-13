@@ -138,6 +138,15 @@ GENRE_PRESETS = {
     "electricbluesguitar": "electric blues guitar solo, soulful string bends, blues scale mastery, warm overdriven tone, expressive slow blues, backing band groove, 75 BPM, emotive lead guitar, gritty authentic blues, instrumental only, no vocals, no singing",
     "trumpet":           "solo trumpet, jazz trumpet virtuoso, bright brass tone, expressive improvisation, smooth jazz backing, 100 BPM, soulful muted trumpet, sophisticated brass melody, instrumental only, no vocals, no singing",
     "flamencoguitar":    "flamenco guitar, rapid fingerpicking, Spanish classical guitar, passionate rhythmic playing, percussive guitar techniques, 110 BPM, fiery Spanish melody, virtuoso nylon string guitar, instrumental only, no vocals, no singing",
+    # Descriptive production language only — no artist or place names, matching
+    # the SOUND_CONTROL_PHRASES convention below.
+    "disco":             "disco, four-on-the-floor kick, syncopated slap bass, lush sweeping string sections, wah-wah rhythm guitar, bright brass stabs, 120 BPM, glittering hi-hats, soaring powerful lead vocals, layered backing harmonies, warm analog production, exuberant uplifting dancefloor groove",
+    "nudisco":           "nu disco, modern four-on-the-floor groove, filtered funk guitar, punchy analog synth bass, lush chord stabs, 115 BPM, glossy contemporary production, sidechained pads, disco strings with electronic sheen, smooth soulful vocals, club-ready polish, retro-modern fusion",
+    "bollywood":         "Bollywood playback song, sweeping orchestral strings, dholak and tabla percussion, harmonium and bansuri flute, expressive melismatic vocals, 110 BPM, lush cinematic arrangement, call-and-response chorus, festive danceable rhythm, richly layered production, dramatic emotional delivery",
+    "boombap":           "boom bap hip hop, dusty sampled drum break, hard-hitting kick and crisp snare, warm upright bass loop, jazzy piano and horn samples, vinyl crackle, 90 BPM, head-nodding swing, gritty analog texture, confident lyrical delivery, scratched turntable cuts, classic golden-era production",
+    "citypop":           "city pop, glossy 80s production, slap bass groove, lush electric piano, jazzy extended chords, chorus-drenched clean guitar, gated reverb drums, bright analog synth pads, 105 BPM, smooth polished vocals, shimmering saxophone lines, sophisticated nostalgic funk-influenced arrangement",
+    "futurebass":        "future bass, detuned supersaw chord swells, pitched vocal chops, punchy trap-influenced drums, heavy sidechain pumping, 150 BPM, bright euphoric drop, lush reverb-soaked pads, crisp snare rolls, layered synth stacks, glossy modern production, emotional uplifting melody",
+    "gqom":              "gqom, raw minimal broken beat, deep booming sub bass, sparse hypnotic percussion loops, dark industrial synth stabs, 125 BPM, tribal drum patterns, heavy syncopated kick, chanted repetitive vocal hooks, stripped-back hypnotic groove, gritty underground club energy",
 }
 
 # ── Sound Control (Advanced area) ─────────────────────────────────────────────

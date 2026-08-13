@@ -129,6 +129,17 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "electricbluesguitar": "cinematic album cover, electric blues guitar in foreground, smoky blues club backdrop, warm amber lighting, gritty authentic blues aesthetic, ultra detailed professional music artwork",
     "trumpet":          "cinematic album cover, trumpet in foreground, warm intimate jazz club backdrop, golden amber lighting, sophisticated jazz aesthetic, ultra detailed professional music artwork",
     "flamencoguitar":   "cinematic album cover, flamenco guitar in foreground, warm dramatic Spanish courtyard backdrop, fiery red and amber lighting, passionate Spanish aesthetic, ultra detailed professional music artwork",
+    # Scene descriptors only — no artist names and no named cities, venues or
+    # landmarks. Ethnicity cues follow the existing entries above, which state
+    # them explicitly to stop the image model defaulting away from the culture
+    # the genre actually comes from.
+    "disco":            "cinematic album cover, glamorous singer in a sequinned jumpsuit in foreground, mirrorball scattering light across a packed dancefloor behind, glowing illuminated floor panels, warm gold and magenta lighting, flared silhouettes mid-dance, ultra detailed professional music artwork",
+    "nudisco":          "cinematic album cover, stylish performer in a metallic outfit in foreground, sleek modern club with mirrorball and LED strips behind, glossy reflective surfaces, neon pink and cyan lighting, retro-futuristic aesthetic, ultra detailed professional music artwork",
+    "bollywood":        "cinematic album cover, South Asian singer in an ornate embroidered outfit in foreground, vibrant festival scene with marigold garlands and flowing silk drapes behind, saturated crimson gold and emerald jewel tones, swirling dancers, warm dramatic lighting, ultra detailed professional music artwork, South Asian musician, correct ethnicity",
+    "boombap":          "cinematic album cover, Black rapper in vintage sportswear and a gold rope chain in foreground, graffiti-covered brick wall and iron fire escape behind, boombox and crates of vinyl records, grainy 90s film photography, muted warm tones, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
+    "citypop":          "cinematic album cover, stylish woman in 80s fashion leaning on a convertible in foreground, neon-lit night skyline and elevated highway behind, warm purple and turquoise glow, chrome details and palm silhouettes, retro anime-inspired illustration style, ultra detailed professional music artwork",
+    "futurebass":       "cinematic album cover, young producer silhouetted against a wall of light in foreground, iridescent holographic gradients and prismatic light shards behind, soft pastel pink blue and violet glow, floating geometric shapes, dreamy euphoric atmosphere, ultra detailed professional music artwork",
+    "gqom":             "cinematic album cover, Black dancers caught mid-movement in foreground, raw concrete warehouse space with harsh strobe lighting behind, heavy shadow and stark contrast, dust suspended in the air, towering industrial speaker stacks, gritty underground energy, ultra detailed professional music artwork, Black musicians, NOT white, correct ethnicity",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"
