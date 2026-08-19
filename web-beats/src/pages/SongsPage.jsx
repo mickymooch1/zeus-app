@@ -7,6 +7,7 @@ import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 import { EmailVerificationBanner } from '../components/EmailVerificationBanner';
 import { BACKEND_URL } from '../brand';
 import OnboardingTour from '../components/OnboardingTour';
+import VerificationRequiredScreen from '../components/VerificationRequiredScreen';
 import { audioManager } from '../utils/audioManager';
 import { PLATFORM } from '../utils/platform';
 import { startGenerationPoll } from '../utils/generationPoller';
@@ -1290,6 +1291,8 @@ export default function SongsPage() {
     return next;
   });
   // Onboarding
+  // Set when the backend rejects generation with code "email_unverified".
+  const [verifyBlock, setVerifyBlock]     = useState(null);
   const [showTour, setShowTour]           = useState(() => !localStorage.getItem('zeus_onboarding_done'));
   const [pendingAutoGen, setPendingAutoGen] = useState(null);
   const [showRetrigger, setShowRetrigger] = useState(false);
@@ -1917,7 +1920,17 @@ export default function SongsPage() {
         body: JSON.stringify(requestBody),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.detail || 'Generation failed');
+      if (!r.ok) {
+        // The verification gate returns a structured detail so we can show a real
+        // screen instead of surfacing a raw 403. Must be handled before the throw
+        // below, which would otherwise stringify the object into "[object Object]".
+        const det = d.detail;
+        if (r.status === 403 && det && typeof det === 'object' && det.code === 'email_unverified') {
+          setVerifyBlock({ message: det.message, email: det.email });
+          return;   // `finally` clears the spinner; the form is intentionally kept
+        }
+        throw new Error((typeof det === 'string' ? det : det?.message) || 'Generation failed');
+      }
       const _storyUrl = d.story_audio_url
         ? (d.story_audio_url.startsWith('http') ? d.story_audio_url : `${BACKEND_URL}${d.story_audio_url}`)
         : null;
@@ -2511,6 +2524,22 @@ export default function SongsPage() {
           onAutoGenerate={(genres) => {
             setSelGenres(new Set(genres.filter(g => GENRES.includes(g))));
             setPendingAutoGen(genres);
+          }}
+        />
+      )}
+
+      {verifyBlock && (
+        <VerificationRequiredScreen
+          email={verifyBlock.email}
+          message={verifyBlock.message}
+          token={token}
+          onClose={() => setVerifyBlock(null)}
+          onVerified={async () => {
+            // Re-read the user from the server; if verification landed, drop the
+            // block so the next Generate goes straight through.
+            const fresh = await refreshUser();
+            if (fresh?.email_verified) setVerifyBlock(null);
+            return fresh;
           }}
         />
       )}

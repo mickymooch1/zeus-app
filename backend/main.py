@@ -1109,68 +1109,43 @@ def _send_verification_email(user: dict, app: str = "ai") -> None:
     verify_url = f"{base_url}/verify-email?token={v_token}"
     name = user.get("name", "there")
 
+    # Deliverability over presentation. This mail is now a hard gate — if it lands in
+    # spam the user cannot use the product at all — so it is written to look like
+    # transactional correspondence rather than marketing:
+    #   * plain subject line, no brand shouting, no emoji
+    #   * exactly ONE link in the whole message (bare https URL, anchor text == href),
+    #     because multiple links and mismatched anchor text are strong spam signals
+    #   * no images, no gradients, no dark-background table layout, no tagline
+    #   * short, high text-to-HTML ratio, plain-text part carrying the same content
+    # Anything added here should be weighed against the cost of the mail not arriving.
     html = f"""<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0a0a0f;font-family:Arial,Helvetica,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:40px 20px">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#12121a;border-radius:12px;overflow:hidden;border:1px solid #2a2a3a">
-        <!-- Header -->
-        <tr><td style="background:linear-gradient(135deg,#1a0533 0%,#0d1a33 100%);padding:32px 40px;text-align:center">
-          <h1 style="margin:0;font-size:28px;font-weight:900;letter-spacing:2px;color:#ffffff">{brand}</h1>
-          <p style="margin:8px 0 0;font-size:13px;color:#a0a0c0;letter-spacing:1px">AI MUSIC PLATFORM</p>
-        </td></tr>
-        <!-- Body -->
-        <tr><td style="padding:40px">
-          <p style="margin:0 0 16px;font-size:16px;color:#e0e0f0">Hi {name},</p>
-          <p style="margin:0 0 24px;font-size:15px;color:#b0b0c8;line-height:1.6">
-            Thanks for signing up to {brand}. Please verify your email address to activate your account.
-            This link expires in <strong style="color:#e0e0f0">24 hours</strong>.
-          </p>
-          <!-- Button -->
-          <table cellpadding="0" cellspacing="0" style="margin:32px auto">
-            <tr><td align="center" style="border-radius:8px;background:linear-gradient(135deg,#7b2fff,#00bfff)">
-              <a href="{verify_url}" style="display:inline-block;padding:16px 40px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:0.5px">Verify My Email</a>
-            </td></tr>
-          </table>
-          <p style="margin:24px 0 0;font-size:13px;color:#606080;line-height:1.5">
-            Or copy and paste this link into your browser:<br>
-            <a href="{verify_url}" style="color:#7b2fff;word-break:break-all">{verify_url}</a>
-          </p>
-          <p style="margin:24px 0 0;font-size:13px;color:#606080">
-            If you didn't create this account, you can safely ignore this email.
-          </p>
-        </td></tr>
-        <!-- Footer -->
-        <tr><td style="background:#0d0d15;padding:24px 40px;border-top:1px solid #2a2a3a;text-align:center">
-          <p style="margin:0 0 8px;font-size:12px;color:#404060">{brand} &bull; Manchester, UK</p>
-          <p style="margin:0;font-size:12px;color:#404060">
-            You're receiving this because you created an account at
-            <a href="{base_url}" style="color:#7b2fff;text-decoration:none">{base_url}</a>
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
+<head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#222">
+  <p>Hi {name},</p>
+  <p>Please confirm your email address to finish setting up your {brand} account.</p>
+  <p><a href="{verify_url}">{verify_url}</a></p>
+  <p>This link expires in 24 hours.</p>
+  <p>If you did not create this account, you can ignore this email.</p>
+  <p>{brand}<br>Manchester, UK</p>
 </body>
 </html>"""
 
     text = "\n".join([
         f"Hi {name},",
         "",
-        f"Thanks for signing up to {brand}! Please verify your email address by visiting the link below.",
+        f"Please confirm your email address to finish setting up your {brand} account.",
+        "",
+        verify_url,
+        "",
         "This link expires in 24 hours.",
         "",
-        f"Verify your email: {verify_url}",
+        "If you did not create this account, you can ignore this email.",
         "",
-        "If you didn't create this account, you can safely ignore this email.",
-        "",
-        f"— The {brand} Team",
-        f"{brand}, Manchester, UK",
-        base_url,
+        brand,
+        "Manchester, UK",
     ])
-    subject = f"Verify your {brand} account"
+    subject = "Confirm your email address"
     log.info("_send_verification_email: queuing to=%s subject=%r", user["email"], subject)
     _send_email_async(user["email"], subject, html, text)
 
@@ -2310,14 +2285,36 @@ async def songs_generate(
     import songs as _songs_mod
     from songs import InsufficientCreditsError
 
-    # Email verification is NOT gated (deliberate, 2026-07-17): new + existing users
-    # can generate immediately. Verification is still sent and tracked (email_verified),
-    # but only softly nudged via EmailVerificationBanner — never a hard wall, including
-    # after free credits and before purchase. Anti-bot lives at signup (disposable-domain
-    # blocklist + IP + device-fingerprint checks), not here.
-
     db_path = db.get_db_path()
     user_id = current_user["id"]
+
+    # Email verification is a HARD GATE on generation (reinstated 2026-08-19; it had
+    # been soft-nudge-only since 2026-07-17). Already-verified users are untouched —
+    # this branch is the only thing the gate adds to their request path.
+    #
+    # The 403 carries a structured detail rather than a bare string so the client can
+    # render a real screen (spam-folder wording + a resend button) instead of surfacing
+    # a raw status code. Every block is counted, because the gate's cost to signup
+    # conversion has to be measurable — see db.record_verification_gate_block.
+    if not current_user.get("email_verified"):
+        try:
+            db.record_verification_gate_block(db_path, user_id)
+        except Exception:
+            log.exception("verification gate: failed to record block for user=%s", user_id)
+        log.info("verification gate: blocked generation for user=%s email=%s",
+                 user_id, current_user.get("email"))
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "email_unverified",
+                "message": (
+                    "Please verify your email address before creating songs. "
+                    "We sent you a verification link when you signed up."
+                ),
+                "email": current_user.get("email", ""),
+            },
+        )
+
     log.info("Generate request: user=%s body=%s", user_id, body.dict())
 
     # School accounts: enforce safe content regardless of request

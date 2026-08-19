@@ -251,6 +251,12 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE users ADD COLUMN artist_name TEXT",
             "ALTER TABLE song_variants ADD COLUMN is_favourite INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN has_paid INTEGER NOT NULL DEFAULT 0",
+            # Email-verification gate instrumentation. Lets us answer the question the
+            # gate exists to raise: how many people hit the wall, and how many of those
+            # never verify. Existing rows default to 0/NULL, i.e. never blocked.
+            "ALTER TABLE users ADD COLUMN gate_block_count INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN gate_first_blocked_at TEXT",
+            "ALTER TABLE users ADD COLUMN gate_last_blocked_at TEXT",
             "ALTER TABLE song_variants ADD COLUMN animate_cover INTEGER NOT NULL DEFAULT 1",
             "ALTER TABLE song_credits ADD COLUMN animation_balance INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE song_credits ADD COLUMN animation_monthly_allowance INTEGER NOT NULL DEFAULT 0",
@@ -613,6 +619,37 @@ def update_user_by_email(db_path: pathlib.Path, email: str, **fields) -> bool:
         )
         conn.commit()
         return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def record_verification_gate_block(db_path: pathlib.Path, user_id: str) -> None:
+    """Record that a user was blocked by the email-verification gate.
+
+    Counts every block and keeps first/last timestamps, so the cost of the gate is
+    measurable rather than guessed at:
+
+        -- people the gate stopped, and whether they ever came back
+        SELECT SUM(gate_block_count > 0)                        AS blocked_users,
+               SUM(gate_block_count > 0 AND email_verified = 1)  AS verified_after_block,
+               SUM(gate_block_count > 0 AND email_verified = 0)  AS never_returned
+        FROM users;
+
+    Best-effort: instrumentation must never be the reason a request fails, so any
+    error here is swallowed after logging. The caller blocks regardless.
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """UPDATE users
+                  SET gate_block_count      = gate_block_count + 1,
+                      gate_first_blocked_at = COALESCE(gate_first_blocked_at, ?),
+                      gate_last_blocked_at  = ?
+                WHERE id = ?""",
+            (now, now, user_id),
+        )
+        conn.commit()
     finally:
         conn.close()
 
