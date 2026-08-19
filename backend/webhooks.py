@@ -954,22 +954,45 @@ async def apiframe_webhook(request: Request):
                         try:
                             img2 = requests.get(temp_image_url2, timeout=60)
                             img2.raise_for_status()
-                            with open(os.path.join(STORAGE_PATH, f"{take2_variant_id}.jpg"), "wb") as fh:
+                            _take2_cover_path = os.path.join(STORAGE_PATH, f"{take2_variant_id}.jpg")
+                            with open(_take2_cover_path, "wb") as fh:
                                 fh.write(img2.content)
+                            # Take 2 now ships this image rather than a Flux one, so it
+                            # needs the same burned-in title/artist bar that
+                            # _generate_flux_cover applies — otherwise the two takes of
+                            # the same song look inconsistent. Guarded: a failed overlay
+                            # must cost us the text, never the cover.
+                            try:
+                                _add_text_overlay(_take2_cover_path, song_title or genre_tag or "", artist_name)
+                            except Exception as exc:
+                                logger.warning("Take 2 cover overlay failed for variant_id=%d (keeping plain art): %s",
+                                               take2_variant_id, exc)
                             permanent_image_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.jpg"
                         except Exception as exc:
                             logger.warning("Apiframe webhook: failed to download take 2 cover art: %s", exc)
 
-                    # Same as take 1 — genre-tailored Flux art, Suno's as the fallback.
-                    logger.info("Starting Flux cover art for variant_id=%d (take2) genre=%s", take2_variant_id, genre_tag)
-                    flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
-                    if flux_cover2:
-                        logger.info("Cover art complete for variant_id=%d url=%s", take2_variant_id, flux_cover2)
-                        permanent_image_url2 = flux_cover2
-                    elif permanent_image_url2:
-                        logger.warning("Flux failed for variant_id=%d (take2) — keeping Suno's cover art", take2_variant_id)
+                    # Take 2 keeps Suno's own cover; only take 1 gets bespoke Flux art.
+                    # This halves fal.ai cover spend (2 paid images per song → 1) using
+                    # artwork that was already being downloaded above and then thrown
+                    # away by the Flux overwrite a few lines later.
+                    #
+                    # Flux remains the FALLBACK here so take 2 is never left blank: if
+                    # Suno sent no artwork, or the download above failed, we pay for one
+                    # image rather than ship a song with no cover at all.
+                    if permanent_image_url2:
+                        logger.info("Cover art for variant_id=%d (take2): using Suno artwork %s (no Flux call)",
+                                    take2_variant_id, permanent_image_url2)
                     else:
-                        logger.warning("Cover art FAILED for variant_id=%d (take2) — no Flux and no Suno artwork", take2_variant_id)
+                        logger.info("Take 2 has no Suno artwork — falling back to Flux for variant_id=%d genre=%s",
+                                    take2_variant_id, genre_tag)
+                        flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
+                        if flux_cover2:
+                            logger.info("Cover art complete for variant_id=%d (take2, Flux fallback) url=%s",
+                                        take2_variant_id, flux_cover2)
+                            permanent_image_url2 = flux_cover2
+                        else:
+                            logger.warning("Cover art FAILED for variant_id=%d (take2) — no Suno artwork and Flux failed",
+                                           take2_variant_id)
 
                     conn = sqlite3.connect(DB_PATH)
                     try:

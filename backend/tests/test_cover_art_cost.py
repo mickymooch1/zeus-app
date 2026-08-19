@@ -8,9 +8,15 @@ History, because this flipped twice and the reasoning matters:
               the genre, and Flux is only ~$0.025 an image. The real cost problem
               was Kling video at ~$1.40 a clip, which is removed and must stay
               removed.
+  2026-08-19  Split per take. Measured spend showed 2 paid Flux images per song
+              (one per variant), while Suno's free cover for take 2 was being
+              downloaded and then immediately overwritten. Take 1 keeps bespoke
+              genre-tailored Flux art; take 2 ships Suno's. Halves cover spend
+              and the genre-matching argument above still holds for take 1.
 
-So Flux runs on every take, and Suno's already-downloaded cover remains as the
-fallback if Flux fails. A song is never left with no artwork.
+So: take 1 = Flux, with Suno's download as its fallback. Take 2 = Suno, with
+Flux as ITS fallback. Both directions are covered, so neither take can be left
+without artwork — which is what these tests pin down.
 """
 import os
 import pathlib
@@ -29,10 +35,21 @@ _SRC = (pathlib.Path(__file__).parent.parent / "webhooks.py").read_text(encoding
 
 # ── Flux runs, and is genre-aware ────────────────────────────────────────────
 
-def test_flux_runs_for_both_takes():
-    assert _SRC.count("_generate_flux_cover(") >= 2, "both takes should get Flux artwork"
-    assert "using Suno artwork (free) — skipping Flux" not in _SRC, \
-        "the Suno-first behaviour was reverted — this marker should be gone"
+def test_take_1_gets_flux_unconditionally():
+    """Take 1 is the one that must be genre-tailored — that is why Flux exists here."""
+    assert "Starting Flux cover art for variant_id=%d genre=%s" in _SRC
+    assert _SRC.count("_generate_flux_cover(") >= 2, "take 1 plus the take-2 fallback"
+
+
+def test_take_2_uses_sunos_free_art_and_does_not_pay_for_flux():
+    """The cost fix: take 2 must not call Flux when Suno already sent a cover."""
+    assert "using Suno artwork %s (no Flux call)" in _SRC, \
+        "take 2 should ship Suno's cover without paying fal.ai"
+    # The take-2 Flux call must sit on the no-Suno-artwork branch, not run before it.
+    take2 = _SRC.split("Take 2 keeps Suno's own cover", 1)[1][:1500]
+    assert "if permanent_image_url2:" in take2, "take 2 must branch on Suno art being present"
+    assert take2.index("if permanent_image_url2:") < take2.index("_generate_flux_cover("), \
+        "Flux must only be reached on the else branch (no Suno art)"
 
 
 def test_cover_prompts_are_genre_specific():
@@ -53,9 +70,15 @@ def test_a_default_prompt_exists_for_unknown_genres():
 
 # ── Suno's artwork is the fallback, so a song always has a cover ─────────────
 
-def test_suno_art_is_kept_when_flux_fails():
+def test_take_1_falls_back_to_suno_when_flux_fails():
+    """Take 1's direction of the fallback: paid art fails, free art still ships."""
     assert "keeping Suno's cover art" in _SRC
-    assert _SRC.count("keeping Suno's cover art") == 2, "both takes need the fallback"
+
+
+def test_take_2_falls_back_to_flux_when_suno_sent_no_art():
+    """Take 2's direction: no free art, so pay for one image rather than ship blank."""
+    assert "Take 2 has no Suno artwork — falling back to Flux" in _SRC
+    assert "(take2, Flux fallback)" in _SRC
 
 
 def test_suno_art_is_still_downloaded_first():
@@ -64,8 +87,19 @@ def test_suno_art_is_still_downloaded_first():
     assert "downloading take 2 cover art" in _SRC
 
 
-def test_the_no_art_at_all_case_is_logged():
-    assert "no Flux and no Suno artwork" in _SRC
+def test_neither_take_can_end_up_blank():
+    """Every path through both takes ends in artwork, or logs loudly that it did not."""
+    assert "no Flux and no Suno artwork" in _SRC                          # take 1 exhausted
+    assert "no Suno artwork and Flux failed" in _SRC                      # take 2 exhausted
+
+
+def test_take_2_cover_gets_the_title_overlay():
+    """Take 2 now ships Suno's raw download, which has no burned-in title unless we
+    add one — without this the two takes of the same song look inconsistent."""
+    assert "_add_text_overlay(_take2_cover_path" in _SRC
+    # and it must be guarded, so a font/PIL failure costs the text, not the cover
+    overlay_ctx = _SRC.split("_add_text_overlay(_take2_cover_path", 1)[0][-300:]
+    assert "try:" in overlay_ctx, "overlay call must be wrapped in try/except"
 
 
 # ── Kling must stay gone — that was the real cost ────────────────────────────
