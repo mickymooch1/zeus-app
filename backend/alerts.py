@@ -317,49 +317,14 @@ def _check_apiframe_credits() -> str | None:
     return None
 
 
-def _check_stuck_songs(db_path: str) -> str | None:
-    """Return a warning string if songs are stuck pending/generating > 10 min."""
-    try:
-        conn = sqlite3.connect(db_path)
-        try:
-            row = conn.execute(
-                """SELECT COUNT(*) FROM song_variants
-                   WHERE status IN ('pending', 'generating')
-                   AND created_at <= datetime('now', '-10 minutes')"""
-            ).fetchone()
-            count = row[0] if row else 0
-            if count > 0:
-                return f"⏳ {count} song(s) stuck pending/generating >10 min"
-        finally:
-            conn.close()
-    except Exception as exc:
-        log.debug("Stuck songs check failed: %s", exc)
-    return None
-
-
-def run_health_check() -> None:
-    """Run all health checks; alert admin if anything is wrong."""
-    try:
-        import db as _db
-        db_path = str(_db.get_db_path())
-    except Exception:
-        log.exception("Health check: could not get DB path")
-        return
-
-    warnings = []
-    for checker in (_check_fal_balance, _check_apiframe_credits):
-        w = checker()
-        if w:
-            warnings.append(w)
-    w = _check_stuck_songs(db_path)
-    if w:
-        warnings.append(w)
-
-    if warnings:
-        send_admin_alert("🚨 Health check warning!\n" + "\n".join(warnings))
-        log.warning("Health check: %d warning(s) — alert sent", len(warnings))
-    else:
-        log.info("Health check: all OK")
+# The live health check is zeus_ops_agent.health_check(), scheduled at 09:00 UTC
+# in scheduler.py. A second, unscheduled run_health_check() used to sit here with
+# its own _check_stuck_songs() helper; both had zero callers. Two implementations
+# of one job is a debugging trap — the dead one looks authoritative and "fixing"
+# it changes nothing. The checkers above (_check_fal_balance,
+# _check_apiframe_credits) are the shared parts and are called from the ops agent;
+# stuck songs are handled there by _fix_stuck_songs(), which refunds as well as
+# reports. Removed 2026-08-19.
 
 
 # ── Daily summary ─────────────────────────────────────────────────────────────
