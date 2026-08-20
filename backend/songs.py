@@ -298,10 +298,17 @@ def strip_vocal_cues(style: str, vocal_gender: str | None = None) -> str:
     """
     segments = [s.strip() for s in style.split(",")]
     kept = [s for s in segments if s and not any(k in s.lower() for k in _VOCAL_CUE_KEYWORDS)]
-    kept.append(_HOOK_CUE_BY_GENDER.get((vocal_gender or "").lower(), _DEFAULT_HOOK_CUE))
-    # Push Suno toward a full-length render — the short hook otherwise ends ~45s in.
-    kept.append("extended outro, full length track, 3 minute duration")
-    return ", ".join(kept)
+    hook_cue = _HOOK_CUE_BY_GENDER.get((vocal_gender or "").lower(), _DEFAULT_HOOK_CUE)
+    # Duration cue LEADS, matching the blend+intermittent branch in
+    # generate_multiple_variants, which already puts it first and says so:
+    # "Duration cue leads so it's weighted first and survives truncation."
+    #
+    # The two paths disagreed until 2026-08-20 and the non-blend one buried it last.
+    # Measured across 68 completed intermittent songs, it sat at 96-97% through the
+    # style string — the last thing Suno reads — and was worth almost nothing:
+    # 115.3s average with the cue vs 112.5s without, against a 150s target. Leading
+    # it costs nothing and makes the two paths consistent.
+    return ", ".join(["full length track, 3 minute duration, extended outro"] + kept + [hook_cue])
 
 
 def _dj_transition_style(style_a: str, style_b: str) -> str:

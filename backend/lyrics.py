@@ -482,6 +482,40 @@ _INTERMITTENT_GENRE_ALIASES = {
 }
 
 
+# Intermittent sheets were too thin to fill a track: a 2-line hook repeated 3x is
+# ~520 characters of material for a 2.5-3 minute render, and completed songs
+# averaged 114s against a 150s target. Suno renders what it is given, so it ran out
+# and stopped. Two levers, both applied below:
+#   * _HOOK_LINES 2 -> 4  — twice the sung material in each hook block
+#   * _INTERMITTENT_EXTENSION — a fourth hook plus more instrumental scaffolding
+# The instrumental:vocal balance is roughly preserved, because the extension adds
+# instrumental sections alongside the extra hook rather than just more singing.
+_HOOK_LINES = 4
+
+_INTERMITTENT_EXTENSION = (
+    "[Instrumental break]\n"
+    "(oohs and ahs)\n"
+    "[Hook]\n{hook}\n[/Hook]\n"
+    "[Instrumental section]"
+)
+
+
+def _extend_structure(template: str) -> str:
+    """Add one more hook and instrumental material just before the outro.
+
+    Applied uniformly rather than editing all nine templates by hand, so each
+    genre's hand-tuned opening (Amen break, 2-step groove, 4x4 build...) is left
+    exactly as it was and only the tail grows.
+    """
+    lines = template.split("\n")
+    for i, line in enumerate(lines):
+        if line.startswith("[Outro") or line.startswith("[Extended outro"):
+            return "\n".join(lines[:i] + _INTERMITTENT_EXTENSION.split("\n") + lines[i:])
+    # No outro tag (shouldn't happen with the shipped templates) — append instead,
+    # so a future template without one still gets the extra material.
+    return template + "\n" + _INTERMITTENT_EXTENSION
+
+
 def build_intermittent_hook(lyrics_text: str, genre: str | None = None) -> str:
     """Reduce a full lyric sheet to a tiny sung hook surrounded by genre-aware
     instrumental section tags, so Suno spends most of the track on instrumentals.
@@ -493,11 +527,11 @@ def build_intermittent_hook(lyrics_text: str, genre: str | None = None) -> str:
     energy and arrangement and Suno renders a full 2.5-3 minute track rather than
     ending early on the short hook.
     """
-    hook = _extract_hook(lyrics_text, max_lines=2)
+    hook = _extract_hook(lyrics_text, max_lines=_HOOK_LINES)
     hook_block = "\n".join(hook) if hook else "oh-oh-oh"
     key = (genre or "").strip().lower()
     key = _INTERMITTENT_GENRE_ALIASES.get(key, key)
-    template = INTERMITTENT_STRUCTURES.get(key, INTERMITTENT_STRUCTURES["default"])
+    template = _extend_structure(INTERMITTENT_STRUCTURES.get(key, INTERMITTENT_STRUCTURES["default"]))
     # Hook lines could theoretically contain braces — use replace, not str.format.
     return template.replace("{hook}", hook_block)
 
