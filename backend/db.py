@@ -372,6 +372,10 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 created_at   TEXT NOT NULL
             )""",
             "CREATE INDEX IF NOT EXISTS idx_contact_created ON contact_submissions (created_at)",
+            # Set when the admin answers via the Porick "reply <id> <message>" command.
+            # Doubles as the guard against replying to the same enquiry twice.
+            "ALTER TABLE contact_submissions ADD COLUMN replied_at TEXT",
+            "ALTER TABLE contact_submissions ADD COLUMN reply_text TEXT",
             # Supports the single-query library load (get_all_variants_for_user),
             # which filters song_variants by user_id.
             "CREATE INDEX IF NOT EXISTS idx_song_variants_user ON song_variants (user_id)",
@@ -657,6 +661,36 @@ def save_contact_submission(db_path: pathlib.Path, name: str, email: str,
         )
         conn.commit()
         return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_contact_submission(db_path: pathlib.Path, submission_id: int) -> dict | None:
+    """Fetch one contact submission by id, or None."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM contact_submissions WHERE id = ?", (submission_id,)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def mark_contact_replied(db_path: pathlib.Path, submission_id: int, reply_text: str) -> None:
+    """Record that the admin has answered this enquiry.
+
+    Written only AFTER the email actually sends, so a failed send leaves the row
+    repliable rather than marking it done and losing the reply.
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE contact_submissions SET replied_at = ?, reply_text = ? WHERE id = ?",
+            (now, reply_text, submission_id),
+        )
+        conn.commit()
     finally:
         conn.close()
 

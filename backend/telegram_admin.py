@@ -238,6 +238,77 @@ def _cmd_db_exec(sql: str) -> str:
         return f"❌ DB error: {exc}"
 
 
+def _cmd_reply_to_contact(submission_id, message: str) -> str:
+    """Answer a contact form submission by email, from Telegram.
+
+    Order matters: send FIRST, then mark replied. Marking first would lose the reply
+    if the send failed — the row would read as answered when nobody received
+    anything, which is the same class of silent failure that made the contact form
+    drop enquiries in the first place.
+
+    Mail goes through main._send_email, so it uses Resend (the configured provider)
+    rather than the raw SMTP path — the Gmail app password is currently rejected.
+    """
+    try:
+        sid = int(str(submission_id).strip().lstrip("#"))
+    except (TypeError, ValueError):
+        return f"❌ <code>{submission_id}</code> is not a valid submission id"
+
+    body = (message or "").strip()
+    if not body:
+        return "❌ No reply text — usage: <code>reply &lt;id&gt; &lt;message&gt;</code>"
+
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        sub = _db.get_contact_submission(db_path, sid)
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+    if not sub:
+        return f"❓ No contact submission <code>#{sid}</code>"
+    if sub.get("replied_at"):
+        return (f"⚠️ Submission <code>#{sid}</code> from {sub.get('name') or 'unknown'} was already "
+                f"replied to on {str(sub['replied_at'])[:16]}.\n\nSend anyway? Not supported — "
+                f"reply direct to <code>{sub.get('email')}</code> if you need to follow up.")
+
+    to = (sub.get("email") or "").strip()
+    if not to or "@" not in to:
+        return f"❌ Submission <code>#{sid}</code> has no usable email address ({to!r})"
+
+    name = sub.get("name") or "there"
+    subject = f"Re: {sub.get('subject') or 'your message'}"
+    text = f"Hi {name},\n\n{body}\n\n— Zeus Beats\nhttps://zeusbeats.com"
+    html = (
+        f'<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#222">'
+        f"<p>Hi {name},</p>"
+        + "".join(f"<p>{para}</p>" for para in body.split("\n\n") if para.strip())
+        + '<p>— Zeus Beats<br><a href="https://zeusbeats.com">zeusbeats.com</a></p></div>'
+    )
+
+    try:
+        import main as _main
+        sent = _main._send_email(to, subject, html, text)
+    except Exception as exc:
+        log.exception("contact reply: send failed for #%s", sid)
+        return f"❌ Could not send the reply to <code>{to}</code>: {exc}"
+
+    if not sent:
+        return (f"❌ Reply to <code>{to}</code> was NOT sent (mail provider rejected it). "
+                f"Submission <code>#{sid}</code> is still marked unanswered — try again.")
+
+    try:
+        _db.mark_contact_replied(db_path, sid, body)
+    except Exception as exc:
+        # The person HAS been emailed, so say so — but flag that the record is stale.
+        log.exception("contact reply: sent but could not mark #%s replied", sid)
+        return (f"✅ Reply sent to {name} at <code>{to}</code>\n"
+                f"⚠️ but the database record could not be updated ({exc}) — it may show as unanswered.")
+
+    log.info("contact reply: #%s answered to=%s len=%d", sid, to, len(body))
+    return f"✅ Reply sent to {name} at <code>{to}</code>"
+
+
 def _cmd_db_verify_email(email: str) -> str:
     """Set email_verified=1 for a user by email."""
     try:
@@ -1747,6 +1818,9 @@ Your capabilities:
 - add_credits — give or remove song credits for a user (negative to remove)
 - upgrade_user — upgrade user to any plan for free (no Stripe needed)
 - verify_email / unverify_email
+- reply_contact — answer a contact form submission by id: "reply 3 Thanks for getting in touch..."
+  The message is everything after the id, verbatim. Never rewrite, summarise or
+  embellish it — it is sent to a real person exactly as typed.
 - user_details — full user lookup by email
 - refund_failures — refund song credits for songs that failed in last 24h
 - recent_users — last 5 signups
@@ -1784,6 +1858,7 @@ Action schemas (all include "type": "action"):
 {"type": "action", "action": "upgrade_user", "email": "...", "plan": "music_starter|music_pro|music_agency|pro|agency|enterprise"}
 {"type": "action", "action": "verify_email", "email": "..."}
 {"type": "action", "action": "unverify_email", "email": "..."}
+{"type": "action", "action": "reply_contact", "submission_id": 1, "message": "...verbatim..."}
 {"type": "action", "action": "user_details", "email": "..."}
 {"type": "action", "action": "refund_failures"}
 {"type": "action", "action": "recent_users"}
@@ -1819,6 +1894,7 @@ Examples:
 "refund failed songs today" → {"type": "action", "action": "refund_failures"}
 "email all users about the new playlist feature" → {"type": "action", "action": "email_bulk", "audience": "all", "subject": "New: AI Playlist Builder on Zeus Beats 🎵", "body": "We've just launched AI playlists — ask Zeus to build you a playlist from your songs.\\n\\nLog in and try it now!"}
 "verify dom@email.com" → {"type": "action", "action": "verify_email", "email": "dom@email.com"}
+"reply 1 Thanks for getting in touch! Here's how Zeus Beats works..." → {"type": "action", "action": "reply_contact", "submission_id": 1, "message": "Thanks for getting in touch! Here's how Zeus Beats works..."}
 "what was today's revenue" → {"type": "action", "action": "revenue"}
 "tell me about user X" → {"type": "action", "action": "user_details", "email": "X"}
 "give him 20 more" → use email from conversation context, then {"type": "action", "action": "add_credits", "email": "...", "amount": 20}
@@ -1984,6 +2060,11 @@ def _execute_action(action: dict, chat_id: str = "") -> str:
         if not email:
             return "❌ No email address"
         return _cmd_db_unverify_email(email)
+
+    if act == "reply_contact":
+        return _cmd_reply_to_contact(
+            action.get("submission_id"), action.get("message", "")
+        )
 
     if act == "user_details":
         email = action.get("email", "").strip()
