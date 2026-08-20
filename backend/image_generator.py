@@ -166,88 +166,10 @@ def download_and_save_image(job_id: str, image_url: str) -> str:
     log.info(f"Logo generated: local_path={local_path} public_url={public_url}")
     return public_url
 
-
-_KLING_SUBMIT_URL = "https://queue.fal.run/fal-ai/kling-video/v2/master/image-to-video"
-_KLING_POLL_INTERVAL = 5
-_KLING_TIMEOUT = 300
-
-
-def generate_video_art(image_url: str, prompt: str, duration: int = 5) -> str:
-    """Generate an animated video from an image using fal.ai Kling. Returns public video URL."""
-    if not FAL_API_KEY:
-        raise ValueError(
-            "FAL_API_KEY is not set — video generation requires fal.ai credentials."
-        )
-
-    job_id = uuid.uuid4().hex
-    headers = {"Authorization": f"Key {FAL_API_KEY}", "Content-Type": "application/json"}
-    payload = {"image_url": image_url, "prompt": prompt, "duration": duration}
-
-    log.info("generate_video_art: submitting job_id=%s prompt_preview=%.80r", job_id, prompt)
-    try:
-        submit_resp = requests.post(_KLING_SUBMIT_URL, headers=headers, json=payload, timeout=30)
-    except requests.exceptions.ConnectionError as exc:
-        raise RuntimeError(f"Could not connect to fal.ai Kling: {exc}")
-
-    if not submit_resp.ok:
-        body = submit_resp.text[:1000]
-        log.error("Kling submit error: HTTP %d — %s", submit_resp.status_code, body)
-        if submit_resp.status_code == 403 and "Exhausted balance" in body:
-            raise RuntimeError(
-                "Video generation unavailable: fal.ai account balance is exhausted. "
-                "Top up at fal.ai/dashboard/billing."
-            )
-        raise RuntimeError(f"Kling submit returned HTTP {submit_resp.status_code}: {body}")
-
-    request_id = submit_resp.json().get("request_id")
-    if not request_id:
-        raise RuntimeError(f"Kling submit response missing request_id: {submit_resp.text[:500]}")
-
-    log.info("generate_video_art: submitted request_id=%s, polling…", request_id)
-    status_url = f"{_KLING_SUBMIT_URL}/requests/{request_id}/status"
-    result_url = f"{_KLING_SUBMIT_URL}/requests/{request_id}"
-    elapsed = 0
-
-    while elapsed < _KLING_TIMEOUT:
-        import time
-        time.sleep(_KLING_POLL_INTERVAL)
-        elapsed += _KLING_POLL_INTERVAL
-
-        try:
-            status_resp = requests.get(status_url, headers=headers, timeout=15)
-        except requests.exceptions.ConnectionError:
-            continue
-
-        if not status_resp.ok:
-            log.warning("Kling status poll HTTP %d (request_id=%s)", status_resp.status_code, request_id)
-            continue
-
-        status_data = status_resp.json()
-        state = status_data.get("status", "")
-        log.info("generate_video_art: poll elapsed=%ds state=%s", elapsed, state)
-
-        if state == "COMPLETED":
-            result_resp = requests.get(result_url, headers=headers, timeout=15)
-            result_resp.raise_for_status()
-            result_data = result_resp.json()
-            video_url = (result_data.get("video") or {}).get("url") or result_data.get("video_url", "")
-            if not video_url:
-                raise RuntimeError(f"Kling result missing video URL: {result_data!r}")
-
-            # Download and save to /data/images as .mp4
-            videos_dir = pathlib.Path("/data/images")
-            videos_dir.mkdir(parents=True, exist_ok=True)
-            dest = videos_dir / f"{job_id}.mp4"
-            vid_resp = requests.get(video_url, timeout=60)
-            vid_resp.raise_for_status()
-            dest.write_bytes(vid_resp.content)
-            local_path = str(dest)
-            public_url = _public_image_url(job_id, "mp4")
-            log.info("generate_video_art: saved %s (%d bytes)", dest, len(vid_resp.content))
-            log.info(f"Video art generated: local_path={local_path} public_url={public_url}")
-            return public_url
-
-        if state in ("FAILED", "ERROR"):
-            raise RuntimeError(f"Kling video generation failed: {status_data}")
-
-    raise RuntimeError(f"Kling video generation timed out after {_KLING_TIMEOUT}s (request_id={request_id})")
+# Kling video generation removed 2026-08-20. generate_video_art() posted to
+# fal-ai/kling-video/v2/master/image-to-video at ~$1.40 for a 5s clip — by far the
+# most expensive call in the stack, ~56x a Flux cover. The animated-cover pipeline
+# that used it went on 2026-08-06; this removes the last route that could still
+# reach Kling (the zeus_agent GenerateVideoArt tool). Nothing here may call
+# queue.fal.run again without an explicit decision — test_no_kling_invocation_returns
+# in tests/test_cover_art_cost.py enforces that.

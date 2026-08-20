@@ -106,8 +106,8 @@ ZEUS_SYSTEM_PROMPT = """You are Zeus — senior AI assistant for Zeus AI Design.
 ## Tools — use proactively
 GenerateImage (fal.ai Flux — call whenever user asks for any image, hero, banner, social post, or visual), SaveMemory/SearchMemory (search before substantial tasks), UpsertClient/GetClient/ListClients, UpsertProject/ListProjects, PostToFacebook (call GenerateImage first, then pass the URL), PostToTelegram (post announcements/updates to Telegram channel; draft → confirm → post), PushToGitHub (admin only), SendEmail (draft → confirm → send), MultiAgentBuild, CreateBackgroundTask (Enterprise only), SaveWebsite/ListWebsites/GetWebsiteFiles (call SaveWebsite after every build; ListWebsites before editing existing sites).
 
-## Image & video generation
-Zeus has full fal.ai integration. GenerateImage uses fal.ai Flux to generate photorealistic images — call it whenever the user asks for any visual content. GenerateVideoArt animates a still image into a short MP4 using fal.ai Kling — call it when the user asks for animated cover art, a music video loop, or any animated clip (call GenerateImage first to get the source image). Music videos for songs are generated automatically via Kling as part of the song pipeline — no tool call needed for those.
+## Image generation
+GenerateImage uses fal.ai Flux to generate photorealistic images — call it whenever the user asks for any visual content. There is no video generation: if the user asks for an animated clip, a music video or an animated cover, say plainly that Zeus does not generate video, rather than offering a workaround.
 
 ## Pricing
 Free £0: 20 msg/mo, 0 builds | Pro £29/mo: unlimited, 5 builds | Agency £79/mo: 10 builds | Enterprise £150/mo: 20 builds, background tasks, multi-agent builder → zeusaidesign.com/pricing
@@ -278,35 +278,6 @@ TOOLS = [
                 },
             },
             "required": ["prompt", "use_case"],
-        },
-    },
-    {
-        "name": "GenerateVideoArt",
-        "description": (
-            "Generate an animated AI video from a still image using fal.ai Kling. "
-            "Use this when the user asks for an animated version of an image, a music video, "
-            "a video cover art loop, or any short animated clip. "
-            "Call GenerateImage first to get an image URL, then pass it here. "
-            "Returns a public video URL (.mp4) when complete. Takes ~60–120 seconds."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "image_url": {
-                    "type": "string",
-                    "description": "Public URL of the source image (from GenerateImage or an existing image URL)",
-                },
-                "prompt": {
-                    "type": "string",
-                    "description": "Motion description — describe what should move and how, e.g. 'slow cinematic zoom, light rays shifting, atmospheric fog drifting'",
-                },
-                "duration": {
-                    "type": "integer",
-                    "description": "Video duration in seconds (5 or 10). Default: 5",
-                    "enum": [5, 10],
-                },
-            },
-            "required": ["image_url", "prompt"],
         },
     },
     {
@@ -991,16 +962,8 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
                 f"You can share that URL directly or embed it in a website."
             )
 
-        elif name == "GenerateVideoArt":
-            import image_generator as _img_mod
-            image_url = inp["image_url"]
-            prompt = inp["prompt"]
-            duration = int(inp.get("duration", 5))
-            public_url = _img_mod.generate_video_art(image_url, prompt, duration)
-            return (
-                f"Your animated video is ready: {public_url}\n\n"
-                f"It's a {duration}-second MP4 — you can embed it or share the link directly."
-            )
+        # GenerateVideoArt removed 2026-08-20 — it was the last route to fal.ai Kling
+        # (~$1.40 per 5s clip). See the note at the end of image_generator.py.
 
         elif name == "StockPrice":
             ticker = inp["ticker"].upper().strip()

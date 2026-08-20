@@ -111,6 +111,28 @@ def test_no_kling_invocation_returns():
     assert "def _kling_pipeline" not in _SRC
 
 
+def test_nothing_can_reach_kling_by_any_route():
+    """Removed entirely 2026-08-20. The animated-cover pipeline went on 2026-08-06,
+    but generate_video_art() survived in image_generator and stayed reachable through
+    the zeus_agent GenerateVideoArt tool — a $1.40 clip was still one prompt away.
+    This asserts the whole surface is gone, not just the pipeline."""
+    import pathlib
+    backend = pathlib.Path(__file__).parent.parent
+
+    for fname in ("image_generator.py", "zeus_agent.py", "webhooks.py", "main.py", "songs.py"):
+        src = (backend / fname).read_text(encoding="utf-8")
+        # Strip comment lines: the removal notes deliberately name Kling.
+        code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
+        assert "queue.fal.run/fal-ai/kling" not in code, f"{fname} can still reach Kling"
+        assert "def generate_video_art" not in code, f"{fname} still defines generate_video_art"
+        assert "generate_video_art(" not in code, f"{fname} still calls generate_video_art"
+
+    agent = (backend / "zeus_agent.py").read_text(encoding="utf-8")
+    assert '"name": "GenerateVideoArt"' not in agent, "the video tool is still offered to the model"
+    assert '"GenerateVideoArt"' not in agent.split("# GenerateVideoArt removed")[-1], \
+        "a GenerateVideoArt handler branch still exists"
+
+
 def test_webhooks_module_still_imports():
     import webhooks
     assert hasattr(webhooks, "_generate_flux_cover")
