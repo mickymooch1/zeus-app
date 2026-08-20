@@ -356,6 +356,22 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 created_at TEXT NOT NULL
             )""",
             "CREATE INDEX IF NOT EXISTS idx_signup_flags_created ON signup_flags (created_at)",
+            # Contact form submissions. Previously the endpoint only tried to email
+            # them and returned "we'll be in touch" regardless — so when the SMTP
+            # credentials were rejected, every enquiry was lost with no record
+            # anywhere. Persisting first means a notification failure costs a ping,
+            # not the lead.
+            """CREATE TABLE IF NOT EXISTS contact_submissions (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                name         TEXT,
+                email        TEXT,
+                subject      TEXT,
+                message      TEXT,
+                ip_address   TEXT,
+                notified     INTEGER NOT NULL DEFAULT 0,
+                created_at   TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_contact_created ON contact_submissions (created_at)",
             # Supports the single-query library load (get_all_variants_for_user),
             # which filters song_variants by user_id.
             "CREATE INDEX IF NOT EXISTS idx_song_variants_user ON song_variants (user_id)",
@@ -619,6 +635,38 @@ def update_user_by_email(db_path: pathlib.Path, email: str, **fields) -> bool:
         )
         conn.commit()
         return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def save_contact_submission(db_path: pathlib.Path, name: str, email: str,
+                            subject: str, message: str, ip_address: str = "") -> int:
+    """Persist a contact form submission. Returns its row id.
+
+    Stored BEFORE any notification is attempted, so a failing notifier can never
+    lose the enquiry — which is exactly what happened while the SMTP credentials
+    were being rejected and the endpoint still answered "we'll be in touch".
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            """INSERT INTO contact_submissions (name, email, subject, message, ip_address, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (name, email, subject, message, ip_address, now),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def mark_contact_notified(db_path: pathlib.Path, submission_id: int) -> None:
+    """Flag that at least one notification channel delivered this submission."""
+    conn = _conn(db_path)
+    try:
+        conn.execute("UPDATE contact_submissions SET notified = 1 WHERE id = ?", (submission_id,))
+        conn.commit()
     finally:
         conn.close()
 

@@ -101,6 +101,35 @@ def alert_new_user(email: str) -> None:
         log.debug("alert_new_user failed (non-fatal)")
 
 
+def alert_contact_submission(name: str, email: str, subject: str, message: str,
+                             submission_id: int | None = None) -> bool:
+    """Telegram the admin when someone submits the contact form. Returns True if sent.
+
+    This is the PRIMARY channel, not a nice-to-have. The endpoint used to rely on an
+    SMTP send to hello@zeusbeats.com and answered "we'll be in touch within 24 hours"
+    whether or not it worked — and it had stopped working (Gmail returning
+    535 BadCredentials), so enquiries were being lost silently.
+
+    Unlike the other alert_* helpers this returns a bool, because the caller records
+    whether the submission was actually delivered anywhere.
+    """
+    body = (message or "").strip()
+    if len(body) > 1500:                       # Telegram caps around 4096; leave headroom
+        body = body[:1500] + "… (truncated — full text in the database)"
+    ref = f"\n🔖 #{submission_id}" if submission_id else ""
+    try:
+        return send_admin_alert(
+            "📬 <b>New contact form submission</b>\n"
+            f"👤 {name or '(no name)'}\n"
+            f"📧 {email or '(no email)'}\n"
+            f"📝 {subject or '(no subject)'}{ref}\n\n"
+            f"{body or '(empty message)'}"
+        )
+    except Exception:
+        log.exception("alert_contact_submission failed")
+        return False
+
+
 _FLAG_LABELS = {
     "device_reuse": "🖥 Same device as an existing account",
     "ip_velocity": "🌐 Several signups from one IP",

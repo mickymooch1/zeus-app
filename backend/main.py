@@ -1686,7 +1686,37 @@ async def contact(request: Request, body: ContactMessage):
     import smtplib
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
+    import alerts as _alerts
 
+    # Persist FIRST, before any notifier runs. Until 2026-08-20 this endpoint only
+    # attempted an SMTP send and returned "we'll be in touch within 24 hours"
+    # regardless of the outcome — and the send had been failing with Gmail
+    # 535 BadCredentials, so every enquiry was lost with no record anywhere.
+    # A stored row means a failing notifier costs a ping, not the lead.
+    submission_id = None
+    try:
+        submission_id = db.save_contact_submission(
+            db.get_db_path(),
+            name=body.name, email=body.email, subject=body.subject, message=body.message,
+            ip_address=(request.client.host if request.client else ""),
+        )
+    except Exception:
+        log.exception("contact: FAILED TO PERSIST submission from %s", body.email)
+
+    # Telegram is the primary channel — it is where the admin actually reads alerts.
+    notified = _alerts.alert_contact_submission(
+        body.name, body.email, body.subject, body.message, submission_id
+    )
+    if notified and submission_id:
+        try:
+            db.mark_contact_notified(db.get_db_path(), submission_id)
+        except Exception:
+            log.exception("contact: could not mark submission %s notified", submission_id)
+
+    # Secondary channel, kept as a belt-and-braces copy. Currently failing in
+    # production with Gmail 535 BadCredentials — the app password needs replacing or
+    # this block should go. Telegram above is what actually delivers today.
+    emailed = False
     smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
     smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
     if smtp_email and smtp_password:
@@ -1708,8 +1738,22 @@ async def contact(request: Request, body: ContactMessage):
                 server.login(smtp_email, smtp_password)
                 server.sendmail(smtp_email, ["hello@zeusbeats.com"], msg.as_string())
             log.info("contact email sent from %s", body.email)
+            emailed = True
         except Exception as exc:
             log.warning("contact email failed: %s", exc)
+
+    # Only truly lost if it reached neither a notifier nor the database. That case
+    # is an ERROR, not a warning — the submitter is being told we'll be in touch.
+    if not (notified or emailed or submission_id):
+        log.error(
+            "contact: SUBMISSION LOST — no Telegram, no email, no DB row. from=%r subject=%r",
+            body.email, body.subject,
+        )
+    else:
+        log.info(
+            "contact: submission id=%s telegram=%s email=%s from=%s",
+            submission_id, notified, emailed, body.email,
+        )
     return {"ok": True, "message": "Thanks! We'll be in touch within 24 hours."}
 
 
