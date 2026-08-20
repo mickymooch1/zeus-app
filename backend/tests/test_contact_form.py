@@ -119,6 +119,25 @@ def test_total_loss_is_logged_at_error():
     assert "SUBMISSION LOST" in joined
 
 
+def test_contact_endpoint_sends_no_email():
+    """SMTP removed 2026-08-20. It was redundant once submissions are persisted and
+    Telegrammed, and it was failing on every request (Gmail 535), so it produced
+    nothing but noise and a credential to maintain.
+
+    SMTP_EMAIL / SMTP_PASSWORD are deliberately NOT asserted absent from the
+    codebase — verification mail, password resets, billing and agent task mail all
+    still use them. This is scoped to the contact endpoint only.
+    """
+    import inspect
+    import main
+
+    src = inspect.getsource(main.contact)
+    code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
+    assert "smtplib" not in code, "contact must not send email"
+    assert "SMTP_EMAIL" not in code
+    assert "hello@zeusbeats.com" not in code
+
+
 def test_endpoint_still_thanks_the_visitor():
     """Infrastructure problems must not be leaked to the person submitting."""
     resp, _ = _post()

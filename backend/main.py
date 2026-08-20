@@ -1683,9 +1683,6 @@ async def cancel_subscription(current_user: dict = Depends(auth.get_current_user
 @app.post("/api/contact")
 @limiter.limit("5/minute")
 async def contact(request: Request, body: ContactMessage):
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
     import alerts as _alerts
 
     # Persist FIRST, before any notifier runs. Until 2026-08-20 this endpoint only
@@ -1713,46 +1710,26 @@ async def contact(request: Request, body: ContactMessage):
         except Exception:
             log.exception("contact: could not mark submission %s notified", submission_id)
 
-    # Secondary channel, kept as a belt-and-braces copy. Currently failing in
-    # production with Gmail 535 BadCredentials — the app password needs replacing or
-    # this block should go. Telegram above is what actually delivers today.
-    emailed = False
-    smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
-    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
-    if smtp_email and smtp_password:
-        try:
-            msg_text = "\n".join([
-                f"Name: {body.name}",
-                f"Email: {body.email}",
-                f"Subject: {body.subject}",
-                "",
-                "Message:",
-                body.message,
-            ])
-            msg = MIMEMultipart()
-            msg["From"] = smtp_email
-            msg["To"] = "hello@zeusbeats.com"
-            msg["Subject"] = f"Zeus Contact: {body.subject}"
-            msg.attach(MIMEText(msg_text, "plain"))
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
-                server.login(smtp_email, smtp_password)
-                server.sendmail(smtp_email, ["hello@zeusbeats.com"], msg.as_string())
-            log.info("contact email sent from %s", body.email)
-            emailed = True
-        except Exception as exc:
-            log.warning("contact email failed: %s", exc)
+    # The SMTP copy to hello@zeusbeats.com was removed 2026-08-20. It was redundant
+    # once every submission is persisted and Telegrammed, it was one more credential
+    # to keep alive, and it had become a pure noise source — failing on every single
+    # submission with Gmail 535 BadCredentials while contributing nothing.
+    #
+    # NOTE: SMTP_EMAIL / SMTP_PASSWORD are still required elsewhere (verification and
+    # password-reset mail via _send_email, billing notifications, agent task mail) —
+    # do NOT delete those variables from Railway on account of this removal.
 
-    # Only truly lost if it reached neither a notifier nor the database. That case
+    # Only truly lost if it reached neither the notifier nor the database. That case
     # is an ERROR, not a warning — the submitter is being told we'll be in touch.
-    if not (notified or emailed or submission_id):
+    if not (notified or submission_id):
         log.error(
-            "contact: SUBMISSION LOST — no Telegram, no email, no DB row. from=%r subject=%r",
+            "contact: SUBMISSION LOST — no Telegram and no DB row. from=%r subject=%r",
             body.email, body.subject,
         )
     else:
         log.info(
-            "contact: submission id=%s telegram=%s email=%s from=%s",
-            submission_id, notified, emailed, body.email,
+            "contact: submission id=%s telegram=%s from=%s",
+            submission_id, notified, body.email,
         )
     return {"ok": True, "message": "Thanks! We'll be in touch within 24 hours."}
 
