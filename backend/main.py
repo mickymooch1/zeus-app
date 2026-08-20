@@ -1521,7 +1521,17 @@ async def verify_email(request: Request, body: VerifyEmailRequest):
 
 
 @app.post("/api/auth/resend-verification")
-@limiter.limit("3/minute")
+# Keyed by user, NOT by IP. The module-level limiter uses get_remote_address, and
+# uvicorn runs without --proxy-headers, so that reads Railway's internal proxy
+# address — which rotates across a pool (100.64.0.x). Every request therefore lands
+# in its own bucket and the limit never fires: measured 5 calls in under a minute,
+# all 200, before this change. This endpoint is authenticated, so _user_key gives a
+# stable bucket and the limit actually applies.
+#
+# It matters more than an ordinary limit: each call sends real mail. Unbounded
+# resend means unbounded outbound volume, which damages the sending reputation the
+# verification gate now depends on — a mail in spam is a user who cannot generate.
+@limiter.limit("3/minute", key_func=_user_key)
 async def resend_verification(
     request: Request,
     body: ResendVerificationRequest,

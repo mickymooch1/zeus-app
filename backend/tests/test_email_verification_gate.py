@@ -165,6 +165,21 @@ def test_verification_email_still_sends_a_working_link():
     assert "create_verification_token" in src
 
 
+def test_resend_is_rate_limited_per_user_not_per_ip():
+    """Measured in production: 5 resends inside a minute all returned 200 against a
+    3/minute limit. The module limiter keys on get_remote_address, and uvicorn runs
+    without --proxy-headers, so that is Railway's internal proxy address — which
+    rotates, giving every request its own bucket. Resend sends real mail, so an
+    unenforced limit is unbounded outbound volume against the sending reputation the
+    gate depends on. It is authenticated, so it must key by user."""
+    import main
+    src = inspect.getsource(main)
+    start = src.index('@app.post("/api/auth/resend-verification")')
+    decorators = src[start:start + 1200]
+    assert "key_func=_user_key" in decorators, \
+        "resend-verification must be rate-limited per user, not per (rotating) proxy IP"
+
+
 # ── Anti-bot at signup still applies (carried over from the old file) ────────
 
 def test_disposable_domains_still_blocked_including_web_library():
