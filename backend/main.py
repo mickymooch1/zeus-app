@@ -2374,6 +2374,54 @@ async def songs_generate(
         current_user.get("email"),
     )
 
+    # ── Credit pre-check ──────────────────────────────────────────────────────
+    # Refuse unaffordable requests BEFORE generate_lyrics runs.
+    #
+    # Every downstream credit check sits after the lyrics call, so an unaffordable
+    # request used to burn a Claude call, write a lyrics row, and only then 402 —
+    # leaving an orphaned lyrics row with no variants and nothing to show the user.
+    # Three exist since 2026-08-01: lyric 602 (dominic.rowle@yahoo.com), 680 and 695
+    # (kingshaza727@gmail.com). Since a normal request costs one credit per genre,
+    # picking several genres with a small balance hits this easily.
+    #
+    # This MIRRORS the downstream rules rather than replacing them — they all stay
+    # in place as defence in depth. Anything rejected here would have been rejected
+    # a few seconds later anyway, so the only false-rejection window is a balance
+    # INCREASE landing mid-request (a Stripe webhook or an admin grant during the
+    # lyrics call). That yields a retryable 402, which still beats an orphaned row.
+    #
+    # It also closes a real hole: the kids_story and sfx branches below deduct a
+    # credit with no check at all, so they could previously drive a balance negative.
+    _is_admin_early = bool(current_user.get("is_admin", 0))
+    if not _is_admin_early:
+        from song_genres import GENRE_PRESETS as _GP_PRECHECK
+        import sound_effects as _sfx_precheck
+
+        _balance = (credits_row or {}).get("balance", 0)
+        if body.kids_story:
+            _needed = 1                                     # kids story/song is flat-rate
+        elif current_user.get("sound_persona_id"):
+            _needed = 1                                     # persona path renders one variant
+        elif any(g in _sfx_precheck.SFX_GENRES for g in list(body.genres)):
+            _needed = 1                                     # sound-effect ambience is one track
+        else:
+            # Same filter generate_multiple_variants applies. When nothing survives it,
+            # leave the cost at 0 so the existing 400 "No valid genres provided" still
+            # wins — a credit 402 would mask the real problem.
+            _needed = len([g for g in list(body.genres) if g in _GP_PRECHECK])
+
+        if _needed and _balance < _needed:
+            log.warning(
+                "songs_generate: refused before lyrics — user_id=%s needs=%d has=%s genres=%r",
+                user_id, _needed, _balance, list(body.genres),
+            )
+            # Message matches generate_multiple_variants exactly so the client is
+            # unaffected by which layer refused.
+            raise HTTPException(
+                status_code=402,
+                detail=f"Need {_needed} credits, have {_balance}",
+            )
+
     # True only for Story sub-mode; False = Song sub-mode (sung kids song, no TTS)
     _is_story = body.kids_story and body.kids_mode == 'story'
 
