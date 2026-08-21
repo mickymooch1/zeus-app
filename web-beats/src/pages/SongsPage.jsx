@@ -1251,7 +1251,10 @@ export default function SongsPage() {
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
   const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, has_paid: false, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '', premium_credits: 0, premium_monthly_allowance: 0 });
-  const [creditsLoaded, setCreditsLoaded] = useState(false);
+  // 'loading' | 'ready' | 'error'. Deliberately three states: a failed credits
+  // fetch must not be indistinguishable from a confirmed balance of zero.
+  const [creditsStatus, setCreditsStatus] = useState('loading');
+  const creditsLoaded = creditsStatus === 'ready';
   const [brief, setBrief]               = useState('');
   const [selGenres, setSelGenres]       = useState(() => { const s = _matchGenreSlug(location.state?.prefillGenre); return s ? new Set([s]) : new Set(); });
   const [generating, setGenerating]     = useState(false);
@@ -1427,8 +1430,22 @@ export default function SongsPage() {
   const youtubeConnected = credits.youtube_connected;
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
   const cost           = isKidsMode ? 1 : selGenres.size;
-  // Before credits load, optimistically allow — server rejects if truly insufficient
-  const canAfford      = isAdmin || !creditsLoaded || (credits.balance >= cost && cost > 0);
+  // Credits must be CONFIRMED sufficient before Generate is enabled.
+  //
+  // This used to read `isAdmin || !creditsLoaded || (balance >= cost)`, i.e. it
+  // optimistically allowed while credits were still loading, on the reasoning that
+  // the server would reject anything truly unaffordable. It does — but only AFTER
+  // generate_lyrics has already run and written a lyrics row, so the request 402s
+  // and leaves an orphaned row with no song and nothing to show the user. Three
+  // such rows exist since 1 August (602, 680, 695).
+  //
+  // 'error' is kept distinct from 'ready' deliberately. fetchCredits sets its flag
+  // in a finally block, so a failed request previously looked exactly like a
+  // successful one reporting a balance of 0 — which would now render a confident
+  // "you have no credits" to someone whose network merely hiccuped. Unknown is not
+  // the same as zero, so that case offers a retry instead of a verdict.
+  const creditsUnknown = !isAdmin && creditsStatus !== 'ready';
+  const canAfford      = isAdmin || (creditsStatus === 'ready' && credits.balance >= cost && cost > 0);
   const canGenerate    = cost > 0 && canAfford && !generating && (
     isKidsMode
       ? true
@@ -1440,7 +1457,9 @@ export default function SongsPage() {
     // eslint-disable-next-line no-console
     console.log('[Generate] disabled:', !canGenerate, { cost, creditsLoaded, balance: credits.balance, canAfford, generating, isKidsMode, useCustomLyrics });
   }
-  const creditExceeded = !isAdmin && cost > 0 && cost > credits.balance;
+  // Only a real verdict once the balance is confirmed — otherwise an unread balance
+  // of 0 would render as "not enough credits".
+  const creditExceeded = !isAdmin && creditsStatus === 'ready' && cost > 0 && cost > credits.balance;
   const generateEffective = isOnline ? canGenerate : true;
 
   const fetchCredits = useCallback(async () => {
@@ -1448,9 +1467,17 @@ export default function SongsPage() {
       const r = await fetch(`${BACKEND_URL}/api/users/me/song_credits`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (r.ok) setCredits(await r.json());
-    } catch (_) {}
-    finally { setCreditsLoaded(true); }
+      if (r.ok) {
+        setCredits(await r.json());
+        setCreditsStatus('ready');
+      } else {
+        // A non-2xx leaves `credits` at its initial {balance: 0}. Marking that
+        // 'ready' would assert a balance we never received.
+        setCreditsStatus('error');
+      }
+    } catch (_) {
+      setCreditsStatus('error');
+    }
   }, [token]);
 
   // Legacy per-lyric fan-out. Only used if /api/library is unavailable.
@@ -3887,7 +3914,27 @@ export default function SongsPage() {
               <span style={{ marginLeft: 'auto', color: '#f87171', fontSize: 12, fontWeight: 600 }}>{isRoastMode ? '▲ On' : '▼ Off'}</span>
             </button>
 
-            {cost > 0 ? (
+            {cost > 0 && creditsUnknown ? (
+              // Neither "you have N credits" nor "you have none" — we do not know yet.
+              <p style={{ fontSize: 13, color: creditsStatus === 'error' ? '#fbbf24' : '#666', marginBottom: 16 }}>
+                {creditsStatus === 'error' ? (
+                  <>
+                    {t('songs.creditsUnavailableHint')}{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setCreditsStatus('loading'); fetchCredits(); }}
+                      style={{
+                        background: 'none', border: 'none', padding: 0,
+                        color: '#00f0ff', fontSize: 13, fontWeight: 600,
+                        cursor: 'pointer', textDecoration: 'underline',
+                      }}
+                    >
+                      {t('songs.retry')}
+                    </button>
+                  </>
+                ) : t('songs.creditsChecking')}
+              </p>
+            ) : cost > 0 ? (
               <p style={{ fontSize: 13, color: creditExceeded ? '#f87171' : '#666', marginBottom: 16, fontWeight: creditExceeded ? 600 : 400 }}>
                 {isAdmin ? t('songs.creditUnlimited', { cost }) : t('songs.creditInfo', { cost, balance })}
                 {creditExceeded && !isIOSWebView && (
@@ -3935,11 +3982,15 @@ export default function SongsPage() {
             >
               {generating
                 ? (isKidsMode ? '✨ Creating your story song...' : t('songs.generatingBtn'))
-                : isKidsMode
-                  ? `🌟 Create My Story Song! (1 credit)`
-                  : cost > 0
-                    ? t('songs.generateBtn', { cost })
-                    : t('songs.selectStyleBtn')}
+                : cost > 0 && creditsStatus === 'loading'
+                  ? t('songs.creditsChecking')
+                  : cost > 0 && creditsStatus === 'error'
+                    ? t('songs.creditsUnavailable')
+                    : isKidsMode
+                      ? `🌟 Create My Story Song! (1 credit)`
+                      : cost > 0
+                        ? t('songs.generateBtn', { cost })
+                        : t('songs.selectStyleBtn')}
             </button>
 
             {error && <p style={{ color: '#f87171', fontSize: 13, marginTop: 12 }}>{error}</p>}
