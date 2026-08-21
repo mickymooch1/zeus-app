@@ -73,6 +73,8 @@
     "titlePlaceholderVocals": "ชื่อเพลง (ไม่บังคับ)",
     "titlePlaceholderInstrumental": "เช่น Midnight Run, Deep Blue, Storm",
     "styleLabel": "สไตล์",
+    "multiGenreNote_other": "เลือก {{count}} แนว = เพลงแยกกัน {{count}} เพลง",
+    "multiGenreHint": "แต่ละแนวจะสร้างเวอร์ชันของตัวเองและใช้ 1 เครดิต เลือกแนวเดียวหากต้องการเพลงเดียว",
     "artistPlaceholder": "ได้แรงบันดาลใจจากศิลปิน (เช่น Bob Marley) — ไม่บังคับ",
     "styleTag": "สไตล์:",
     "advancedOptions": "ตัวเลือกขั้นสูง",

@@ -73,6 +73,8 @@
     "titlePlaceholderVocals": "歌曲标题（可选）",
     "titlePlaceholderInstrumental": "例如：午夜奔跑，深蓝，风暴",
     "styleLabel": "风格",
+    "multiGenreNote_other": "已选 {{count}} 种风格 = {{count}} 首独立歌曲。",
+    "multiGenreHint": "每种风格都会生成各自的版本，并消耗 1 个额度。只想要一首歌就选一种风格。",
     "artistPlaceholder": "参考艺术家（例如：鲍勃·马利）— 可选",
     "styleTag": "风格：",
     "advancedOptions": "高级选项",

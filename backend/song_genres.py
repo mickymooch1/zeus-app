@@ -146,6 +146,7 @@ GENRE_PRESETS = {
     "boombap":           "boom bap hip hop, dusty sampled drum break, hard-hitting kick and crisp snare, warm upright bass loop, jazzy piano and horn samples, vinyl crackle, 90 BPM, head-nodding swing, gritty analog texture, confident lyrical delivery, scratched turntable cuts, classic golden-era production",
     "citypop":           "city pop, glossy 80s production, slap bass groove, lush electric piano, jazzy extended chords, chorus-drenched clean guitar, gated reverb drums, bright analog synth pads, 105 BPM, smooth polished vocals, shimmering saxophone lines, sophisticated nostalgic funk-influenced arrangement",
     "futurebass":        "future bass, detuned supersaw chord swells, pitched vocal chops, punchy trap-influenced drums, heavy sidechain pumping, 150 BPM, bright euphoric drop, lush reverb-soaked pads, crisp snare rolls, layered synth stacks, glossy modern production, emotional uplifting melody",
+    "gogo":              "Washington DC go-go music, continuous funk groove, heavy syncopated percussion, conga and timbales, call-and-response crowd interaction, bouncy infectious rhythm, live party energy, bass-driven groove, horn stabs, keyboard funk, non-stop pocket groove, percussion breakdown, street funk energy",
     "gqom":              "gqom, raw minimal broken beat, deep booming sub bass, sparse hypnotic percussion loops, dark industrial synth stabs, 125 BPM, tribal drum patterns, heavy syncopated kick, chanted repetitive vocal hooks, stripped-back hypnotic groove, gritty underground club energy",
 }
 

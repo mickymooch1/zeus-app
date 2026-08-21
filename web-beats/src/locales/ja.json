@@ -73,6 +73,8 @@
     "titlePlaceholderVocals": "曲のタイトル（任意）",
     "titlePlaceholderInstrumental": "例: 真夜中のドライブ、深海ブルー、嵐",
     "styleLabel": "スタイル",
+    "multiGenreNote_other": "ジャンル{{count}}件を選択 = 別々の楽曲{{count}}曲。",
+    "multiGenreHint": "各ジャンルはそれぞれ別のバージョンを作成し、1クレジットを消費します。1曲だけ作るならジャンルは1つ選んでください。",
     "artistPlaceholder": "参考アーティスト（例: ボブ・マーリー）— 任意",
     "styleTag": "スタイル:",
     "advancedOptions": "詳細オプション",

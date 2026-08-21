@@ -73,6 +73,8 @@
     "titlePlaceholderVocals": "노래 제목 (선택사항)",
     "titlePlaceholderInstrumental": "예: 자정 드라이브, 깊은 파랑, 폭풍",
     "styleLabel": "스타일",
+    "multiGenreNote_other": "장르 {{count}}개 선택 = 각각 다른 곡 {{count}}곡.",
+    "multiGenreHint": "장르마다 별도의 버전이 만들어지며 크레딧 1개가 사용됩니다. 한 곡만 원하면 장르를 하나만 선택하세요.",
     "artistPlaceholder": "참고 아티스트 (예: 밥 말리) — 선택사항",
     "styleTag": "스타일:",
     "advancedOptions": "고급 옵션",
