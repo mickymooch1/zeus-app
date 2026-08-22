@@ -4711,6 +4711,83 @@ async def discover_feed(page: int = 0):
     return {"songs": songs, "page": page, "count": len(songs)}
 
 
+# ── Literal /api/discover/* paths — MUST stay above /api/discover/{variant_id} ──
+# FastAPI matches in declaration order. {variant_id} is typed int, so a literal
+# segment declared after it never gets a chance: the int route matches first and
+# fails validation. That is exactly how /api/discover/for-you shipped broken —
+# every call returned 422 int_parsing on "for-you" rather than reaching the
+# handler. Any new literal path under /api/discover/ belongs in this block.
+
+@app.get("/api/discover/new-count")
+async def discover_new_count(since: str | None = None):
+    """How many Discover songs have appeared since `since`. No auth — the feed is public.
+
+    Returns server_time so the client can reseed from the server's clock instead of
+    its own. Device clocks drift and time zones are easy to get wrong; a client that
+    guessed "now" would either miss songs or re-show ones already seen.
+
+    Counts on the song's server-side created_at (DEFAULT CURRENT_TIMESTAMP), never on
+    anything the client supplies about the song.
+    """
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if not since:
+        # No baseline yet — report nothing new and hand back a timestamp to seed from,
+        # so a first-time visitor is not greeted with "143 new".
+        return {"count": 0, "server_time": now_iso}
+
+    db_path = db.get_db_path()
+    conn = sqlite3.connect(str(db_path))
+    try:
+        # created_at is stored as "YYYY-MM-DD HH:MM:SS" (SQLite CURRENT_TIMESTAMP, UTC)
+        # while `since` arrives as an ISO string with a T and an offset. Normalise to
+        # the stored shape so the string comparison is valid.
+        _s = since.strip().replace("T", " ")
+        for cut in ("+", "Z", "."):
+            if cut in _s:
+                _s = _s.split(cut)[0]
+        _s = _s.strip()[:19]
+        count = conn.execute(
+            """SELECT COUNT(*) FROM song_variants
+               WHERE is_public = 1 AND status = 'complete' AND mp3_url IS NOT NULL
+                 AND created_at > ?""",
+            (_s,),
+        ).fetchone()[0]
+    except Exception:
+        log.exception("discover_new_count: query failed for since=%r", since)
+        # A badge is not worth a 500 on app load.
+        return {"count": 0, "server_time": now_iso}
+    finally:
+        conn.close()
+    return {"count": int(count or 0), "server_time": now_iso}
+
+
+@app.get("/api/discover/for-you")
+async def discover_for_you(current_user=Depends(auth.get_current_user)):
+    """Personalised feed: public songs in genres the user has liked, ordered by popularity."""
+    user_id = current_user["id"]
+    db_path = db.get_db_path()
+
+    # Diagnostic counters — logged so we can see why the feed might be empty
+    _diag = sqlite3.connect(str(db_path))
+    try:
+        likes = _diag.execute(
+            "SELECT COUNT(*) FROM song_variant_likes WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        public_songs = _diag.execute(
+            "SELECT COUNT(*) FROM song_variants "
+            "WHERE is_public = 1 AND status = 'complete' AND mp3_url IS NOT NULL"
+        ).fetchone()[0]
+    finally:
+        _diag.close()
+
+    songs = db.get_for_you_songs(db_path, user_id)
+    log.info(
+        "discover_for_you: user=%s likes=%d public_songs=%d returned=%d",
+        user_id, likes, public_songs, len(songs),
+    )
+    return {"songs": songs, "page": 0, "count": len(songs)}
+
+
 @app.get("/api/discover/{variant_id}")
 async def discover_song(variant_id: int):
     """Return a single public song by variant_id — no auth required."""
@@ -4757,33 +4834,6 @@ async def log_discover_play(
     except Exception:
         pass
     return Response(status_code=204)
-
-
-@app.get("/api/discover/for-you")
-async def discover_for_you(current_user=Depends(auth.get_current_user)):
-    """Personalised feed: public songs in genres the user has liked, ordered by popularity."""
-    user_id = current_user["id"]
-    db_path = db.get_db_path()
-
-    # Diagnostic counters — logged so we can see why the feed might be empty
-    _diag = sqlite3.connect(str(db_path))
-    try:
-        likes = _diag.execute(
-            "SELECT COUNT(*) FROM song_variant_likes WHERE user_id = ?", (user_id,)
-        ).fetchone()[0]
-        public_songs = _diag.execute(
-            "SELECT COUNT(*) FROM song_variants "
-            "WHERE is_public = 1 AND status = 'complete' AND mp3_url IS NOT NULL"
-        ).fetchone()[0]
-    finally:
-        _diag.close()
-
-    songs = db.get_for_you_songs(db_path, user_id)
-    log.info(
-        "discover_for_you: user=%s likes=%d public_songs=%d returned=%d",
-        user_id, likes, public_songs, len(songs),
-    )
-    return {"songs": songs, "page": 0, "count": len(songs)}
 
 
 @app.post("/api/discover/{variant_id}/like")

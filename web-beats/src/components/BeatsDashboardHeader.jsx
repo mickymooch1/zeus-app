@@ -4,9 +4,21 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
 import { LanguageSelector } from './LanguageSelector';
+import { useDiscoverBadge } from '../hooks/useDiscoverBadge';
 
 function isActive(pathname, to) {
   return pathname === to || pathname.startsWith(to + '/');
+}
+
+// Count pill for the Discover link. Capped at 9+ so a long-quiet feed suddenly
+// dropping 40 songs cannot stretch the nav item.
+function NavBadge({ count }) {
+  if (!count) return null;
+  return (
+    <span className="nav-badge" aria-label={`${count} new`}>
+      {count > 9 ? '9+' : count}
+    </span>
+  );
 }
 
 export function BeatsDashboardHeader({ onMenuOpen }) {
@@ -15,6 +27,7 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
   const { t } = useTranslation();
   const [overflowOpen, setOverflowOpen] = useState(false);
   const menuRef = useRef(null);
+  const newOnDiscover = useDiscoverBadge(user);
 
   useEffect(() => {
     if (!overflowOpen) return;
@@ -79,6 +92,7 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
             className={`dashboard-header-link nav-overflow-desktop${isActive(pathname, to) ? ' dashboard-header-link--active' : ''}`}
           >
             {label}
+            {to === '/discover' && <NavBadge count={newOnDiscover} />}
           </Link>
         ))}
 
@@ -107,10 +121,16 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
           <button
             className="nav-hamburger-btn"
             onClick={() => setOverflowOpen(o => !o)}
-            aria-label="More navigation options"
+            aria-label={newOnDiscover
+              ? `More navigation options — ${newOnDiscover} new on Discover`
+              : 'More navigation options'}
             aria-expanded={overflowOpen}
           >
             ☰
+            {/* Discover lives inside this menu on mobile, so a badge on the link
+                alone would be invisible at 375px until the menu is opened. The dot
+                is what makes the feature work on a phone. */}
+            {newOnDiscover > 0 && <span className="nav-hamburger-dot" aria-hidden="true" />}
           </button>
           {overflowOpen && (
             <div className="nav-overflow-menu">
@@ -122,6 +142,7 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
                   onClick={() => setOverflowOpen(false)}
                 >
                   {label}
+                  {to === '/discover' && <NavBadge count={newOnDiscover} />}
                 </Link>
               ))}
             </div>

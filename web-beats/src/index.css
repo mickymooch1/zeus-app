@@ -734,7 +734,42 @@ body {
   position: relative;
   flex-shrink: 0;
 }
+/* ── "New on Discover" badge ──────────────────────────────────────────────
+   Count pill on the Discover nav link (desktop nav and inside the mobile
+   overflow menu), plus a bare dot on the hamburger itself — Discover is hidden
+   behind that menu below 768px, so without the dot the badge would be invisible
+   at 375px, which is the width that matters most here. */
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+  flex: 0 0 auto;          /* never squeezed by the link's ellipsis rules */
+}
+
+.nav-hamburger-dot {
+  position: absolute;
+  top: 8px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  pointer-events: none;
+}
+
 .nav-hamburger-btn {
+  position: relative;      /* anchors .nav-hamburger-dot */
   background: none;
   border: none;
   cursor: pointer;

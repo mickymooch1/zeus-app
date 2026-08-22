@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 import { audioManager } from '../utils/audioManager';
+import { markDiscoverSeen } from '../hooks/useDiscoverBadge';
 
 /* ── Neon cyberpunk tokens ──────────────────────────────────────────────── */
 const CYAN  = '#00f0ff';
@@ -241,7 +242,7 @@ function ActionBtn({ onClick, icon, label, active, activeColor }) {
 
 /* ── Main page ──────────────────────────────────────────────────────────── */
 export default function DiscoverPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
   const [songs, setSongs]           = useState([]);
   const [muted, setMuted]           = useState(true);
@@ -301,6 +302,11 @@ export default function DiscoverPage() {
   }, []);
 
   useEffect(() => { fetchPage(); }, [fetchPage]);
+
+  // Landing here IS having seen the feed, so reseed the "last seen" marker from the
+  // server clock. The header re-checks on navigation, so the badge clears on the way
+  // back out. Best-effort: a failure just leaves the badge up until the next visit.
+  useEffect(() => { markDiscoverSeen(user?.id); }, [user?.id]);
 
   const fetchForYou = useCallback(async () => {
     if (!token || forYouFetched) return;
