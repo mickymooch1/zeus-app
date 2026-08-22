@@ -271,6 +271,12 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             # invent a sharing time that never happened. NULL means "not recorded", and
             # readers COALESCE to created_at for those rows.
             "ALTER TABLE song_variants ADD COLUMN shared_at TEXT",
+            # When the Discover→Telegram alert announced this song. Per-row rather than
+            # a global "last checked" timestamp: shared_at has one-second resolution, so
+            # two songs shared in the same second are indistinguishable to a
+            # `> watermark` comparison and the second is dropped forever. A NULL marker
+            # cannot collide, and is also immune to a song arriving mid-run.
+            "ALTER TABLE song_variants ADD COLUMN discover_alerted_at TEXT",
             # Set at the storage layer, not in the endpoint, because the endpoint is not
             # the only writer: telegram_admin's `db exec "UPDATE ..."` runs arbitrary SQL
             # straight against this database and no application code can intercept it. A
@@ -414,6 +420,7 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 created_at   TEXT NOT NULL
             )""",
             "CREATE INDEX IF NOT EXISTS idx_contact_created ON contact_submissions (created_at)",
+
             # Set when the admin answers via the Porick "reply <id> <message>" command.
             # Doubles as the guard against replying to the same enquiry twice.
             "ALTER TABLE contact_submissions ADD COLUMN replied_at TEXT",
@@ -681,6 +688,76 @@ def update_user_by_email(db_path: pathlib.Path, email: str, **fields) -> bool:
         )
         conn.commit()
         return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def get_unalerted_discover_songs(db_path: pathlib.Path, limit: int = 25) -> list[dict]:
+    """Discover songs not yet announced, oldest first.
+
+    Per-row rather than a timestamp watermark. shared_at comes from SQLite's
+    CURRENT_TIMESTAMP and so has one-second resolution: two songs shared in the same
+    second carry identical values, and a strict `> watermark` comparison drops the
+    second one permanently — it can never appear in a later run either, because the
+    watermark has already moved past it. A NULL marker per row cannot collide.
+
+    Still keyed on COALESCE(shared_at, created_at) for the reported time, the same
+    signal /api/discover/new-count uses, so the alert and the badge agree.
+    """
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            """SELECT sv.id AS variant_id,
+                      sv.genre_tag,
+                      COALESCE(sv.shared_at, sv.created_at) AS entered_at,
+                      l.title,
+                      u.artist_name,
+                      u.email
+               FROM song_variants sv
+               JOIN lyrics l ON l.id = sv.lyric_id
+               JOIN users  u ON u.id = sv.user_id
+               WHERE sv.is_public = 1 AND sv.status = 'complete' AND sv.mp3_url IS NOT NULL
+                 AND sv.discover_alerted_at IS NULL
+               ORDER BY entered_at ASC
+               LIMIT ?""",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def discover_alerts_initialised(db_path: pathlib.Path) -> bool:
+    """Has the Discover alert ever run? Used to stay silent on the first pass.
+
+    Derived from the column itself rather than a separate marker: if nothing has ever
+    been stamped, this is the first run and everything currently public predates the
+    feature. On a database that has never had a public song this would also treat the
+    very first share as "pre-existing" and skip announcing it once — harmless here,
+    where 145 public songs already exist, and it costs one alert at most.
+    """
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM song_variants WHERE discover_alerted_at IS NOT NULL LIMIT 1"
+        ).fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
+def mark_discover_alerted(db_path: pathlib.Path, variant_ids: list[int]) -> None:
+    """Stamp songs as announced. Written only AFTER the alert is delivered."""
+    if not variant_ids:
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _conn(db_path)
+    try:
+        conn.executemany(
+            "UPDATE song_variants SET discover_alerted_at = ? WHERE id = ?",
+            [(now, vid) for vid in variant_ids],
+        )
+        conn.commit()
     finally:
         conn.close()
 

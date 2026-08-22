@@ -20,13 +20,18 @@ Event hooks (called from main.py / webhooks.py):
 
 NO automatic song generation — this agent never creates songs on its own.
 """
+import html as _html
 import logging
 import os
 import sqlite3
+from datetime import datetime, timezone
 
 import requests
 
 log = logging.getLogger("zeus.ops_agent")
+
+# Public origin for song links in alerts. Songs live at /discover/<variant_id>.
+_PUBLIC_BASE = os.environ.get("PUBLIC_SITE_URL", "https://zeusbeats.com").rstrip("/")
 
 _DB_PATH_ENV = "DB_PATH"
 _DB_DEFAULT  = "/data/zeus.db"
@@ -236,6 +241,88 @@ def evening_checkin() -> None:
         log.info("ops_agent: evening check-in sent")
     except Exception:
         log.exception("ops_agent: evening_checkin raised")
+
+
+# ── Discover monitor ───────────────────────────────────────────────────────────
+
+_DISCOVER_MAX_LISTED = 10
+
+
+def discover_monitor() -> None:
+    """Alert when songs are shared to Discover. Runs every 30 min.
+
+    Reports COALESCE(shared_at, created_at) — the same signal /api/discover/new-count
+    uses for the badge — so the two can never disagree about what counts as new.
+
+    Progress is tracked per row (discover_alerted_at) rather than by a global
+    timestamp watermark. shared_at comes from CURRENT_TIMESTAMP and has one-second
+    resolution, so two songs shared in the same second are identical to a
+    `> watermark` comparison and the second is lost permanently. A NULL marker per
+    row cannot collide, survives restarts, and is unaffected by a song arriving
+    while the alert is being sent.
+
+    Batched rather than per-share because the feed is bursty — eight songs in a day,
+    then nothing for ten — and eight separate pings would be noise.
+
+    On the very first run every existing public song is marked as already announced,
+    so it stays silent instead of dumping all 145 at once. That is the same
+    first-visit seeding the badge does.
+    """
+    import db as _db_mod
+    from alerts import send_admin_alert
+
+    try:
+        db_path = _db_mod.get_db_path()
+        pending = _db_mod.get_unalerted_discover_songs(db_path, limit=_DISCOVER_MAX_LISTED + 1)
+    except Exception:
+        log.exception("discover_monitor: query failed")
+        return
+
+    if not pending:
+        log.info("discover_monitor: nothing new")
+        return
+
+    # First run: everything currently public predates the feature. Mark it seen
+    # rather than announcing it.
+    try:
+        seeded = _db_mod.discover_alerts_initialised(db_path)
+    except Exception:
+        seeded = True   # never block on the check; worst case one extra alert
+    if not seeded:
+        try:
+            all_public = _db_mod.get_unalerted_discover_songs(db_path, limit=100000)
+            _db_mod.mark_discover_alerted(db_path, [s["variant_id"] for s in all_public])
+            log.info("discover_monitor: seeded %d existing song(s) — silent first run",
+                     len(all_public))
+        except Exception:
+            log.exception("discover_monitor: seeding failed")
+        return
+
+    listed = pending[:_DISCOVER_MAX_LISTED]
+    overflow = len(pending) - len(listed)
+    lines = [f"🎵 <b>{len(listed) + overflow} new on Discover</b>"]
+    for s in listed:
+        title = _html.escape(str(s.get("title") or f"Song #{s['variant_id']}"))
+        artist = _html.escape(str(s.get("artist_name") or s.get("email") or "unknown"))
+        genre = _html.escape(str(s.get("genre_tag") or ""))
+        lines.append(f"• <b>{title}</b> — {artist}"
+                     + (f" <i>({genre})</i>" if genre else "")
+                     + f"\n  {_PUBLIC_BASE}/discover/{s['variant_id']}")
+    if overflow:
+        lines.append(f"…and {overflow} more")
+
+    if send_admin_alert("\n".join(lines)):
+        # Mark ONLY what was listed. Anything beyond the cap stays unalerted and is
+        # picked up next run, so a large burst is announced across runs rather than
+        # silently swallowed.
+        try:
+            _db_mod.mark_discover_alerted(db_path, [s["variant_id"] for s in listed])
+            log.info("discover_monitor: announced %d song(s)", len(listed))
+        except Exception:
+            log.exception("discover_monitor: announced but could not mark — may repeat")
+    else:
+        # Leave them unmarked so the next run retries. A repeat ping beats a silent miss.
+        log.warning("discover_monitor: alert not delivered — %d song(s) left pending", len(pending))
 
 
 # ── Product Hunt monitor ───────────────────────────────────────────────────────

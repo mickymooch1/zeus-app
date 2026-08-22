@@ -85,7 +85,15 @@ def init_scheduler(history_store) -> None:
         replace_existing=True,
         misfire_grace_time=600,
     )
-    log.info("Scheduler: health check, daily report, evening check-in, PH monitor registered")
+    _scheduler.add_job(
+        _ops.discover_monitor,
+        trigger=IntervalTrigger(minutes=30),
+        id="__discover_monitor__",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
+    log.info("Scheduler: health check, daily report, evening check-in, PH monitor, "
+             "Discover monitor registered")
 
 
 def shutdown_scheduler() -> None:
