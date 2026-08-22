@@ -261,6 +261,48 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_credits ADD COLUMN animation_balance INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE song_credits ADD COLUMN animation_monthly_allowance INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE song_variants ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0",
+            # When a song entered Discover. is_public is a bare flag — nothing recorded
+            # WHEN it flipped, so "new since your last visit" had to fall back to
+            # created_at, which is wrong for anything created then shared later.
+            #
+            # Nullable with no backfill, deliberately. A DEFAULT CURRENT_TIMESTAMP would
+            # stamp all 143 existing public songs with the migration time and announce
+            # every one of them as new at once; backfilling from completed_at would
+            # invent a sharing time that never happened. NULL means "not recorded", and
+            # readers COALESCE to created_at for those rows.
+            "ALTER TABLE song_variants ADD COLUMN shared_at TEXT",
+            # Set at the storage layer, not in the endpoint, because the endpoint is not
+            # the only writer: telegram_admin's `db exec "UPDATE ..."` runs arbitrary SQL
+            # straight against this database and no application code can intercept it. A
+            # trigger covers that path, the share endpoint, and any writer added later.
+            #
+            #   OLD.is_public = 0 AND NEW.is_public = 1  → only the 0→1 transition, so
+            #       unsharing never stamps it.
+            #   NEW.shared_at IS NULL                    → first share wins, so
+            #       unshare-then-reshare does not re-announce an old song.
+            #
+            # The inner UPDATE touches only shared_at, so `UPDATE OF is_public` cannot
+            # re-fire it — no recursion regardless of the recursive_triggers setting.
+            """CREATE TRIGGER IF NOT EXISTS trg_song_variants_shared_at
+               AFTER UPDATE OF is_public ON song_variants
+               FOR EACH ROW
+               WHEN NEW.is_public = 1 AND OLD.is_public = 0 AND NEW.shared_at IS NULL
+               BEGIN
+                 UPDATE song_variants SET shared_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+               END""",
+            # Companion for the INSERT case. Nothing in the app inserts an
+            # already-public row (variants are created with the default 0 and toggled
+            # later), but `db exec "INSERT ... is_public=1"` would otherwise land a song
+            # in Discover with shared_at NULL — the same silent never-badges failure the
+            # UPDATE trigger exists to prevent. Guarded on NEW.is_public = 1, so ordinary
+            # inserts are untouched.
+            """CREATE TRIGGER IF NOT EXISTS trg_song_variants_shared_at_insert
+               AFTER INSERT ON song_variants
+               FOR EACH ROW
+               WHEN NEW.is_public = 1 AND NEW.shared_at IS NULL
+               BEGIN
+                 UPDATE song_variants SET shared_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+               END""",
             """CREATE TABLE IF NOT EXISTS song_variant_likes (
                 variant_id INTEGER NOT NULL,
                 user_id    TEXT NOT NULL,

@@ -4674,6 +4674,12 @@ async def toggle_variant_share(variant_id: int, current_user=Depends(auth.get_cu
         raise HTTPException(status_code=404, detail="Variant not found")
     old_val = variant.get("is_public") or 0
     new_val = 0 if old_val else 1
+    # shared_at is deliberately NOT set here. The trg_song_variants_shared_at trigger
+    # stamps it on the 0→1 transition, including this very UPDATE, and also covers
+    # telegram_admin's `db exec` raw SQL, which no application code can intercept.
+    # Setting it here as well would mean two writers for one fact — and it cannot go
+    # through update_song_variant anyway, which binds values (SET k = ?) and so cannot
+    # express COALESCE(shared_at, ?). See db.py's migration list.
     db.update_song_variant(db_path, variant_id, is_public=new_val)
     log.info("toggle_variant_share: variant=%s user=%s old_is_public=%s new_is_public=%s", variant_id, user_id, old_val, new_val)
     return {"variant_id": variant_id, "is_public": bool(new_val)}
@@ -4746,10 +4752,15 @@ async def discover_new_count(since: str | None = None):
             if cut in _s:
                 _s = _s.split(cut)[0]
         _s = _s.strip()[:19]
+        # COALESCE is what makes the shared_at migration backfill-free: rows that
+        # predate the column have shared_at NULL and fall back to created_at exactly
+        # as before, while anything shared since uses the true moment it entered
+        # Discover. A song created Monday and shared Friday now counts as new on
+        # Friday, which is what "new on Discover" means.
         count = conn.execute(
             """SELECT COUNT(*) FROM song_variants
                WHERE is_public = 1 AND status = 'complete' AND mp3_url IS NOT NULL
-                 AND created_at > ?""",
+                 AND COALESCE(shared_at, created_at) > ?""",
             (_s,),
         ).fetchone()[0]
     except Exception:
