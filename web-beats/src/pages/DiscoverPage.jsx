@@ -577,9 +577,13 @@ export default function DiscoverPage() {
       }}>
         {[
           ['trending', '🔥 Trending'],
-          // Hidden until the user has history to personalise from. When it is the
-          // only tab, Trending renders alone rather than as a lone "tab".
-          ...(forYouEligible ? [['for_you', '✨ For You']] : []),
+          // Signed out: shown deliberately. Tapping it raises the signup prompt
+          // (handleTabChange checks !token first), which is a conversion touchpoint
+          // worth keeping — there is no duplicate-feed problem for someone who
+          // cannot load a personalised feed at all.
+          // Signed in: hidden until there is history to personalise from, otherwise
+          // For You returns the same recency-ordered songs as Trending.
+          ...((!token || forYouEligible) ? [['for_you', '✨ For You']] : []),
         ].map(([tab, label]) => (
           <button
             key={tab}
