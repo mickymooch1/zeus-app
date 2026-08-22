@@ -256,6 +256,10 @@ export default function DiscoverPage() {
   const [forYouSongs, setForYouSongs]     = useState([]);
   const [forYouLoading, setForYouLoading] = useState(false);
   const [forYouFetched, setForYouFetched] = useState(false);
+  // Server decides eligibility (1 like OR 3 plays) — client `liked` state starts
+  // empty every session, so it cannot answer "has this user ever engaged?".
+  // Defaults false so the tab is hidden until we positively hear otherwise.
+  const [forYouEligible, setForYouEligible] = useState(false);
   const [activeAudioEl, setActiveAudioEl] = useState(null);
   const [playState, setPlayState]         = useState({ playing: false, currentTime: 0, duration: 0 });
 
@@ -270,8 +274,13 @@ export default function DiscoverPage() {
   const audioRefs          = useRef({});
   const scrollContainerRef = useRef(null);
 
+  // Derived, not corrected after the fact: if For You is selected but no longer
+  // offered, render Trending. An effect calling setActiveTab would work but costs a
+  // cascading re-render (react-hooks/set-state-in-effect) for a purely derived value.
+  const shownTab = activeTab === 'for_you' && !forYouEligible ? 'trending' : activeTab;
+
   // For You falls back to trending if the personalised fetch returns nothing
-  const activeSongs = activeTab === 'for_you'
+  const activeSongs = shownTab === 'for_you'
     ? (forYouSongs.length > 0 ? forYouSongs : songs)
     : songs;
 
@@ -308,6 +317,25 @@ export default function DiscoverPage() {
   // back out. Best-effort: a failure just leaves the badge up until the next visit.
   useEffect(() => { markDiscoverSeen(user?.id); }, [user?.id]);
 
+  // Is a personalised feed worth offering yet? Until it is, For You returns the same
+  // recency-ordered songs as Trending, and two tabs showing identical content reads
+  // as broken. Any failure leaves the tab hidden.
+  useEffect(() => {
+    if (!token) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`${BACKEND_URL}/api/discover/engagement`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok || cancelled) return;
+        const d = await r.json();
+        if (!cancelled) setForYouEligible(Boolean(d?.eligible));
+      } catch { /* tab stays hidden */ }
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
+
   const fetchForYou = useCallback(async () => {
     if (!token || forYouFetched) return;
     setForYouLoading(true);
@@ -335,6 +363,7 @@ export default function DiscoverPage() {
 
   const handleTabChange = (tab) => {
     if (tab === 'for_you' && !token) { setSignupPrompt(true); return; }
+    if (tab === 'for_you' && !forYouEligible) return;   // not offered yet
     setActiveTab(tab);
     activeRef.current = null;
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
@@ -378,7 +407,7 @@ export default function DiscoverPage() {
           }
 
           // Only infinite-scroll on trending tab
-          if (activeTab === 'trending' && idx >= activeSongs.length - 3) fetchPage();
+          if (shownTab === 'trending' && idx >= activeSongs.length - 3) fetchPage();
         } else {
           if (vid) vid.pause();
           if (aud) { aud.pause(); aud.currentTime = 0; }
@@ -388,7 +417,7 @@ export default function DiscoverPage() {
 
     Object.values(slideRefs.current).forEach(el => { if (el) obs.observe(el); });
     return () => obs.disconnect();
-  }, [activeSongs, activeTab, fetchPage, token]);
+  }, [activeSongs, shownTab, fetchPage, token]);
 
   /* ── Attach playback listeners when the active audio element changes ───── */
   useEffect(() => {
@@ -450,6 +479,9 @@ export default function DiscoverPage() {
       return;
     }
     const wasLiked = liked.has(variantId);
+    // One like clears the threshold, so reveal the tab immediately rather than
+    // making them reload to discover it exists.
+    if (!wasLiked) setForYouEligible(true);
     setLiked(prev => { const n = new Set(prev); wasLiked ? n.delete(variantId) : n.add(variantId); return n; });
     setCounts(prev => ({ ...prev, [variantId]: Math.max(0, (prev[variantId] || 0) + (wasLiked ? -1 : 1)) }));
     try {
@@ -543,17 +575,22 @@ export default function DiscoverPage() {
         display: 'flex', justifyContent: 'center',
         pointerEvents: 'auto',
       }}>
-        {[['trending', '🔥 Trending'], ['for_you', '✨ For You']].map(([tab, label]) => (
+        {[
+          ['trending', '🔥 Trending'],
+          // Hidden until the user has history to personalise from. When it is the
+          // only tab, Trending renders alone rather than as a lone "tab".
+          ...(forYouEligible ? [['for_you', '✨ For You']] : []),
+        ].map(([tab, label]) => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
             style={{
               background: 'none', border: 'none',
-              borderBottom: `2px solid ${activeTab === tab ? CYAN : 'transparent'}`,
-              color: activeTab === tab ? CYAN : 'rgba(255,255,255,0.45)',
+              borderBottom: `2px solid ${shownTab === tab ? CYAN : 'transparent'}`,
+              color: shownTab === tab ? CYAN : 'rgba(255,255,255,0.45)',
               fontSize: 13, fontWeight: 700, padding: '6px 22px',
               cursor: 'pointer', transition: 'all 0.18s',
-              textShadow: activeTab === tab ? `0 0 10px ${CYAN}88` : 'none',
+              textShadow: shownTab === tab ? `0 0 10px ${CYAN}88` : 'none',
             }}
           >
             {label}
@@ -572,7 +609,7 @@ export default function DiscoverPage() {
         }}
       >
         {/* For You loading state */}
-        {activeTab === 'for_you' && forYouLoading && (
+        {shownTab === 'for_you' && forYouLoading && (
           <div style={{
             height: '100svh', scrollSnapAlign: 'start',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -586,7 +623,7 @@ export default function DiscoverPage() {
         )}
 
         {/* For You empty state — only shown if trending also has nothing */}
-        {activeTab === 'for_you' && !forYouLoading && forYouFetched && forYouSongs.length === 0 && songs.length === 0 && (
+        {shownTab === 'for_you' && !forYouLoading && forYouFetched && forYouSongs.length === 0 && songs.length === 0 && (
           <div style={{
             height: '100svh', scrollSnapAlign: 'start',
             display: 'flex', flexDirection: 'column',
@@ -617,7 +654,7 @@ export default function DiscoverPage() {
 
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-        {activeTab === 'trending' && loading && (
+        {shownTab === 'trending' && loading && (
           <div style={{
             height: '100svh', scrollSnapAlign: 'start',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -631,7 +668,7 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {activeTab === 'trending' && !hasMore && !loading && songs.length === 0 && (
+        {shownTab === 'trending' && !hasMore && !loading && songs.length === 0 && (
           <div style={{
             height: '100svh', scrollSnapAlign: 'start',
             display: 'flex', flexDirection: 'column',
@@ -655,7 +692,7 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {activeTab === 'trending' && !hasMore && !loading && songs.length > 0 && (
+        {shownTab === 'trending' && !hasMore && !loading && songs.length > 0 && (
           <div style={{
             height: '100svh', scrollSnapAlign: 'start',
             display: 'flex', flexDirection: 'column',

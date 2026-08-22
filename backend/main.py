@@ -4761,6 +4761,48 @@ async def discover_new_count(since: str | None = None):
     return {"count": int(count or 0), "server_time": now_iso}
 
 
+# A "For You" feed needs something to personalise from. get_for_you_songs infers
+# genres from likes and plays, then excludes what you have already heard — with no
+# history there is nothing to infer and nothing to exclude, so it degrades to plain
+# recency, which is exactly what the main feed already is. Measured on production:
+# a brand-new user's For You feed was the same 20 songs in the same order as
+# Trending, and 63 of 82 users (77%) had zero likes and zero plays.
+#
+# Thresholds live here rather than in the client so there is one source of truth.
+_FOR_YOU_MIN_LIKES = 1
+_FOR_YOU_MIN_PLAYS = 3
+
+
+@app.get("/api/discover/engagement")
+async def discover_engagement(current_user=Depends(auth.get_current_user)):
+    """Has this user done enough for a For You feed to differ from Trending?
+
+    The client hides the tab until this says yes. Client-side like state is not
+    usable for the decision — DiscoverPage seeds `liked` as an empty Set and never
+    fetches it, so someone who liked songs yesterday looks brand new today.
+    """
+    user_id = current_user["id"]
+    conn = sqlite3.connect(str(db.get_db_path()))
+    try:
+        likes = conn.execute(
+            "SELECT COUNT(*) FROM song_variant_likes WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        plays = conn.execute(
+            "SELECT COUNT(*) FROM song_play_events WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+    except Exception:
+        log.exception("discover_engagement: query failed user=%s", user_id)
+        # Fail closed: hiding the tab is better than showing a duplicate feed.
+        return {"likes": 0, "plays": 0, "eligible": False}
+    finally:
+        conn.close()
+    return {
+        "likes": likes,
+        "plays": plays,
+        "eligible": bool(likes >= _FOR_YOU_MIN_LIKES or plays >= _FOR_YOU_MIN_PLAYS),
+    }
+
+
 @app.get("/api/discover/for-you")
 async def discover_for_you(current_user=Depends(auth.get_current_user)):
     """Personalised feed: public songs in genres the user has liked, ordered by popularity."""
