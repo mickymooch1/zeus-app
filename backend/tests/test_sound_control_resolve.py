@@ -30,10 +30,23 @@ def test_full_order_bass_drums_vocals_production_notes():
 
 
 def test_length_caps_applied_before_mapping():
-    sc = {"bass": "x" * 300, "notes": "y" * 400}
+    """Notes raised 300 -> 1000 on 2026-08-22; per-section customs stay at 200,
+    because those are single descriptors rather than free text.
+
+    Must stay in step with the textarea's maxLength in SongsPage — the backend
+    truncates independently, so a larger box alone would silently drop the
+    overflow."""
+    sc = {"bass": "x" * 300, "notes": "y" * 1500}
     desc, _ = resolve_sound_control(sc)
     assert len(desc[0]) == 200
-    assert len(desc[1]) == 300
+    assert len(desc[1]) == 1000
+
+
+def test_a_note_between_the_old_and_new_cap_survives_intact():
+    """The point of the change: 300-1000 chars used to be silently chopped."""
+    sc = {"notes": "z" * 800}
+    desc, _ = resolve_sound_control(sc)
+    assert desc == ["z" * 800]
 
 
 def test_empty_inputs():

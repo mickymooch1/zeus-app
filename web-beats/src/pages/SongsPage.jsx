@@ -3519,11 +3519,14 @@ export default function SongsPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <label style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>📝 Custom sound notes</label>
                       <textarea
-                        maxLength={300}
+                        // 1000 (was 300). Must stay in step with the [:1000] cap in
+                        // song_genres.resolve_sound_control — the backend truncates too,
+                        // so a larger box here alone would silently drop the overflow.
+                        maxLength={1000}
                         value={soundControl.notes}
                         onChange={e => setSoundControl(s => ({ ...s, notes: e.target.value }))}
                         placeholder="Anything else about the sound…"
-                        rows={2}
+                        rows={3}
                         style={{
                           width: '100%', borderRadius: 8, padding: 10, resize: 'vertical',
                           background: 'rgba(255,255,255,0.06)', color: '#fff',

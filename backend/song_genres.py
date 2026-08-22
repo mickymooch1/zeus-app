@@ -216,7 +216,18 @@ def resolve_sound_control(sound_control):
             instrumental = True
             continue
         descriptors.append(SOUND_CONTROL_PHRASES.get(section, {}).get(val, val))
-    notes = (sc.get("notes") or "").strip()[:300]
+    # 1000 (was 300), matching the textarea's maxLength. The per-section customs above
+    # stay at 200 — they are single descriptors, not free text.
+    #
+    # Worth knowing when tuning this: notes are extended onto style_suffix_parts LAST
+    # in songs_generate, which assemble_variant_style treats as lowest priority, and
+    # the whole style is capped at 990 chars (Apiframe's field limit is 1000). Genre
+    # cores run 200-450, so the suffix budget is roughly 540-790 shared between tempo,
+    # accent, vocal mode and these descriptors. A note near the full 1000 therefore
+    # cannot fit and gets dropped WHOLE rather than trimmed — assemble_variant_style
+    # logs it by name ("dropped N suffix descriptor(s)"), so a note that never reached
+    # Suno is diagnosable rather than merely absent.
+    notes = (sc.get("notes") or "").strip()[:1000]
     if notes:
         descriptors.append(notes)
     return descriptors, instrumental
