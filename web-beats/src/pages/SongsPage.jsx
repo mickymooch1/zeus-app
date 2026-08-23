@@ -7,6 +7,7 @@ import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 import { EmailVerificationBanner } from '../components/EmailVerificationBanner';
 import { BACKEND_URL } from '../brand';
 import OnboardingTour from '../components/OnboardingTour';
+import LyricWorkshop from '../components/LyricWorkshop';
 import VerificationRequiredScreen from '../components/VerificationRequiredScreen';
 import { audioManager } from '../utils/audioManager';
 import { PLATFORM } from '../utils/platform';
@@ -1407,6 +1408,35 @@ export default function SongsPage() {
   // Custom lyrics
   const [useCustomLyrics, setUseCustomLyrics]   = useState(false);
   const [customLyricsText, setCustomLyricsText] = useState('');
+  const [creatorTab, setCreatorTab]             = useState('create');   // 'create' | 'lyrics'
+
+  /**
+   * Hand lyrics from the workshop to the song creator.
+   *
+   * All four steps are load-bearing, and three of them fail SILENTLY if skipped:
+   *
+   *  1. useCustomLyrics — the payload builder reads `custom_lyrics` only in this
+   *     mode. Without it the generate call sends `brief` instead, and Claude
+   *     REWRITES the lyrics from scratch: the user gets a different song than the
+   *     one they approved, with no error anywhere.
+   *  2. customLyricsText — the field actually sent as `custom_lyrics`.
+   *  3. songTitle — sent as `song_title`, and in custom mode it also becomes the
+   *     `brief` (falling back to the literal 'Custom song'), so filling it is what
+   *     keeps the library from filling up with identically-named entries.
+   *  4. Roast mode must be cleared: the whole custom-lyrics block is hidden while
+   *     it is on, so the hand-off would set state that never renders and then
+   *     generate something unrelated.
+   *
+   * Kids mode needs no clearing here — the Lyrics tab is not offered in it.
+   */
+  const handleUseWorkshopLyrics = useCallback((lyricsText, suggestedTitle) => {
+    setIsRoastMode(false);                              // 4
+    setUseCustomLyrics(true);                           // 1
+    setCustomLyricsText(lyricsText);                    // 2
+    if (suggestedTitle) setSongTitle((prev) => prev.trim() || suggestedTitle);  // 3
+    setCreatorTab('create');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const [listening, setListening] = useState(false);
 
@@ -2777,7 +2807,57 @@ export default function SongsPage() {
             </div>
           )}
 
+          {/* Creator tabs. Hidden in kids mode: that flow has its own shell, and the
+              custom-lyrics block the workshop hands off to is not rendered there at
+              all, so offering the tab would lead to a dead end. */}
+          {!isKidsMode && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              {[['create', t('workshop.tabCreate')], ['lyrics', t('workshop.tabLyrics')]].map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setCreatorTab(id)}
+                  aria-pressed={creatorTab === id}
+                  style={{
+                    flex: 1,
+                    minHeight: 44,
+                    borderRadius: 10,
+                    border: creatorTab === id ? '1px solid rgba(124,58,237,0.9)' : '1px solid rgba(255,255,255,0.08)',
+                    background: creatorTab === id ? 'rgba(124,58,237,0.18)' : 'rgba(255,255,255,0.025)',
+                    color: '#ffffff',
+                    opacity: creatorTab === id ? 1 : 0.65,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'background 0.15s, opacity 0.15s',
+                  }}
+                >{label}</button>
+              ))}
+            </div>
+          )}
+
+          {!isKidsMode && (
+            <div style={{
+              // Hidden rather than unmounted, for the same reason as the creator card
+              // below: unmounting would throw away the conversation, so handing lyrics
+              // over and stepping back to refine them would silently start from zero.
+              display: creatorTab === 'lyrics' ? 'block' : 'none',
+              background: 'rgba(255,255,255,0.025)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 16,
+              padding: '28px 20px 24px',
+              marginBottom: 12,
+            }}>
+              <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f0eeff', marginBottom: 4 }}>
+                {t('workshop.title')}
+              </h1>
+              <LyricWorkshop onUseLyrics={handleUseWorkshopLyrics} backendUrl={BACKEND_URL} token={token} />
+            </div>
+          )}
+
           <div style={{
+            // Hidden rather than unmounted, so switching to the Lyrics tab and back
+            // keeps the genre picks and Advanced settings the user already made.
+            display: (!isKidsMode && creatorTab === 'lyrics') ? 'none' : 'block',
             background: 'rgba(255,255,255,0.025)',
             border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 16,

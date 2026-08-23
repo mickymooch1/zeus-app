@@ -506,5 +506,20 @@
       "readyText": "Tik hieronder en je eerste nummer is binnen twee minuten klaar."
     },
     "skipIntro": "Introductie overslaan"
+  },
+  "workshop": {
+    "tabCreate": "🎵 Maken",
+    "tabLyrics": "✍️ Songtekst",
+    "title": "Songtekst-werkplaats",
+    "subtitle": "Beschrijf het nummer dat je wilt. Vraag om aanpassingen tot de tekst klopt en neem hem dan mee naar de creator.",
+    "placeholderFirst": "bijv. schrijf een drill-nummer over opklimmen uit het niets",
+    "placeholderFollowUp": "bijv. maak de hook harder, of voeg een bridge over familie toe",
+    "write": "Tekst schrijven",
+    "update": "Tekst bijwerken",
+    "writing": "Aan het schrijven…",
+    "startOver": "Opnieuw beginnen",
+    "lyricsLabel": "Jouw songtekst",
+    "useLyrics": "Deze tekst gebruiken →",
+    "errorGeneric": "Er ging iets mis — probeer het opnieuw."
   }
 }

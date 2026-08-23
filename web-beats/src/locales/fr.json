@@ -506,5 +506,20 @@
       "readyText": "Appuyez ci-dessous et votre première chanson sera prête en moins de deux minutes."
     },
     "skipIntro": "Passer l'introduction"
+  },
+  "workshop": {
+    "tabCreate": "🎵 Créer",
+    "tabLyrics": "✍️ Paroles",
+    "title": "Atelier de paroles",
+    "subtitle": "Décris la chanson que tu veux. Demande des modifications jusqu'à ce que les paroles te plaisent, puis passe au créateur.",
+    "placeholderFirst": "ex. écris-moi un morceau de drill sur le fait de partir de rien",
+    "placeholderFollowUp": "ex. rends le refrain plus percutant, ou ajoute un pont sur la famille",
+    "write": "Écrire les paroles",
+    "update": "Mettre à jour",
+    "writing": "Écriture…",
+    "startOver": "Recommencer",
+    "lyricsLabel": "Tes paroles",
+    "useLyrics": "Utiliser ces paroles →",
+    "errorGeneric": "Une erreur est survenue — réessaie."
   }
 }

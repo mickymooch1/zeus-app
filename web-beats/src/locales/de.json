@@ -506,5 +506,20 @@
       "readyText": "Tippe unten und dein erster Song ist in unter zwei Minuten fertig."
     },
     "skipIntro": "Einführung überspringen"
+  },
+  "workshop": {
+    "tabCreate": "🎵 Erstellen",
+    "tabLyrics": "✍️ Songtext",
+    "title": "Songtext-Werkstatt",
+    "subtitle": "Beschreibe den Song, den du willst. Bitte um Änderungen, bis der Text sitzt, und übernimm ihn dann in den Creator.",
+    "placeholderFirst": "z. B. schreib mir einen Drill-Song über den Aufstieg aus dem Nichts",
+    "placeholderFollowUp": "z. B. mach den Hook härter oder füge eine Bridge über Familie hinzu",
+    "write": "Text schreiben",
+    "update": "Text aktualisieren",
+    "writing": "Schreibt…",
+    "startOver": "Neu anfangen",
+    "lyricsLabel": "Dein Songtext",
+    "useLyrics": "Diesen Text verwenden →",
+    "errorGeneric": "Etwas ist schiefgelaufen — versuch es erneut."
   }
 }

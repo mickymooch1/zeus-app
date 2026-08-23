@@ -506,5 +506,20 @@
       "readyText": "Tocca qui sotto e la tua prima canzone sarà pronta in meno di due minuti."
     },
     "skipIntro": "Salta l'introduzione"
+  },
+  "workshop": {
+    "tabCreate": "🎵 Crea",
+    "tabLyrics": "✍️ Testo",
+    "title": "Laboratorio di testi",
+    "subtitle": "Descrivi la canzone che vuoi. Chiedi modifiche finché il testo non ti convince, poi portalo nel creatore.",
+    "placeholderFirst": "es. scrivimi un pezzo drill sul farcela partendo dal nulla",
+    "placeholderFollowUp": "es. rendi il ritornello più duro, o aggiungi un bridge sulla famiglia",
+    "write": "Scrivi il testo",
+    "update": "Aggiorna il testo",
+    "writing": "Sto scrivendo…",
+    "startOver": "Ricomincia",
+    "lyricsLabel": "Il tuo testo",
+    "useLyrics": "Usa questo testo →",
+    "errorGeneric": "Qualcosa è andato storto — riprova."
   }
 }

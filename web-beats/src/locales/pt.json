@@ -506,5 +506,20 @@
       "readyText": "Toque abaixo e sua primeira música fica pronta em menos de dois minutos."
     },
     "skipIntro": "Pular introdução"
+  },
+  "workshop": {
+    "tabCreate": "🎵 Criar",
+    "tabLyrics": "✍️ Letra",
+    "title": "Oficina de letras",
+    "subtitle": "Descreve a música que queres. Pede alterações até a letra ficar boa e depois leva-a para o criador.",
+    "placeholderFirst": "ex. escreve-me uma música drill sobre vencer partindo do nada",
+    "placeholderFollowUp": "ex. deixa o refrão mais pesado, ou acrescenta uma ponte sobre a família",
+    "write": "Escrever letra",
+    "update": "Atualizar letra",
+    "writing": "A escrever…",
+    "startOver": "Começar de novo",
+    "lyricsLabel": "A tua letra",
+    "useLyrics": "Usar esta letra →",
+    "errorGeneric": "Algo correu mal — tenta de novo."
   }
 }

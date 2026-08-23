@@ -506,5 +506,20 @@
       "readyText": "Pulsa abajo y tu primera canción estará lista en menos de dos minutos."
     },
     "skipIntro": "Saltar introducción"
+  },
+  "workshop": {
+    "tabCreate": "🎵 Crear",
+    "tabLyrics": "✍️ Letras",
+    "title": "Taller de letras",
+    "subtitle": "Describe la canción que quieres. Pide cambios hasta que la letra te convenza y luego llévala al creador.",
+    "placeholderFirst": "p. ej. escríbeme una canción de drill sobre salir de la nada",
+    "placeholderFollowUp": "p. ej. haz el estribillo más duro, o añade un puente sobre la familia",
+    "write": "Escribir letra",
+    "update": "Actualizar letra",
+    "writing": "Escribiendo…",
+    "startOver": "Empezar de nuevo",
+    "lyricsLabel": "Tu letra",
+    "useLyrics": "Usar esta letra →",
+    "errorGeneric": "Algo salió mal: inténtalo de nuevo."
   }
 }

@@ -504,5 +504,20 @@
       "readyText": "点击下方，两分钟内就能听到你的第一首歌。"
     },
     "skipIntro": "跳过介绍"
+  },
+  "workshop": {
+    "tabCreate": "🎵 创作",
+    "tabLyrics": "✍️ 歌词",
+    "title": "歌词工作室",
+    "subtitle": "描述你想要的歌曲。可以不断要求修改，满意后直接带到创作器。",
+    "placeholderFirst": "例如：写一首关于白手起家的 drill 歌曲",
+    "placeholderFollowUp": "例如：让副歌更狠，或加一段关于家人的过渡",
+    "write": "写歌词",
+    "update": "更新歌词",
+    "writing": "正在创作…",
+    "startOver": "重新开始",
+    "lyricsLabel": "你的歌词",
+    "useLyrics": "使用这些歌词 →",
+    "errorGeneric": "出错了，请重试。"
   }
 }

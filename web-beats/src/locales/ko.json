@@ -504,5 +504,20 @@
       "readyText": "아래를 누르면 2분 안에 첫 곡이 완성됩니다."
     },
     "skipIntro": "소개 건너뛰기"
+  },
+  "workshop": {
+    "tabCreate": "🎵 만들기",
+    "tabLyrics": "✍️ 가사",
+    "title": "가사 워크숍",
+    "subtitle": "원하는 곡을 설명하세요. 마음에 들 때까지 수정을 요청한 뒤 크리에이터로 가져가세요.",
+    "placeholderFirst": "예: 밑바닥에서 올라온 이야기의 드릴 곡을 써줘",
+    "placeholderFollowUp": "예: 훅을 더 강하게, 또는 가족에 대한 브리지 추가",
+    "write": "가사 쓰기",
+    "update": "가사 업데이트",
+    "writing": "작성 중…",
+    "startOver": "처음부터 다시",
+    "lyricsLabel": "내 가사",
+    "useLyrics": "이 가사 사용하기 →",
+    "errorGeneric": "문제가 발생했습니다 — 다시 시도해 주세요."
   }
 }

@@ -506,5 +506,20 @@
       "readyText": "Tap below and your first song will be ready in under two minutes."
     },
     "skipIntro": "Skip introduction"
+  },
+  "workshop": {
+    "tabCreate": "🎵 Create",
+    "tabLyrics": "✍️ Lyrics",
+    "title": "Lyric Workshop",
+    "subtitle": "Describe the song you want. Ask for changes until the lyrics feel right, then take them to the creator.",
+    "placeholderFirst": "e.g. write me a drill song about coming up from nothing",
+    "placeholderFollowUp": "e.g. make the hook harder, or add a bridge about family",
+    "write": "Write lyrics",
+    "update": "Update lyrics",
+    "writing": "Writing…",
+    "startOver": "Start over",
+    "lyricsLabel": "Your lyrics",
+    "useLyrics": "Use these lyrics →",
+    "errorGeneric": "Something went wrong — try again."
   }
 }

@@ -3155,6 +3155,166 @@ async def songs_generate(
     }
 
 
+# ── Lyric Workshop ──────────────────────────────────────────────────────────
+#
+# Conversational lyric writing, surfaced before generation. Users were leaving to
+# write lyrics elsewhere and pasting them back into "Write my own"; this is the same
+# Claude that already writes lyrics, just reachable turn by turn.
+#
+# Deliberately STATELESS: the client owns the transcript and sends it each turn.
+# There is no table and no session id, so a redeploy cannot strand a draft mid-edit,
+# and abandoning a workshop leaves nothing to clean up.
+
+_WORKSHOP_MAX_MESSAGES = 12      # trailing turns kept — bounds tokens on long sessions
+_WORKSHOP_MAX_LYRICS   = 6000    # chars of lyrics echoed back into the prompt
+_WORKSHOP_HAIKU        = "claude-haiku-4-5-20251001"
+_WORKSHOP_SONNET       = "claude-sonnet-4-6"
+
+# Escalate when the request carries more than Haiku reliably holds at once. Turn count
+# matters most: constraints accumulate across a conversation ("harder hook" + "add a
+# bridge" + "more melancholic") and Haiku starts dropping the earliest ones.
+_WORKSHOP_REWRITE_WORDS = (
+    "start over", "start again", "from scratch", "completely different",
+    "rewrite", "totally different", "scrap",
+)
+
+
+def _workshop_pick_model(messages: list, latest: str) -> str:
+    """Haiku by default; Sonnet when the request is long, deep, or structural.
+
+    Mirrors the split lyrics.generate_lyrics already uses (Sonnet when a second genre
+    or a non-English language is in play, Haiku otherwise) rather than inventing a
+    third convention.
+    """
+    if len(latest) > 240:
+        return _WORKSHOP_SONNET
+    if len(messages) >= 4:
+        return _WORKSHOP_SONNET
+    low = latest.lower()
+    if any(w in low for w in _WORKSHOP_REWRITE_WORDS):
+        return _WORKSHOP_SONNET
+    # A named non-English language means writing outside Haiku's comfort zone.
+    if any(lang in low for lang in _lyrics_mod_languages()):
+        return _WORKSHOP_SONNET
+    return _WORKSHOP_HAIKU
+
+
+def _lyrics_mod_languages() -> tuple:
+    """Language names the lyric pipeline already knows, lowercased."""
+    import lyrics as _lm
+    return tuple(k.lower() for k in getattr(_lm, "_KIDS_LANGUAGE_MAP", {}))
+
+
+_WORKSHOP_SYSTEM = """You are a songwriter inside Zeus Beats, helping someone write lyrics they will turn into a real track.
+
+Write complete, singable lyrics with clear section tags: [Verse 1], [Chorus], [Verse 2], [Bridge], [Outro]. Use the section tags literally — the music generator reads them.
+
+If the user names a genre (drill, afrobeats, country, jungle...), write to that genre's conventions: its cadence, line length, rhyme density, and subject matter. Don't imitate a specific named artist — write in the style, not the voice.
+
+On a follow-up request, EDIT the current lyrics rather than starting fresh. Keep everything the user did not ask you to change. "Make the hook harder" means rewrite the chorus and leave the verses alone.
+
+Respond with ONLY a JSON object:
+{"reply": "one short sentence on what you changed or wrote", "lyrics": "the full lyric sheet", "title": "a short song title"}
+
+"lyrics" must always be the COMPLETE sheet, not a fragment or a diff — it replaces what the user is looking at. Keep "reply" to one sentence; the lyrics speak for themselves. No text outside the JSON."""
+
+
+class LyricWorkshopMessage(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class LyricWorkshopRequest(BaseModel):
+    messages: list[LyricWorkshopMessage] = Field(min_length=1, max_length=40)
+    current_lyrics: str | None = Field(default=None, max_length=20000)
+
+
+@app.post("/api/lyrics/workshop")
+@limiter.limit("20/minute", key_func=_user_key)
+async def lyrics_workshop(
+    request: Request,
+    body: LyricWorkshopRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Write or revise lyrics conversationally. Returns the full sheet every turn."""
+    import json as _json
+    import lyrics as _lyrics_mod
+
+    # Same hard gate as generation. An unverified account cannot generate a song, so an
+    # ungated workshop would be spend with no possible payoff — and this endpoint costs
+    # real money per call.
+    if not current_user.get("email_verified"):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "email_unverified",
+                "message": (
+                    "Please verify your email address before writing lyrics. "
+                    "We sent you a verification link when you signed up."
+                ),
+                "email": current_user.get("email", ""),
+            },
+        )
+
+    # Keep only the trailing window. Slicing here rather than trusting the client means
+    # a stale or hand-rolled caller cannot grow the prompt without bound.
+    convo = body.messages[-_WORKSHOP_MAX_MESSAGES:]
+    latest = convo[-1].content if convo else ""
+
+    turns = [{"role": m.role, "content": m.content} for m in convo]
+
+    # Give the model the sheet it is editing. Sent as context rather than as an
+    # assistant turn so it is never mistaken for something the model said.
+    if body.current_lyrics and body.current_lyrics.strip():
+        sheet = body.current_lyrics.strip()[:_WORKSHOP_MAX_LYRICS]
+        turns.insert(
+            len(turns) - 1,
+            {"role": "assistant", "content": f"Current lyrics:\n\n{sheet}"},
+        )
+
+    model = _workshop_pick_model(convo, latest)
+    try:
+        resp = await get_anthropic_client().messages.create(
+            model=model,
+            max_tokens=2000,
+            system=_WORKSHOP_SYSTEM,
+            messages=turns,
+        )
+        raw = resp.content[0].text
+    except Exception:
+        log.exception("lyrics_workshop: Claude call failed (model=%s)", model)
+        raise HTTPException(
+            status_code=503,
+            detail="Lyric writing is busy right now — try again in a moment.",
+        )
+
+    try:
+        # Tolerate a stray prose wrapper rather than failing the turn outright.
+        start, end = raw.find("{"), raw.rfind("}")
+        data = _json.loads(raw[start:end + 1] if start != -1 and end != -1 else raw)
+        lyrics_text = str(data["lyrics"]).strip()
+        reply = str(data.get("reply") or "Here are your lyrics.").strip()
+        title = (str(data.get("title") or "").strip() or None)
+    except Exception:
+        log.exception("lyrics_workshop: unparseable response (model=%s)", model)
+        raise HTTPException(
+            status_code=502,
+            detail="Could not read the lyrics that came back — try rephrasing.",
+        )
+
+    if not lyrics_text:
+        raise HTTPException(status_code=502, detail="No lyrics came back — try again.")
+
+    # Same filter the generator applies. Without it the workshop could hand the
+    # generator text the generator would then strip, so what you approved is not what
+    # gets sung.
+    lyrics_text = _lyrics_mod._strip_slurs(lyrics_text)
+
+    log.info("lyrics_workshop: user=%s model=%s turns=%d chars=%d",
+             current_user["id"], model, len(convo), len(lyrics_text))
+    return {"lyrics": lyrics_text, "reply": reply, "title": title, "model": model}
+
+
 @app.get("/api/lyrics")
 async def list_lyrics(current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()
