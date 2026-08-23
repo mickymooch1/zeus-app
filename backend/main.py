@@ -5560,9 +5560,18 @@ async def parse_scheduled_task(
     if key in _parse_cache:
         return _parse_cache[key]
 
-    client = get_anthropic_client()
     try:
-        msg = client.messages.create(
+        # NOTE: get_anthropic_client() returns AsyncAnthropic — this MUST be awaited.
+        # It wasn't, so msg was a coroutine and msg.content[0] raised AttributeError.
+        # That raise landed in the json.loads try below, which converts anything into
+        # a 400 "Could not parse schedule" — so this endpoint reported every call as
+        # the user's phrasing being unparseable rather than as a server fault, and
+        # /scheduled-tasks/parse never once succeeded.
+        #
+        # Third instance of this exact bug: fixed in music_search (eee5753), then in
+        # songs_generate (2026-08-02, whose comment notes music_search "was missed
+        # here") — and missed here both times.
+        msg = await get_anthropic_client().messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=128,
             system=(

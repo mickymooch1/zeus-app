@@ -114,11 +114,19 @@ class TestScheduledTasksPlanGate:
 
 class TestParseEndpoint:
     def _mock_anthropic_parse(self, natural_language, cron, label):
-        """Helper: mock Anthropic client to return a cron JSON response."""
+        """Helper: mock Anthropic client to return a cron JSON response.
+
+        AsyncMock, not MagicMock. get_anthropic_client() returns AsyncAnthropic, so
+        create() is awaited. These tests used a SYNCHRONOUS MagicMock and therefore
+        passed against a version of the endpoint that never awaited it — the bug
+        fixed on 2026-08-23, under which /scheduled-tasks/parse returned 400 on every
+        real request while this suite stayed green. A mock that does not model the
+        real client's async-ness cannot catch a missing await; it hides one.
+        """
         mock_msg = MagicMock()
         mock_msg.content = [MagicMock(text=f'{{"cron_expression": "{cron}", "schedule_label": "{label}"}}')]
         mock_client = MagicMock()
-        mock_client.messages.create = MagicMock(return_value=mock_msg)
+        mock_client.messages.create = AsyncMock(return_value=mock_msg)
         return mock_client
 
     def test_parse_returns_cron(self):
@@ -173,7 +181,7 @@ class TestParseEndpoint:
         mock_msg = MagicMock()
         mock_msg.content = [MagicMock(text='{"error": "Could not parse schedule"}')]
         mock_client = MagicMock()
-        mock_client.messages.create = MagicMock(return_value=mock_msg)
+        mock_client.messages.create = AsyncMock(return_value=mock_msg)
         app.dependency_overrides[auth.get_current_user] = _pro_user
         try:
             with patch("main.get_anthropic_client", return_value=mock_client):
@@ -198,7 +206,7 @@ class TestParseEndpoint:
         mock_msg = MagicMock()
         mock_msg.content = [MagicMock(text='{"cron_expression": "0 9 * * 1", "schedule_label": "Every Monday at 9am"}')]
         mock_client = MagicMock()
-        mock_client.messages.create = MagicMock(return_value=mock_msg)
+        mock_client.messages.create = AsyncMock(return_value=mock_msg)
         try:
             with patch("main.get_anthropic_client", return_value=mock_client):
                 with TestClient(app) as client:
