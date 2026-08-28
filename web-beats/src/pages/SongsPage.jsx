@@ -48,7 +48,7 @@ const GENRE_CATEGORIES = [
   { id: 'rock',       label: '🎸 Rock & Metal',        color: '#f87171',
     genres: ['rock','hardrock','metal','punkrock','rocknroll','traditionalpop','bluesrock','indie','britpop','indierock','rockney'] },
   { id: 'country_folk', label: '🤠 Country & Folk',    color: '#d97706',
-    genres: ['country','bluegrass','countryamericana','countrypop','folk','acousticballad','folkblues','roots','acousticblues','celticpunk'] },
+    genres: ['country','traditionalcountry','bluegrass','countryamericana','countrypop','folk','acousticballad','folkblues','roots','acousticblues','celticpunk'] },
   { id: 'electronic', label: '🎹 Electronic & Dance',  color: '#4ade80',
     genres: ['house','technhouse','deephouse','dancehouse','purebassline','synthwave','driftphonk','techno','trance','edm','electronicfunk','dubstep','jerseyclub','hyperpop','syntheticpop','disco','nudisco','futurebass'] },
   { id: 'world',      label: '🌍 World & Urban',       color: '#fbbf24',
