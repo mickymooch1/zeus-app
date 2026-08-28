@@ -93,6 +93,48 @@ def _fix_stuck_songs() -> list[str]:
     return warnings
 
 
+def stuck_song_sweep() -> None:
+    """Recover songs whose provider webhook never arrived. Runs every 15 min.
+
+    _fix_stuck_songs() has always used a 15-minute threshold, but its only caller was
+    health_check, which is a daily 09:00 cron — so the intent and the cadence
+    disagreed by a factor of 96. A song whose webhook was lost at 20:41 stayed
+    "generating" until 09:00 the next morning, holding the user's credit, with the UI
+    polling it the entire time. That is exactly what happened to variants 1621/1622 on
+    2026-08-28 and what prompted this job.
+
+    This matters more than a normal retry loop because Apiframe v2 is webhook-only —
+    there is no status or fetch endpoint to poll (every documented path 404s), so a
+    dropped callback is unrecoverable and a sweep is the ONLY thing that ever ends a
+    stuck song.
+
+    Safe to run alongside health_check: _fix_stuck_songs flips status to 'failed', so
+    a swept row no longer matches its own WHERE clause and cannot be refunded twice.
+    """
+    from alerts import send_admin_alert
+
+    try:
+        warnings = _fix_stuck_songs()
+    except Exception:
+        # _fix_stuck_songs already swallows its own errors; this is belt-and-braces so
+        # a crash here can never kill the scheduler thread.
+        log.exception("ops_agent: stuck_song_sweep raised")
+        return
+
+    if not warnings:
+        log.info("ops_agent stuck_song_sweep: nothing stuck")
+        return
+
+    # Log BEFORE alerting, and never let the alert take down the job. The refund is
+    # already committed by this point, so a Telegram outage must not turn a completed
+    # recovery into a raised exception — the record of it has to survive regardless.
+    log.warning("ops_agent stuck_song_sweep: %s", warnings)
+    try:
+        send_admin_alert("⏳ <b>Zeus Ops</b> — stuck song sweep\n" + "\n".join(warnings))
+    except Exception:
+        log.exception("ops_agent: stuck_song_sweep alert failed (refund already applied)")
+
+
 def health_check() -> None:
     """Run daily at 9am UTC.
 

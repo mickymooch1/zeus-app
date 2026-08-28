@@ -92,8 +92,20 @@ def init_scheduler(history_store) -> None:
         replace_existing=True,
         misfire_grace_time=600,
     )
+    # Every 15 min, matching the 15-minute threshold _fix_stuck_songs tests for. It
+    # used to run only inside the daily 09:00 health_check, so a song whose provider
+    # webhook was lost stayed "generating" — holding the user's credit — for up to 24
+    # hours. Apiframe v2 is webhook-only (no status endpoint to poll), so this sweep
+    # is the only thing that ever ends a stuck song.
+    _scheduler.add_job(
+        _ops.stuck_song_sweep,
+        trigger=IntervalTrigger(minutes=15),
+        id="__stuck_song_sweep__",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
     log.info("Scheduler: health check, daily report, evening check-in, PH monitor, "
-             "Discover monitor registered")
+             "Discover monitor, stuck-song sweep registered")
 
 
 def shutdown_scheduler() -> None:
