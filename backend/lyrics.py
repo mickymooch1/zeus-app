@@ -600,7 +600,6 @@ def generate_song_title(
         resp = Anthropic().messages.create(
             model=_TITLE_MODEL,
             max_tokens=32,
-            temperature=1.0,
             system=_TITLE_SYSTEM,
             messages=[{"role": "user", "content": "\n\n".join(parts)}],
         )
@@ -667,7 +666,6 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             response = client.messages.create(
                 model=model,
                 max_tokens=1200,
-                temperature=1.0,
                 system=system,
                 messages=[{"role": "user", "content": user_message}],
             )
@@ -763,7 +761,7 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
                     )
                 try:
                     _bl_resp = client.messages.create(
-                        model=model, max_tokens=2000, temperature=1.0,
+                        model=model, max_tokens=2000,
                         system=system,
                         messages=[{"role": "user", "content": kids_prompt}],
                     )
@@ -838,7 +836,6 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             response = client.messages.create(
                 model=model,
                 max_tokens=1500,
-                temperature=1.0,
                 system=system,
                 messages=[{"role": "user", "content": kids_prompt}],
             )
@@ -878,7 +875,6 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
                 _trans_resp = client.messages.create(
                     model=model,
                     max_tokens=2000,
-                    temperature=0.2,
                     messages=[{"role": "user", "content": _trans_prompt}],
                 )
                 _trans_raw = _trans_resp.content[0].text.strip()
@@ -1023,7 +1019,6 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         response = client.messages.create(
             model=model,
             max_tokens=1500,
-            temperature=1.0,
             system=system,
             messages=[{"role": "user", "content": user_message}],
         )

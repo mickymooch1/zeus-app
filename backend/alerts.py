@@ -143,7 +143,6 @@ def suggest_contact_reply(name: str, subject: str, message: str) -> str | None:
         resp = Anthropic(timeout=20.0).messages.create(
             model=_REPLY_MODEL,
             max_tokens=300,
-            temperature=0.7,
             system=_REPLY_SYSTEM,
             messages=[{"role": "user", "content": "\n\n".join(parts)}],
         )
