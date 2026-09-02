@@ -472,6 +472,7 @@ _HANDLED_EVENTS = frozenset({
     "checkout.session.completed",
     "checkout.session.async_payment_succeeded",
     "checkout.session.async_payment_failed",
+    "invoice.paid",
     "invoice.payment_succeeded",
     "customer.subscription.updated",
     "customer.subscription.deleted",
@@ -516,7 +517,15 @@ def _handle_event(event) -> None:
             _handle_checkout_completed(db_path, data)
         elif event_type == "checkout.session.async_payment_failed":
             _handle_async_payment_failed(db_path, data)
-        elif event_type == "invoice.payment_succeeded":
+        elif event_type in ("invoice.paid", "invoice.payment_succeeded"):
+            # invoice.paid is what Stripe actually sends on this account — confirmed
+            # 2026-09-01 (evt_1UB0XpK5Ou7aVaHMtRjC8OFV, delivered, 200'd, fell into the
+            # unhandled branch below because only invoice.payment_succeeded was
+            # checked). Kept invoice.payment_succeeded alongside it rather than
+            # replacing: some Stripe API versions/accounts still emit both events for
+            # the same invoice, and this handler resets balance to a fixed monthly
+            # allowance rather than incrementing it, so a duplicate call is a harmless
+            # no-op — it just sets the same value twice.
             _handle_invoice_paid(db_path, data)
         elif event_type == "payment_intent.succeeded":
             _handle_payment_intent_succeeded(db_path, data)
@@ -785,10 +794,10 @@ def _handle_invoice_paid(db_path, invoice) -> None:
     """Reset monthly song credit balance on recurring Stripe invoice."""
     billing_reason = invoice.get("billing_reason")
     customer_id = invoice.get("customer")
-    log.info("invoice.payment_succeeded: billing_reason=%r customer_id=%r", billing_reason, customer_id)
+    log.info("invoice.paid: billing_reason=%r customer_id=%r", billing_reason, customer_id)
 
     if billing_reason != "subscription_cycle":
-        log.info("invoice.payment_succeeded: skipping (not subscription_cycle, reason=%r)", billing_reason)
+        log.info("invoice.paid: skipping (not subscription_cycle, reason=%r)", billing_reason)
         return
     if not customer_id:
         return
@@ -802,7 +811,7 @@ def _handle_invoice_paid(db_path, invoice) -> None:
     plan = user.get("subscription_plan")
     # Free plan is one-time signup credits only — never reset monthly
     if not plan or plan == "free" or plan not in _PLAN_SONG_CREDITS:
-        log.info("invoice.payment_succeeded: skipping free/unknown plan user %s (plan=%s)", user["id"], plan)
+        log.info("invoice.paid: skipping free/unknown plan user %s (plan=%s)", user["id"], plan)
         return
     allowance = _PLAN_SONG_CREDITS[plan]
     db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
