@@ -210,7 +210,8 @@
       "submitting": "Envoi…"
     },
     "negativeTagsLabel": "À éviter",
-    "negativeTagsPlaceholder": "ex. pas de piano, pas de trompette (500 caractères max)"
+    "negativeTagsPlaceholder": "ex. pas de piano, pas de trompette (500 caractères max)",
+    "advancedSubtitle": "Peaufine ton son"
   },
   "billing": {
     "title": "Facturation & Abonnement",
@@ -505,7 +506,13 @@
       "readyTitle": "Vous êtes prêt !",
       "readyText": "Appuyez ci-dessous et votre première chanson sera prête en moins de deux minutes."
     },
-    "skipIntro": "Passer l'introduction"
+    "skipIntro": "Passer l'introduction",
+    "exploreFirst": {
+      "title": "Bienvenue sur Zeus Beats ⚡ — avant de créer ta première chanson, prends un instant pour explorer",
+      "body": "Parcours les genres, essaie l'Atelier de paroles ou jette un œil aux paramètres avancés — sans pression. Tout est facile à retrouver ensuite.",
+      "showMeAround": "Fais-moi visiter",
+      "exploreMyself": "Je préfère explorer seul(e)"
+    }
   },
   "workshop": {
     "tabCreate": "🎵 Créer",

@@ -210,7 +210,8 @@
       "submitting": "Einreichen…"
     },
     "negativeTagsLabel": "Vermeiden",
-    "negativeTagsPlaceholder": "z.B. kein Klavier, keine Trompete (max. 500 Zeichen)"
+    "negativeTagsPlaceholder": "z.B. kein Klavier, keine Trompete (max. 500 Zeichen)",
+    "advancedSubtitle": "Feintuning für deinen Track"
   },
   "billing": {
     "title": "Abrechnung & Abonnement",
@@ -505,7 +506,13 @@
       "readyTitle": "Du bist startklar!",
       "readyText": "Tippe unten und dein erster Song ist in unter zwei Minuten fertig."
     },
-    "skipIntro": "Einführung überspringen"
+    "skipIntro": "Einführung überspringen",
+    "exploreFirst": {
+      "title": "Willkommen bei Zeus Beats ⚡ — bevor du deinen ersten Song machst, nimm dir einen Moment zum Entdecken",
+      "body": "Schau dir die Genres an, probiere die Songtext-Werkstatt oder wirf einen Blick auf die erweiterten Einstellungen — ganz ohne Eile. Du findest alles später leicht wieder.",
+      "showMeAround": "Zeig mir alles",
+      "exploreMyself": "Ich schaue lieber selbst"
+    }
   },
   "workshop": {
     "tabCreate": "🎵 Erstellen",

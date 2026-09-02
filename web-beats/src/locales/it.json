@@ -212,7 +212,8 @@
       "cancel": "Annulla",
       "create": "Crea video",
       "submitting": "Invio…"
-    }
+    },
+    "advancedSubtitle": "Perfeziona il tuo brano"
   },
   "billing": {
     "title": "Abbonamento e fatturazione",
@@ -505,7 +506,13 @@
       "readyTitle": "Sei pronto!",
       "readyText": "Tocca qui sotto e la tua prima canzone sarà pronta in meno di due minuti."
     },
-    "skipIntro": "Salta l'introduzione"
+    "skipIntro": "Salta l'introduzione",
+    "exploreFirst": {
+      "title": "Benvenuto su Zeus Beats ⚡ — prima di creare la tua prima canzone, prenditi un momento per esplorare",
+      "body": "Dai un'occhiata ai generi, prova il Laboratorio di testi o le impostazioni avanzate — senza fretta. Potrai ritrovare tutto facilmente più tardi.",
+      "showMeAround": "Fammi fare un giro",
+      "exploreMyself": "Preferisco esplorare da solo/a"
+    }
   },
   "workshop": {
     "tabCreate": "🎵 Crea",

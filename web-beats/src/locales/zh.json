@@ -211,7 +211,8 @@
       "cancel": "取消",
       "create": "创建视频",
       "submitting": "提交中…"
-    }
+    },
+    "advancedSubtitle": "微调你的音轨"
   },
   "billing": {
     "title": "订阅与账单",
@@ -503,7 +504,13 @@
       "readyTitle": "准备就绪！",
       "readyText": "点击下方，两分钟内就能听到你的第一首歌。"
     },
-    "skipIntro": "跳过介绍"
+    "skipIntro": "跳过介绍",
+    "exploreFirst": {
+      "title": "欢迎来到 Zeus Beats ⚡ —— 在制作第一首歌之前，先花点时间看看",
+      "body": "浏览一下风格、试试歌词工作室，或看看高级设置 —— 不用赶时间。以后随时都能轻松找到这些。",
+      "showMeAround": "带我看看",
+      "exploreMyself": "我自己看看"
+    }
   },
   "workshop": {
     "tabCreate": "🎵 创作",

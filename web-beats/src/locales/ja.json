@@ -211,7 +211,8 @@
       "cancel": "キャンセル",
       "create": "動画を作成",
       "submitting": "送信中…"
-    }
+    },
+    "advancedSubtitle": "サウンドを微調整"
   },
   "billing": {
     "title": "プランと請求",
@@ -503,7 +504,13 @@
       "readyTitle": "準備完了！",
       "readyText": "下をタップすれば、2 分以内に最初の曲が完成します。"
     },
-    "skipIntro": "イントロをスキップ"
+    "skipIntro": "イントロをスキップ",
+    "exploreFirst": {
+      "title": "Zeus Beatsへようこそ ⚡ — 最初の曲を作る前に、少し探索してみましょう",
+      "body": "ジャンルを見て回ったり、歌詞ワークショップを試したり、詳細設定を覚えておいたり — 急ぎません。どれもあとからすぐ見つかります。",
+      "showMeAround": "案内してもらう",
+      "exploreMyself": "自分で探す"
+    }
   },
   "workshop": {
     "tabCreate": "🎵 作成",

@@ -212,7 +212,8 @@
       "cancel": "Annuleren",
       "create": "Video maken",
       "submitting": "Verzenden…"
-    }
+    },
+    "advancedSubtitle": "Stem je track fijn af"
   },
   "billing": {
     "title": "Abonnement en facturering",
@@ -505,7 +506,13 @@
       "readyTitle": "Je bent klaar!",
       "readyText": "Tik hieronder en je eerste nummer is binnen twee minuten klaar."
     },
-    "skipIntro": "Introductie overslaan"
+    "skipIntro": "Introductie overslaan",
+    "exploreFirst": {
+      "title": "Welkom bij Zeus Beats ⚡ — neem even de tijd om rond te kijken voordat je je eerste nummer maakt",
+      "body": "Blader door de genres, probeer de Songtekst-werkplaats of bekijk de geavanceerde instellingen — geen haast. Je vindt alles later makkelijk terug.",
+      "showMeAround": "Laat me rondkijken",
+      "exploreMyself": "Ik verken liever zelf"
+    }
   },
   "workshop": {
     "tabCreate": "🎵 Maken",

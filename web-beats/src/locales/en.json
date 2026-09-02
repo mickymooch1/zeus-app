@@ -212,7 +212,8 @@
       "cancel": "Cancel",
       "create": "Create Video",
       "submitting": "Submitting…"
-    }
+    },
+    "advancedSubtitle": "Fine-tune your track"
   },
   "billing": {
     "title": "Billing & Subscription",
@@ -505,7 +506,13 @@
       "readyTitle": "You're ready!",
       "readyText": "Tap below and your first song will be ready in under two minutes."
     },
-    "skipIntro": "Skip introduction"
+    "skipIntro": "Skip introduction",
+    "exploreFirst": {
+      "title": "Welcome to Zeus Beats ⚡ — before you make your first song, take a moment to explore",
+      "body": "Browse the genres, try the Lyric Workshop, or peek at Advanced settings — there's no rush. Everything here is easy to find again later.",
+      "showMeAround": "Show me around",
+      "exploreMyself": "I'll explore myself"
+    }
   },
   "workshop": {
     "tabCreate": "🎵 Create",

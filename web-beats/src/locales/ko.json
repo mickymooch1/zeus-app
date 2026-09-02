@@ -211,7 +211,8 @@
       "cancel": "취소",
       "create": "영상 만들기",
       "submitting": "제출 중…"
-    }
+    },
+    "advancedSubtitle": "사운드 세밀 조정"
   },
   "billing": {
     "title": "구독 및 결제",
@@ -503,7 +504,13 @@
       "readyTitle": "준비 완료!",
       "readyText": "아래를 누르면 2분 안에 첫 곡이 완성됩니다."
     },
-    "skipIntro": "소개 건너뛰기"
+    "skipIntro": "소개 건너뛰기",
+    "exploreFirst": {
+      "title": "Zeus Beats에 오신 것을 환영합니다 ⚡ — 첫 곱을 만들기 전에 잠시 둘러보세요",
+      "body": "장르를 둘러보거나, 가사 워크숍을 써보거나, 고급 설정을 확인해보세요 — 서두를 필요는 없어요. 나중에도 쉽게 다시 찾을 수 있어요.",
+      "showMeAround": "둘러보기",
+      "exploreMyself": "직접 둘러볼게요"
+    }
   },
   "workshop": {
     "tabCreate": "🎵 만들기",

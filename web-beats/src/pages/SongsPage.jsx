@@ -7,6 +7,7 @@ import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 import { EmailVerificationBanner } from '../components/EmailVerificationBanner';
 import { BACKEND_URL } from '../brand';
 import OnboardingTour from '../components/OnboardingTour';
+import ExploreFirstWelcome from '../components/ExploreFirstWelcome';
 import LyricWorkshop from '../components/LyricWorkshop';
 import VerificationRequiredScreen from '../components/VerificationRequiredScreen';
 import { audioManager } from '../utils/audioManager';
@@ -193,6 +194,13 @@ const PAGE_CSS = `
   50%       { box-shadow: 0 0 28px rgba(0,240,255,0.55), inset 0 0 20px rgba(0,240,255,0.06); border-color: #66f9ff; }
 }
 .topup-section { animation: pulse-glow 3s ease-in-out infinite; }
+@keyframes advancedTogglePulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(0,240,255,0.25); }
+  50%       { box-shadow: 0 0 26px rgba(0,240,255,0.65), 0 0 10px rgba(244,114,182,0.35); }
+}
+/* Finite — 3 iterations, then it stops on its own. This is a first-visit nudge,
+   not an ongoing glow like .topup-section above; it must not run "infinite". */
+.adv-toggle-pulse { animation: advancedTogglePulse 1.4s ease-in-out 3; }
 .topup-btn:hover { background: linear-gradient(135deg, rgba(0,240,255,0.22) 0%, rgba(0,191,255,0.22) 100%) !important; box-shadow: 0 0 14px rgba(0,240,255,0.45) !important; transform: translateY(-1px) !important; }
 @media (max-width: 599px) { .topup-section .topup-btn { width: 100% !important; justify-content: center !important; } }
 @media (max-width: 360px) {
@@ -1265,6 +1273,17 @@ export default function SongsPage() {
   const [topupLoading, setTopupLoading] = useState(null);
 
   const [showAdvanced, setShowAdvanced]   = useState(() => window.innerWidth >= 600 || !!(location.state?.prefillStyle || location.state?.prefillGenre));
+  // First-visit pulse on the Advanced toggle — draws the eye once, then never again.
+  // Only when the panel starts COLLAPSED: an already-open panel (desktop default)
+  // has nothing to draw attention to opening. Flag is set synchronously at mount,
+  // not on click, so "once only" means once per lifetime rather than once until
+  // they happen to notice it — matches how zeus_onboarding_done etc. are set here.
+  const [showAdvancedPulse] = useState(() => {
+    if (showAdvanced) return false;
+    if (localStorage.getItem('zeus_advanced_pulse_seen')) return false;
+    localStorage.setItem('zeus_advanced_pulse_seen', '1');
+    return true;
+  });
   const [showSoundControl, setShowSoundControl] = useState(false);
   const [soundControl, setSoundControl] = useState({
     bass: '', bassCustom: '', drums: '', drumsCustom: '',
@@ -1297,7 +1316,20 @@ export default function SongsPage() {
   // Onboarding
   // Set when the backend rejects generation with code "email_unverified".
   const [verifyBlock, setVerifyBlock]     = useState(null);
-  const [showTour, setShowTour]           = useState(() => !localStorage.getItem('zeus_onboarding_done'));
+  // "Explore first" gate — one screen shown before the tour on a true first visit,
+  // deciding whether the tour fires at all. Two independent flags rather than one:
+  //   zeus_onboarding_done       — set when the TOUR itself is skipped/completed
+  //   zeus_explore_first_seen    — set the moment this gate has been shown/decided
+  // Someone who closed the tab mid-tour has explore_first_seen=true but
+  // onboarding_done still unset — the tour must resume directly on their next visit,
+  // not show this welcome screen again. That's why showTour also checks
+  // explore_first_seen rather than defaulting purely on onboarding_done as before.
+  const [showExploreFirst, setShowExploreFirst] = useState(() =>
+    !localStorage.getItem('zeus_onboarding_done') && !localStorage.getItem('zeus_explore_first_seen')
+  );
+  const [showTour, setShowTour]           = useState(() =>
+    !localStorage.getItem('zeus_onboarding_done') && !!localStorage.getItem('zeus_explore_first_seen')
+  );
   const [pendingAutoGen, setPendingAutoGen] = useState(null);
   const [showRetrigger, setShowRetrigger] = useState(false);
   const [tempo, setTempo]                 = useState(() => _matchTempo(location.state?.prefillTempo));
@@ -2573,6 +2605,25 @@ export default function SongsPage() {
 
   return (
     <>
+      {showExploreFirst && (
+        <ExploreFirstWelcome
+          onShowTour={() => {
+            localStorage.setItem('zeus_explore_first_seen', '1');
+            setShowExploreFirst(false);
+            setShowTour(true);
+          }}
+          onDismiss={() => {
+            // Matches what the tour's own dismiss() does on skip/complete — so the
+            // 24h retrigger banner (which checks zeus_onboarding_done) still offers
+            // a second chance to someone who skipped straight from this screen,
+            // exactly as it would for someone who skipped the tour itself.
+            localStorage.setItem('zeus_explore_first_seen', '1');
+            localStorage.setItem('zeus_onboarding_done', Date.now().toString());
+            setShowExploreFirst(false);
+          }}
+        />
+      )}
+
       {showTour && (
         <OnboardingTour
           balance={credits.balance}
@@ -3205,14 +3256,22 @@ export default function SongsPage() {
 
             <button
               onClick={() => setShowAdvanced((v) => !v)}
+              className={showAdvancedPulse ? 'adv-toggle-pulse' : undefined}
               style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                background: 'rgba(0,240,255,0.06)', border: '1px solid rgba(0,240,255,0.30)',
-                borderRadius: 8, padding: '9px 14px', cursor: 'pointer', marginBottom: 14,
+                width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5,
+                background: 'linear-gradient(135deg, rgba(0,240,255,0.16) 0%, rgba(244,114,182,0.09) 100%)',
+                border: '1.5px solid rgba(0,240,255,0.55)',
+                borderRadius: 12, padding: '13px 16px', cursor: 'pointer', marginBottom: 14,
+                minHeight: 44, boxSizing: 'border-box',
               }}
             >
-              <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 10, fontWeight: 700, color: '#00f0ff', letterSpacing: '0.14em' }}>⚡ {t('songs.advancedOptions')}</span>
-              <span style={{ marginLeft: 'auto', color: '#00f0ff', fontSize: 12, fontWeight: 600 }}>{showAdvanced ? t('songs.hideOptions') : t('songs.showOptions')}</span>
+              <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 10 }}>
+                <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 13, fontWeight: 800, color: '#ffffff', letterSpacing: '0.06em' }}>⚡ {t('songs.advancedOptions')}</span>
+                <span style={{ marginLeft: 'auto', color: '#00f0ff', fontSize: 12, fontWeight: 700 }}>{showAdvanced ? t('songs.hideOptions') : t('songs.showOptions')}</span>
+              </div>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', textAlign: 'left' }}>
+                🎛️ {t('songs.advancedSubtitle')}
+              </span>
             </button>
 
             {showAdvanced && (

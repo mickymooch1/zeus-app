@@ -210,7 +210,8 @@
       "submitting": "Enviando…"
     },
     "negativeTagsLabel": "Evitar",
-    "negativeTagsPlaceholder": "ex. sem piano, sem trompete (máx. 500 caracteres)"
+    "negativeTagsPlaceholder": "ex. sem piano, sem trompete (máx. 500 caracteres)",
+    "advancedSubtitle": "Afina o teu som"
   },
   "billing": {
     "title": "Faturamento e Assinatura",
@@ -505,7 +506,13 @@
       "readyTitle": "Tudo pronto!",
       "readyText": "Toque abaixo e sua primeira música fica pronta em menos de dois minutos."
     },
-    "skipIntro": "Pular introdução"
+    "skipIntro": "Pular introdução",
+    "exploreFirst": {
+      "title": "Bem-vindo ao Zeus Beats ⚡ — antes de criares a tua primeira música, tira um momento para explorar",
+      "body": "Explora os géneros, experimenta a Oficina de letras ou espreita as definições avançadas — sem pressa. É tudo fácil de encontrar mais tarde.",
+      "showMeAround": "Mostra-me tudo",
+      "exploreMyself": "Prefiro explorar sozinho/a"
+    }
   },
   "workshop": {
     "tabCreate": "🎵 Criar",
