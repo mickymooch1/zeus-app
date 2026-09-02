@@ -2467,6 +2467,24 @@ async def songs_generate(
             lyric_result = _lyrics_mod.generate_lyrics(user_id=user_id, brief=body.brief, db_path=db_path, explicit=bool(body.explicit), instrumental=_effective_instrumental, song_title=body.song_title or None, genres=list(body.genres), genre_b=body.genre_b or None, blend_ratio=body.blend_ratio, kids_story=bool(body.kids_story), kids_mode=body.kids_mode or 'song', accent=body.accent or None, story_language=body.story_language or None, character_voice=body.character_voice or None, child_voice=body.child_voice or None, lyrics_language=_genre_lang, roast_mode=bool(body.is_roast), roast_name=body.roast_name or None, roast_details=body.roast_details or None, roast_vibe=body.roast_vibe or 'gentle', bilingual_mode=bool(body.bilingual_mode), intermittent_vocals=bool(body.intermittent_vocals and not body.instrumental), inspired_by_theme=_songs_mod.sanitize_inspired_by_theme(body.inspired_by_theme))
     except Exception as exc:
         log.exception("songs_generate: lyrics generation failed")
+        if not body.custom_lyrics:
+            # custom_lyrics never calls Claude — a failure there is a DB/logic bug,
+            # not the class of failure this alert exists for. Only the real
+            # generate_lyrics() branch (every LLM call) fires it.
+            #
+            # This is the alert that would have caught the 2026-09-02 `temperature`
+            # SDK-drift incident — every song failing identically — the moment it
+            # started, instead of hours later via a customer report. Logged before
+            # sending, and the send itself is wrapped, so an alerting outage can
+            # never turn this 500 into a crash — same shape as every alert_* in
+            # alerts.py.
+            try:
+                song_type = "kids-story" if body.kids_story else ("roast" if body.is_roast else "normal")
+                import alerts as _alerts
+                _alerts.alert_lyrics_generation_failed(
+                    current_user.get("email") or "", song_type, str(exc))
+            except Exception:
+                log.exception("songs_generate: alert_lyrics_generation_failed itself failed")
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
 
     lyric_id = lyric_result["lyric_id"]

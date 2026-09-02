@@ -312,6 +312,32 @@ def alert_credit_not_granted(email: str, amount: str, detail: str, ref: str = ""
         log.debug("alert_credit_not_granted failed (non-fatal)")
 
 
+def alert_lyrics_generation_failed(email: str, song_type: str, error: str) -> None:
+    """Fire the moment a lyrics-generation Claude call raises — normal, kids-story,
+    or roast, any path.
+
+    This is the alert that did NOT exist for the 2026-09-02 `temperature` SDK-drift
+    incident: every song failed identically for hours, with nothing paging anyone,
+    until a customer reported it. The dedup here is still the blunt message-text
+    match in _should_send_alert (per-user email in the text means two different
+    users hitting the identical systemic bug won't dedupe against each other yet) —
+    the category-keyed dedup landing next replaces this. Noted rather than hidden:
+    the interim window between this alert shipping and that dedup shipping is where
+    a real pile of failures COULD still produce a pile of messages.
+    """
+    try:
+        send_admin_alert(
+            "🚨 SONG GENERATION FAILED (lyrics)\n"
+            f"👤 {email or 'unknown'}\n"
+            f"🎵 Type: {song_type}\n"
+            f"💥 {error[:400]}\n"
+            "🔍 Check Railway logs — if this repeats across different users, "
+            "generation may be down for everyone, not just this one request"
+        )
+    except Exception:
+        log.debug("alert_lyrics_generation_failed failed (non-fatal)")
+
+
 def alert_song_failed(email: str, variant_id: int) -> None:
     try:
         send_admin_alert(
