@@ -649,10 +649,16 @@ async def apiframe_webhook(request: Request):
             _ec = sqlite3.connect(DB_PATH)
             try:
                 _row = _ec.execute(
-                    "SELECT u.email FROM song_variants sv JOIN users u ON u.id = sv.user_id WHERE sv.id = ?",
+                    "SELECT u.email, l.kids_story FROM song_variants sv "
+                    "JOIN users u ON u.id = sv.user_id "
+                    "LEFT JOIN lyrics l ON l.id = sv.lyric_id WHERE sv.id = ?",
                     (variant_id,),
                 ).fetchone()
-                _alerts.alert_song_failed(_row[0] if _row else "unknown", variant_id)
+                _song_type = "kids-story" if (_row and _row[1]) else "normal"
+                _alerts.alert_song_failed(
+                    _row[0] if _row else "unknown", variant_id,
+                    error_msg=error_msg, song_type=_song_type,
+                )
             finally:
                 _ec.close()
         except Exception:

@@ -420,12 +420,23 @@ def alert_service_error(service: str, status_code, detail: str) -> None:
         log.debug("alert_service_error failed (non-fatal)")
 
 
-def alert_song_failed(email: str, variant_id: int) -> None:
+def alert_song_failed(email: str, variant_id: int, error_msg: str = "", song_type: str = "") -> None:
+    """Fire when Apiframe's webhook reports a variant FAILED (music generation
+    itself, distinct from alert_lyrics_generation_failed which covers the earlier
+    Claude lyrics step). error_msg/song_type are optional and default to blank —
+    both were newly threaded through from the webhooks.py call site; song_type is
+    "kids-story" or "normal" only (no persisted flag distinguishes roast at this
+    point in the pipeline, so a failed roast song currently reports as "normal").
+    Deduped like alert_lyrics_generation_failed: per-user error text never
+    repeats byte-for-byte, so this is keyed by song_type, not exact message.
+    """
     try:
-        send_admin_alert(
-            "⚠️ Song generation failed!\n"
+        send_admin_alert_deduped(
+            f"song_failed:{song_type or 'normal'}",
+            "⚠️ SONG GENERATION FAILED (music)\n"
             f"👤 {email}\n"
-            f"🎵 variant_id={variant_id}\n"
+            f"🎵 variant_id={variant_id} type={song_type or 'normal'}\n"
+            f"💥 {error_msg[:400] if error_msg else 'no error detail from provider'}\n"
             "🔍 Check Railway logs"
         )
     except Exception:
