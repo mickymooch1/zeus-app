@@ -9,8 +9,13 @@ Scheduled jobs (registered in scheduler.py):
 
   daily_report()   — daily at 9am UTC
                        • total/new users, paid subscribers
-                       • songs generated today + top genre
-                       • failed songs overnight
+                       • songs generated today + top genre, failed songs overnight
+                       • songs last 24h split by type (normal/kids-story) and
+                         success/fail — new subscriptions, renewals, errors
+                         alerted (alerts.pop_digest_counters(), in-memory,
+                         resets on each read — see alerts.py's note on the
+                         redeploy-loses-count tradeoff, esp. for renewals)
+                       • fal.ai / Apiframe balance status
                        • sends formatted Telegram DM to Michael
 
 Event hooks (called from main.py / webhooks.py):
@@ -176,9 +181,11 @@ def daily_report() -> None:
     """Run daily at 9am UTC.
 
     Queries the DB for key metrics and sends a formatted business report to Michael
-    via Telegram DM.
+    via Telegram DM. Also the (B) digest channel of the alerting build alongside the
+    (A) immediate pings in alerts.py — piggybacked on this existing job rather than
+    a separate schedule entry, since it already runs at the agreed 09:00 UTC time.
     """
-    from alerts import send_admin_alert
+    import alerts as _alerts
 
     try:
         conn = sqlite3.connect(_db())
@@ -207,8 +214,24 @@ def daily_report() -> None:
                    GROUP BY genre_tag ORDER BY cnt DESC LIMIT 1"""
             ).fetchone()
             top_genre = top_row["genre_tag"] if top_row else "—"
+
+            # Songs by type, last 24h — split success/fail so a broken kids-story
+            # path doesn't hide inside a healthy-looking normal-song number.
+            type_rows = conn.execute(
+                """SELECT COALESCE(l.kids_story, 0) AS kids_story, sv.status, COUNT(*) AS cnt
+                   FROM song_variants sv LEFT JOIN lyrics l ON l.id = sv.lyric_id
+                   WHERE sv.created_at >= datetime('now', '-24 hours')
+                   GROUP BY 1, 2"""
+            ).fetchall()
         finally:
             conn.close()
+
+        by_type = {"normal": {"complete": 0, "failed": 0, "other": 0},
+                   "kids-story": {"complete": 0, "failed": 0, "other": 0}}
+        for row in type_rows:
+            kind = "kids-story" if row["kids_story"] else "normal"
+            bucket = row["status"] if row["status"] in ("complete", "failed") else "other"
+            by_type[kind][bucket] += row["cnt"]
 
         overnight_note = (
             f"⚠️ {failed_overnight} song(s) failed overnight"
@@ -216,27 +239,43 @@ def daily_report() -> None:
             else "✅ No overnight failures"
         )
 
+        counters = _alerts.pop_digest_counters()
+
+        provider_lines = []
+        for checker in (_alerts._check_fal_balance, _alerts._check_apiframe_credits):
+            try:
+                warning = checker()
+            except Exception:
+                warning = f"⁉️ {checker.__name__} raised — check Railway logs"
+            if warning:
+                provider_lines.append(warning)
+        if not provider_lines:
+            provider_lines.append("✅ fal.ai + Apiframe balances healthy")
+
         msg = (
             "📊 <b>Zeus Beats Daily Report</b>\n"
             f"👥 Total users: <b>{total_users}</b> (+{new_today} today)\n"
             f"💳 Paid subscribers: <b>{paid_count}</b>\n"
             f"🎵 Songs generated today: <b>{songs_today}</b>\n"
             f"🎼 Top genre today: <b>{top_genre}</b>\n"
-            f"{overnight_note}"
+            f"{overnight_note}\n"
+            "\n"
+            "🎵 <b>Songs, last 24h:</b>\n"
+            f"  Normal: {by_type['normal']['complete']} ok, {by_type['normal']['failed']} failed, "
+            f"{by_type['normal']['other']} in progress\n"
+            f"  Kids-story: {by_type['kids-story']['complete']} ok, {by_type['kids-story']['failed']} failed, "
+            f"{by_type['kids-story']['other']} in progress\n"
+            "\n"
+            f"💳 New subscriptions: {counters.get('new_subscriptions', 0)}\n"
+            f"🔁 Renewals: {counters.get('renewals', 0)}\n"
+            f"🚨 Errors alerted: {counters.get('errors', 0)}\n"
+            "\n" + "\n".join(provider_lines)
         )
         # Bypass dedup — daily report must always send (message changes daily)
-        from alerts import _admin_chat_id
-        token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-        chat_id = _admin_chat_id()
-        if token and chat_id:
-            requests.post(
-                f"https://api.telegram.org/bot{token}/sendMessage",
-                json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"},
-                timeout=10,
-            )
+        _alerts._send_telegram(msg)
         log.info(
-            "ops_agent: daily report sent — users=%d new=%d paid=%d songs=%d failed=%d",
-            total_users, new_today, paid_count, songs_today, failed_overnight,
+            "ops_agent: daily report sent — users=%d new=%d paid=%d songs=%d failed=%d counters=%s",
+            total_users, new_today, paid_count, songs_today, failed_overnight, counters,
         )
     except Exception:
         log.exception("ops_agent: daily_report raised")

@@ -816,6 +816,10 @@ def _handle_invoice_paid(db_path, invoice) -> None:
     allowance = _PLAN_SONG_CREDITS[plan]
     db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
     log.info("Monthly song credits reset for user %s: %d credits (%s plan)", user["id"], allowance, plan)
+    try:
+        _alerts._bump_digest_counter("renewals")
+    except Exception:
+        log.debug("renewal digest-counter bump failed (non-fatal)")
 
     video_allowance = _PLAN_VIDEO_CREDITS.get(plan, 0)
     if video_allowance > 0:

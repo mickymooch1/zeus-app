@@ -14,6 +14,29 @@ import requests
 
 log = logging.getLogger("zeus.alerts")
 
+# ── Digest counters ─────────────────────────────────────────────────────────────
+# Rolled up into the daily digest (zeus_ops_agent.daily_report) and reset each
+# time it's read. In-memory, not DB-backed — a redeploy between digests loses
+# whatever's accumulated so far. Accepted deliberately for new_subscriptions and
+# errors (both are ALSO paged immediately via their own alert_*, so the digest
+# count is a secondary rollup, not the only record) but worth flagging for
+# renewals specifically: renewals have no immediate ping by design (expected,
+# would be noisy), so this counter is the only record of them, and a renewal
+# landing right before a redeploy can go uncounted in that day's digest.
+
+_DIGEST_COUNTERS: dict[str, int] = {}
+
+
+def _bump_digest_counter(key: str) -> None:
+    _DIGEST_COUNTERS[key] = _DIGEST_COUNTERS.get(key, 0) + 1
+
+
+def pop_digest_counters() -> dict[str, int]:
+    """Read and reset the counters — call exactly once per digest send."""
+    counters = dict(_DIGEST_COUNTERS)
+    _DIGEST_COUNTERS.clear()
+    return counters
+
 # ── Deduplication ─────────────────────────────────────────────────────────────
 # Tracks recently sent alert hashes to suppress repeats within 30 minutes.
 # Keyed by MD5(message) → timestamp of last send.
@@ -297,6 +320,7 @@ def alert_signup_flag(email: str, reason: str, detail: str) -> None:
 
 def alert_payment(email: str, plan_key: str, amount_display: str) -> None:
     try:
+        _bump_digest_counter("new_subscriptions")
         plan_display = _PLAN_DISPLAY.get(plan_key, plan_key or "Unknown plan")
         send_admin_alert(
             "💰 New payment!\n"
@@ -310,6 +334,7 @@ def alert_payment(email: str, plan_key: str, amount_display: str) -> None:
 
 def alert_payment_failed(email: str, session_id: str = "") -> None:
     try:
+        _bump_digest_counter("errors")
         send_admin_alert(
             "🚨 Payment FAILED (delayed payment method)\n"
             f"📧 {email or 'unknown'}\n"
@@ -346,6 +371,7 @@ def alert_webhook_error(event_type: str, event_id: str, error: str) -> None:
     instead of ~2.5 weeks later via a customer complaint.
     """
     try:
+        _bump_digest_counter("errors")
         send_admin_alert(
             "🚨 STRIPE WEBHOOK CRASHED — credits may NOT be granted!\n"
             f"📩 event: {event_type or 'unknown'} ({event_id or 'n/a'})\n"
@@ -359,6 +385,7 @@ def alert_webhook_error(event_type: str, event_id: str, error: str) -> None:
 def alert_credit_not_granted(email: str, amount: str, detail: str, ref: str = "") -> None:
     """A payment succeeded but no credits were granted (user not found, unknown pack…)."""
     try:
+        _bump_digest_counter("errors")
         send_admin_alert(
             "🚨 PAID but NO CREDITS granted!\n"
             f"📧 {email or 'unknown'}\n"
@@ -386,6 +413,7 @@ def alert_lyrics_generation_failed(email: str, song_type: str, error: str) -> No
     stream instead of one type's spam burying the other's first occurrence.
     """
     try:
+        _bump_digest_counter("errors")
         send_admin_alert_deduped(
             f"lyrics_failed:{song_type}",
             "🚨 SONG GENERATION FAILED (lyrics)\n"
@@ -408,6 +436,7 @@ def alert_service_error(service: str, status_code, detail: str) -> None:
     its own alert — those are different problems needing different fixes.
     """
     try:
+        _bump_digest_counter("errors")
         send_admin_alert_deduped(
             f"service_error:{service}:{status_code}",
             "🔌 EXTERNAL SERVICE ERROR\n"
@@ -431,6 +460,7 @@ def alert_song_failed(email: str, variant_id: int, error_msg: str = "", song_typ
     repeats byte-for-byte, so this is keyed by song_type, not exact message.
     """
     try:
+        _bump_digest_counter("errors")
         send_admin_alert_deduped(
             f"song_failed:{song_type or 'normal'}",
             "⚠️ SONG GENERATION FAILED (music)\n"
@@ -562,33 +592,11 @@ def _check_apiframe_credits() -> str | None:
 # reports. Removed 2026-08-19.
 
 
-# ── Daily summary ─────────────────────────────────────────────────────────────
-
-def send_daily_summary() -> None:
-    """Query the DB and send the morning summary to admin."""
-    try:
-        import db as _db
-        db_path = str(_db.get_db_path())
-        conn = sqlite3.connect(db_path)
-        try:
-            total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-            new_today = conn.execute(
-                "SELECT COUNT(*) FROM users WHERE date(created_at) = date('now')"
-            ).fetchone()[0]
-            songs_today = conn.execute(
-                """SELECT COUNT(*) FROM song_variants
-                   WHERE status = 'complete'
-                   AND date(completed_at) = date('now')"""
-            ).fetchone()[0]
-        finally:
-            conn.close()
-
-        send_admin_alert(
-            "📊 Zeus Beats Daily Summary\n"
-            f"👥 Total users: {total_users} ({new_today} new today)\n"
-            f"🎵 Songs generated today: {songs_today}\n"
-            "✅ Everything running normally"
-        )
-        log.info("Daily summary sent: users=%d new=%d songs=%d", total_users, new_today, songs_today)
-    except Exception:
-        log.exception("Daily summary failed")
+# The live morning digest is zeus_ops_agent.daily_report(), scheduled at the same
+# 09:00 UTC as health_check() above (scheduler.py). A second, unscheduled
+# send_daily_summary() used to sit here covering a subset of the same ground
+# (users/songs counts) with zero callers — same two-implementations-one-dead
+# trap as run_health_check before it. daily_report() now also reports songs
+# split by type/success-fail, new-subscription/renewal counts (via
+# pop_digest_counters), and provider balance status (via the checkers above).
+# Removed 2026-09-03.
