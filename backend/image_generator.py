@@ -89,11 +89,21 @@ def submit_image_generation(
         )
         # Give a clear actionable message for known fal.ai error states
         if response.status_code == 403 and "Exhausted balance" in body:
+            try:
+                import alerts as _alerts
+                _alerts.alert_service_error("fal.ai", 403, f"balance exhausted (job_id={job_id})")
+            except Exception:
+                log.exception("failed to send fal.ai service-error alert")
             raise RuntimeError(
                 "Image generation unavailable: fal.ai account balance is exhausted. "
                 "Top up at fal.ai/dashboard/billing to restore image generation."
             )
         if response.status_code == 401:
+            try:
+                import alerts as _alerts
+                _alerts.alert_service_error("fal.ai", 401, f"invalid API key (job_id={job_id})")
+            except Exception:
+                log.exception("failed to send fal.ai service-error alert")
             raise RuntimeError(
                 "Image generation unavailable: fal.ai API key is invalid or missing. "
                 "Check FAL_API_KEY in Railway environment variables."

@@ -307,6 +307,14 @@ def _stem_pipeline(variant_id: int, user_id: str, mp3_url: str) -> None:
             timeout=30,
         )
         logger.info("Demucs submit: variant_id=%d status=%d body=%r", variant_id, resp.status_code, resp.text[:400])
+        if resp.status_code in (401, 402, 403, 429):
+            try:
+                import alerts as _alerts
+                _alerts.alert_service_error(
+                    "fal.ai", resp.status_code, f"Demucs stems (variant_id={variant_id}): {resp.text[:300]}"
+                )
+            except Exception:
+                logger.exception("failed to send fal.ai service-error alert variant_id=%d", variant_id)
         if resp.status_code == 403:
             raise RuntimeError(f"Demucs: 403 Forbidden — fal.ai balance likely exhausted. Body: {resp.text[:200]}")
         resp.raise_for_status()

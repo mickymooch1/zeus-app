@@ -434,24 +434,24 @@ def _submit_to_goapi(variant_id: int, lyrics: str, style_prompt: str, suno_model
 
 
 def _alert_fallback_to_goapi(variant_id: int, apiframe_error: str) -> None:
-    """Fire-and-forget Telegram alert when GoAPI fallback is triggered."""
-    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    channel = os.environ.get("TELEGRAM_CHANNEL_ID", "").strip()
-    if not token or not channel:
-        return
-    msg = (
-        f"⚠️ <b>Apiframe down — switched to GoAPI</b>\n"
-        f"variant_id={variant_id}\n"
-        f"Apiframe error: {apiframe_error[:300]}"
-    )
+    """Fire-and-forget alert when GoAPI fallback is triggered.
+
+    Routed through the shared alerts.py sender (TELEGRAM_ADMIN_USER_ID) instead of
+    its own separate TELEGRAM_CHANNEL_ID-based POST — one send path, deduped, rather
+    than two independently-configured senders that can silently drift apart (that
+    channel var is actually the public song-announcement channel used elsewhere,
+    not an admin-alerts channel — this was sending admin alerts to the wrong place).
+    """
     try:
-        requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": channel, "text": msg, "parse_mode": "HTML"},
-            timeout=10,
+        import alerts as _alerts
+        _alerts.send_admin_alert_deduped(
+            "goapi_fallback",
+            "⚠️ Apiframe down — switched to GoAPI\n"
+            f"variant_id={variant_id}\n"
+            f"Apiframe error: {apiframe_error[:300]}"
         )
     except Exception as exc:
-        logger.warning("Failed to send GoAPI fallback Telegram alert: %s", exc)
+        logger.warning("Failed to send GoAPI fallback alert: %s", exc)
 
 
 class InsufficientCreditsError(Exception):
@@ -550,6 +550,13 @@ def generate_song_variant(
             job_id = _submit_to_apiframe(variant_id, lyrics, style_prompt, suno_model, extra_suno_params or {})
         except Exception as af_err:
             logger.error("APIFRAME_FAILED variant_id=%d — %s. Trying GoAPI fallback.", variant_id, af_err)
+            _af_status = getattr(getattr(af_err, "response", None), "status_code", None)
+            if _af_status in (401, 402, 429) or "credit" in str(af_err).lower() or "quota" in str(af_err).lower():
+                try:
+                    import alerts as _alerts
+                    _alerts.alert_service_error("apiframe", _af_status or "unknown", str(af_err))
+                except Exception:
+                    logger.exception("failed to send apiframe service-error alert variant_id=%d", variant_id)
             if not GOAPI_API_KEY or not GOAPI_WEBHOOK_URL:
                 raise
             job_id = _submit_to_goapi(variant_id, lyrics, style_prompt, suno_model, extra_suno_params or {})

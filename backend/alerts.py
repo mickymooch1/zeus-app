@@ -399,6 +399,27 @@ def alert_lyrics_generation_failed(email: str, song_type: str, error: str) -> No
         log.debug("alert_lyrics_generation_failed failed (non-fatal)")
 
 
+def alert_service_error(service: str, status_code, detail: str) -> None:
+    """Fire when an external provider (Apiframe, GoAPI, fal.ai, ElevenLabs) returns
+    an auth/quota-class error — 401/402/403/429, or "balance exhausted"/"out of
+    credits". Deduped per (service, status_code): a burst of the same failure mode
+    from the same provider floods once, not per-request, while a DIFFERENT status
+    from the same service (or the same status from a different service) still gets
+    its own alert — those are different problems needing different fixes.
+    """
+    try:
+        send_admin_alert_deduped(
+            f"service_error:{service}:{status_code}",
+            "🔌 EXTERNAL SERVICE ERROR\n"
+            f"🛠️ Service: {service}\n"
+            f"📟 Status: {status_code}\n"
+            f"💥 {detail[:400]}\n"
+            "🔍 Check API key / account balance / quota for this service"
+        )
+    except Exception:
+        log.debug("alert_service_error failed (non-fatal)")
+
+
 def alert_song_failed(email: str, variant_id: int) -> None:
     try:
         send_admin_alert(

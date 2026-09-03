@@ -2576,6 +2576,13 @@ async def songs_generate(
                         if _bl_fr.status_code != 200 or _bl_er.status_code != 200:
                             log.warning("bilingual: line %d EL status foreign=%d english=%d user=%s",
                                         _bl_i, _bl_fr.status_code, _bl_er.status_code, user_id)
+                            _bad_status = _bl_fr.status_code if _bl_fr.status_code != 200 else _bl_er.status_code
+                            if _bad_status in (401, 402, 429):
+                                try:
+                                    import alerts as _alerts
+                                    _alerts.alert_service_error("elevenlabs", _bad_status, f"bilingual story narration (user={user_id})")
+                                except Exception:
+                                    log.exception("failed to send elevenlabs service-error alert")
                             _bl_ok = False
                             break
                         _bl_fp = str(_story_dir / f"{lyric_id}_{_bl_i}f.mp3")
@@ -2639,6 +2646,12 @@ async def songs_generate(
                             _clip_durations.append(_get_mp3_duration(_clip_path))
                         else:
                             log.warning("multi-voice: segment %d ElevenLabs %d user=%s", _i, _seg_resp.status_code, user_id)
+                            if _seg_resp.status_code in (401, 402, 429):
+                                try:
+                                    import alerts as _alerts
+                                    _alerts.alert_service_error("elevenlabs", _seg_resp.status_code, f"multi-voice story narration (user={user_id})")
+                                except Exception:
+                                    log.exception("failed to send elevenlabs service-error alert")
                             _all_ok = False
                             break
                 if _clip_paths and _all_ok:
@@ -2717,6 +2730,12 @@ async def songs_generate(
                         log.info("single-voice TTS: ok user=%s lyric_id=%s bytes=%d", user_id, lyric_id, len(_tts_resp.content))
                 else:
                     log.warning("single-voice TTS: ElevenLabs error %d user=%s", _tts_resp.status_code, user_id)
+                    if _tts_resp.status_code in (401, 402, 429):
+                        try:
+                            import alerts as _alerts
+                            _alerts.alert_service_error("elevenlabs", _tts_resp.status_code, f"single-voice story narration (user={user_id})")
+                        except Exception:
+                            log.exception("failed to send elevenlabs service-error alert")
         except Exception:
             log.exception("kids_story TTS: failed user=%s lyric_id=%s", user_id, lyric_id)
             raise HTTPException(status_code=500, detail="Story narration failed — please try again")
