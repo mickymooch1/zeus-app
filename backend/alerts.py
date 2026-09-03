@@ -41,6 +41,59 @@ def _should_send_alert(message: str) -> bool:
     _sent_alerts[key] = now
     return True
 
+
+# ── Category-keyed deduplication ───────────────────────────────────────────────
+# _should_send_alert (above) dedupes on exact message text — useless for alerts
+# whose text varies every occurrence (a different user's email, a different error
+# string), which is exactly the shape of alert_lyrics_generation_failed. This
+# dedupes on a stable category string instead: first occurrence in a category
+# sends immediately; further occurrences within the cooldown are suppressed but
+# counted; the first occurrence AFTER the cooldown expires sends one "still
+# happening ×N" message covering everything suppressed since the last send, then
+# resets. No TTL/eviction here (unlike _sent_alerts) — categories are a small,
+# code-defined set, not arbitrary message hashes, so the dict can't grow unbounded.
+
+_ALERT_CATEGORY_STATE: dict[str, dict] = {}
+
+
+def _dedupe_by_category(category: str, cooldown_seconds: int) -> tuple[bool, int]:
+    """Returns (should_send_now, suppressed_count_since_last_send)."""
+    now = time.time()
+    state = _ALERT_CATEGORY_STATE.setdefault(category, {"last_sent": 0.0, "suppressed": 0})
+
+    if now - state["last_sent"] >= cooldown_seconds:
+        suppressed = state["suppressed"]
+        state["last_sent"] = now
+        state["suppressed"] = 0
+        return True, suppressed
+
+    state["suppressed"] += 1
+    return False, 0
+
+
+def send_admin_alert_deduped(category: str, message: str, cooldown_seconds: int = 900) -> bool:
+    """Like send_admin_alert, but deduped by a stable category key rather than
+    exact message text. Use for anything that can recur rapidly with per-occurrence
+    detail baked into the message (a user's email, a variant id, an error string).
+
+    Default cooldown 15 min. Suppressed occurrences aren't lost silently — the next
+    send after the cooldown reports how many happened in between.
+
+    Bypasses the exact-text dedup in send_admin_alert on purpose: once the category
+    logic decides to send, that decision must be authoritative. If this instead
+    called send_admin_alert(), a genuinely-due send could still get silently
+    swallowed by the OTHER (30-min, exact-text) dedup layer whenever two occurrences
+    happen to produce byte-identical messages — defeating the whole point.
+    """
+    should_send, suppressed = _dedupe_by_category(category, cooldown_seconds)
+    if not should_send:
+        log.debug("Alert suppressed (category %r within cooldown): %s", category, message[:80])
+        return False
+    if suppressed > 0:
+        message = f"{message}\n\n🔁 …and {suppressed} more in the last {cooldown_seconds // 60} min (suppressed)"
+    return _send_telegram(message)
+
+
 _PLAN_DISPLAY = {
     "music_starter": "Music Starter £9",
     "music_pro":     "Music Pro £19",
@@ -60,13 +113,9 @@ def _admin_chat_id() -> str:
     )
 
 
-def send_admin_alert(message: str) -> bool:
-    """Send a plain-text DM to the admin. Returns True on success.
-
-    Identical messages are suppressed if already sent within the last 30 minutes.
-    """
-    if not _should_send_alert(message):
-        return False
+def _send_telegram(message: str) -> bool:
+    """Raw send, no dedup. Both dedup layers (exact-text and category-keyed)
+    funnel into this — it's the one place that actually talks to Telegram."""
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = _admin_chat_id()
     if not token or not chat_id:
@@ -85,6 +134,16 @@ def send_admin_alert(message: str) -> bool:
     except Exception:
         log.exception("Admin alert send failed")
         return False
+
+
+def send_admin_alert(message: str) -> bool:
+    """Send a plain-text DM to the admin. Returns True on success.
+
+    Identical messages are suppressed if already sent within the last 30 minutes.
+    """
+    if not _should_send_alert(message):
+        return False
+    return _send_telegram(message)
 
 
 # ── Event alerts ──────────────────────────────────────────────────────────────
@@ -318,15 +377,17 @@ def alert_lyrics_generation_failed(email: str, song_type: str, error: str) -> No
 
     This is the alert that did NOT exist for the 2026-09-02 `temperature` SDK-drift
     incident: every song failed identically for hours, with nothing paging anyone,
-    until a customer reported it. The dedup here is still the blunt message-text
-    match in _should_send_alert (per-user email in the text means two different
-    users hitting the identical systemic bug won't dedupe against each other yet) —
-    the category-keyed dedup landing next replaces this. Noted rather than hidden:
-    the interim window between this alert shipping and that dedup shipping is where
-    a real pile of failures COULD still produce a pile of messages.
+    until a customer reported it. Deduped per song_type via send_admin_alert_deduped
+    (not the base exact-text dedup — the email/error text varies every call, so that
+    would never dedupe a real pile of failures at all). Keying on song_type rather
+    than a single global category is deliberate: if normal AND kids-story are BOTH
+    failing at once, that's itself useful diagnostic signal (multiple paths broken,
+    not just heavy load on one), so each type gets its own alert + "still happening"
+    stream instead of one type's spam burying the other's first occurrence.
     """
     try:
-        send_admin_alert(
+        send_admin_alert_deduped(
+            f"lyrics_failed:{song_type}",
             "🚨 SONG GENERATION FAILED (lyrics)\n"
             f"👤 {email or 'unknown'}\n"
             f"🎵 Type: {song_type}\n"
