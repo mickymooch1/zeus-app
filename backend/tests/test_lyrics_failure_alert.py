@@ -73,9 +73,13 @@ def test_normal_song_failure_fires_the_alert():
 
 
 def test_kids_story_failure_fires_the_alert_with_kids_story_type():
-    err = RuntimeError("story generation exploded")
+    """song_type classification keys on kids_story alone, not kids_mode — using
+    kids_mode='song' here deliberately (not 'story') since story mode is
+    currently disabled by the kill switch in test_story_mode_kill_switch.py and
+    this test is about the lyrics-failure alert, not story mode itself."""
+    err = RuntimeError("kids lyrics generation exploded")
     resp, alert_fn = _post(
-        {"brief": "a dragon adventure", "genres": ["pop"], "kids_story": True, "kids_mode": "story"},
+        {"brief": "a dragon adventure", "genres": ["pop"], "kids_story": True, "kids_mode": "song"},
         lyrics_error=err,
     )
     assert resp.status_code == 500

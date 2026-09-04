@@ -20,6 +20,9 @@ import { useOfflineSongs }  from '../hooks/useOfflineSongs';
 import OfflineBanner        from '../components/OfflineBanner';
 import { useNowPlaying }    from '../contexts/NowPlayingContext';
 import LyricsModal          from '../components/LyricsModal';
+import { useStoryModeEnabled } from '../hooks/useStoryModeEnabled';
+import ComingSoonBadge      from '../components/ComingSoonBadge';
+import ComingSoonModal      from '../components/ComingSoonModal';
 
 // Set once the post-first-song name prompt has been answered OR skipped, so a
 // user who isn't interested is never asked twice.
@@ -1425,6 +1428,8 @@ export default function SongsPage() {
   const [roastDetails, setRoastDetails]     = useState('');
   const [roastVibe, setRoastVibe]           = useState('gentle');
   const [kidsSubMode, setKidsSubMode]       = useState('song'); // 'song' | 'story'
+  const { storyModeEnabled } = useStoryModeEnabled();
+  const [showStoryComingSoon, setShowStoryComingSoon] = useState(false);
   const [kidsAccent, setKidsAccent]         = useState('');     // Suno vocal accent (song mode)
   const [kidsNarratorVoice, setKidsNarratorVoice]   = useState('british');    // ElevenLabs narrator (story mode)
   const [kidsChildVoice, setKidsChildVoice]         = useState('younggirl'); // ElevenLabs child hero voice
@@ -3715,24 +3720,36 @@ export default function SongsPage() {
                   {[
                     ['song',  '🎵', 'Song Mode',  'Suno sings a fun children\'s song'],
                     ['story', '📖', 'Story Mode', 'Story narrated with gentle music'],
-                  ].map(([val, emoji, label, desc]) => (
-                    <button
-                      key={val}
-                      onClick={() => setKidsSubMode(val)}
-                      style={{
-                        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                        padding: '12px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                        border: `2px solid ${kidsSubMode === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
-                        background: kidsSubMode === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
-                        boxShadow: kidsSubMode === val ? '0 0 14px rgba(251,191,36,0.30)' : 'none',
-                      }}
-                    >
-                      <span style={{ fontSize: 22 }}>{emoji}</span>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: kidsSubMode === val ? '#fbbf24' : 'rgba(251,191,36,0.7)' }}>{label}</span>
-                      <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)', textAlign: 'center', lineHeight: 1.3 }}>{desc}</span>
-                    </button>
-                  ))}
+                  ].map(([val, emoji, label, desc]) => {
+                    const isStoryDisabled = val === 'story' && !storyModeEnabled;
+                    return (
+                      <button
+                        key={val}
+                        onClick={() => isStoryDisabled ? setShowStoryComingSoon(true) : setKidsSubMode(val)}
+                        style={{
+                          position: 'relative',
+                          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                          padding: '12px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                          border: `2px solid ${kidsSubMode === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
+                          background: kidsSubMode === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
+                          boxShadow: kidsSubMode === val ? '0 0 14px rgba(251,191,36,0.30)' : 'none',
+                        }}
+                      >
+                        {isStoryDisabled && <ComingSoonBadge />}
+                        <span style={{ fontSize: 22 }}>{emoji}</span>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: kidsSubMode === val ? '#fbbf24' : 'rgba(251,191,36,0.7)' }}>{label}</span>
+                        <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)', textAlign: 'center', lineHeight: 1.3 }}>{desc}</span>
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {showStoryComingSoon && (
+                  <ComingSoonModal
+                    message="Story Mode is coming soon — we're putting the finishing touches on it!"
+                    onClose={() => setShowStoryComingSoon(false)}
+                  />
+                )}
 
                 {/* ── Shared fields: title, character, what happens ── */}
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>📖 {kidsSubMode === 'story' ? 'Story Title' : 'Song Title'}</p>

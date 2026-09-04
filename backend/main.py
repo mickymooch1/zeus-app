@@ -2305,6 +2305,27 @@ def _build_subtitle_cues(segments: list, full_text: str, chars: list, char_start
     return cues if cues else None
 
 
+def _story_mode_enabled() -> bool:
+    """Kill switch for Kids Story Mode's ElevenLabs narration path.
+
+    Defaults to DISABLED unless STORY_MODE_ENABLED is explicitly "true" — so
+    shipping this code disables the feature immediately without also needing a
+    Railway env-var change. Added 2026-09-04: the ElevenLabs key is unpaid
+    (401s), so every story-mode request would otherwise fail after already
+    spending a Claude lyrics call. Flip STORY_MODE_ENABLED=true in Railway to
+    re-enable once ElevenLabs is paid — no code deploy needed either way.
+    """
+    return os.environ.get("STORY_MODE_ENABLED", "").strip().lower() == "true"
+
+
+@app.get("/api/feature-flags")
+async def feature_flags():
+    """Public, unauthenticated — the frontend polls this to decide whether to
+    show Kids Story Mode or its Coming Soon state. No secrets in here; keep it
+    that way if more flags get added."""
+    return {"story_mode_enabled": _story_mode_enabled()}
+
+
 @app.post("/api/songs/generate")
 @limiter.limit("10/minute", key_func=_user_key)
 async def songs_generate(
@@ -2344,6 +2365,16 @@ async def songs_generate(
                 ),
                 "email": current_user.get("email", ""),
             },
+        )
+
+    # Kids Story Mode kill switch — checked before ANY lyrics/credit work so a
+    # disabled request can never reach the ElevenLabs narration block further
+    # down. See _story_mode_enabled() for why this defaults to disabled.
+    if body.kids_story and body.kids_mode == "story" and not _story_mode_enabled():
+        log.info("songs_generate: story mode request rejected (disabled) user=%s", user_id)
+        raise HTTPException(
+            status_code=503,
+            detail="Story Mode is coming soon — we're putting the finishing touches on it!",
         )
 
     log.info("Generate request: user=%s body=%s", user_id, body.dict())

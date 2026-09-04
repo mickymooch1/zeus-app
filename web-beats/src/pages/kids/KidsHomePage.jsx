@@ -1,7 +1,13 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useStoryModeEnabled } from '../../hooks/useStoryModeEnabled';
+import ComingSoonBadge from '../../components/ComingSoonBadge';
+import ComingSoonModal from '../../components/ComingSoonModal';
 
 export default function KidsHomePage() {
   const navigate = useNavigate();
+  const { storyModeEnabled } = useStoryModeEnabled();
+  const [showStoryComingSoon, setShowStoryComingSoon] = useState(false);
 
   return (
     <div style={{
@@ -23,13 +29,16 @@ export default function KidsHomePage() {
           🎵 Make a Song!
         </button>
 
-        <button
-          className="kids-btn kids-btn-coral"
-          style={{ width: '100%' }}
-          onClick={() => navigate('/kids/story')}
-        >
-          📖 Hear a Story!
-        </button>
+        <div style={{ position: 'relative', width: '100%' }}>
+          <button
+            className="kids-btn kids-btn-coral"
+            style={{ width: '100%' }}
+            onClick={() => storyModeEnabled ? navigate('/kids/story') : setShowStoryComingSoon(true)}
+          >
+            📖 Hear a Story!
+          </button>
+          {!storyModeEnabled && <ComingSoonBadge />}
+        </div>
 
         <button
           className="kids-btn kids-btn-mint"
@@ -47,6 +56,13 @@ export default function KidsHomePage() {
           🌍 Learn a Language!
         </button>
       </div>
+
+      {showStoryComingSoon && (
+        <ComingSoonModal
+          message="Story Mode is coming soon — we're putting the finishing touches on it!"
+          onClose={() => setShowStoryComingSoon(false)}
+        />
+      )}
     </div>
   );
 }

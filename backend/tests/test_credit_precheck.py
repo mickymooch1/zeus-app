@@ -105,8 +105,13 @@ def test_admin_bypasses_the_precheck():
 
 
 def test_kids_story_costs_one_not_one_per_genre():
+    """The precheck's flat-1-credit rule keys on kids_story alone, not kids_mode
+    (kids_mode='song' here, deliberately not 'story' — story mode is currently
+    disabled by the kill switch in test_story_mode_kill_switch.py, and this test
+    has nothing to do with that; it would otherwise 503 before ever reaching the
+    credit check this test exists to pin)."""
     resp, lyr = _post({"brief": "x", "genres": ["pop", "rock", "jazz"],
-                       "kids_story": True, "kids_mode": "story"}, balance=1)
+                       "kids_story": True, "kids_mode": "song"}, balance=1)
     assert resp.status_code != 402, "kids mode is flat-rate 1 credit"
     lyr.assert_called_once()
 

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { BACKEND_URL } from '../../brand';
+import { useStoryModeEnabled } from '../../hooks/useStoryModeEnabled';
 
 const STORY_THEMES = [
   { emoji: '🐉', label: 'Dragons' },
@@ -84,6 +85,7 @@ const previewDot = (active, color) => ({
 export default function KidsStoryMode() {
   const { token, user } = useAuth();
   const navigate = useNavigate();
+  const { storyModeEnabled, loading: flagLoading } = useStoryModeEnabled();
   const [theme, setTheme]             = useState(null);
   const [age, setAge]                 = useState('little_ones');
   const [narrator, setNarrator]       = useState('britishwoman');
@@ -177,6 +179,31 @@ export default function KidsStoryMode() {
       {text}{sub && <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginLeft: 6 }}>{sub}</span>}
     </p>
   );
+
+  // Safety net for direct navigation (bookmark, back button) — the backend
+  // already rejects the generate call regardless, but showing the full form
+  // just to 503 on submit would be a bad experience. Wait for the flag to
+  // load rather than flashing this before the real form if it turns out enabled.
+  if (!flagLoading && !storyModeEnabled) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px' }}>
+        <div className="kids-card" style={{ maxWidth: 340, width: '100%', textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>🎵</div>
+          <h2 style={{ margin: '0 0 8px', fontSize: 20, color: '#1a2b4a' }}>Story Mode is coming soon!</h2>
+          <p style={{ margin: '0 0 20px', fontSize: 14, color: '#64748b' }}>
+            We're putting the finishing touches on it — check back soon.
+          </p>
+          <button
+            onClick={() => navigate('/kids')}
+            className="kids-btn kids-btn-primary"
+            style={{ width: '100%', minHeight: 56, fontSize: 16 }}
+          >
+            ← Back to Kids Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ flex: 1, padding: '16px 20px 40px', maxWidth: 560, margin: '0 auto', width: '100%' }}>
