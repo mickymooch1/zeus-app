@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import sqlite3
 import logging
+import subprocess
 import textwrap
 import threading
 import requests
@@ -564,6 +565,70 @@ async def apiframe_extend_webhook(request: Request) -> dict:
         return {"ok": False, "status": "error_logged"}
 
 
+_FADE_SECONDS = 8
+_FFMPEG_TIMEOUT = 60
+
+
+def _probe_duration_seconds(mp3_path: str) -> float | None:
+    """Exact file duration via ffprobe, in seconds. None on any failure — the
+    caller falls back to the Apiframe-reported duration rather than skipping
+    the fade over a probe hiccup."""
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", mp3_path],
+            check=True, capture_output=True, timeout=15, text=True,
+        )
+        return float(out.stdout.strip())
+    except Exception:
+        return None
+
+
+def _apply_fade_out(mp3_path: str, variant_id, fallback_duration: int | None = None) -> None:
+    """Apply an 8s exponential fade-out to the end of mp3_path, in place.
+
+    BEST-EFFORT: a fade is cosmetic. Any failure (ffmpeg missing, probe failure,
+    timeout, non-zero exit) logs and returns without raising — same log-first,
+    never-block-delivery shape as alerts.py and _maybe_extend_short_song. The
+    original file is only replaced after ffmpeg succeeds, so a failed run can
+    never leave a corrupt or truncated file in place.
+
+    Locked in at 8s/exponential after listening to 4/6/8/10s comparisons on
+    real abrupt-ending songs — 8s was the one that sounded natural, not
+    chopped. Measured against 8 real production songs: all were at or within a
+    few dB of full mid-track volume until the last 1-3 seconds, one dropped to
+    near-total digital silence in the final 0.75s — a hard content stop, not a
+    musical decrescendo, which is exactly what this fade is covering for.
+    """
+    tmp_path = mp3_path + ".fade.tmp"
+    try:
+        duration = _probe_duration_seconds(mp3_path) or fallback_duration
+        if not duration or duration <= _FADE_SECONDS:
+            logger.info(
+                "FADE_OUT skip variant_id=%s duration=%s (<=%ds or unknown)",
+                variant_id, duration, _FADE_SECONDS,
+            )
+            return
+        fade_start = round(duration - _FADE_SECONDS, 3)
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", mp3_path,
+             "-af", f"afade=t=out:st={fade_start}:d={_FADE_SECONDS}:curve=exp",
+             "-c:a", "libmp3lame", "-b:a", "192k", tmp_path],
+            check=True, capture_output=True, timeout=_FFMPEG_TIMEOUT,
+        )
+        os.replace(tmp_path, mp3_path)
+        logger.info(
+            "FADE_OUT applied variant_id=%s duration=%.1fs start=%.1fs", variant_id, duration, fade_start,
+        )
+    except Exception:
+        logger.exception("FADE_OUT failed variant_id=%s (non-fatal — serving unfaded audio)", variant_id)
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+
+
 @router.post("/webhooks/apiframe")
 async def apiframe_webhook(request: Request):
     # Log BEFORE reading body so this fires even if body parsing fails
@@ -824,6 +889,7 @@ async def apiframe_webhook(request: Request):
         except Exception:
             pass
         return {"ok": True, "status": "failed", "reason": "mp3_too_small"}
+    _apply_fade_out(local_path1, variant_id, duration1)
     permanent_url1 = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
 
     permanent_image_url1 = None
@@ -962,6 +1028,7 @@ async def apiframe_webhook(request: Request):
                         conn.close()
                     take2_variant_id = None
                 else:
+                    _apply_fade_out(local_path2, take2_variant_id, duration2)
                     permanent_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.mp3"
 
                     permanent_image_url2 = None
