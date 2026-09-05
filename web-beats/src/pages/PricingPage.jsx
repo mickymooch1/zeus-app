@@ -9,7 +9,7 @@ const DEFAULT_PLANS = {
     name: 'Music Starter',
     price: '£9/mo',
     features: [
-      '15 AI songs/month',
+      '60 song versions/month',
       'YouTube upload',
       'Song download & share',
       'All 100+ genres & styles',
@@ -20,7 +20,7 @@ const DEFAULT_PLANS = {
     name: 'Music Pro',
     price: '£19/mo',
     features: [
-      '55 AI songs/month',
+      '150 song versions/month',
       'YouTube upload',
       '3 avatar lip-sync videos/month',
       'Song download & share',
@@ -32,7 +32,7 @@ const DEFAULT_PLANS = {
     name: 'Music Agency',
     price: '£39/mo',
     features: [
-      '110 AI songs/month',
+      '300 song versions/month',
       'YouTube upload',
       '10 avatar lip-sync videos/month',
       'Song download & share',

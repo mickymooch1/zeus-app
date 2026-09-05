@@ -495,7 +495,7 @@ export default function LandingPage() {
               </div>
               <p className="plan-desc">For artists getting started with AI music creation.</p>
               <ul className="plan-features">
-                <li>✓ 25 songs/month</li>
+                <li>✓ 60 song versions/month</li>
                 <li>✓ 3 premium credits (stem separation)</li>
                 <li>✓ YouTube upload</li>
                 <li>✓ All 100+ genres</li>
@@ -512,7 +512,7 @@ export default function LandingPage() {
               </div>
               <p className="plan-desc">For active creators who want avatar videos.</p>
               <ul className="plan-features">
-                <li>✓ 55 songs/month</li>
+                <li>✓ 150 song versions/month</li>
                 <li>✓ 10 premium credits (stem separation)</li>
                 <li>✓ 3 avatar videos/month</li>
                 <li>✓ YouTube upload</li>
@@ -530,7 +530,7 @@ export default function LandingPage() {
               </div>
               <p className="plan-desc">For prolific creators and label teams.</p>
               <ul className="plan-features">
-                <li>✓ 110 songs/month</li>
+                <li>✓ 300 song versions/month</li>
                 <li>✓ 20 premium credits (stem separation)</li>
                 <li>✓ 10 avatar videos/month</li>
                 <li>✓ YouTube upload</li>

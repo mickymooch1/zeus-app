@@ -66,7 +66,7 @@ def subscriber(db_path):
     db.update_user(db_path, user["id"], stripe_customer_id="cus_renew",
                    subscription_plan="music_starter", subscription_status="active",
                    has_paid=1)
-    db.upsert_song_credits(db_path, user["id"], balance=1, monthly_allowance=25)
+    db.upsert_song_credits(db_path, user["id"], balance=1, monthly_allowance=30)
     return user
 
 
@@ -87,7 +87,7 @@ class TestInvoicePaidDispatch:
         """The exact event type confirmed arriving in production."""
         event = _make_stripe_event("invoice.paid", _invoice())
         billing._handle_event(event)
-        assert _bal(db_path, subscriber["id"]) == 25, (
+        assert _bal(db_path, subscriber["id"]) == 30, (
             "invoice.paid must reach _handle_invoice_paid and reset the balance "
             "to the plan's monthly allowance"
         )
@@ -99,12 +99,12 @@ class TestInvoicePaidDispatch:
         duplicate call is a no-op, not a double-grant."""
         event = _make_stripe_event("invoice.payment_succeeded", _invoice())
         billing._handle_event(event)
-        assert _bal(db_path, subscriber["id"]) == 25
+        assert _bal(db_path, subscriber["id"]) == 30
 
     def test_both_events_for_the_same_invoice_do_not_double_grant(self, db_path, subscriber):
         billing._handle_event(_make_stripe_event("invoice.paid", _invoice()))
         billing._handle_event(_make_stripe_event("invoice.payment_succeeded", _invoice()))
-        assert _bal(db_path, subscriber["id"]) == 25, (
+        assert _bal(db_path, subscriber["id"]) == 30, (
             "reset-to-fixed-value must be idempotent across both event names"
         )
 
@@ -114,7 +114,7 @@ class TestInvoicePaidDispatch:
         fixed, this handler must still decline to act — initial provisioning
         belongs to checkout.session.completed, not here. If this ever granted
         credits it would double-grant on top of _handle_checkout_completed."""
-        db.upsert_song_credits(db_path, subscriber["id"], balance=1, monthly_allowance=25)
+        db.upsert_song_credits(db_path, subscriber["id"], balance=1, monthly_allowance=30)
         event = _make_stripe_event("invoice.paid", _invoice(billing_reason="subscription_create"))
         billing._handle_event(event)
         assert _bal(db_path, subscriber["id"]) == 1, "must not touch balance on the first invoice"

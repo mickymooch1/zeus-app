@@ -90,9 +90,9 @@ _PLAN_SONG_CREDITS = {
     "pro":           20,
     "agency":        70,
     "enterprise":    100,
-    "music_starter": 25,
-    "music_pro":     55,
-    "music_agency":  110,
+    "music_starter": 30,
+    "music_pro":     75,
+    "music_agency":  150,
 }
 
 _PLAN_VIDEO_CREDITS = {
@@ -117,7 +117,7 @@ MUSIC_PLANS: dict = {
         "price": "£9/mo",
         "price_id": MUSIC_STARTER_PRICE_ID,
         "features": [
-            "25 AI songs/month",
+            "60 song versions/month",
             "YouTube upload",
             "Song download & share",
             "All music genres",
@@ -129,7 +129,7 @@ MUSIC_PLANS: dict = {
         "price": "£19/mo",
         "price_id": MUSIC_PRO_PRICE_ID,
         "features": [
-            "55 AI songs/month",
+            "150 song versions/month",
             "YouTube upload",
             "3 avatar videos/month",
             "Song download & share",
@@ -142,7 +142,7 @@ MUSIC_PLANS: dict = {
         "price": "£39/mo",
         "price_id": MUSIC_AGENCY_PRICE_ID,
         "features": [
-            "110 AI songs/month",
+            "300 song versions/month",
             "YouTube upload",
             "10 avatar videos/month",
             "Song download & share",

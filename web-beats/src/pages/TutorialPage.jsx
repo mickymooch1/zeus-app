@@ -75,9 +75,9 @@ const SECTIONS = [
     title: 'Plans & Credits',
     steps: [
       'Free: 3 songs on signup',
-      'Music Starter £9: 25 songs/month + 3 premium credits',
-      'Music Pro £19: 55 songs + 10 premium credits',
-      'Music Agency £39: 110 songs + 20 premium credits',
+      'Music Starter £9: 60 song versions/month + 3 premium credits',
+      'Music Pro £19: 150 song versions/month + 10 premium credits',
+      'Music Agency £39: 300 song versions/month + 20 premium credits',
       'Pay as you go: from £0.99',
     ],
   },
