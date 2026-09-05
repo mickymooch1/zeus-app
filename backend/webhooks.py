@@ -612,7 +612,7 @@ def _apply_fade_out(mp3_path: str, variant_id, fallback_duration: int | None = N
         subprocess.run(
             ["ffmpeg", "-y", "-i", mp3_path,
              "-af", f"afade=t=out:st={fade_start}:d={_FADE_SECONDS}:curve=exp",
-             "-c:a", "libmp3lame", "-b:a", "192k", tmp_path],
+             "-c:a", "libmp3lame", "-b:a", "192k", "-f", "mp3", tmp_path],
             check=True, capture_output=True, timeout=_FFMPEG_TIMEOUT,
         )
         os.replace(tmp_path, mp3_path)

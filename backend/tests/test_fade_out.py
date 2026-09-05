@@ -81,6 +81,34 @@ def test_happy_path_invokes_ffmpeg_with_expected_filter_and_replaces_file(monkey
     assert not (tmp_path / "42.mp3.fade.tmp").exists()
 
 
+def test_output_format_is_forced_explicitly(monkeypatch, tmp_path):
+    """Root cause of the real production failure (2026-09-05, variants 1700-1703):
+    the temp output path ends in '.fade.tmp', not '.mp3', so ffmpeg couldn't infer
+    a muxer from the extension and refused to open the output file at all —
+    'Unable to choose an output format ... specify the format manually.' -f mp3
+    sidesteps extension-guessing entirely rather than relying on temp-filename
+    naming conventions."""
+    target = tmp_path / "48.mp3"
+    target.write_bytes(b"original-audio-bytes")
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        pathlib.Path(cmd[-1]).write_bytes(b"faded-audio-bytes")
+        return _FakeCompleted()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(webhooks, "_probe_duration_seconds", lambda p: 150.0)
+
+    webhooks._apply_fade_out(str(target), variant_id=48, fallback_duration=150)
+
+    cmd = captured["cmd"]
+    assert "-f" in cmd, "output format must be forced explicitly, not inferred from the temp filename"
+    f_index = cmd.index("-f")
+    assert cmd[f_index + 1] == "mp3"
+    assert cmd[-1].endswith(".fade.tmp"), "output path itself is unchanged — only the muxer selection is fixed"
+
+
 def test_ffmpeg_failure_never_raises_and_leaves_original_file_untouched(monkeypatch, tmp_path):
     """The core reliability guarantee: a fade failure must never block delivery."""
     target = tmp_path / "43.mp3"
