@@ -98,6 +98,71 @@ def test_ffmpeg_failure_never_raises_and_leaves_original_file_untouched(monkeypa
     assert not (tmp_path / "43.mp3.fade.tmp").exists(), "no leftover partial temp file"
 
 
+def test_ffmpeg_failure_logs_stderr_and_stdout(monkeypatch, tmp_path, caplog):
+    """The gap that made the real production failure hard to diagnose: the log
+    only ever showed the exit code, never ffmpeg's own error message."""
+    target = tmp_path / "45.mp3"
+    target.write_bytes(b"original-audio-bytes")
+
+    def failing_run(cmd, **kwargs):
+        raise subprocess.CalledProcessError(
+            234, cmd, output=b"some stdout noise", stderr=b"Unknown encoder 'libmp3lame'",
+        )
+
+    monkeypatch.setattr(subprocess, "run", failing_run)
+    monkeypatch.setattr(webhooks, "_probe_duration_seconds", lambda p: 150.0)
+
+    with caplog.at_level("ERROR", logger="zeus.webhooks"):
+        webhooks._apply_fade_out(str(target), variant_id=45, fallback_duration=150)
+
+    logged = "\n".join(r.message for r in caplog.records)
+    assert "Unknown encoder 'libmp3lame'" in logged
+    assert "234" in logged
+
+
+def test_ffmpeg_failure_pages_admin(monkeypatch, tmp_path):
+    """The failure was invisible to the team (found by ear, not by monitoring) —
+    a real ffmpeg failure must page like every other alert_* in this system."""
+    import alerts
+
+    target = tmp_path / "46.mp3"
+    target.write_bytes(b"original-audio-bytes")
+    calls = []
+    monkeypatch.setattr(alerts, "alert_fade_out_failed", lambda variant_id, detail: calls.append((variant_id, detail)))
+
+    def failing_run(cmd, **kwargs):
+        raise subprocess.CalledProcessError(234, cmd, stderr=b"Unknown encoder 'libmp3lame'")
+
+    monkeypatch.setattr(subprocess, "run", failing_run)
+    monkeypatch.setattr(webhooks, "_probe_duration_seconds", lambda p: 150.0)
+
+    webhooks._apply_fade_out(str(target), variant_id=46, fallback_duration=150)
+
+    assert len(calls) == 1
+    assert calls[0][0] == 46
+    assert "libmp3lame" in calls[0][1]
+
+
+def test_no_admin_page_on_successful_fade(monkeypatch, tmp_path):
+    import alerts
+
+    target = tmp_path / "47.mp3"
+    target.write_bytes(b"original-audio-bytes")
+    calls = []
+    monkeypatch.setattr(alerts, "alert_fade_out_failed", lambda *a, **k: calls.append((a, k)))
+
+    def fake_run(cmd, **kwargs):
+        pathlib.Path(cmd[-1]).write_bytes(b"faded-audio-bytes")
+        return _FakeCompleted()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(webhooks, "_probe_duration_seconds", lambda p: 150.0)
+
+    webhooks._apply_fade_out(str(target), variant_id=47, fallback_duration=150)
+
+    assert calls == []
+
+
 def test_probe_failure_falls_back_to_caller_supplied_duration(monkeypatch, tmp_path):
     """A probe hiccup must not skip the fade outright — fall back to the
     Apiframe-reported duration rather than losing the fade for no reason."""

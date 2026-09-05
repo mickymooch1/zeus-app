@@ -427,6 +427,27 @@ def alert_lyrics_generation_failed(email: str, song_type: str, error: str) -> No
         log.debug("alert_lyrics_generation_failed failed (non-fatal)")
 
 
+def alert_fade_out_failed(variant_id: int, detail: str) -> None:
+    """Fire when the automatic end-of-song fade-out fails (ffmpeg missing, codec
+    error, timeout, etc.). The failure never blocks delivery — the song still
+    ships, just unfaded — which is exactly why this needs an alert: a systemic
+    fade failure is otherwise invisible except by a customer noticing the abrupt
+    ending, the same shape of gap the temperature SDK-drift incident exposed.
+    Deduped by a flat category (not per-variant) since a real failure mode here
+    tends to recur on every song, not just one.
+    """
+    try:
+        send_admin_alert_deduped(
+            "fade_out_failed",
+            "🎚️ SONG FADE-OUT FAILED\n"
+            f"🎵 variant_id: {variant_id}\n"
+            f"💥 {detail[:400]}\n"
+            "🔍 Song still delivered — unfaded. Check ffmpeg availability/codec support in the container."
+        )
+    except Exception:
+        log.debug("alert_fade_out_failed failed (non-fatal)")
+
+
 def alert_service_error(service: str, status_code, detail: str) -> None:
     """Fire when an external provider (Apiframe, GoAPI, fal.ai, ElevenLabs) returns
     an auth/quota-class error — 401/402/403/429, or "balance exhausted"/"out of

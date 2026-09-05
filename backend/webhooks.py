@@ -619,8 +619,27 @@ def _apply_fade_out(mp3_path: str, variant_id, fallback_duration: int | None = N
         logger.info(
             "FADE_OUT applied variant_id=%s duration=%.1fs start=%.1fs", variant_id, duration, fade_start,
         )
-    except Exception:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        stderr = exc.stderr.decode("utf-8", errors="replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+        stdout = exc.stdout.decode("utf-8", errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+        detail = stderr or stdout or str(exc)
+        logger.error(
+            "FADE_OUT failed variant_id=%s (non-fatal — serving unfaded audio) "
+            "returncode=%s stderr=%r stdout=%r",
+            variant_id, getattr(exc, "returncode", None), stderr[-2000:], stdout[-500:],
+        )
+        try:
+            import alerts as _alerts
+            _alerts.alert_fade_out_failed(variant_id, detail)
+        except Exception:
+            logger.exception("failed to send fade-out-failed alert variant_id=%s", variant_id)
+    except Exception as exc:
         logger.exception("FADE_OUT failed variant_id=%s (non-fatal — serving unfaded audio)", variant_id)
+        try:
+            import alerts as _alerts
+            _alerts.alert_fade_out_failed(variant_id, str(exc))
+        except Exception:
+            logger.exception("failed to send fade-out-failed alert variant_id=%s", variant_id)
     finally:
         if os.path.exists(tmp_path):
             try:
