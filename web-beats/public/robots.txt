@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /songs/share/
+Sitemap: https://zeusbeats.com/sitemap.xml

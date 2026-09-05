@@ -3429,6 +3429,7 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
                 "is_favourite": bool(v.get("is_favourite", 0)),
                 "is_public": bool(v.get("is_public", 0)),
                 "qr_generated": bool(v.get("qr_generated", 0)),
+                "share_token": v.get("share_token"),
                 "subtitles_url": v.get("subtitles_url"),
             }
             for v in (variants or [])
@@ -3476,6 +3477,7 @@ async def get_library(current_user: dict = Depends(auth.get_current_user)):
                 "is_favourite": bool(v.get("is_favourite", 0)),
                 "is_public": bool(v.get("is_public", 0)),
                 "qr_generated": bool(v.get("qr_generated", 0)),
+                "share_token": v.get("share_token"),
                 "subtitles_url": v.get("subtitles_url"),
             }
             for v in (variants or [])
@@ -3807,14 +3809,34 @@ async def kids_language_lesson(body: KidsLanguageBody, current_user: dict = Depe
     return {"audio_url": f"/files/language/{cache_key}.mp3", "words": word_timings}
 
 
-@app.get("/api/songs/variants/{variant_id}/public")
-async def get_song_variant_public(variant_id: int):
-    """Public (no auth) endpoint for the share page. Only returns completed variants."""
+@app.get("/api/songs/variants/{identifier}/public")
+async def get_song_variant_public(identifier: str):
+    """Public (no auth) endpoint for the share page. Only returns completed variants.
+
+    identifier is either the plain numeric variant_id (the original, pre-photos
+    share link — may already be printed/engraved on a QR) or an opaque
+    share_token (issued only once a song has photos). The numeric route NEVER
+    returns photos, regardless of whether the variant has any — only the
+    token route does. This closes the risk of a stranger enumerating
+    sequential IDs to find someone else's memorial photos; it does not
+    change what the numeric route already exposed (audio/cover/title), only
+    adds photos exclusively behind the unguessable token.
+    """
     db_path = db.get_db_path()
-    variant = db.get_song_variant_by_id(db_path, variant_id)
+    photos: list[dict] = []
+    if identifier.isdigit():
+        variant = db.get_song_variant_by_id(db_path, int(identifier))
+    else:
+        variant = db.get_song_variant_by_share_token(db_path, identifier)
+        if variant:
+            pub_base = os.environ.get("SONG_PUBLIC_BASE_URL", "").rstrip("/")
+            photos = [
+                {"photo_id": p["id"], "url": f"{pub_base}/{p['filename']}"}
+                for p in db.get_song_variant_photos(db_path, variant["id"])
+            ]
     if not variant or variant.get("status") != "complete":
         raise HTTPException(status_code=404, detail="Song not found")
-    title = db.get_lyric_title(db_path, variant["lyric_id"]) or f"Song #{variant_id}"
+    title = db.get_lyric_title(db_path, variant["lyric_id"]) or f"Song #{variant['id']}"
     return {
         "variant_id": variant["id"],
         "title": title,
@@ -3822,6 +3844,7 @@ async def get_song_variant_public(variant_id: int):
         "mp3_url": variant.get("mp3_url"),
         "image_url": variant.get("image_url"),
         "duration_seconds": variant.get("duration_seconds"),
+        "photos": photos,
     }
 
 
@@ -4868,6 +4891,122 @@ async def mark_variant_qr_generated(variant_id: int, current_user: dict = Depend
     return {"variant_id": variant_id, "qr_generated": True}
 
 
+_PHOTO_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+_PHOTO_MAX_BYTES = 5 * 1024 * 1024
+_PHOTO_MAX_COUNT = 5
+
+
+def _convert_photo_to_jpeg(data: bytes, ext: str) -> bytes:
+    """Decode an uploaded photo (any of the accepted formats) and re-encode as
+    JPEG, so every stored photo displays in every browser regardless of the
+    uploading device. HEIC in particular is the default iPhone photo format
+    but only renders natively in Safari — Chrome/Firefox/Android can't show a
+    raw .heic in an <img> tag at all, which would otherwise silently break the
+    public share page for most visitors."""
+    from PIL import Image
+    if ext in (".heic", ".heif"):
+        import pillow_heif
+        pillow_heif.register_heif_opener()
+    with Image.open(io.BytesIO(data)) as img:
+        img = img.convert("RGB")
+        out = io.BytesIO()
+        img.save(out, format="JPEG", quality=90)
+        return out.getvalue()
+
+
+@app.get("/api/songs/variants/{variant_id}/photos")
+async def list_song_photos(variant_id: int, current_user: dict = Depends(auth.get_current_user)):
+    """Owner-only listing for the Add Photos panel — fetched on demand when the
+    panel opens, not bundled into /api/library, so a library with many songs
+    doesn't reintroduce the N+1 query pattern that endpoint was built to avoid."""
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Song not found")
+    pub_base = os.environ.get("SONG_PUBLIC_BASE_URL", "").rstrip("/")
+    photos = [
+        {"photo_id": p["id"], "url": f"{pub_base}/{p['filename']}"}
+        for p in db.get_song_variant_photos(db_path, variant_id)
+    ]
+    return {"photos": photos}
+
+
+@app.post("/api/songs/variants/{variant_id}/photos")
+async def upload_song_photo(
+    variant_id: int,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Upload a photo to display on this song's public share page (behind the
+    unguessable share_token, never the plain numeric link — see
+    get_song_variant_public). Every limit here is enforced server-side, not
+    just in the upload UI, so a raw API call can't bypass the cap either."""
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    ext = pathlib.Path(file.filename or "photo.jpg").suffix.lower()
+    content_type = file.content_type or ""
+    if ext not in _PHOTO_ALLOWED_EXTENSIONS and not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be a photo (JPEG, PNG, WebP, or HEIC)")
+    if ext not in _PHOTO_ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported photo format — use JPEG, PNG, WebP, or HEIC")
+
+    if db.count_song_variant_photos(db_path, variant_id) >= _PHOTO_MAX_COUNT:
+        raise HTTPException(status_code=400, detail=f"Maximum {_PHOTO_MAX_COUNT} photos per song")
+
+    data = await file.read()
+    if len(data) > _PHOTO_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Each photo must be under 5 MB")
+
+    try:
+        jpeg_data = _convert_photo_to_jpeg(data, ext)
+    except Exception:
+        log.exception("upload_song_photo: failed to decode/convert variant_id=%s", variant_id)
+        raise HTTPException(status_code=400, detail="Could not read this image — please try a different file")
+
+    filename = f"{variant_id}_photo_{uuid.uuid4()}.jpg"
+    song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
+    song_storage.mkdir(parents=True, exist_ok=True)
+    (song_storage / filename).write_bytes(jpeg_data)
+
+    photo_id = db.add_song_variant_photo(db_path, variant_id, filename)
+    share_token = db.get_or_create_share_token(db_path, variant_id)
+    pub_base = os.environ.get("SONG_PUBLIC_BASE_URL", "").rstrip("/")
+
+    log.info("upload_song_photo: variant_id=%s photo_id=%s (%d bytes)", variant_id, photo_id, len(jpeg_data))
+    return {
+        "photo_id": photo_id,
+        "url": f"{pub_base}/{filename}",
+        "share_token": share_token,
+    }
+
+
+@app.delete("/api/songs/variants/{variant_id}/photos/{photo_id}")
+async def delete_song_photo(
+    variant_id: int,
+    photo_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Song not found")
+    photo = db.get_song_variant_photo_by_id(db_path, photo_id)
+    if not photo or photo["variant_id"] != variant_id:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    deleted = db.delete_song_variant_photo(db_path, photo_id)
+    if deleted:
+        song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
+        try:
+            (song_storage / photo["filename"]).unlink(missing_ok=True)
+        except Exception:
+            log.exception("delete_song_photo: failed to unlink file for photo_id=%s", photo_id)
+    return {"deleted": deleted}
+
+
 @app.delete("/api/songs/variants/{variant_id}")
 async def delete_song_variant(
     variant_id: int,
@@ -4896,15 +5035,22 @@ async def delete_song_variant(
             ),
         )
 
+    # Fetch photo filenames BEFORE deleting — delete_song_variant also removes
+    # the song_variant_photos rows, so this is the last chance to know what
+    # files need unlinking from disk.
+    photo_filenames = [p["filename"] for p in db.get_song_variant_photos(db_path, variant_id)]
+
     deleted = db.delete_song_variant(db_path, variant_id, current_user["id"])
     if not deleted:
         raise HTTPException(status_code=404, detail="Song not found")
 
     # Best-effort cleanup of associated files
+    song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
     for path in [
         pathlib.Path(f"/data/songs/{variant_id}.mp3"),
         pathlib.Path(f"/data/videos/{variant_id}.mp4"),
         pathlib.Path(f"/data/avatars/{variant_id}_portrait.jpg"),
+        *[song_storage / fn for fn in photo_filenames],
     ]:
         try:
             if path.exists():

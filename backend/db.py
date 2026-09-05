@@ -315,6 +315,13 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (variant_id, user_id)
             )""",
+            """CREATE TABLE IF NOT EXISTS song_variant_photos (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                variant_id INTEGER NOT NULL,
+                filename   TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_song_variant_photos_variant ON song_variant_photos (variant_id)",
             """CREATE TABLE IF NOT EXISTS playlists (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id    TEXT NOT NULL,
@@ -442,6 +449,13 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             # this is set. See DELETE /api/songs/variants/{variant_id}'s confirm_qr_delete
             # guard in main.py.
             "ALTER TABLE song_variants ADD COLUMN qr_generated INTEGER NOT NULL DEFAULT 0",
+            # Populated lazily on first photo upload — only songs with photos ever get
+            # one. The numeric /songs/share/:id route never returns photos regardless
+            # of whether this is set (closes the sequential-ID enumeration risk); only
+            # a request keyed by this token returns the photos array. See
+            # get_song_variant_public in main.py.
+            "ALTER TABLE song_variants ADD COLUMN share_token TEXT",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_song_variants_share_token ON song_variants (share_token) WHERE share_token IS NOT NULL",
         ]:
             try:
                 conn.execute(_migration)
@@ -1666,15 +1680,109 @@ def get_song_variant_by_id(db_path: pathlib.Path, variant_id: int) -> dict | Non
 
 
 def delete_song_variant(db_path: pathlib.Path, variant_id: int, user_id: str) -> bool:
-    """Delete a song_variants row owned by user_id. Returns True if deleted."""
+    """Delete a song_variants row owned by user_id. Returns True if deleted.
+
+    Also deletes any song_variant_photos rows for this variant — there's no FK
+    cascade on this child table, so the caller must still separately unlink the
+    actual photo files from disk (it needs the filenames, which this function
+    doesn't return) before or after calling this.
+    """
     conn = _conn(db_path)
     try:
         cur = conn.execute(
             "DELETE FROM song_variants WHERE id = ? AND user_id = ?",
             (variant_id, user_id),
         )
+        deleted = cur.rowcount > 0
+        if deleted:
+            conn.execute("DELETE FROM song_variant_photos WHERE variant_id = ?", (variant_id,))
+        conn.commit()
+        return deleted
+    finally:
+        conn.close()
+
+
+def count_song_variant_photos(db_path: pathlib.Path, variant_id: int) -> int:
+    conn = _conn(db_path)
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM song_variant_photos WHERE variant_id = ?", (variant_id,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def add_song_variant_photo(db_path: pathlib.Path, variant_id: int, filename: str) -> int:
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            "INSERT INTO song_variant_photos (variant_id, filename) VALUES (?, ?)",
+            (variant_id, filename),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_song_variant_photos(db_path: pathlib.Path, variant_id: int) -> list[dict]:
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT id, variant_id, filename, created_at FROM song_variant_photos "
+            "WHERE variant_id = ? ORDER BY id ASC",
+            (variant_id,),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_song_variant_photo_by_id(db_path: pathlib.Path, photo_id: int) -> dict | None:
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT id, variant_id, filename, created_at FROM song_variant_photos WHERE id = ?",
+            (photo_id,),
+        ).fetchone()
+        return _row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def delete_song_variant_photo(db_path: pathlib.Path, photo_id: int) -> bool:
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute("DELETE FROM song_variant_photos WHERE id = ?", (photo_id,))
         conn.commit()
         return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def get_or_create_share_token(db_path: pathlib.Path, variant_id: int) -> str:
+    """Return the variant's share_token, generating one (lazily, only on first
+    need) if it doesn't have one yet. Called when the first photo is uploaded —
+    a song with no photos never gets a token at all."""
+    import secrets
+    conn = _conn(db_path)
+    try:
+        row = conn.execute("SELECT share_token FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
+        if row and row["share_token"]:
+            return row["share_token"]
+        token = secrets.token_urlsafe(24)
+        conn.execute("UPDATE song_variants SET share_token = ? WHERE id = ?", (token, variant_id))
+        conn.commit()
+        return token
+    finally:
+        conn.close()
+
+
+def get_song_variant_by_share_token(db_path: pathlib.Path, token: str) -> dict | None:
+    conn = _conn(db_path)
+    try:
+        row = conn.execute("SELECT * FROM song_variants WHERE share_token = ?", (token,)).fetchone()
+        return _row_to_dict(row)
     finally:
         conn.close()
 

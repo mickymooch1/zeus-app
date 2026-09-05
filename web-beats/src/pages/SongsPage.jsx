@@ -511,6 +511,7 @@ const SongCard = memo(function SongCard({
   playlists, onAddToPlaylist,
   premiumCredits, stemsData: stemsProp, onGetStems, onOpenCover, onUpgrade,
   soundPersonaVariantId, onLockSound, onMarkQrGenerated,
+  photos, onLoadPhotos, onUploadPhoto, onDeletePhoto,
   isSaved, isDownloading, onSaveOffline, onRemoveSaved, onPlayOffline,
   lyricId,
 }) {
@@ -540,10 +541,59 @@ const SongCard = memo(function SongCard({
   const [stemsOpen, setStemsOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [qrJustMarked, setQrJustMarked] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const [photoPrivacyChecked, setPhotoPrivacyChecked] = useState(false);
+  const photoInputRef = useRef(null);
+  const photoList = photos || [];
+
+  const togglePhotosPanel = () => {
+    const opening = !photosOpen;
+    setPhotosOpen(opening);
+    setPhotoError('');
+    // Reset every time the panel opens — the tick must never be "remembered"
+    // from a previous session, per the privacy requirement.
+    setPhotoPrivacyChecked(false);
+    if (opening && !photos) onLoadPhotos?.(variant.variant_id);
+  };
+
+  const handlePhotoFilesSelected = async (e) => {
+    const files = [...(e.target.files || [])];
+    e.target.value = '';
+    if (!files.length) return;
+    if (!photoPrivacyChecked) {
+      setPhotoError('Please tick the box confirming you understand these photos will be visible to anyone with the link, before adding photos.');
+      return;
+    }
+    const remaining = 5 - photoList.length;
+    if (remaining <= 0) {
+      setPhotoError('Maximum 5 photos per song.');
+      return;
+    }
+    setPhotoError('');
+    setPhotoUploading(true);
+    try {
+      for (const file of files.slice(0, remaining)) {
+        await onUploadPhoto(variant.variant_id, file);
+      }
+    } catch (err) {
+      setPhotoError(err.message || 'Upload failed');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
   const qrCanvasWrapRef = useRef(null);
   const qrSvgWrapRef = useRef(null);
   const qrAlreadyMarked = !!variant.qr_generated || qrJustMarked;
-  const shareUrlForQr = `${window.location.origin}/songs/share/${variant.variant_id}`;
+  // Prefer the unguessable share_token once the song has one (i.e. has photos) —
+  // the plain numeric link never exposes photos, so a NEW QR/share link for a
+  // photo-bearing song must use the token instead. A QR generated before photos
+  // existed keeps using the numeric link and simply won't show them; that's a
+  // known tradeoff, not a bug — see the "add photos to a QR'd song" notice below.
+  const shareUrlForQr = variant.share_token
+    ? `${window.location.origin}/songs/share/${variant.share_token}`
+    : `${window.location.origin}/songs/share/${variant.variant_id}`;
   const qrFilenameBase = (title || `song-${variant.variant_id}`).replace(/[^a-z0-9]/gi, '-').toLowerCase();
 
   const handleQrDownload = (format) => {
@@ -672,7 +722,11 @@ const SongCard = memo(function SongCard({
   };
 
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/songs/share/${variant.variant_id}`;
+    // Same token preference as the QR value — once photos exist, every share
+    // surface should point at the link that actually shows them.
+    const shareUrl = variant.share_token
+      ? `${window.location.origin}/songs/share/${variant.share_token}`
+      : `${window.location.origin}/songs/share/${variant.variant_id}`;
     const shareData = {
       title: title || `Song #${variant.variant_id}`,
       text: 'Listen to my AI-generated song',
@@ -1190,6 +1244,94 @@ const SongCard = memo(function SongCard({
                 )}
               </div>
             )}
+            {/* Photos panel */}
+            {variant.mp3_url && (
+              <div style={{ marginTop: 8 }}>
+                <button
+                  onClick={togglePhotosPanel}
+                  style={{ ...actionBtnStyle, width: '100%', color: '#fbbf24', borderColor: 'rgba(251,191,36,0.5)' }}
+                >
+                  📷 Add Photos {photoList.length > 0 ? `(${photoList.length}/5)` : ''} {photosOpen ? '▲' : '▼'}
+                </button>
+                {photosOpen && (
+                  <div style={{ marginTop: 8, padding: '14px 12px', background: 'rgba(251,191,36,0.05)', borderRadius: 8, border: '1px solid rgba(251,191,36,0.2)' }}>
+                    {/* Unmissable privacy warning — not fine print */}
+                    <div style={{
+                      background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.4)',
+                      borderRadius: 8, padding: '10px 12px', marginBottom: 12,
+                    }}>
+                      <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#f87171', lineHeight: 1.5 }}>
+                        ⚠ Anyone you share this QR code or link with will be able to see these photos.
+                      </p>
+                      <p style={{ margin: '4px 0 0', fontSize: 12, color: '#f87171', lineHeight: 1.5 }}>
+                        Only add photos you're happy to share this way.
+                      </p>
+                    </div>
+
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={photoPrivacyChecked}
+                        onChange={(e) => { setPhotoPrivacyChecked(e.target.checked); setPhotoError(''); }}
+                        style={{ marginTop: 2, flexShrink: 0 }}
+                      />
+                      <span style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.4 }}>
+                        I understand anyone with the link can see these
+                      </span>
+                    </label>
+
+                    {photoList.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
+                        {photoList.map((p) => (
+                          <div key={p.photo_id} style={{ position: 'relative' }}>
+                            <img src={p.url} alt="" style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 6, display: 'block' }} />
+                            <button
+                              onClick={() => onDeletePhoto(variant.variant_id, p.photo_id)}
+                              title="Remove photo"
+                              style={{
+                                position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: '50%',
+                                border: 'none', background: 'rgba(0,0,0,0.75)', color: '#f87171', fontSize: 12,
+                                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handlePhotoFilesSelected}
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      onClick={() => photoInputRef.current?.click()}
+                      disabled={photoUploading || photoList.length >= 5}
+                      style={{
+                        ...actionBtnStyle, width: '100%', color: '#fbbf24', borderColor: 'rgba(251,191,36,0.5)',
+                        opacity: (photoUploading || photoList.length >= 5) ? 0.5 : 1,
+                        cursor: (photoUploading || photoList.length >= 5) ? 'default' : 'pointer',
+                      }}
+                    >
+                      {photoUploading ? 'Uploading…' : photoList.length >= 5 ? 'Maximum 5 photos reached' : '📷 Choose Photos'}
+                    </button>
+                    {photoError && (
+                      <p style={{ fontSize: 11, color: '#f87171', marginTop: 8, marginBottom: 0, lineHeight: 1.4 }}>{photoError}</p>
+                    )}
+                    {variant.qr_generated && photoList.length > 0 && (
+                      <p style={{ fontSize: 11, color: '#999', marginTop: 8, marginBottom: 0, lineHeight: 1.4 }}>
+                        Note: a QR code made before these photos were added won't show them — create a new QR to include them.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {/* Lock My Sound */}
             {variant.mp3_url && (
               <div style={{ marginTop: 6 }}>
@@ -1472,6 +1614,7 @@ export default function SongsPage() {
   const [search, setSearch] = useState('');
 
   const [stemsData, setStemsData] = useState({});
+  const [photosData, setPhotosData] = useState({});
   const stemsPollRef = useRef({});
   const [coverModal, setCoverModal] = useState(null);
   const [upgradeFeature, setUpgradeFeature] = useState(null);
@@ -2577,6 +2720,45 @@ export default function SongsPage() {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     }).catch(() => {});
+  }, [token]);
+
+  const handleLoadPhotos = useCallback(async (variantId) => {
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/photos`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) return;
+      const data = await r.json();
+      setPhotosData(prev => ({ ...prev, [variantId]: data.photos }));
+    } catch {
+      // best-effort — panel just shows an empty list, upload/retry still works
+    }
+  }, [token]);
+
+  const handleUploadPhoto = useCallback(async (variantId, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    const r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/photos`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.detail || 'Upload failed');
+    // share_token now exists (or already did) — refresh the library row so the
+    // QR feature can start preferring it for this variant.
+    setLibrary(prev => prev.map(v => v.variant_id === variantId ? { ...v, share_token: data.share_token } : v));
+    setPhotosData(prev => ({ ...prev, [variantId]: [...(prev[variantId] || []), { photo_id: data.photo_id, url: data.url }] }));
+    return data;
+  }, [token]);
+
+  const handleDeletePhoto = useCallback(async (variantId, photoId) => {
+    const r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/photos/${photoId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return;
+    setPhotosData(prev => ({ ...prev, [variantId]: (prev[variantId] || []).filter(p => p.photo_id !== photoId) }));
   }, [token]);
 
   const handleOpenRemake = useCallback((variantId, title) => {
@@ -4351,6 +4533,10 @@ export default function SongsPage() {
                         soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                         onLockSound={handleLockSound}
                         onMarkQrGenerated={handleMarkQrGenerated}
+                        photos={photosData[v.variant_id]}
+                        onLoadPhotos={handleLoadPhotos}
+                        onUploadPhoto={handleUploadPhoto}
+                        onDeletePhoto={handleDeletePhoto}
                         isSaved={false}
                         isDownloading={false}
                         onSaveOffline={null}
@@ -4525,6 +4711,10 @@ export default function SongsPage() {
                       soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                       onLockSound={handleLockSound}
                       onMarkQrGenerated={handleMarkQrGenerated}
+                        photos={photosData[v.variant_id]}
+                        onLoadPhotos={handleLoadPhotos}
+                        onUploadPhoto={handleUploadPhoto}
+                        onDeletePhoto={handleDeletePhoto}
                       isSaved={isSaved(v.variant_id)}
                       isDownloading={downloading.has(v.variant_id)}
                       onSaveOffline={() => handleSaveOffline(v)}

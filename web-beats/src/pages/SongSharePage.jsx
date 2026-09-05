@@ -51,6 +51,30 @@ export default function SongSharePage() {
       .catch((e) => { setError(e.message); setLoading(false); });
   }, [variantId]);
 
+  // This page must never be indexed — it can carry personal photos (memorial
+  // pages especially) and is only ever meant to be reached via a direct
+  // link/QR, not discovered through search. A client-rendered SPA route has
+  // no server-side <head>, so the tag is set here; Google's crawler does
+  // execute JS and respects a noindex tag present in the rendered DOM.
+  useEffect(() => {
+    let tag = document.querySelector('meta[name="robots"]');
+    const existed = !!tag;
+    const previousContent = tag?.getAttribute('content') ?? null;
+    if (!tag) {
+      tag = document.createElement('meta');
+      tag.setAttribute('name', 'robots');
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute('content', 'noindex, nofollow');
+    return () => {
+      if (!existed) {
+        tag.remove();
+      } else if (previousContent !== null) {
+        tag.setAttribute('content', previousContent);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!song?.mp3_url || !waveRef.current) return;
     const ws = WaveSurfer.create({
@@ -233,6 +257,34 @@ export default function SongSharePage() {
                   {copied ? '✓ Link copied!' : '↗ Copy link'}
                 </button>
               </div>
+
+              {/* Photos — 1 as a single full-width image, 2-5 as a responsive grid */}
+              {song.photos && song.photos.length > 0 && (
+                <div
+                  style={{
+                    marginTop: 18,
+                    display: 'grid',
+                    gridTemplateColumns: song.photos.length === 1 ? '1fr' : 'repeat(2, 1fr)',
+                    gap: 8,
+                  }}
+                >
+                  {song.photos.map((photo) => (
+                    <img
+                      key={photo.photo_id}
+                      src={photo.url}
+                      alt=""
+                      style={{
+                        width: '100%',
+                        aspectRatio: '1 / 1',
+                        objectFit: 'cover',
+                        borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        display: 'block',
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
