@@ -436,6 +436,12 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE users ADD COLUMN signup_platform TEXT",
             "ALTER TABLE song_variants ADD COLUMN platform TEXT",
             "CREATE INDEX IF NOT EXISTS idx_song_variants_platform ON song_variants (platform)",
+            # Set once a user downloads a QR code (PNG or SVG) pointing at this song's
+            # permanent /songs/share/:id page — that QR may end up printed or engraved,
+            # so delete_song_variant's caller must require an explicit confirmation once
+            # this is set. See DELETE /api/songs/variants/{variant_id}'s confirm_qr_delete
+            # guard in main.py.
+            "ALTER TABLE song_variants ADD COLUMN qr_generated INTEGER NOT NULL DEFAULT 0",
         ]:
             try:
                 conn.execute(_migration)

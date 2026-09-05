@@ -3428,6 +3428,7 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
                 "music_video_pending": bool(v.get("kling_request_id") and not v.get("music_video_url")),
                 "is_favourite": bool(v.get("is_favourite", 0)),
                 "is_public": bool(v.get("is_public", 0)),
+                "qr_generated": bool(v.get("qr_generated", 0)),
                 "subtitles_url": v.get("subtitles_url"),
             }
             for v in (variants or [])
@@ -3474,6 +3475,7 @@ async def get_library(current_user: dict = Depends(auth.get_current_user)):
                 "music_video_pending": bool(v.get("kling_request_id") and not v.get("music_video_url")),
                 "is_favourite": bool(v.get("is_favourite", 0)),
                 "is_public": bool(v.get("is_public", 0)),
+                "qr_generated": bool(v.get("qr_generated", 0)),
                 "subtitles_url": v.get("subtitles_url"),
             }
             for v in (variants or [])
@@ -4848,16 +4850,51 @@ async def create_avatar_video(
 # the same ~$1.40 spend by another route, and it imported _kling_pipeline, so it
 # would have raised ImportError once that was deleted.
 
+@app.post("/api/songs/variants/{variant_id}/mark-qr-generated")
+async def mark_variant_qr_generated(variant_id: int, current_user: dict = Depends(auth.get_current_user)):
+    """Record that the user downloaded a QR code (PNG or SVG) for this song.
+
+    Called once, the first time a download actually happens — not merely when
+    the QR panel is opened/previewed. From here on, deleting this variant
+    requires confirm_qr_delete=true (see delete_song_variant) because the QR
+    may already be printed or engraved somewhere outside our control.
+    """
+    user_id = current_user["id"]
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != user_id:
+        raise HTTPException(status_code=404, detail="Variant not found")
+    db.update_song_variant(db_path, variant_id, qr_generated=1)
+    return {"variant_id": variant_id, "qr_generated": True}
+
+
 @app.delete("/api/songs/variants/{variant_id}")
 async def delete_song_variant(
     variant_id: int,
+    confirm_qr_delete: bool = False,
     current_user: dict = Depends(auth.get_current_user),
 ):
-    """Delete a song variant (and its associated files) owned by the current user."""
+    """Delete a song variant (and its associated files) owned by the current user.
+
+    If a QR code was ever generated for this song, it may be printed or
+    engraved somewhere we have no way to reach — deleting the song would
+    permanently break it. Refuse with 409 unless the caller explicitly passes
+    confirm_qr_delete=true. Enforced here (not just in the frontend dialog) so
+    a direct API call can't skip the warning either.
+    """
     db_path = db.get_db_path()
     variant = db.get_song_variant_by_id(db_path, variant_id)
     if not variant or variant["user_id"] != current_user["id"]:
         raise HTTPException(status_code=404, detail="Song not found")
+
+    if variant.get("qr_generated") and not confirm_qr_delete:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "You've created a QR code for this song, which may be printed or shared. "
+                "Deleting it will permanently break that QR code. Are you sure?"
+            ),
+        )
 
     deleted = db.delete_song_variant(db_path, variant_id, current_user["id"])
     if not deleted:

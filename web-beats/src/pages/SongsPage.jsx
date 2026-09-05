@@ -1,6 +1,7 @@
 ﻿import { memo, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
+import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
@@ -509,7 +510,7 @@ const SongCard = memo(function SongCard({
   isPublic, onShareToggle,
   playlists, onAddToPlaylist,
   premiumCredits, stemsData: stemsProp, onGetStems, onOpenCover, onUpgrade,
-  soundPersonaVariantId, onLockSound,
+  soundPersonaVariantId, onLockSound, onMarkQrGenerated,
   isSaved, isDownloading, onSaveOffline, onRemoveSaved, onPlayOffline,
   lyricId,
 }) {
@@ -537,6 +538,37 @@ const SongCard = memo(function SongCard({
   const shareToastTimer = useRef(null);
   const favToastTimer = useRef(null);
   const [stemsOpen, setStemsOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrJustMarked, setQrJustMarked] = useState(false);
+  const qrCanvasWrapRef = useRef(null);
+  const qrSvgWrapRef = useRef(null);
+  const qrAlreadyMarked = !!variant.qr_generated || qrJustMarked;
+  const shareUrlForQr = `${window.location.origin}/songs/share/${variant.variant_id}`;
+  const qrFilenameBase = (title || `song-${variant.variant_id}`).replace(/[^a-z0-9]/gi, '-').toLowerCase();
+
+  const handleQrDownload = (format) => {
+    const node = (format === 'png' ? qrCanvasWrapRef : qrSvgWrapRef).current?.querySelector(format === 'png' ? 'canvas' : 'svg');
+    if (!node) return;
+    let url, revoke = true;
+    if (format === 'png') {
+      url = node.toDataURL('image/png');
+      revoke = false;
+    } else {
+      const svgText = new XMLSerializer().serializeToString(node);
+      url = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' }));
+    }
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${qrFilenameBase}-qr.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    if (revoke) URL.revokeObjectURL(url);
+    if (!qrAlreadyMarked) {
+      setQrJustMarked(true);
+      onMarkQrGenerated?.(variant.variant_id);
+    }
+  };
   const handleFavToggle = () => {
     const adding = !isFavourite;
     onToggleFavourite(variant.variant_id);
@@ -1125,6 +1157,39 @@ const SongCard = memo(function SongCard({
                 </div>
               );
             })()}
+            {/* QR code panel */}
+            {variant.mp3_url && (
+              <div style={{ marginTop: 8 }}>
+                <button
+                  onClick={() => setQrOpen(o => !o)}
+                  style={{ ...actionBtnStyle, width: '100%', color: '#00f0ff', borderColor: 'rgba(0,240,255,0.5)' }}
+                >
+                  📱 Create QR Code {qrOpen ? '▲' : '▼'}
+                </button>
+                {qrOpen && (
+                  <div style={{ marginTop: 8, padding: '16px 12px', background: 'rgba(0,240,255,0.05)', borderRadius: 8, border: '1px solid rgba(0,240,255,0.15)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                    <div ref={qrSvgWrapRef} style={{ padding: 10, background: '#ffffff', borderRadius: 10, lineHeight: 0 }}>
+                      <QRCodeSVG value={shareUrlForQr} size={160} bgColor="#ffffff" fgColor="#0b0b14" level="H" includeMargin={false} />
+                    </div>
+                    {/* Hidden — same value, rendered off-screen purely so a real <canvas> exists to export as PNG */}
+                    <div ref={qrCanvasWrapRef} style={{ width: 0, height: 0, overflow: 'hidden' }}>
+                      <QRCodeCanvas value={shareUrlForQr} size={512} bgColor="#ffffff" fgColor="#0b0b14" level="H" includeMargin={false} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                      <button onClick={() => handleQrDownload('png')} style={{ ...actionBtnStyle, flex: 1, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.5)' }}>
+                        ⬇ PNG
+                      </button>
+                      <button onClick={() => handleQrDownload('svg')} style={{ ...actionBtnStyle, flex: 1, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.5)' }}>
+                        ⬇ SVG
+                      </button>
+                    </div>
+                    <p style={{ fontSize: 11, color: '#999', textAlign: 'center', lineHeight: 1.5, margin: 0 }}>
+                      This QR code stays live as long as you keep this song in your account. If you delete the song, the QR will stop working. Your downloaded song file is always yours to keep.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Lock My Sound */}
             {variant.mp3_url && (
               <div style={{ marginTop: 6 }}>
@@ -1383,6 +1448,7 @@ export default function SongsPage() {
   const [musicVideoUrls, setMusicVideoUrls]       = useState({});
 
   const [remakeModal, setRemakeModal]     = useState(null);
+  const [qrDeleteConfirm, setQrDeleteConfirm] = useState(null); // { variantId, message } | null
   const [remakeGenre, setRemakeGenre]     = useState('');
   const [remakeStyle, setRemakeStyle]     = useState('');
   const [remakeLoading, setRemakeLoading] = useState(false);
@@ -2470,13 +2536,22 @@ export default function SongsPage() {
     setPortraitImageUrl(null);
   };
 
-  const handleDeleteVariant = useCallback(async (variantId) => {
+  const handleDeleteVariant = useCallback(async (variantId, { confirmQrDelete = false } = {}) => {
     setDeletingVariants((prev) => new Set(prev).add(variantId));
     try {
-      const r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}`, {
+      const qs = confirmQrDelete ? '?confirm_qr_delete=true' : '';
+      const r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}${qs}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (r.status === 409) {
+        // A QR code was generated for this song and may be printed/engraved —
+        // the backend refuses without explicit confirmation. Surface its own
+        // message (not a re-typed copy) so the two can never drift apart.
+        const d = await r.json().catch(() => ({}));
+        setQrDeleteConfirm({ variantId, message: d.detail || null });
+        return;
+      }
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
         throw new Error(d.detail || 'Delete failed');
@@ -2492,6 +2567,16 @@ export default function SongsPage() {
     } finally {
       setDeletingVariants((prev) => { const s = new Set(prev); s.delete(variantId); return s; });
     }
+  }, [token]);
+
+  const handleMarkQrGenerated = useCallback((variantId) => {
+    // Fire-and-forget: a failed mark call just means the delete-guard's 409
+    // might not fire next time — nothing destructive happens either way, so
+    // no optimistic-rollback dance is needed the way favourite/share have.
+    fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/mark-qr-generated`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
   }, [token]);
 
   const handleOpenRemake = useCallback((variantId, title) => {
@@ -4265,6 +4350,7 @@ export default function SongsPage() {
                         onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
                         soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                         onLockSound={handleLockSound}
+                        onMarkQrGenerated={handleMarkQrGenerated}
                         isSaved={false}
                         isDownloading={false}
                         onSaveOffline={null}
@@ -4438,6 +4524,7 @@ export default function SongsPage() {
                       onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
                       soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                       onLockSound={handleLockSound}
+                      onMarkQrGenerated={handleMarkQrGenerated}
                       isSaved={isSaved(v.variant_id)}
                       isDownloading={downloading.has(v.variant_id)}
                       onSaveOffline={() => handleSaveOffline(v)}
@@ -4556,6 +4643,31 @@ export default function SongsPage() {
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setYtModal(null)} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>{t('songs.ytModal.cancel')}</button>
               <button onClick={handleYouTubeUpload} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t('songs.ytModal.upload')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {qrDeleteConfirm && (
+        <div onClick={() => setQrDeleteConfirm(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#0d0d14', border: '1px solid rgba(248,113,113,0.4)', borderRadius: 16, padding: '24px 22px', width: '100%', maxWidth: 420 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#f87171', marginBottom: 10 }}>⚠ Delete this song?</h3>
+            <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 20 }}>
+              {qrDeleteConfirm.message || "You've created a QR code for this song, which may be printed or shared. Deleting it will permanently break that QR code. Are you sure?"}
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setQrDeleteConfirm(null)}
+                style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#cccccc', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { const id = qrDeleteConfirm.variantId; setQrDeleteConfirm(null); handleDeleteVariant(id, { confirmQrDelete: true }); }}
+                style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid rgba(248,113,113,0.5)', background: 'rgba(248,113,113,0.12)', color: '#f87171', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Delete anyway
+              </button>
             </div>
           </div>
         </div>
