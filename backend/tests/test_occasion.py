@@ -249,3 +249,39 @@ def test_og_helper_returns_none_for_unknown_identifier(app_client):
     client, _db, _main, db_path, _, _ = app_client
     assert _main._get_public_song_for_share_og("999999") is None
     assert _main._get_public_song_for_share_og("not-a-real-token") is None
+
+
+# ── serve_spa OG injection — the actual HTML a real crawler receives ────
+#
+# Regression: WhatsApp's real crawler UA is "WhatsApp/2.23.20.0" (confirmed
+# from a live production request, not a spoofed test UA), and it IS matched
+# by SOCIAL_CRAWLERS. But the injected <title>+og:*+twitter:* block was only
+# ever replacing the static <title> tag in web-beats-dist/index.html — the
+# static og:*/twitter:* tags baked into that file's <head> were left in
+# place right after it, so the response shipped BOTH the correct song tags
+# and the generic homepage tags for the same og:property. WhatsApp's parser
+# resolved the duplicate by using the last-seen value, i.e. the generic one
+# — showing the homepage promo card instead of the song, even though the
+# correct tags were present (and first) in the HTML.
+#
+# The prior _get_public_song_for_share_og unit tests above never caught this
+# because they call the helper directly and never render through serve_spa,
+# so they never see the final HTML a crawler actually parses.
+
+def test_whatsapp_crawler_gets_song_og_tags_without_duplicates(app_client):
+    client, _db, _main, db_path, _, _ = app_client
+    client.post("/api/songs/variants/100/occasion", json={"occasion": "memorial", "occasion_name": "Alex"})
+    token = _db.get_or_create_share_token(db_path, 100)
+
+    resp = client.get(
+        f"/songs/share/{token}",
+        headers={"User-Agent": "WhatsApp/2.23.20.0", "Host": "zeusbeats.com"},
+    )
+    assert resp.status_code == 200
+    html = resp.text
+
+    assert html.count('property="og:title"') == 1, "duplicate og:title tag — generic static tag not removed"
+    assert html.count('property="og:image"') == 1, "duplicate og:image tag — generic static tag not removed"
+    assert html.count('name="twitter:image"') == 1, "duplicate twitter:image tag — generic static tag not removed"
+    assert 'content="Test Song"' in html
+    assert "Zeus Beats — Create AI Music in Seconds" not in html

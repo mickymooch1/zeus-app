@@ -7079,7 +7079,23 @@ async def serve_spa(full_path: str, request: Request):
                     if cover_url:
                         parts.append(f'<meta name="twitter:image" content="{cover_url}">')
                     og_block = "\n    ".join(parts)
-                    page_html = _re.sub(r"<title>[^<]*</title>", og_block, page_html, count=1)
+                    # web-beats-dist/index.html ships its own static <title> plus
+                    # og:*/twitter:* tags right after it. Replacing only <title>
+                    # left those static tags in place, so the response carried BOTH
+                    # sets of og:title/og:image/etc. — WhatsApp's real crawler (UA
+                    # "WhatsApp/2.23.20.0", confirmed from production logs) resolves
+                    # duplicate og: properties by last-value-wins, so it displayed
+                    # the generic homepage card instead of the song even though the
+                    # correct tags were present earlier in the document. Replace the
+                    # whole static title+meta block (title through the line right
+                    # before the canonical link) so only one set of tags survives.
+                    page_html = _re.sub(
+                        r'<title>[^<]*</title>.*?(?=<link rel="canonical")',
+                        og_block + "\n    ",
+                        page_html,
+                        count=1,
+                        flags=_re.DOTALL,
+                    )
                     return HTMLResponse(page_html)
             except Exception:
                 log.exception("serve_spa: OG injection failed for /discover/%s — falling through", full_path)
@@ -7113,7 +7129,23 @@ async def serve_spa(full_path: str, request: Request):
                     if image_url:
                         parts.append(f'<meta name="twitter:image" content="{image_url}">')
                     og_block = "\n    ".join(parts)
-                    page_html = _re.sub(r"<title>[^<]*</title>", og_block, page_html, count=1)
+                    # web-beats-dist/index.html ships its own static <title> plus
+                    # og:*/twitter:* tags right after it. Replacing only <title>
+                    # left those static tags in place, so the response carried BOTH
+                    # sets of og:title/og:image/etc. — WhatsApp's real crawler (UA
+                    # "WhatsApp/2.23.20.0", confirmed from production logs) resolves
+                    # duplicate og: properties by last-value-wins, so it displayed
+                    # the generic homepage card instead of the song even though the
+                    # correct tags were present earlier in the document. Replace the
+                    # whole static title+meta block (title through the line right
+                    # before the canonical link) so only one set of tags survives.
+                    page_html = _re.sub(
+                        r'<title>[^<]*</title>.*?(?=<link rel="canonical")',
+                        og_block + "\n    ",
+                        page_html,
+                        count=1,
+                        flags=_re.DOTALL,
+                    )
                     return HTMLResponse(page_html)
             except Exception:
                 log.exception("serve_spa: OG injection failed for /songs/share/%s — falling through", full_path)
