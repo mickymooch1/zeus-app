@@ -3,7 +3,37 @@ import { useParams } from 'react-router-dom';
 import WaveSurfer from 'wavesurfer.js';
 import { BACKEND_URL } from '../brand';
 
-const gLabel = (g) => (g ? g.charAt(0).toUpperCase() + g.slice(1) : '');
+// Kept in sync with the GENRE_LABEL maps in NowPlayingBar.jsx / PlaylistPage.jsx —
+// this page was rebuilt with a plain capitalize-only fallback, which silently
+// broke display for every multi-word genre (e.g. "celticpunk" -> "Celticpunk"
+// instead of "Celtic Punk") and for combined genres like "hymns__gospel".
+// Restored so a share-page genre label always matches what the rest of the
+// app shows for the same song.
+const GENRE_LABEL = {
+  hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', celticpunk:'Celtic Punk',
+  rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage',
+  jungle:'Jungle', bassline:'Bassline', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill',
+  kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House',
+  driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', dancehall:'Dancehall',
+  deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk',
+  syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep',
+  bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', rootsreggae:'Roots Reggae',
+  trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap',
+  synthwave:'Synthwave', gospel:'Gospel', hymns:'Hymns', trapsoul:'Trap Soul',
+  meditation:'Meditation', christmas:'Christmas', corridos:'Corridos',
+  healingfrequency:'Healing Frequency', swing:'Swing', vocaljazz:'Vocal Jazz', scat:'Scat Jazz', opera:'Opera',
+  traditionalpop:'Traditional Pop', rocknroll:"Rock 'n' Roll",
+  southemsoul:'Southern Soul', countryamericana:'Country Americana', countryballad:'Country Ballad',
+};
+
+const gLabel = (g) => {
+  if (!g) return '';
+  if (g.includes('__')) {
+    const [a, b] = g.split('__');
+    return `${GENRE_LABEL[a] || (a.charAt(0).toUpperCase() + a.slice(1))} × ${GENRE_LABEL[b] || (b.charAt(0).toUpperCase() + b.slice(1))}`;
+  }
+  return GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
+};
 
 // Deliberately its own visual identity — warm, quiet, paper-like — not the
 // main app's dark neon UI. Suits a memorial page as comfortably as a gift or

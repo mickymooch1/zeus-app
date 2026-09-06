@@ -20,6 +20,7 @@ GENRE_PRESETS = {
     "acousticblues":  "acoustic delta blues, fingerpicked resonator guitar, raw soulful vocals, slide guitar, 12-bar blues, 80 BPM, Mississippi delta sound, gritty authentic blues, foot stomp rhythm",
     "patriotic":      "patriotic music, orchestral brass, rousing anthem, military drum, uplifting national pride, 90 BPM, choir voices, ceremonial feel, stirring emotional delivery, traditional patriotic march, grand orchestral arrangement",
     "country":  "country ballad, acoustic guitar, slide guitar, warm storytelling vocals, moderate tempo",
+    "countryballad": "country ballad, slow emotional country, acoustic guitar fingerpicking, steel pedal guitar, heartfelt storytelling vocals, melancholic and tender atmosphere, gentle strings, warm production, emotional vulnerability, slow tempo 60-70 BPM, classic country heartbreak feel, intimate and sincere delivery",
     "reggae":   "reggae, punchy offbeat skank guitar, upbeat radio-friendly groove, polished modern production, catchy singalong hook, bright energetic vocals, crisp commercial mix, feel-good pop-reggae crossover, danceable uptempo feel, 95 BPM",
     "pop":      "modern pop, polished production, catchy synth melody, clear vocals, 120 BPM",
     "rock":     "rock anthem, electric guitar, driving drums, powerful vocals, 130 BPM",

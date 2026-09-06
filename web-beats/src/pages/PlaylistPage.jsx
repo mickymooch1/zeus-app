@@ -15,7 +15,7 @@ import { CSS } from '@dnd-kit/utilities';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 const GENRE_LABEL = {
-  hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', celticpunk:'Celtic Punk',
+  hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', celticpunk:'Celtic Punk', countryballad:'Country Ballad',
   rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage',
   jungle:'Jungle', bassline:'Bassline', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill',
   kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House',

@@ -262,3 +262,49 @@ def test_no_traditionalfolk_genre_was_added():
     """Deliberately not added — it duplicated folk, and its distinguishing
     markers were Celtic ones now folded into irishfolk."""
     assert "traditionalfolk" not in GENRE_PRESETS
+
+
+# ── Country Ballad (2026-09-06) ──────────────────────────────────────────────
+
+def test_countryballad_preset_exists():
+    assert "countryballad" in GENRE_PRESETS
+    assert len(GENRE_PRESETS["countryballad"]) > 80
+
+
+def test_countryballad_describes_the_sound():
+    style = GENRE_PRESETS["countryballad"].lower()
+    for token in ["steel pedal guitar", "fingerpicking", "60-70 bpm", "heartbreak"]:
+        assert token in style, token
+
+
+def test_countryballad_is_distinct_from_its_neighbours():
+    """country/traditionalcountry are upbeat/twangy; acousticballad is genre-
+    agnostic. countryballad must not collapse into any of them."""
+    cb = GENRE_PRESETS["countryballad"].lower()
+    for other in ("country", "traditionalcountry", "acousticballad"):
+        assert cb != GENRE_PRESETS[other].lower(), f"countryballad collapsed into {other}"
+
+
+def test_countryballad_has_its_own_cover_prompt():
+    import webhooks
+    assert "countryballad" in webhooks.GENRE_COVER_PROMPTS
+    assert webhooks.GENRE_COVER_PROMPTS["countryballad"] != webhooks._DEFAULT_COVER_PROMPT
+    assert webhooks.GENRE_COVER_PROMPTS["countryballad"] != webhooks.GENRE_COVER_PROMPTS["country"]
+
+
+def test_countryballad_registered_in_both_apps():
+    web = (_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
+    assert "'countryballad'" in web
+    assert web.count("countryballad:'Country Ballad'") == 1, "duplicate object key"
+    assert "'countrypop','countryballad'" in web, "should sit in Country & Folk"
+    ios = (_ROOT / "zeus-beats-ios" / "src" / "screens" / "CreateSongScreen.tsx").read_text(encoding="utf-8")
+    assert ios.count("countryballad:'Country Ballad'") == 1
+    assert "'countrypop','countryballad'" in ios
+
+
+def test_countryballad_label_in_display_maps():
+    for rel in ["web-beats/src/components/NowPlayingBar.jsx",
+                "web-beats/src/pages/PlaylistPage.jsx",
+                "web-beats/src/pages/SongSharePage.jsx"]:
+        s = (_ROOT / rel).read_text(encoding="utf-8")
+        assert s.count("countryballad:'Country Ballad'") == 1, rel
