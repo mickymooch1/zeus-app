@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
-import { BrowserRouter, Route, Routes, Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { NowPlayingProvider, useNowPlaying } from './contexts/NowPlayingContext';
 import { useAuth } from './contexts/AuthContext';
@@ -105,10 +105,19 @@ const fallback = (
 
 function AppInner() {
   const { currentSong } = useNowPlaying();
+  const location = useLocation();
+  // The public share page is deliberately its own standalone, minimal-branding
+  // page — the main app's cookie banner (bright purple, fixed to the bottom)
+  // clashes with its calm design and can cover the photos on small screens.
+  // Safe to suppress there specifically: this page sets no cookies of its own,
+  // and the app loads no analytics/tracking scripts anywhere that this
+  // banner's consent actually gates — only Google Fonts, which isn't
+  // cookie-gated by this banner regardless of route.
+  const isSharePage = location.pathname.startsWith('/songs/share/');
   return (
     <>
-      <CookieBanner />
-<UpdateToast />
+      {!isSharePage && <CookieBanner />}
+      <UpdateToast />
       {currentSong?.mp3_url && <NowPlayingBar />}
     </>
   );
