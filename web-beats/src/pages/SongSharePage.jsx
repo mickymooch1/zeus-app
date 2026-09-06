@@ -49,6 +49,32 @@ const PAGE_CSS = `
 const SERIF = "Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif";
 const SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
 
+// Per-occasion tone. Unset (no occasion) renders exactly as before this
+// feature existed — plain song title, no subheading, icon-only play button —
+// so every song that predates this feature is visually untouched.
+const OCCASION_COPY = {
+  memorial: {
+    heading: (name, title) => name || title,
+    subheading: 'Forever loved, never forgotten',
+    playLabel: 'Play Their Song',
+  },
+  birthday: {
+    heading: (name, title) => (name ? `Happy Birthday ${name}!` : title),
+    subheading: 'A song made just for you',
+    playLabel: 'Play Your Song',
+  },
+  anniversary: {
+    heading: (name, title) => (name ? `Happy Anniversary ${name}!` : title),
+    subheading: "Here's to many more",
+    playLabel: 'Play Your Song',
+  },
+  celebration: {
+    heading: (name, title) => name || title,
+    subheading: 'A moment worth celebrating',
+    playLabel: 'Play the Song',
+  },
+};
+
 const CAROUSEL_INTERVAL_MS = 4000;
 const SWIPE_THRESHOLD_PX = 40;
 
@@ -244,6 +270,11 @@ export default function SongSharePage() {
   const dur = song?.duration_seconds;
   const durStr = dur ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}` : '';
 
+  const occasionCopy = song?.occasion ? OCCASION_COPY[song.occasion] : null;
+  const heading = occasionCopy ? occasionCopy.heading(song.occasion_name, song.title) : song?.title;
+  const subheading = occasionCopy?.subheading;
+  const playLabel = occasionCopy?.playLabel;
+
   return (
     <>
       <style>{PAGE_CSS}</style>
@@ -298,9 +329,15 @@ export default function SongSharePage() {
               )}
             </div>
 
-            <div style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 24, lineHeight: 1.3, marginBottom: 6 }}>
-              {song.title}
+            <div style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 24, lineHeight: 1.3, marginBottom: subheading ? 4 : 6 }}>
+              {heading}
             </div>
+
+            {subheading && (
+              <div style={{ fontFamily: SERIF, fontStyle: 'italic', fontSize: 15, color: 'var(--sp-accent)', marginBottom: 6 }}>
+                {subheading}
+              </div>
+            )}
 
             {(gLabel(song.genre_tag) || durStr) && (
               <div style={{ fontSize: 13, color: 'var(--sp-muted)', marginBottom: 26 }}>
@@ -309,6 +346,11 @@ export default function SongSharePage() {
             )}
 
             {/* Waveform player */}
+            {playLabel && (
+              <div style={{ fontSize: 12, color: 'var(--sp-muted)', marginBottom: 10, letterSpacing: '0.02em' }}>
+                {playLabel}
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
               <button
                 onClick={handlePlay}

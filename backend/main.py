@@ -3431,6 +3431,8 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
                 "qr_generated": bool(v.get("qr_generated", 0)),
                 "share_token": v.get("share_token"),
                 "subtitles_url": v.get("subtitles_url"),
+                "occasion": v.get("occasion"),
+                "occasion_name": v.get("occasion_name"),
             }
             for v in (variants or [])
         ],
@@ -3479,6 +3481,8 @@ async def get_library(current_user: dict = Depends(auth.get_current_user)):
                 "qr_generated": bool(v.get("qr_generated", 0)),
                 "share_token": v.get("share_token"),
                 "subtitles_url": v.get("subtitles_url"),
+                "occasion": v.get("occasion"),
+                "occasion_name": v.get("occasion_name"),
             }
             for v in (variants or [])
         ],
@@ -3845,6 +3849,8 @@ async def get_song_variant_public(identifier: str):
         "image_url": variant.get("image_url"),
         "duration_seconds": variant.get("duration_seconds"),
         "photos": photos,
+        "occasion": variant.get("occasion"),
+        "occasion_name": variant.get("occasion_name"),
     }
 
 
@@ -4889,6 +4895,35 @@ async def mark_variant_qr_generated(variant_id: int, current_user: dict = Depend
         raise HTTPException(status_code=404, detail="Variant not found")
     db.update_song_variant(db_path, variant_id, qr_generated=1)
     return {"variant_id": variant_id, "qr_generated": True}
+
+
+_ALLOWED_OCCASIONS = {"memorial", "birthday", "anniversary", "celebration"}
+
+
+class SetOccasionRequest(BaseModel):
+    occasion: str | None = None
+    occasion_name: str | None = None
+
+
+@app.post("/api/songs/variants/{variant_id}/occasion")
+async def set_variant_occasion(
+    variant_id: int, body: SetOccasionRequest, current_user: dict = Depends(auth.get_current_user)
+):
+    """Set how the public share page presents this song — e.g. a memorial
+    heading vs a birthday one. Editable any time, same as photos/QR: people
+    often decide (or change their mind about) the occasion after the song
+    already exists, not at creation time."""
+    user_id = current_user["id"]
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != user_id:
+        raise HTTPException(status_code=404, detail="Variant not found")
+    occasion = (body.occasion or "").strip() or None
+    if occasion and occasion not in _ALLOWED_OCCASIONS:
+        raise HTTPException(status_code=400, detail="Invalid occasion")
+    occasion_name = (body.occasion_name or "").strip() or None
+    db.update_song_variant(db_path, variant_id, occasion=occasion, occasion_name=occasion_name)
+    return {"variant_id": variant_id, "occasion": occasion, "occasion_name": occasion_name}
 
 
 _PHOTO_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
@@ -6567,6 +6602,47 @@ def _get_public_song_for_og(variant_id: int):
         conn.close()
 
 
+_OG_OCCASION_DESCRIPTIONS = {
+    "memorial":    "A song in loving memory, made with Zeus Beats.",
+    "birthday":    "A birthday song made with Zeus Beats.",
+    "anniversary": "An anniversary song made with Zeus Beats.",
+    "celebration": "A song to celebrate, made with Zeus Beats.",
+}
+_OG_DEFAULT_DESCRIPTION = "Listen to this song, made with Zeus Beats."
+
+
+def _get_public_song_for_share_og(identifier: str):
+    """Resolve a /songs/share/<identifier> identifier (numeric or token, same
+    rule as get_song_variant_public) into the fields needed for its OG tags.
+
+    Image priority mirrors the privacy split already enforced for photos on
+    the public API: a numeric identifier is guessable (may be printed/engraved
+    from before photos existed) and must NEVER surface a photo through any
+    channel, including a link-preview card — it always gets the cover art.
+    Only the unguessable token identifier, when the song actually has photos,
+    prefers the first uploaded one.
+    """
+    db_path = db.get_db_path()
+    is_token = not identifier.isdigit()
+    variant = (
+        db.get_song_variant_by_share_token(db_path, identifier)
+        if is_token
+        else db.get_song_variant_by_id(db_path, int(identifier))
+    )
+    if not variant or variant.get("status") != "complete":
+        return None
+    image_url = variant.get("image_url") or ""
+    if is_token:
+        photos = db.get_song_variant_photos(db_path, variant["id"])
+        if photos:
+            pub_base = os.environ.get("SONG_PUBLIC_BASE_URL", "").rstrip("/")
+            image_url = f"{pub_base}/{photos[0]['filename']}"
+    title = db.get_lyric_title(db_path, variant["lyric_id"]) or f"Song #{variant['id']}"
+    occasion = variant.get("occasion")
+    description = _OG_OCCASION_DESCRIPTIONS.get(occasion, _OG_DEFAULT_DESCRIPTION)
+    return {"title": title, "image_url": image_url, "description": description}
+
+
 # ── Stems & Cover ────────────────────────────────────────────────────────────
 
 class _CoverSongRequest(BaseModel):
@@ -6938,6 +7014,40 @@ async def serve_spa(full_path: str, request: Request):
                     return HTMLResponse(page_html)
             except Exception:
                 log.exception("serve_spa: OG injection failed for /discover/%s — falling through", full_path)
+            # Fall through to generic tags if injection failed
+
+        # ── Social crawler OG injection for /songs/share/<id> ────────────────
+        share_match = _re.match(r"^songs/share/([A-Za-z0-9_-]+)$", full_path)
+        if share_match and any(bot in ua for bot in SOCIAL_CRAWLERS):
+            try:
+                song = _get_public_song_for_share_og(share_match.group(1))
+                if song:
+                    safe_title = _html_mod.escape(song["title"] or "Untitled")
+                    safe_desc  = _html_mod.escape(song["description"])
+                    page_url   = f"https://zeusbeats.com/songs/share/{share_match.group(1)}"
+                    image_url  = song.get("image_url") or ""
+                    parts = [
+                        f"<title>{safe_title}</title>",
+                        f'<meta property="og:title" content="{safe_title}">',
+                        f'<meta property="og:description" content="{safe_desc}">',
+                        f'<meta property="og:url" content="{page_url}">',
+                        f'<meta property="og:type" content="music.song">',
+                        f'<meta property="og:site_name" content="Zeus Beats">',
+                    ]
+                    if image_url:
+                        parts.append(f'<meta property="og:image" content="{image_url}">')
+                    parts += [
+                        f'<meta name="twitter:card" content="summary_large_image">',
+                        f'<meta name="twitter:title" content="{safe_title}">',
+                        f'<meta name="twitter:description" content="{safe_desc}">',
+                    ]
+                    if image_url:
+                        parts.append(f'<meta name="twitter:image" content="{image_url}">')
+                    og_block = "\n    ".join(parts)
+                    page_html = _re.sub(r"<title>[^<]*</title>", og_block, page_html, count=1)
+                    return HTMLResponse(page_html)
+            except Exception:
+                log.exception("serve_spa: OG injection failed for /songs/share/%s — falling through", full_path)
             # Fall through to generic tags if injection failed
 
         # ── Generic Zeus Beats meta tags ─────────────────────────────────────

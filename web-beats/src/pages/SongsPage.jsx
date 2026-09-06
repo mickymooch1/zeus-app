@@ -495,6 +495,14 @@ function KidsPinGateLoader({ token, hasPIN, onSuccess, onCancel }) {
 // Paid-feature upgrade prompts. On web → modal with a /billing CTA; inside the
 // iOS webview → plain "visit zeusbeats.com" message (App Store: no in-app
 // purchase steering). A locked feature button must never silently do nothing.
+const OCCASION_OPTIONS = [
+  { value: '', label: 'None (just the song title)' },
+  { value: 'memorial', label: 'Memorial' },
+  { value: 'birthday', label: 'Birthday' },
+  { value: 'anniversary', label: 'Anniversary' },
+  { value: 'celebration', label: 'Celebration' },
+];
+
 const UPGRADE_FEATURES = {
   youtube: { icon: '📺', title: 'YouTube Upload', desc: 'Upload your songs directly to YouTube with Music Starter and above.' },
   stems:   { icon: '🎵', title: 'Stem Separator', desc: 'Split your track into separate vocals, drums, bass and melody stems — available with premium credits on paid plans.' },
@@ -511,7 +519,7 @@ const SongCard = memo(function SongCard({
   playlists, onAddToPlaylist,
   premiumCredits, stemsData: stemsProp, onGetStems, onOpenCover, onUpgrade,
   soundPersonaVariantId, onLockSound, onMarkQrGenerated,
-  photos, onLoadPhotos, onUploadPhoto, onDeletePhoto,
+  photos, onLoadPhotos, onUploadPhoto, onDeletePhoto, onSetOccasion,
   isSaved, isDownloading, onSaveOffline, onRemoveSaved, onPlayOffline,
   lyricId,
 }) {
@@ -547,6 +555,39 @@ const SongCard = memo(function SongCard({
   const [photoPrivacyChecked, setPhotoPrivacyChecked] = useState(false);
   const photoInputRef = useRef(null);
   const photoList = photos || [];
+
+  const [occasionOpen, setOccasionOpen] = useState(false);
+  const [occasionDraft, setOccasionDraft] = useState(variant.occasion || '');
+  const [occasionNameDraft, setOccasionNameDraft] = useState(variant.occasion_name || '');
+  const [occasionSaving, setOccasionSaving] = useState(false);
+  const [occasionError, setOccasionError] = useState('');
+  const [occasionSaved, setOccasionSaved] = useState(false);
+
+  const toggleOccasionPanel = () => {
+    const opening = !occasionOpen;
+    setOccasionOpen(opening);
+    if (opening) {
+      // Reflect whatever's actually saved, not a stale draft from a previous open.
+      setOccasionDraft(variant.occasion || '');
+      setOccasionNameDraft(variant.occasion_name || '');
+      setOccasionError('');
+      setOccasionSaved(false);
+    }
+  };
+
+  const handleSaveOccasion = async () => {
+    setOccasionSaving(true);
+    setOccasionError('');
+    try {
+      await onSetOccasion(variant.variant_id, occasionDraft || null, occasionDraft ? (occasionNameDraft || null) : null);
+      setOccasionSaved(true);
+      setTimeout(() => setOccasionSaved(false), 2000);
+    } catch (err) {
+      setOccasionError(err.message || 'Could not save');
+    } finally {
+      setOccasionSaving(false);
+    }
+  };
 
   const togglePhotosPanel = () => {
     const opening = !photosOpen;
@@ -1327,6 +1368,62 @@ const SongCard = memo(function SongCard({
                       <p style={{ fontSize: 11, color: '#999', marginTop: 8, marginBottom: 0, lineHeight: 1.4 }}>
                         Note: a QR code made before these photos were added won't show them — create a new QR to include them.
                       </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Occasion panel — changes the share page's heading/tone, not the song itself */}
+            {variant.mp3_url && (
+              <div style={{ marginTop: 8 }}>
+                <button
+                  onClick={toggleOccasionPanel}
+                  style={{ ...actionBtnStyle, width: '100%', color: '#f472b6', borderColor: 'rgba(244,114,182,0.5)' }}
+                >
+                  🎀 Occasion {variant.occasion ? `(${OCCASION_OPTIONS.find(o => o.value === variant.occasion)?.label || variant.occasion})` : ''} {occasionOpen ? '▲' : '▼'}
+                </button>
+                {occasionOpen && (
+                  <div style={{ marginTop: 8, padding: '14px 12px', background: 'rgba(244,114,182,0.05)', borderRadius: 8, border: '1px solid rgba(244,114,182,0.2)' }}>
+                    <p style={{ margin: '0 0 10px', fontSize: 12, color: '#999', lineHeight: 1.5 }}>
+                      Changes how the share page greets whoever opens the link — the song itself doesn't change.
+                    </p>
+                    <select
+                      value={occasionDraft}
+                      onChange={(e) => setOccasionDraft(e.target.value)}
+                      style={{
+                        width: '100%', padding: '9px 10px', borderRadius: 8, marginBottom: occasionDraft ? 10 : 0,
+                        background: 'rgba(0,0,0,0.3)', color: '#e2e8f0', border: '1px solid rgba(244,114,182,0.3)', fontSize: 13,
+                      }}
+                    >
+                      {OCCASION_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    {occasionDraft && (
+                      <input
+                        type="text"
+                        value={occasionNameDraft}
+                        onChange={(e) => setOccasionNameDraft(e.target.value)}
+                        placeholder={occasionDraft === 'memorial' ? 'Name(s) — e.g. Mary & Mike Rowle' : 'Name — e.g. Sarah'}
+                        maxLength={80}
+                        style={{
+                          width: '100%', padding: '9px 10px', borderRadius: 8, marginBottom: 10, boxSizing: 'border-box',
+                          background: 'rgba(0,0,0,0.3)', color: '#e2e8f0', border: '1px solid rgba(244,114,182,0.3)', fontSize: 13,
+                        }}
+                      />
+                    )}
+                    <button
+                      onClick={handleSaveOccasion}
+                      disabled={occasionSaving}
+                      style={{
+                        ...actionBtnStyle, width: '100%', color: '#f472b6', borderColor: 'rgba(244,114,182,0.5)',
+                        opacity: occasionSaving ? 0.6 : 1, cursor: occasionSaving ? 'default' : 'pointer',
+                      }}
+                    >
+                      {occasionSaving ? 'Saving…' : occasionSaved ? 'Saved ✓' : 'Save'}
+                    </button>
+                    {occasionError && (
+                      <p style={{ fontSize: 11, color: '#f87171', marginTop: 8, marginBottom: 0, lineHeight: 1.4 }}>{occasionError}</p>
                     )}
                   </div>
                 )}
@@ -2759,6 +2856,19 @@ export default function SongsPage() {
     });
     if (!r.ok) return;
     setPhotosData(prev => ({ ...prev, [variantId]: (prev[variantId] || []).filter(p => p.photo_id !== photoId) }));
+  }, [token]);
+
+  const handleSetOccasion = useCallback(async (variantId, occasion, occasionName) => {
+    const r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/occasion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ occasion, occasion_name: occasionName }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.detail || 'Could not save');
+    setLibrary(prev => prev.map(v => v.variant_id === variantId
+      ? { ...v, occasion: data.occasion, occasion_name: data.occasion_name }
+      : v));
   }, [token]);
 
   const handleOpenRemake = useCallback((variantId, title) => {
@@ -4537,6 +4647,7 @@ export default function SongsPage() {
                         onLoadPhotos={handleLoadPhotos}
                         onUploadPhoto={handleUploadPhoto}
                         onDeletePhoto={handleDeletePhoto}
+                        onSetOccasion={handleSetOccasion}
                         isSaved={false}
                         isDownloading={false}
                         onSaveOffline={null}
@@ -4715,6 +4826,7 @@ export default function SongsPage() {
                         onLoadPhotos={handleLoadPhotos}
                         onUploadPhoto={handleUploadPhoto}
                         onDeletePhoto={handleDeletePhoto}
+                        onSetOccasion={handleSetOccasion}
                       isSaved={isSaved(v.variant_id)}
                       isDownloading={downloading.has(v.variant_id)}
                       onSaveOffline={() => handleSaveOffline(v)}

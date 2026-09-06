@@ -456,6 +456,14 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             # get_song_variant_public in main.py.
             "ALTER TABLE song_variants ADD COLUMN share_token TEXT",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_song_variants_share_token ON song_variants (share_token) WHERE share_token IS NOT NULL",
+            # Lets the share page present the same song differently depending on why
+            # it was made — a memorial heading vs a birthday one, etc. Non-privacy-
+            # sensitive (unlike photos): exposed on both the numeric and token public
+            # routes, same as title/genre already are. NULL/occasion_name unset means
+            # "no occasion" — the share page renders exactly as it did before this
+            # feature existed.
+            "ALTER TABLE song_variants ADD COLUMN occasion TEXT",
+            "ALTER TABLE song_variants ADD COLUMN occasion_name TEXT",
         ]:
             try:
                 conn.execute(_migration)
