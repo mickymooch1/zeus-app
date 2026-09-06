@@ -3402,6 +3402,26 @@ async def get_lyric(lyric_id: int, current_user: dict = Depends(auth.get_current
     return {"lyric_id": row["id"], "title": row["title"], "lyrics_text": row["lyrics_text"]}
 
 
+def _resolve_cover_urls(db_path, cover_photo_ids: list) -> dict:
+    """Batch-resolve cover_photo_id -> public URL for a set of ids in ONE query,
+    rather than a lookup per variant — get_library was already rewritten once
+    to kill exactly this kind of per-variant fan-out (see its docstring)."""
+    ids = [i for i in set(cover_photo_ids) if i]
+    if not ids:
+        return {}
+    pub_base = os.environ.get("SONG_PUBLIC_BASE_URL", "").rstrip("/")
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        placeholders = ",".join("?" for _ in ids)
+        rows = conn.execute(
+            f"SELECT id, filename FROM song_variant_photos WHERE id IN ({placeholders})", ids
+        ).fetchall()
+        return {r["id"]: f"{pub_base}/{r['filename']}" for r in rows}
+    finally:
+        conn.close()
+
+
 @app.get("/api/lyrics/{lyric_id}/variants")
 async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()
@@ -3410,6 +3430,7 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
     if not lyric:
         raise HTTPException(status_code=404, detail="Lyric not found")
     variants = db.get_song_variants_for_lyric(db_path, lyric_id, user_id)
+    cover_urls = _resolve_cover_urls(db_path, [v.get("cover_photo_id") for v in (variants or [])])
     return {
         "lyric_id": lyric_id,
         "variants": [
@@ -3419,7 +3440,7 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
                 "take_number": v["take_number"],
                 "status": v["status"],
                 "mp3_url": v["mp3_url"],
-                "image_url": v["image_url"],
+                "image_url": cover_urls.get(v.get("cover_photo_id"), v["image_url"]),
                 "duration_seconds": v["duration_seconds"],
                 "did_job_id": v.get("did_job_id"),
                 "video_url": v.get("video_url"),
@@ -3433,6 +3454,7 @@ async def get_lyric_variants(lyric_id: int, current_user: dict = Depends(auth.ge
                 "subtitles_url": v.get("subtitles_url"),
                 "occasion": v.get("occasion"),
                 "occasion_name": v.get("occasion_name"),
+                "cover_photo_id": v.get("cover_photo_id"),
             }
             for v in (variants or [])
         ],
@@ -3457,6 +3479,7 @@ async def get_library(current_user: dict = Depends(auth.get_current_user)):
     db_path = db.get_db_path()
     user_id = current_user["id"]
     variants = db.get_all_variants_for_user(db_path, user_id)
+    cover_urls = _resolve_cover_urls(db_path, [v.get("cover_photo_id") for v in (variants or [])])
     return {
         "variants": [
             {
@@ -3467,7 +3490,7 @@ async def get_library(current_user: dict = Depends(auth.get_current_user)):
                 "take_number": v["take_number"],
                 "status": v["status"],
                 "mp3_url": v["mp3_url"],
-                "image_url": v["image_url"],
+                "image_url": cover_urls.get(v.get("cover_photo_id"), v["image_url"]),
                 "duration_seconds": v["duration_seconds"],
                 "did_job_id": v.get("did_job_id"),
                 "video_url": v.get("video_url"),
@@ -3483,6 +3506,7 @@ async def get_library(current_user: dict = Depends(auth.get_current_user)):
                 "subtitles_url": v.get("subtitles_url"),
                 "occasion": v.get("occasion"),
                 "occasion_name": v.get("occasion_name"),
+                "cover_photo_id": v.get("cover_photo_id"),
             }
             for v in (variants or [])
         ],
@@ -3841,12 +3865,21 @@ async def get_song_variant_public(identifier: str):
     if not variant or variant.get("status") != "complete":
         raise HTTPException(status_code=404, detail="Song not found")
     title = db.get_lyric_title(db_path, variant["lyric_id"]) or f"Song #{variant['id']}"
+    # A numeric identifier must NEVER surface a photo through any channel,
+    # including as the main image — same rule as the photos array itself.
+    # Only the token route (where `photos` was actually populated above) may
+    # show a chosen cover photo in place of the AI art.
+    image_url = variant.get("image_url")
+    if variant.get("cover_photo_id"):
+        cover = next((p for p in photos if p["photo_id"] == variant["cover_photo_id"]), None)
+        if cover:
+            image_url = cover["url"]
     return {
         "variant_id": variant["id"],
         "title": title,
         "genre_tag": variant.get("genre_tag"),
         "mp3_url": variant.get("mp3_url"),
-        "image_url": variant.get("image_url"),
+        "image_url": image_url,
         "duration_seconds": variant.get("duration_seconds"),
         "photos": photos,
         "occasion": variant.get("occasion"),
@@ -4926,6 +4959,33 @@ async def set_variant_occasion(
     return {"variant_id": variant_id, "occasion": occasion, "occasion_name": occasion_name}
 
 
+class SetCoverPhotoRequest(BaseModel):
+    photo_id: int | None = None
+
+
+@app.post("/api/songs/variants/{variant_id}/cover-photo")
+async def set_variant_cover_photo(
+    variant_id: int, body: SetCoverPhotoRequest, current_user: dict = Depends(auth.get_current_user)
+):
+    """Choose an uploaded photo as the song's primary image instead of the
+    AI-generated cover art, or pass photo_id=null to switch back. The AI art
+    itself is never touched — this only changes which one is shown."""
+    user_id = current_user["id"]
+    db_path = db.get_db_path()
+    variant = db.get_song_variant_by_id(db_path, variant_id)
+    if not variant or variant["user_id"] != user_id:
+        raise HTTPException(status_code=404, detail="Variant not found")
+    image_url = variant.get("image_url")
+    if body.photo_id is not None:
+        photo = db.get_song_variant_photo_by_id(db_path, body.photo_id)
+        if not photo or photo["variant_id"] != variant_id:
+            raise HTTPException(status_code=404, detail="Photo not found")
+        pub_base = os.environ.get("SONG_PUBLIC_BASE_URL", "").rstrip("/")
+        image_url = f"{pub_base}/{photo['filename']}"
+    db.update_song_variant(db_path, variant_id, cover_photo_id=body.photo_id)
+    return {"variant_id": variant_id, "cover_photo_id": body.photo_id, "image_url": image_url}
+
+
 _PHOTO_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 _PHOTO_MAX_BYTES = 5 * 1024 * 1024
 _PHOTO_MAX_COUNT = 5
@@ -5039,6 +5099,10 @@ async def delete_song_photo(
             (song_storage / photo["filename"]).unlink(missing_ok=True)
         except Exception:
             log.exception("delete_song_photo: failed to unlink file for photo_id=%s", photo_id)
+        # If this photo was set as the cover, fall back to the AI art rather
+        # than leaving cover_photo_id pointing at a photo that no longer exists.
+        if variant.get("cover_photo_id") == photo_id:
+            db.update_song_variant(db_path, variant_id, cover_photo_id=None)
     return {"deleted": deleted}
 
 
@@ -6620,7 +6684,9 @@ def _get_public_song_for_share_og(identifier: str):
     from before photos existed) and must NEVER surface a photo through any
     channel, including a link-preview card — it always gets the cover art.
     Only the unguessable token identifier, when the song actually has photos,
-    prefers the first uploaded one.
+    ever prefers one — and an explicit chosen-cover-photo pick always beats
+    the automatic "first uploaded photo" heuristic, since a deliberate choice
+    should win over a guess.
     """
     db_path = db.get_db_path()
     is_token = not identifier.isdigit()
@@ -6634,9 +6700,12 @@ def _get_public_song_for_share_og(identifier: str):
     image_url = variant.get("image_url") or ""
     if is_token:
         photos = db.get_song_variant_photos(db_path, variant["id"])
-        if photos:
+        cover_photo_id = variant.get("cover_photo_id")
+        cover = next((p for p in photos if p["id"] == cover_photo_id), None) if cover_photo_id else None
+        chosen = cover or (photos[0] if photos else None)
+        if chosen:
             pub_base = os.environ.get("SONG_PUBLIC_BASE_URL", "").rstrip("/")
-            image_url = f"{pub_base}/{photos[0]['filename']}"
+            image_url = f"{pub_base}/{chosen['filename']}"
     title = db.get_lyric_title(db_path, variant["lyric_id"]) or f"Song #{variant['id']}"
     occasion = variant.get("occasion")
     description = _OG_OCCASION_DESCRIPTIONS.get(occasion, _OG_DEFAULT_DESCRIPTION)

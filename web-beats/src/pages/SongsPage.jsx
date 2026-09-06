@@ -519,7 +519,7 @@ const SongCard = memo(function SongCard({
   playlists, onAddToPlaylist,
   premiumCredits, stemsData: stemsProp, onGetStems, onOpenCover, onUpgrade,
   soundPersonaVariantId, onLockSound, onMarkQrGenerated,
-  photos, onLoadPhotos, onUploadPhoto, onDeletePhoto, onSetOccasion,
+  photos, onLoadPhotos, onUploadPhoto, onDeletePhoto, onSetOccasion, onSetCoverPhoto,
   isSaved, isDownloading, onSaveOffline, onRemoveSaved, onPlayOffline,
   lyricId,
 }) {
@@ -555,6 +555,19 @@ const SongCard = memo(function SongCard({
   const [photoPrivacyChecked, setPhotoPrivacyChecked] = useState(false);
   const photoInputRef = useRef(null);
   const photoList = photos || [];
+  const [coverSavingId, setCoverSavingId] = useState(null);
+
+  const handleToggleCoverPhoto = async (photoId) => {
+    const nextCoverId = variant.cover_photo_id === photoId ? null : photoId;
+    setCoverSavingId(photoId);
+    try {
+      await onSetCoverPhoto(variant.variant_id, nextCoverId);
+    } catch {
+      // best-effort — thumbnail's cover badge just won't update, user can retry
+    } finally {
+      setCoverSavingId(null);
+    }
+  };
 
   const [occasionOpen, setOccasionOpen] = useState(false);
   const [occasionDraft, setOccasionDraft] = useState(variant.occasion || '');
@@ -1323,22 +1336,46 @@ const SongCard = memo(function SongCard({
 
                     {photoList.length > 0 && (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
-                        {photoList.map((p) => (
-                          <div key={p.photo_id} style={{ position: 'relative' }}>
-                            <img src={p.url} alt="" style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 6, display: 'block' }} />
-                            <button
-                              onClick={() => onDeletePhoto(variant.variant_id, p.photo_id)}
-                              title="Remove photo"
-                              style={{
-                                position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: '50%',
-                                border: 'none', background: 'rgba(0,0,0,0.75)', color: '#f87171', fontSize: 12,
-                                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-                              }}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
+                        {photoList.map((p) => {
+                          const isCover = variant.cover_photo_id === p.photo_id;
+                          return (
+                            <div key={p.photo_id} style={{ position: 'relative' }}>
+                              <img
+                                src={p.url}
+                                alt=""
+                                style={{
+                                  width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 6, display: 'block',
+                                  outline: isCover ? '2px solid #fbbf24' : 'none', outlineOffset: -2,
+                                }}
+                              />
+                              <button
+                                onClick={() => onDeletePhoto(variant.variant_id, p.photo_id)}
+                                title="Remove photo"
+                                style={{
+                                  position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: '50%',
+                                  border: 'none', background: 'rgba(0,0,0,0.75)', color: '#f87171', fontSize: 12,
+                                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                                }}
+                              >
+                                ✕
+                              </button>
+                              <button
+                                onClick={() => handleToggleCoverPhoto(p.photo_id)}
+                                disabled={coverSavingId === p.photo_id}
+                                title={isCover ? 'Stop using as cover (switch back to AI art)' : 'Use as cover image'}
+                                style={{
+                                  position: 'absolute', bottom: 2, left: 2, right: 2, padding: '3px 0', borderRadius: 5,
+                                  border: 'none', fontSize: 9, fontWeight: 700, cursor: 'pointer', lineHeight: 1.4,
+                                  background: isCover ? '#fbbf24' : 'rgba(0,0,0,0.75)',
+                                  color: isCover ? '#1a1a1a' : '#fbbf24',
+                                  opacity: coverSavingId === p.photo_id ? 0.5 : 1,
+                                }}
+                              >
+                                {coverSavingId === p.photo_id ? '…' : isCover ? '★ Cover' : 'Use as cover'}
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
 
@@ -2868,6 +2905,19 @@ export default function SongsPage() {
     if (!r.ok) throw new Error(data.detail || 'Could not save');
     setLibrary(prev => prev.map(v => v.variant_id === variantId
       ? { ...v, occasion: data.occasion, occasion_name: data.occasion_name }
+      : v));
+  }, [token]);
+
+  const handleSetCoverPhoto = useCallback(async (variantId, photoId) => {
+    const r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/cover-photo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ photo_id: photoId }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.detail || 'Could not save');
+    setLibrary(prev => prev.map(v => v.variant_id === variantId
+      ? { ...v, cover_photo_id: data.cover_photo_id, image_url: data.image_url }
       : v));
   }, [token]);
 
@@ -4648,6 +4698,7 @@ export default function SongsPage() {
                         onUploadPhoto={handleUploadPhoto}
                         onDeletePhoto={handleDeletePhoto}
                         onSetOccasion={handleSetOccasion}
+                        onSetCoverPhoto={handleSetCoverPhoto}
                         isSaved={false}
                         isDownloading={false}
                         onSaveOffline={null}
@@ -4827,6 +4878,7 @@ export default function SongsPage() {
                         onUploadPhoto={handleUploadPhoto}
                         onDeletePhoto={handleDeletePhoto}
                         onSetOccasion={handleSetOccasion}
+                        onSetCoverPhoto={handleSetCoverPhoto}
                       isSaved={isSaved(v.variant_id)}
                       isDownloading={downloading.has(v.variant_id)}
                       onSaveOffline={() => handleSaveOffline(v)}

@@ -464,6 +464,13 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             # feature existed.
             "ALTER TABLE song_variants ADD COLUMN occasion TEXT",
             "ALTER TABLE song_variants ADD COLUMN occasion_name TEXT",
+            # NULL (default) = the AI-generated cover art shows everywhere, exactly
+            # as before this column existed. Set = that song_variant_photos row
+            # displays as the primary image instead. image_url (the AI art) is
+            # never touched by this — switching back is just setting this to NULL
+            # again. Cleared automatically if the referenced photo is deleted (see
+            # delete_song_variant_photo's caller in main.py).
+            "ALTER TABLE song_variants ADD COLUMN cover_photo_id INTEGER",
         ]:
             try:
                 conn.execute(_migration)
