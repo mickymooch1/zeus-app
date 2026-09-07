@@ -1265,6 +1265,17 @@ const SongCard = memo(function SongCard({
                 </div>
               );
             })()}
+            {/* Preview — opens the real public share page, exactly as a visitor/QR-scanner would see it */}
+            {variant.mp3_url && (
+              <div style={{ marginTop: 8 }}>
+                <button
+                  onClick={() => window.open(shareUrlForQr, '_blank', 'noopener,noreferrer')}
+                  style={{ ...actionBtnStyle, width: '100%', color: '#4ade80', borderColor: 'rgba(74,222,128,0.5)' }}
+                >
+                  👁 Preview
+                </button>
+              </div>
+            )}
             {/* QR code panel */}
             {variant.mp3_url && (
               <div style={{ marginTop: 8 }}>
