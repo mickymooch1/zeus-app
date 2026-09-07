@@ -220,6 +220,13 @@ SONG_PACKS = {
     },
 }
 
+MEMORIAL_PACKS = {
+    "memorial_default": {
+        "credits": 1, "label": "Memorial Package", "price": "£49",
+        "price_id": os.environ.get("STRIPE_MEMORIAL_PACKAGE_PRICE_ID", ""),
+    },
+}
+
 # ── Stripe setup ──────────────────────────────────────────────────────────────
 
 _STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
@@ -331,6 +338,34 @@ def create_song_pack_checkout_session(user: dict, pack: str, success_url: str, c
     else:
         params["customer_email"] = user["email"]
 
+    session = stripe.checkout.Session.create(**params)
+    return session.url
+
+
+def create_memorial_checkout_session(user: dict, success_url: str, cancel_url: str) -> str:
+    """Create a one-time Stripe Checkout Session for a Memorial Package purchase.
+    Account required — always keyed to a logged-in user, no guest customer_email-only path
+    beyond what create_song_pack_checkout_session already does for an account with no
+    stripe_customer_id yet."""
+    stripe = _get_stripe()
+    pack = "memorial_default"
+    price_id = MEMORIAL_PACKS[pack]["price_id"]
+    if not price_id:
+        raise ValueError("No Stripe price ID configured for the Memorial Package — set STRIPE_MEMORIAL_PACKAGE_PRICE_ID")
+    customer_id = user.get("stripe_customer_id")
+    params: dict = {
+        "payment_method_types": ["card"],
+        "line_items": [{"price": price_id, "quantity": 1}],
+        "mode": "payment",
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "metadata": {"user_id": user["id"], "memorial_package": pack},
+        "payment_intent_data": {"metadata": {"user_id": user["id"], "memorial_package": pack}},
+    }
+    if customer_id:
+        params["customer"] = customer_id
+    else:
+        params["customer_email"] = user["email"]
     session = stripe.checkout.Session.create(**params)
     return session.url
 
