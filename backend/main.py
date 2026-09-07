@@ -2192,6 +2192,7 @@ class SongsGenerateRequest(BaseModel):
     roast_details: str | None = Field(default=None, max_length=800) # funny facts about them
     roast_vibe: str | None = None        # "gentle" | "roast" | "birthday" | "staghen"
     bilingual_mode: bool = False         # Kids story: interleave foreign + English clips per line
+    is_memorial: bool = False            # Memorial Package purchase — pay with memorial_credits_available, not song credits
 
 
 _STORY_VOICES: dict[str, str] = {
@@ -2405,6 +2406,23 @@ async def songs_generate(
         current_user.get("email"),
     )
 
+    # ── Memorial credit gating ──────────────────────────────────────────────
+    # A Memorial Package purchase pays for the song outright — it must not
+    # touch the user's subscription/song credit balance (memorial spec §3).
+    # Grant a temporary 1 song credit here (consumed by the existing
+    # precheck/deduction below) and debit memorial_credits_available instead;
+    # net effect on the song credit balance is zero. Rolled back in the
+    # except blocks below if generation fails.
+    _memorial_temp_credit_granted = False
+    if body.is_memorial:
+        _memorial_balance = db.get_user_by_id(db_path, user_id)["memorial_credits_available"]
+        if _memorial_balance < 1:
+            raise HTTPException(status_code=402, detail="No memorial credits available — purchase a Memorial Package first")
+        db.decrement_memorial_credits(db_path, user_id, 1)
+        db.increment_song_credits(db_path, user_id, 1)
+        _memorial_temp_credit_granted = True
+        credits_row = db.get_song_credits(db_path, user_id)
+
     # ── Credit pre-check ──────────────────────────────────────────────────────
     # Refuse unaffordable requests BEFORE generate_lyrics runs.
     #
@@ -2516,6 +2534,9 @@ async def songs_generate(
                     current_user.get("email") or "", song_type, str(exc))
             except Exception:
                 log.exception("songs_generate: alert_lyrics_generation_failed itself failed")
+        if _memorial_temp_credit_granted:
+            db.increment_memorial_credits(db_path, user_id, 1)
+            db.decrement_song_credits(db_path, user_id, 1)
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
 
     lyric_id = lyric_result["lyric_id"]
@@ -3207,12 +3228,21 @@ async def songs_generate(
         )
     except InsufficientCreditsError as exc:
         log.warning("songs_generate: insufficient credits user_id=%s detail=%s", user_id, exc)
+        if _memorial_temp_credit_granted:
+            db.increment_memorial_credits(db_path, user_id, 1)
+            db.decrement_song_credits(db_path, user_id, 1)
         raise HTTPException(status_code=402, detail=str(exc))
     except ValueError as exc:
         log.warning("songs_generate: bad request user_id=%s detail=%s", user_id, exc)
+        if _memorial_temp_credit_granted:
+            db.increment_memorial_credits(db_path, user_id, 1)
+            db.decrement_song_credits(db_path, user_id, 1)
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         log.exception("songs_generate: variant submission failed user_id=%s lyric_id=%s", user_id, lyric_id)
+        if _memorial_temp_credit_granted:
+            db.increment_memorial_credits(db_path, user_id, 1)
+            db.decrement_song_credits(db_path, user_id, 1)
         raise HTTPException(status_code=500, detail=f"Song submission failed: {exc}")
 
     return {
