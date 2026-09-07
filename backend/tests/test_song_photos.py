@@ -200,6 +200,31 @@ def test_sixth_photo_is_rejected_server_side(app_client):
     assert _db.count_song_variant_photos(db_path, 200) == 5
 
 
+def test_memorial_variant_allows_10_photos(app_client):
+    client, _db, db_path, owner, other, _ = app_client
+    conn = _db._conn(db_path)
+    try:
+        conn.execute("""INSERT INTO song_variants (id, lyric_id, user_id, genre_tag, style_prompt, take_number, status, mp3_url, image_url, duration_seconds, occasion, created_at)
+               VALUES (250, 1, ?, 'pop', 'a pop track', 1, 'complete', 'http://a.mp3', 'http://i.png', 180, 'memorial', datetime('now'))""", (owner["id"],))
+        conn.commit()
+    finally:
+        conn.close()
+
+    for i in range(10):
+        resp = client.post(
+            "/api/songs/variants/250/photos",
+            files={"file": (f"p{i}.jpg", _jpeg_bytes(), "image/jpeg")},
+        )
+        assert resp.status_code == 200, resp.text
+
+    resp = client.post(
+        "/api/songs/variants/250/photos",
+        files={"file": ("p11.jpg", _jpeg_bytes(), "image/jpeg")},
+    )
+    assert resp.status_code == 400
+    assert "10" in resp.json()["detail"]
+
+
 def test_upload_404s_for_a_variant_the_caller_does_not_own(app_client):
     client, _db, db_path, owner, other, _ = app_client
     conn = _db._conn(db_path)

@@ -5124,8 +5124,9 @@ async def upload_song_photo(
     if ext not in _PHOTO_ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported photo format — use JPEG, PNG, WebP, or HEIC")
 
-    if db.count_song_variant_photos(db_path, variant_id) >= _PHOTO_MAX_COUNT:
-        raise HTTPException(status_code=400, detail=f"Maximum {_PHOTO_MAX_COUNT} photos per song")
+    _photo_cap = 10 if variant.get("occasion") == "memorial" else _PHOTO_MAX_COUNT
+    if db.count_song_variant_photos(db_path, variant_id) >= _photo_cap:
+        raise HTTPException(status_code=400, detail=f"Maximum {_photo_cap} photos per song")
 
     data = await file.read()
     if len(data) > _PHOTO_MAX_BYTES:
