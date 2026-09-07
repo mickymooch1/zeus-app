@@ -99,7 +99,7 @@ def test_set_occasion_accepts_each_allowed_value(app_client, occasion):
     resp = client.post("/api/songs/variants/100/occasion",
                         json={"occasion": occasion, "occasion_name": "Alex"})
     assert resp.status_code == 200
-    assert resp.json() == {"variant_id": 100, "occasion": occasion, "occasion_name": "Alex"}
+    assert resp.json() == {"variant_id": 100, "occasion": occasion, "occasion_name": "Alex", "tribute_message": None}
     variant = _db.get_song_variant_by_id(db_path, 100)
     assert variant["occasion"] == occasion
     assert variant["occasion_name"] == "Alex"
@@ -122,6 +122,23 @@ def test_set_occasion_can_clear_back_to_none(app_client):
     variant = _db.get_song_variant_by_id(db_path, 100)
     assert variant["occasion"] is None
     assert variant["occasion_name"] is None
+
+
+def test_set_occasion_with_tribute_message(app_client):
+    client, _db, _main, db_path, _, _ = app_client
+    client.post("/api/songs/variants/100/occasion", json={
+        "occasion": "memorial", "occasion_name": "Alex", "tribute_message": "Loved by everyone who met him.",
+    })
+    variant = _db.get_song_variant_by_id(db_path, 100)
+    assert variant["tribute_message"] == "Loved by everyone who met him."
+
+
+def test_tribute_message_over_1000_chars_rejected(app_client):
+    client, _db, _main, db_path, _, _ = app_client
+    resp = client.post("/api/songs/variants/100/occasion", json={
+        "occasion": "memorial", "tribute_message": "x" * 1001,
+    })
+    assert resp.status_code == 400
 
 
 def test_set_occasion_404s_for_nonexistent_variant(app_client):

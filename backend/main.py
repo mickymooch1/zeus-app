@@ -4955,6 +4955,7 @@ _ALLOWED_OCCASIONS = {"memorial", "birthday", "anniversary", "celebration"}
 class SetOccasionRequest(BaseModel):
     occasion: str | None = None
     occasion_name: str | None = None
+    tribute_message: str | None = None
 
 
 @app.post("/api/songs/variants/{variant_id}/occasion")
@@ -4974,8 +4975,11 @@ async def set_variant_occasion(
     if occasion and occasion not in _ALLOWED_OCCASIONS:
         raise HTTPException(status_code=400, detail="Invalid occasion")
     occasion_name = (body.occasion_name or "").strip() or None
-    db.update_song_variant(db_path, variant_id, occasion=occasion, occasion_name=occasion_name)
-    return {"variant_id": variant_id, "occasion": occasion, "occasion_name": occasion_name}
+    tribute_message = (body.tribute_message or "").strip() or None
+    if tribute_message and len(tribute_message) > 1000:
+        raise HTTPException(status_code=400, detail="Tribute message must be 1000 characters or fewer")
+    db.update_song_variant(db_path, variant_id, occasion=occasion, occasion_name=occasion_name, tribute_message=tribute_message)
+    return {"variant_id": variant_id, "occasion": occasion, "occasion_name": occasion_name, "tribute_message": tribute_message}
 
 
 class SetCoverPhotoRequest(BaseModel):
