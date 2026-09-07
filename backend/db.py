@@ -471,6 +471,8 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             # again. Cleared automatically if the referenced photo is deleted (see
             # delete_song_variant_photo's caller in main.py).
             "ALTER TABLE song_variants ADD COLUMN cover_photo_id INTEGER",
+            "ALTER TABLE users ADD COLUMN memorial_credits_available INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE song_variants ADD COLUMN tribute_message TEXT",
         ]:
             try:
                 conn.execute(_migration)
@@ -1550,6 +1552,42 @@ def increment_song_credits(db_path: pathlib.Path, user_id: str, amount: int) -> 
                VALUES (?, ?, 0)
                ON CONFLICT(user_id) DO UPDATE SET balance = balance + ?""",
             (user_id, amount, amount),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def increment_memorial_credits(db_path: pathlib.Path, user_id: str, amount: int) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE users SET memorial_credits_available = memorial_credits_available + ? WHERE id = ?",
+            (amount, user_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def decrement_memorial_credits(db_path: pathlib.Path, user_id: str, amount: int) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE users SET memorial_credits_available = MAX(memorial_credits_available - ?, 0) WHERE id = ?",
+            (amount, user_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def decrement_song_credits(db_path: pathlib.Path, user_id: str, amount: int) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE song_credits SET balance = MAX(balance - ?, 0) WHERE user_id = ?",
+            (amount, user_id),
         )
         conn.commit()
     finally:
