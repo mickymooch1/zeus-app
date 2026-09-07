@@ -5,6 +5,11 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 os.environ.setdefault("ANTHROPIC_API_KEY", "test-key-for-tests")
+# Needed for the CometAPI persona-path test below — cometapi.COMETAPI_API_KEY is read
+# from env at cometapi's own import time, and main.COMETAPI_WEBHOOK_URL is read at
+# main's import time (main.py:249) — both must be set before those modules first load.
+os.environ.setdefault("COMETAPI_API_KEY", "test-comet-key")
+os.environ.setdefault("COMETAPI_WEBHOOK_URL", "https://zeusaidesign.com/webhooks/cometapi")
 
 
 @pytest.fixture()
@@ -98,6 +103,48 @@ def test_memorial_generate_lyrics_failure_rolls_back_memorial_credit(app_client)
         resp = client.post("/api/songs/generate", json=body, headers=_headers(token))
 
     assert resp.status_code == 500, resp.text
+    assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 1
+    assert _db.get_song_credits(db_path, user["id"])["balance"] == 0
+
+
+def test_memorial_generate_multi_genre_precheck_rolls_back_memorial_credit(app_client):
+    """A memorial request with more than 1 genre is refused by the credit
+    pre-check (main.py's `_needed = len(valid genres)` for the plain multi-genre
+    path) BEFORE the try block around generate_multiple_variants is ever
+    reached — that precheck raise sits between the memorial grant and every
+    rollback-covered try/except, so it must carry its own rollback call.
+    Regression pin for a real gap: the memorial grant hands out exactly 1 temp
+    song credit, but 2 genres need 2, so this must ALWAYS 402 for a memorial
+    request — the assertion here is that failing this way is still net-zero,
+    not that it should somehow succeed."""
+    client, _db, _main, db_path, user, token = app_client
+    _db.increment_memorial_credits(db_path, user["id"], 1)
+    _db.upsert_song_credits(db_path, user["id"], balance=0, monthly_allowance=0)
+
+    body = {**_BODY, "genres": ["pop", "rock"], "is_memorial": True}
+    resp = client.post("/api/songs/generate", json=body, headers=_headers(token))
+
+    assert resp.status_code == 402, resp.text
+    assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 1
+    assert _db.get_song_credits(db_path, user["id"])["balance"] == 0
+
+
+def test_memorial_generate_persona_failure_rolls_back_memorial_credit(app_client):
+    """sound_persona_id is read from the user's account (an existing "Your
+    Sound" feature), not from the request body — any user who already has a
+    persona configured is unavoidably routed through the CometAPI path
+    regardless of is_memorial. A CometAPI failure there must roll back the
+    memorial grant exactly like a generate_multiple_variants failure does."""
+    client, _db, _main, db_path, user, token = app_client
+    _db.increment_memorial_credits(db_path, user["id"], 1)
+    _db.upsert_song_credits(db_path, user["id"], balance=0, monthly_allowance=0)
+    _db.update_user(db_path, user["id"], sound_persona_id="persona-test-id")
+
+    body = {**_BODY, "is_memorial": True}
+    with patch("cometapi.generate_with_persona", side_effect=RuntimeError("cometapi boom")):
+        resp = client.post("/api/songs/generate", json=body, headers=_headers(token))
+
+    assert resp.status_code == 502, resp.text
     assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 1
     assert _db.get_song_credits(db_path, user["id"])["balance"] == 0
 

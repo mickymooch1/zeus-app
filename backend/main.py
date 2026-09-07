@@ -2423,6 +2423,20 @@ async def songs_generate(
         _memorial_temp_credit_granted = True
         credits_row = db.get_song_credits(db_path, user_id)
 
+    def _rollback_memorial_credit() -> None:
+        """Undo the temporary song-credit grant made by the memorial gate above.
+        Must be called on EVERY failure exit between the grant and a successful
+        return, not just the try/except immediately around generate_multiple_
+        variants — several branches below (kids_story/ElevenLabs narration, SFX,
+        CometAPI persona, the multi-genre precheck) raise HTTPException on their
+        own failure paths too, and each one sits after the grant. Where a branch
+        already reverses its OWN local -1 deduction (SFX, the CometAPI persona
+        exception handler) this still needs to run afterward to also reverse the
+        memorial-specific pair — the two are independent ledger entries."""
+        if _memorial_temp_credit_granted:
+            db.increment_memorial_credits(db_path, user_id, 1)
+            db.decrement_song_credits(db_path, user_id, 1)
+
     # ── Credit pre-check ──────────────────────────────────────────────────────
     # Refuse unaffordable requests BEFORE generate_lyrics runs.
     #
@@ -2466,6 +2480,7 @@ async def songs_generate(
             )
             # Message matches generate_multiple_variants exactly so the client is
             # unaffected by which layer refused.
+            _rollback_memorial_credit()
             raise HTTPException(
                 status_code=402,
                 detail=f"Need {_needed} credits, have {_balance}",
@@ -2534,9 +2549,7 @@ async def songs_generate(
                     current_user.get("email") or "", song_type, str(exc))
             except Exception:
                 log.exception("songs_generate: alert_lyrics_generation_failed itself failed")
-        if _memorial_temp_credit_granted:
-            db.increment_memorial_credits(db_path, user_id, 1)
-            db.decrement_song_credits(db_path, user_id, 1)
+        _rollback_memorial_credit()
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
 
     lyric_id = lyric_result["lyric_id"]
@@ -2547,6 +2560,7 @@ async def songs_generate(
     if _is_story:
         _el_key = os.environ.get("ELEVENLABS_API_KEY", "")
         if not _el_key or not lyric_result.get("lyrics"):
+            _rollback_memorial_credit()
             raise HTTPException(status_code=500, detail="Story narration is unavailable right now — please try again")
         try:
             _story_text = lyric_result["lyrics"].strip()
@@ -2790,9 +2804,11 @@ async def songs_generate(
                             log.exception("failed to send elevenlabs service-error alert")
         except Exception:
             log.exception("kids_story TTS: failed user=%s lyric_id=%s", user_id, lyric_id)
+            _rollback_memorial_credit()
             raise HTTPException(status_code=500, detail="Story narration failed — please try again")
         if not story_audio_url:
             log.warning("kids_story TTS: no audio produced user=%s lyric_id=%s", user_id, lyric_id)
+            _rollback_memorial_credit()
             raise HTTPException(status_code=500, detail="Story narration failed — please try again")
 
     # STORY MODE EARLY RETURN — pure ElevenLabs narration, do NOT call Suno
@@ -2867,6 +2883,7 @@ async def songs_generate(
                 _fc.commit()
             finally:
                 _fc.close()
+            _rollback_memorial_credit()
             raise HTTPException(status_code=502, detail=f"Sound generation failed: {exc}")
         _sfx_url = f"{_pub_base}/{_sfx_vid}.mp3"
         _sfx_cover = None
@@ -3124,7 +3141,19 @@ async def songs_generate(
         from song_genres import GENRE_PRESETS as _GP
         _p_genre = body.genres[0]
         if _p_genre not in _GP:
+            _rollback_memorial_credit()
             raise HTTPException(status_code=400, detail=f"Invalid genre: {_p_genre!r}")
+        # Config checks moved ahead of the credit deduction / variant-row write below
+        # (they used to run after it, with no refund on failure — a real credit was
+        # spent for a request that never reached CometAPI at all). Fail fast instead,
+        # before anything is spent or written, so every failure exit in this block is
+        # a clean no-op for both the normal credit ledger and the memorial one.
+        if not _cometapi_mod.COMETAPI_API_KEY:
+            _rollback_memorial_credit()
+            raise HTTPException(status_code=503, detail="CometAPI not configured — contact support")
+        if not COMETAPI_WEBHOOK_URL:
+            _rollback_memorial_credit()
+            raise HTTPException(status_code=503, detail="CometAPI webhook URL not configured — contact support")
         _p_style = _GP.get(_p_genre, "")
         if tempo_suffix:
             _p_style = f"{_p_style}, {tempo_suffix}"
@@ -3144,13 +3173,12 @@ async def songs_generate(
             )
             _p_variant_id = _p_cur.lastrowid
             _p_conn.commit()
+        except HTTPException:
+            _rollback_memorial_credit()
+            raise
         finally:
             _p_conn.close()
 
-        if not _cometapi_mod.COMETAPI_API_KEY:
-            raise HTTPException(status_code=503, detail="CometAPI not configured — contact support")
-        if not COMETAPI_WEBHOOK_URL:
-            raise HTTPException(status_code=503, detail="CometAPI webhook URL not configured — contact support")
         _p_token = _cometapi_mod._make_webhook_token(_p_variant_id)
         _p_webhook = f"{COMETAPI_WEBHOOK_URL}?variant_id={_p_variant_id}&token={_p_token}"
         try:
@@ -3172,6 +3200,7 @@ async def songs_generate(
             finally:
                 _fail_conn.close()
             log.exception("songs_generate: CometAPI persona generation failed user_id=%s", user_id)
+            _rollback_memorial_credit()
             raise HTTPException(status_code=502, detail=f"CometAPI generation failed: {exc}")
 
         _tj = sqlite3.connect(str(db_path))
@@ -3228,21 +3257,15 @@ async def songs_generate(
         )
     except InsufficientCreditsError as exc:
         log.warning("songs_generate: insufficient credits user_id=%s detail=%s", user_id, exc)
-        if _memorial_temp_credit_granted:
-            db.increment_memorial_credits(db_path, user_id, 1)
-            db.decrement_song_credits(db_path, user_id, 1)
+        _rollback_memorial_credit()
         raise HTTPException(status_code=402, detail=str(exc))
     except ValueError as exc:
         log.warning("songs_generate: bad request user_id=%s detail=%s", user_id, exc)
-        if _memorial_temp_credit_granted:
-            db.increment_memorial_credits(db_path, user_id, 1)
-            db.decrement_song_credits(db_path, user_id, 1)
+        _rollback_memorial_credit()
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         log.exception("songs_generate: variant submission failed user_id=%s lyric_id=%s", user_id, lyric_id)
-        if _memorial_temp_credit_granted:
-            db.increment_memorial_credits(db_path, user_id, 1)
-            db.decrement_song_credits(db_path, user_id, 1)
+        _rollback_memorial_credit()
         raise HTTPException(status_code=500, detail=f"Song submission failed: {exc}")
 
     return {
