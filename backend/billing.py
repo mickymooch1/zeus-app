@@ -666,6 +666,8 @@ def _grant_topup(db_path, user, credit_type: str, credits: int, source: str, pi_
         return
     if credit_type == "song":
         db.increment_song_credits(db_path, user["id"], credits)
+    elif credit_type == "memorial":
+        db.increment_memorial_credits(db_path, user["id"], credits)
     else:
         db.increment_premium_credits(db_path, user["id"], credits)
     db.update_user(db_path, user["id"], has_paid=1)
@@ -674,7 +676,7 @@ def _grant_topup(db_path, user, credit_type: str, credits: int, source: str, pi_
 
     # Success notification to Porick — same send path as every other alert.
     log.info("PAYG alert firing for %s — %d credits", email, credits)
-    _pack_cfg = (SONG_PACKS if credit_type == "song" else ANIMATION_PACKS).get(pack, {})
+    _pack_cfg = (SONG_PACKS if credit_type == "song" else ANIMATION_PACKS if credit_type == "premium" else MEMORIAL_PACKS).get(pack, {})
     _alerts.alert_payg_purchase(email or "", _pack_cfg.get("label", pack), credits, amount_display)
 
 
@@ -708,6 +710,7 @@ def _handle_checkout_completed(db_path, session) -> None:
     if mode == "payment":
         pack = session.get("metadata", {}).get("song_pack")
         anim_pack = session.get("metadata", {}).get("animation_pack")
+        memorial_pack = session.get("metadata", {}).get("memorial_package")
         pi_id = session.get("payment_intent")
         amount_display = f"£{(session.get('amount_total') or 0) / 100:.2f}"
         log.info("checkout one-time payment: song_pack=%r anim_pack=%r pi=%s", pack, anim_pack, pi_id)
@@ -739,10 +742,18 @@ def _handle_checkout_completed(db_path, session) -> None:
                           anim_pack, customer_email, customer_id, user_id)
                 _alerts.alert_credit_not_granted(customer_email or "", amount_display,
                                                  f"animation top-up {anim_pack}: user not found", pi_id or session_id)
+        elif memorial_pack and memorial_pack in MEMORIAL_PACKS:
+            if user:
+                _grant_topup(db_path, user, "memorial", MEMORIAL_PACKS[memorial_pack]["credits"], "checkout_topup", pi_id, memorial_pack, amount_display)
+            else:
+                log.error("CREDITS FAILED: memorial top-up pack=%s — user NOT FOUND (email=%r customer=%r user_id_meta=%r)",
+                          memorial_pack, customer_email, customer_id, user_id)
+                _alerts.alert_credit_not_granted(customer_email or "", amount_display,
+                                                 f"memorial top-up {memorial_pack}: user not found", pi_id or session_id)
         else:
-            log.warning("checkout.session.completed payment: unrecognised pack song=%r anim=%r — ignoring", pack, anim_pack)
+            log.warning("checkout.session.completed payment: unrecognised pack song=%r anim=%r memorial=%r — ignoring", pack, anim_pack, memorial_pack)
             _alerts.alert_credit_not_granted(customer_email or "", amount_display,
-                                             f"unrecognised pack (song={pack!r} anim={anim_pack!r})", pi_id or session_id)
+                                             f"unrecognised pack (song={pack!r} anim={anim_pack!r} memorial={memorial_pack!r})", pi_id or session_id)
         return
 
     # ── Subscription ─────────────────────────────────────────────────────────
@@ -880,6 +891,7 @@ def _handle_payment_intent_succeeded(db_path, payment_intent) -> None:
     user_id = metadata.get("user_id")
     song_pack = metadata.get("song_pack")
     anim_pack = metadata.get("animation_pack")
+    memorial_pack = metadata.get("memorial_package")
     customer_id = payment_intent.get("customer")
 
     log.info(
@@ -888,7 +900,7 @@ def _handle_payment_intent_succeeded(db_path, payment_intent) -> None:
     )
 
     # No pack metadata means this is a subscription payment intent — skip
-    if not song_pack and not anim_pack:
+    if not song_pack and not anim_pack and not memorial_pack:
         log.info("payment_intent.succeeded: no pack metadata — subscription payment, ignoring")
         return
 
@@ -922,14 +934,17 @@ def _handle_payment_intent_succeeded(db_path, payment_intent) -> None:
     elif anim_pack and anim_pack in ANIMATION_PACKS:
         _grant_topup(db_path, user, "premium", ANIMATION_PACKS[anim_pack]["credits"],
                      "payment_intent_topup", pi_id, anim_pack, amount_display)
+    elif memorial_pack and memorial_pack in MEMORIAL_PACKS:
+        _grant_topup(db_path, user, "memorial", MEMORIAL_PACKS[memorial_pack]["credits"],
+                     "payment_intent_topup", pi_id, memorial_pack, amount_display)
     else:
         log.warning(
-            "payment_intent.succeeded: unrecognised pack song=%r anim=%r — no credits granted (pi=%s)",
-            song_pack, anim_pack, pi_id,
+            "payment_intent.succeeded: unrecognised pack song=%r anim=%r memorial=%r — no credits granted (pi=%s)",
+            song_pack, anim_pack, memorial_pack, pi_id,
         )
         _alerts.alert_credit_not_granted(
             user.get("email") or "", amount_display,
-            f"payment_intent: unrecognised pack (song={song_pack!r} anim={anim_pack!r})", pi_id)
+            f"payment_intent: unrecognised pack (song={song_pack!r} anim={anim_pack!r} memorial={memorial_pack!r})", pi_id)
 
 
 def _handle_subscription_updated(db_path, subscription) -> None:
