@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 
-from .config import HubError
+from .config import COUNCIL_BETA_FULL_CREDITS, COUNCIL_BETA_PARTIAL_CREDITS, HubError
 from .council import consult
 from .pricing import cost, credits, input_bound, quote
 from .providers import Provider, available
@@ -42,7 +42,8 @@ def prepare(store, settings, user, body):
     if any(not available(settings.models[name]) for name in names):
         raise HubError('The selected AI providers are not configured yet.')
     estimate = quote(settings, body.feature, messages, selected)
-    if estimate['estimated_cost'] > settings.max_request_usd:
+    cap = settings.council_max_request_usd if (body.feature == 'council' and settings.mode == 'beta') else settings.max_request_usd
+    if estimate['estimated_cost'] > cap:
         raise HubError('This request exceeds the configured Hub cost limit. Please shorten your request.', 422)
     return messages, selected, estimate
 
@@ -76,7 +77,15 @@ async def execute(store, settings, user_id, request_id, feature, messages, selec
                 result = await generate(selected, messages)
         # Only successful calls with reported tokens are charged. Unknown/failed work is waived.
         usd = sum(row['estimated_cost'] or 0 for row in store.usage(user_id, request_id) if row['status'] == 'succeeded')
-        charge = 0 if settings.mode == 'development' else credits(settings, usd, feature)
+        if feature == 'council' and settings.mode == 'beta':
+            # Fixed private-beta settlement: full rate unless exactly one of
+            # three members failed. consult() requires >=2 successful members
+            # to return at all, so 'unavailable' here is always 0 or 1 --
+            # every other failure (judge fails, or 2+ members fail) already
+            # takes the exception path below, which refunds the full 15.
+            charge = COUNCIL_BETA_FULL_CREDITS if result.get('unavailable', 0) == 0 else COUNCIL_BETA_PARTIAL_CREDITS
+        else:
+            charge = 0 if settings.mode == 'development' else credits(settings, usd, feature)
         result['selection_note'] = 'Zeus selected the best AI for this task.'
         result['simulated'] = settings.mode == 'development'
         store.finish(user_id, request_id, 'succeeded', result, charge)

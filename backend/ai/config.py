@@ -17,6 +17,18 @@ class HubError(Exception):
         self.usage = usage
 
 
+# Fixed private-beta Council settlement policy — deliberately not
+# Railway-configurable, so changing it requires a reviewed code change,
+# not a variable edit. reserve == full: a full-success request charges
+# exactly what it reserved (no rounding). One member failing (of three)
+# still charges the flat partial rate; any other failure path (judge
+# fails, or two-plus members fail) is unaffected here — it already
+# refunds the full reservation via the existing generic failure path.
+COUNCIL_BETA_RESERVE_CREDITS = 15
+COUNCIL_BETA_FULL_CREDITS = 15
+COUNCIL_BETA_PARTIAL_CREDITS = 12
+
+
 @dataclass(frozen=True)
 class Model:
     provider: str
@@ -44,12 +56,14 @@ class Settings:
     max_input_bytes: int = 12000
     max_context_bytes: int = 24000
     beta_user_ids: list = field(default_factory=list)
+    council_beta_user_ids: list = field(default_factory=list)
+    council_max_request_usd: float = 0
 
     def authorize(self, user_id, feature=None):
         if self.mode == 'beta':
             if user_id not in self.beta_user_ids:
                 raise HubError('Zeus Hub private beta is invitation-only.', 403)
-            if feature == 'council':
+            if feature == 'council' and user_id not in self.council_beta_user_ids:
                 raise HubError('Zeus Council live calls are disabled during private beta.')
 
     @classmethod
@@ -70,7 +84,19 @@ class Settings:
             if mode == 'beta':
                 _require(isinstance(settings.beta_user_ids, list) and len(settings.beta_user_ids) > 0)
                 _require(all(isinstance(value, str) and value.strip() for value in settings.beta_user_ids))
-                _require(len(settings.models) == 1 and not settings.members and not settings.judge)
+                # Ask Zeus beta stays exactly as before: one model, no council.
+                # A separate, narrower council_beta_user_ids additionally and
+                # optionally allows exactly one 3-member Council + judge on
+                # top of that single Ask Zeus model — gated independently in
+                # authorize(), never widening who can reach Ask Zeus.
+                if settings.council_beta_user_ids:
+                    _require(isinstance(settings.council_beta_user_ids, list))
+                    _require(all(isinstance(value, str) and value.strip() for value in settings.council_beta_user_ids))
+                    _require(len(settings.members) == 3 and bool(settings.judge))
+                    _require(len(settings.models) - len(set(settings.members) | {settings.judge}) == 1)
+                    _require(math.isfinite(settings.council_max_request_usd) and settings.council_max_request_usd > 0)
+                else:
+                    _require(len(settings.models) == 1 and not settings.members and not settings.judge)
                 _require(settings.initial_allowance == 0)
             for key in ('credit_usd', 'council_multiplier', 'initial_allowance', 'free_daily_requests', 'max_request_usd'):
                 _require(key in raw)

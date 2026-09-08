@@ -1,6 +1,8 @@
 """Conservative reservation, actual-usage settlement; USD rate per Hub credit."""
 import math
 
+from .config import COUNCIL_BETA_RESERVE_CREDITS
+
 
 def cost(model, input_tokens, output_tokens):
     return (input_tokens * model.input_per_million + output_tokens * model.output_per_million) / 1_000_000
@@ -27,4 +29,8 @@ def quote(settings, feature, messages, selected):
         judge_input = input_bound(messages) + sum(settings.models[n].max_output_tokens * 8 * 6 + 512 for n in settings.members) + 2048
         model = settings.models[settings.judge]
         usd += cost(model, judge_input, model.max_output_tokens)
+        if settings.mode == 'beta':
+            # Private Council beta: fixed reservation, not the dollar-derived
+            # amount — settlement charges a fixed 15/12 too (service.execute).
+            return {'credits': COUNCIL_BETA_RESERVE_CREDITS, 'estimated_cost': usd}
     return {'credits': max(1, credits(settings, usd, feature)), 'estimated_cost': usd}

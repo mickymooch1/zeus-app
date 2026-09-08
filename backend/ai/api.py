@@ -44,8 +44,13 @@ def context(user=Depends(get_current_user), path=Depends(get_db_path_dep)):
 @router.get('/status')
 def status(ctx=Depends(context)):
     store, settings, user = ctx
+    # Outside beta, unchanged: council_enabled reflects whether a council is
+    # configured at all. In beta, it's per-caller -- true only for the one
+    # allowlisted private-Council-beta account; everyone else on the general
+    # Hub beta still sees Council as disabled, exactly as before.
+    council_enabled = (settings.mode != 'beta' and len(settings.members) >= 2) or (settings.mode == 'beta' and user['id'] in settings.council_beta_user_ids)
     return {'mode': settings.mode, 'balance': store.balance(user['id'], settings.mode), 'balance_name': 'Hub Beta Credits' if settings.mode == 'beta' else 'Zeus Hub credits',
-            'enabled': settings.mode != 'disabled', 'council_enabled': settings.mode != 'beta' and len(settings.members) >= 2,
+            'enabled': settings.mode != 'disabled', 'council_enabled': council_enabled,
             'max_input_bytes': settings.max_input_bytes, 'message': 'Development simulation: no paid AI calls.' if settings.mode == 'development' else None}
 
 
