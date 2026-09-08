@@ -21,6 +21,14 @@ import { useNowPlaying }    from '../contexts/NowPlayingContext';
 import { useStoryModeEnabled } from '../hooks/useStoryModeEnabled';
 import ComingSoonBadge      from '../components/ComingSoonBadge';
 import ComingSoonModal      from '../components/ComingSoonModal';
+// SongCard.jsx imports genreColor/gLabel back from this file (see the comment
+// at its top), which makes this pair circular. That's currently safe because
+// nothing here dereferences S / actionBtnStyle / the default SongCard export
+// at this module's own top level — only inside function bodies (SkeletonCard,
+// StoryCard, SongsPage(), JSX call sites), by which point both modules have
+// finished loading. Keep it that way: a future top-level use of any of these
+// three bindings would throw (temporal dead zone) as soon as SongCard.jsx
+// gains a second importer and this cycle actually gets exercised at load time.
 import SongCard, { S, actionBtnStyle } from '../components/SongCard';
 
 // Set once the post-first-song name prompt has been answered OR skipped, so a
