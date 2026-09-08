@@ -7,12 +7,7 @@ import { BACKEND_URL } from '../brand';
 import LyricsModal from './LyricsModal';
 import { audioManager } from '../utils/audioManager';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
-// genreColor/gLabel stay defined in SongsPage.jsx (not duplicated here) because
-// genres.test.mjs text-scans that file for a literal "const GENRE_CATEGORIES ="
-// declaration; they're only referenced inside this component's render body
-// below, never at this module's own top level, so importing them back from the
-// page that imports this component is safe (no temporal-dead-zone issue).
-import { genreColor, gLabel } from '../pages/SongsPage';
+import { genreColor, gLabel } from '../utils/genres';
 
 export const S = {
   card: {

@@ -20,16 +20,22 @@
 //      still charged for it (cost = selGenres.size), producing fewer variants
 //      than the user paid for, with no error anywhere.
 //
-// Parsing the sources as text is deliberate: SongsPage.jsx is a React module
-// that cannot be imported outside a bundler, and song_genres.py is Python. The
-// counts are asserted non-zero first so a parser that silently matches nothing
-// fails loudly instead of comparing two empty sets and passing.
+// Parsing the sources as text is deliberate: genres.js is a React-adjacent
+// module that cannot be imported outside a bundler in this test's context,
+// and song_genres.py is Python. The counts are asserted non-zero first so a
+// parser that silently matches nothing fails loudly instead of comparing two
+// empty sets and passing.
+//
+// GENRE_CATEGORIES used to live in SongsPage.jsx; it was extracted to
+// web-beats/src/utils/genres.js (Task 14) to break a circular import between
+// SongsPage.jsx and SongCard.jsx. This file was retargeted to scan the new
+// location — the regex itself is unchanged (it was already unanchored).
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
-const SONGS_PAGE = new URL('./SongsPage.jsx', import.meta.url);
+const GENRES_JS = new URL('../utils/genres.js', import.meta.url);
 const SONG_GENRES_PY = new URL('../../../backend/song_genres.py', import.meta.url);
 const WEBHOOKS_PY = new URL('../../../backend/webhooks.py', import.meta.url);
 
@@ -43,9 +49,9 @@ function read(url, label) {
 
 /** Every genre slug selectable from the category grid, in grid order. */
 function pickableGenres() {
-  const src = read(SONGS_PAGE, 'SongsPage.jsx');
+  const src = read(GENRES_JS, 'utils/genres.js');
   const block = src.match(/const GENRE_CATEGORIES = \[([\s\S]*?)\n\];/);
-  assert.ok(block, 'could not locate GENRE_CATEGORIES in SongsPage.jsx');
+  assert.ok(block, 'could not locate GENRE_CATEGORIES in utils/genres.js');
   return [...block[1].matchAll(/genres:\s*\[([^\]]*)\]/g)]
     .flatMap(m => [...m[1].matchAll(/'([^']+)'/g)].map(x => x[1]));
 }
