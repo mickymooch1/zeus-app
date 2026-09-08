@@ -5029,15 +5029,39 @@ async def set_variant_occasion(
     variant = db.get_song_variant_by_id(db_path, variant_id)
     if not variant or variant["user_id"] != user_id:
         raise HTTPException(status_code=404, detail="Variant not found")
-    occasion = (body.occasion or "").strip() or None
-    if occasion and occasion not in _ALLOWED_OCCASIONS:
-        raise HTTPException(status_code=400, detail="Invalid occasion")
-    occasion_name = (body.occasion_name or "").strip() or None
-    tribute_message = (body.tribute_message or "").strip() or None
-    if tribute_message and len(tribute_message) > 1000:
-        raise HTTPException(status_code=400, detail="Tribute message must be 1000 characters or fewer")
-    db.update_song_variant(db_path, variant_id, occasion=occasion, occasion_name=occasion_name, tribute_message=tribute_message)
-    return {"variant_id": variant_id, "occasion": occasion, "occasion_name": occasion_name, "tribute_message": tribute_message}
+
+    # Partial update: only touch the fields the caller actually sent. A
+    # request that omits tribute_message entirely must NOT null it out —
+    # this endpoint is shared by the memorial wizard (which always resends
+    # the current tribute) and the pre-existing /songs Occasion panel (which
+    # doesn't know tribute_message exists at all). exclude_unset tells us
+    # which keys were present in the body, regardless of value, so an
+    # explicit {"tribute_message": null} still clears it.
+    provided = body.model_dump(exclude_unset=True)
+    updates = {}
+    if "occasion" in provided:
+        occasion = (body.occasion or "").strip() or None
+        if occasion and occasion not in _ALLOWED_OCCASIONS:
+            raise HTTPException(status_code=400, detail="Invalid occasion")
+        updates["occasion"] = occasion
+    if "occasion_name" in provided:
+        updates["occasion_name"] = (body.occasion_name or "").strip() or None
+    if "tribute_message" in provided:
+        tribute_message = (body.tribute_message or "").strip() or None
+        if tribute_message and len(tribute_message) > 1000:
+            raise HTTPException(status_code=400, detail="Tribute message must be 1000 characters or fewer")
+        updates["tribute_message"] = tribute_message
+
+    if updates:
+        db.update_song_variant(db_path, variant_id, **updates)
+
+    updated = db.get_song_variant_by_id(db_path, variant_id)
+    return {
+        "variant_id": variant_id,
+        "occasion": updated.get("occasion"),
+        "occasion_name": updated.get("occasion_name"),
+        "tribute_message": updated.get("tribute_message"),
+    }
 
 
 class SetCoverPhotoRequest(BaseModel):

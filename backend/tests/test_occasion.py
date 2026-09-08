@@ -133,6 +133,26 @@ def test_set_occasion_with_tribute_message(app_client):
     assert variant["tribute_message"] == "Loved by everyone who met him."
 
 
+def test_omitting_tribute_message_leaves_existing_value_untouched(app_client):
+    """Regression: the pre-existing /songs Occasion panel (SongsPage.jsx)
+    POSTs {occasion, occasion_name} with no tribute_message key at all —
+    it must not silently null out a tribute message someone already set
+    (e.g. via the memorial wizard) just because they edited the occasion
+    name here."""
+    client, _db, _main, db_path, _, _ = app_client
+    client.post("/api/songs/variants/100/occasion", json={
+        "occasion": "memorial", "occasion_name": "Alex", "tribute_message": "Loved by everyone who met him.",
+    })
+
+    resp = client.post("/api/songs/variants/100/occasion", json={"occasion": "memorial", "occasion_name": "Alexander"})
+    assert resp.status_code == 200
+    assert resp.json()["tribute_message"] == "Loved by everyone who met him."
+
+    variant = _db.get_song_variant_by_id(db_path, 100)
+    assert variant["occasion_name"] == "Alexander"
+    assert variant["tribute_message"] == "Loved by everyone who met him."
+
+
 def test_tribute_message_over_1000_chars_rejected(app_client):
     client, _db, _main, db_path, _, _ = app_client
     resp = client.post("/api/songs/variants/100/occasion", json={
