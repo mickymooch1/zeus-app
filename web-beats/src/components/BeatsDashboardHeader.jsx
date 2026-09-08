@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
 import { LanguageSelector } from './LanguageSelector';
 import { useDiscoverBadge } from '../hooks/useDiscoverBadge';
+import { isIOSWebView } from '../hooks/useIsIOSWebView';
 
 function isActive(pathname, to) {
   return pathname === to || pathname.startsWith(to + '/');
@@ -59,6 +60,10 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
     { to: '/settings',  label: '🎙️ Voice' },
     { to: '/tutorial',  label: '📖 Tutorial' },
     { to: '/contact',   label: `✉️ ${t('nav.contact')}` },
+    // Quiet, non-promotional entry point — /memorials otherwise has no link
+    // anywhere in the app. Kept last and understated, matching the calm tone
+    // of the memorial product itself, same iOS gating as the rest of it.
+    ...(isIOSWebView ? [] : [{ to: '/memorials', label: '🕊️ Memorials' }]),
   ];
 
   return (
