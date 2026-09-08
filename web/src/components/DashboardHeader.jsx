@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const NAV_LINKS = [
+  { to: '/hub', label: 'AI Hub' },
   { to: '/dashboard', label: 'Chat' },
   { to: '/songs',     label: 'Songs' },
   { to: '/websites',  label: 'Websites' },
@@ -24,7 +25,7 @@ export function DashboardHeader({ onMenuOpen }) {
           ☰
         </button>
       )}
-      <Link to="/dashboard" className="dashboard-logo">
+      <Link to="/hub" className="dashboard-logo">
         <span className="zeus-icon">⚡</span>
         <span className="zeus-title">Zeus</span>
       </Link>
