@@ -115,3 +115,19 @@ def conversation(conversation_id: UUID, ctx=Depends(context)):
         return store.conversation(user['id'], settings.mode, str(conversation_id))
     except HubError as error:
         raise HTTPException(error.status, str(error)) from None
+
+
+# ── Admin diagnostics — separate, stricter gate; does not touch context() ──
+# Denies unless ALL three hold: is_admin, email_verified, and already on the
+# existing Hub beta allowlist. A single generic 403 covers every failure so
+# an unauthorized caller can't learn which condition they're missing.
+def diagnostics_context(user=Depends(get_current_user), path=Depends(get_db_path_dep)):
+    settings = Settings.from_env()
+    if not (user.get('is_admin') and user.get('email_verified') and user['id'] in settings.beta_user_ids):
+        raise HTTPException(403, 'Not authorized.')
+    return Store(path)
+
+
+@router.get('/diagnostics')
+def diagnostics(store=Depends(diagnostics_context)):
+    return {**store.diagnostics_stats(), 'requests': store.diagnostics_requests()}

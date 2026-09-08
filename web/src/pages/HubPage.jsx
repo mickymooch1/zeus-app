@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import DiagnosticsLink from '../hub/DiagnosticsLink';
 import { DashboardHeader } from '../components/DashboardHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { hubApi } from '../hub/api';
@@ -65,7 +66,7 @@ export default function HubPage() {
             })}
           </div>
         </section>
-        {['development', 'beta'].includes(status?.mode) && <BetaStatus balance={status.balance} mode={status.mode} />}
+        {['development', 'beta'].includes(status?.mode) && <div className="hub-beta-row"><BetaStatus balance={status.balance} mode={status.mode} /><DiagnosticsLink mode={status.mode} /></div>}
         <footer className="hub-footer">Your existing Zeus tools, together. <Link to="/dashboard">Open the original Zeus assistant →</Link></footer>
       </main>
     </div>

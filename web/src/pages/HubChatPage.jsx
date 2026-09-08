@@ -5,6 +5,7 @@ import { DashboardHeader } from '../components/DashboardHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { hubApi } from '../hub/api';
 import BetaStatus from '../hub/BetaStatus';
+import DiagnosticsLink from '../hub/DiagnosticsLink';
 import UsageDiagnostics from '../hub/UsageDiagnostics';
 import './Hub.css';
 
@@ -173,7 +174,7 @@ export default function HubChatPage({ feature = 'ask' }) {
     <section className="hub-chat-panel"><header className="hub-chat-heading"><p className="hub-kicker">{council ? 'PERSPECTIVE. CONSENSUS. CLARITY.' : 'YOUR NEXT IDEA STARTS HERE.'}</p><h1>{council ? '🧠 Zeus Council' : '⚡ Ask Zeus'}</h1>{council && <p className="hub-council-formula">3 AIs + 1 Zeus Verdict</p>}<p>{council ? 'Up to three independent perspectives, brought together in one clear answer. If a member is unavailable, Zeus can work with two responses.' : 'Ask naturally. Zeus selects the AI for your task.'}</p>
       {status?.mode === 'live' && <p className="hub-balance">{status.balance} Hub credits · separate from music and video</p>}
     </header>
-    {['development', 'beta'].includes(status?.mode) && <BetaStatus balance={status.balance} mode={status.mode} />}
+    {['development', 'beta'].includes(status?.mode) && <div className="hub-beta-row"><BetaStatus balance={status.balance} mode={status.mode} /><DiagnosticsLink mode={status.mode} /></div>}
     {status?.mode === 'disabled' && <p className="hub-notice">Ask Zeus and Council are awaiting activation. <Link to="/dashboard">Use the existing Zeus assistant →</Link></p>}
     {council && status?.enabled && !status.council_enabled && <p className="hub-notice">Zeus Council live calls are disabled. <Link to="/hub/ask">Use Ask Zeus →</Link></p>}
     <div className="hub-transcript" aria-label="Conversation">{requests.length === 0 && <div className="hub-empty"><span aria-hidden="true">{council ? '✦' : 'ϟ'}</span><h2>{council ? 'A broader view of your question.' : 'What can we work on?'}</h2><p>{council ? 'Compare approaches, explore a decision, or challenge an idea.' : 'Explore an idea, draft something useful, or work through code.'}</p></div>}{requests.map(r => <Answer key={r.request_id} request={r} />)}<div ref={bottom} /></div>

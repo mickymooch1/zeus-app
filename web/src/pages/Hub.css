@@ -128,3 +128,26 @@ a.hub-mission:hover { transform:translateY(-3px); border-color:#00f0ff88; backgr
 .hub-usage-diagnostics { margin: 16px 0; color: #a9b4c9; overflow-wrap: anywhere; }
 .hub-usage-diagnostics dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 16px; }
 .hub-usage-diagnostics dd { margin: 0; color: #e1e7f2; }
+
+/* Admin-only Diagnostics page (separate from the per-answer usage panel above) */
+.hub-beta-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:20px 0; }
+.hub-diag-link { font-size:12px; font-weight:600; color:#7ee0f5; border:1px solid #00f0ff40; border-radius:20px; padding:8px 14px; text-decoration:none; white-space:nowrap; }
+.hub-diag-link:hover { color:white; border-color:#00f0ff90; background:#00f0ff0b; }
+.hub-diag-stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin:24px 0; }
+.hub-diag-stat { display:flex; flex-direction:column; gap:6px; padding:18px 20px; border:1px solid var(--border); border-radius:12px; background:#09102080; }
+.hub-diag-stat-label { font-size:11px; letter-spacing:1px; color:#a5b1c5; text-transform:uppercase; }
+.hub-diag-stat-value { font-size:26px; font-weight:700; color:#e1e7f2; }
+.hub-diag-heading { font-size:20px; margin:32px 0 14px; }
+.hub-diag-table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:12px; }
+.hub-diag-table { width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
+.hub-diag-table th { text-align:left; padding:12px 14px; color:#a5b1c5; font-size:11px; letter-spacing:.5px; text-transform:uppercase; border-bottom:1px solid var(--border); background:#080d1690; }
+.hub-diag-table td { padding:10px 14px; border-bottom:1px solid #ffffff0d; color:#cbd6e7; }
+.hub-diag-row:hover { background:#00f0ff06; }
+.hub-diag-subrow td { background:#00f0ff05; color:#a9b4c9; font-size:12px; }
+.hub-diag-expand { font:inherit; font-size:13px; color:#7ee0f5; background:none; border:none; cursor:pointer; padding:0; }
+.hub-diag-status { padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+.hub-diag-status-succeeded { background:#00f0ff14; color:#7ee0f5; }
+.hub-diag-status-failed { background:#ff727220; color:#ffb9b9; }
+.hub-diag-status-running,.hub-diag-status-unknown { background:#cdb65420; color:#e5d691; }
+.hub-diag-reqid { font-family:monospace; color:#8994ab; }
+@media(max-width:720px) { .hub-diag-stats { grid-template-columns:repeat(2, 1fr); } .hub-diag-table { font-size:12px; } }

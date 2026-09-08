@@ -10,6 +10,7 @@ import PricingPage from './pages/PricingPage';
 import DashboardPage from './pages/DashboardPage';
 import HubPage from './pages/HubPage';
 import HubChatPage from './pages/HubChatPage';
+import HubDiagnosticsPage from './pages/HubDiagnosticsPage';
 import BillingPage from './pages/BillingPage';
 import TasksPage from './pages/TasksPage';
 import WebsitesPage from './pages/WebsitesPage';
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/hub" element={<ProtectedRoute><HubPage /></ProtectedRoute>} />
           <Route path="/hub/ask" element={<ProtectedRoute><HubChatPage key="ask" feature="ask" /></ProtectedRoute>} />
           <Route path="/hub/council" element={<ProtectedRoute><HubChatPage key="council" feature="council" /></ProtectedRoute>} />
+          <Route path="/hub/diagnostics" element={<ProtectedRoute><HubDiagnosticsPage /></ProtectedRoute>} />
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />

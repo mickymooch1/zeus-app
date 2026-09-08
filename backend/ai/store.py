@@ -175,3 +175,29 @@ class Store:
                 raise HubError('Conversation not found.', 404)
             ids = [r[0] for r in conn.execute('SELECT request_id FROM hub_requests WHERE conversation_id=? AND user_id=? ORDER BY created_at LIMIT 200', (conversation_id, user))]
         return {'conversation': dict(row), 'requests': [{**self.request(user, r), 'usage': self.usage(user, r)} for r in ids]}
+
+    # ── Admin diagnostics (read-only; never selects prompt/result/error) ──────
+    def diagnostics_stats(self, mode='beta'):
+        with self.connection() as conn:
+            balance = conn.execute('SELECT COALESCE(SUM(balance),0) FROM hub_balances WHERE mode=?', (mode,)).fetchone()[0]
+            credits_spent = conn.execute('SELECT COALESCE(SUM(zeus_credits_charged),0) FROM hub_requests WHERE mode=?', (mode,)).fetchone()[0]
+            provider_cost = conn.execute('SELECT COALESCE(SUM(estimated_cost),0) FROM hub_usage WHERE mode=?', (mode,)).fetchone()[0]
+            avg_ask_cost = conn.execute(
+                "SELECT AVG(estimated_cost) FROM hub_usage WHERE mode=? AND feature='ask' AND estimated_cost IS NOT NULL", (mode,)
+            ).fetchone()[0]
+            return {'balance': balance, 'credits_spent': credits_spent, 'provider_cost': provider_cost, 'avg_ask_cost': avg_ask_cost or 0}
+
+    def diagnostics_requests(self, mode='beta', limit=50):
+        with self.connection() as conn:
+            rows = conn.execute(
+                'SELECT request_id, feature, status, zeus_credits_charged, created_at '
+                'FROM hub_requests WHERE mode=? ORDER BY created_at DESC LIMIT ?', (mode, limit)
+            ).fetchall()
+            out = []
+            for row in rows:
+                providers = conn.execute(
+                    'SELECT provider, model, input_tokens, output_tokens, estimated_cost, status '
+                    'FROM hub_usage WHERE request_id=? AND mode=? ORDER BY id', (row['request_id'], mode)
+                ).fetchall()
+                out.append({**dict(row), 'providers': [dict(p) for p in providers]})
+            return out
