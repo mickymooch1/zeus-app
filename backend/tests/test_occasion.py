@@ -183,6 +183,40 @@ def test_public_endpoint_surfaces_occasion_for_token_identifier(app_client):
     assert body["occasion_name"] == "Sam"
 
 
+# ── tribute_message on /public: token-only, same privacy split as photos ──
+
+def test_public_endpoint_never_returns_tribute_message_for_numeric_identifier(app_client):
+    client, _db, _main, db_path, _, _ = app_client
+    client.post("/api/songs/variants/100/occasion", json={
+        "occasion": "memorial", "occasion_name": "Mary & Mike",
+        "tribute_message": "Loved by everyone who met them.",
+    })
+
+    resp = client.get("/api/songs/variants/100/public")
+    assert resp.status_code == 200
+    body = resp.json()
+    # Pinned regardless of what's actually stored — the numeric route is
+    # susceptible to sequential-ID enumeration, so a memorial tribute (like
+    # photos) must never be reachable through it.
+    assert body["tribute_message"] is None
+    variant = _db.get_song_variant_by_id(db_path, 100)
+    assert variant["tribute_message"] == "Loved by everyone who met them."
+
+
+def test_public_endpoint_surfaces_tribute_message_for_token_identifier(app_client):
+    client, _db, _main, db_path, _, _ = app_client
+    client.post("/api/songs/variants/100/occasion", json={
+        "occasion": "memorial", "occasion_name": "Mary & Mike",
+        "tribute_message": "Loved by everyone who met them.",
+    })
+    token = _db.get_or_create_share_token(db_path, 100)
+
+    resp = client.get(f"/api/songs/variants/{token}/public")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["tribute_message"] == "Loved by everyone who met them."
+
+
 def test_library_endpoint_surfaces_occasion(app_client):
     client, _db, _main, db_path, _, _ = app_client
     client.post("/api/songs/variants/100/occasion", json={"occasion": "anniversary", "occasion_name": "Pat & Jo"})

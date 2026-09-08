@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { QRCodeCanvas } from 'qrcode.react';
 import WaveSurfer from 'wavesurfer.js';
 import PhotoCarousel from '../components/PhotoCarousel';
 import SongCard from '../components/SongCard';
@@ -85,7 +86,13 @@ export default function MemorialPage() {
   const [playlists, setPlaylists] = useState([]);
 
   const waveRef = useRef(null);
-  const wsRef = useRef(null);
+  const wsRef = useRef(null); // this page's OWN WaveSurfer instance — driven by handlePlay below
+  // Separate from wsRef: SongsPage.jsx uses activeWsRef purely as cross-card
+  // bookkeeping (never a page's own player) so a second WaveSurfer instance
+  // (SongCard's) can pause the first one when both exist. Passing wsRef
+  // itself here would let SongCard overwrite wsRef.current with its OWN
+  // instance on play, silently hijacking this page's ▶ button.
+  const activeWsRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [wsReady, setWsReady] = useState(false);
 
@@ -103,6 +110,11 @@ export default function MemorialPage() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError, setPhotoError] = useState('');
   const photoInputRef = useRef(null);
+
+  // ── Owner share link + QR — the canonical /memorial/{token} URL, same
+  // canvas-ref + toDataURL pattern as MemorialWizardPage.jsx's QR step. ──
+  const qrWrapRef = useRef(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // ── SongCard wiring state (favourite / discover-share / stems / YouTube /
   // sound-lock / delete) — real handlers backed by the same endpoints
@@ -146,7 +158,12 @@ export default function MemorialPage() {
   // ── Fetch the public payload — token-shape validated locally FIRST, so a
   // non-token param (e.g. a bare numeric id) never reaches the network at all. ──
   useEffect(() => {
-    if (!TOKEN_SHAPE.test(token || '')) {
+    // TOKEN_SHAPE alone technically admits a 16+ digit numeric string (it's
+    // still urlsafe-base64-alphabet). Reject that explicitly too, so a
+    // numeric-shaped identifier can never reach the network call even in
+    // that edge case — not just in practice (real tokens always mix in
+    // letters/`_`/`-`), but as a literal guarantee.
+    if (!TOKEN_SHAPE.test(token || '') || /^\d+$/.test(token || '')) {
       setNotFound(true);
       return;
     }
@@ -293,6 +310,38 @@ export default function MemorialPage() {
     } catch {
       // best-effort — the button just stays clickable, user can retry
     }
+  }
+
+  // ── Owner: share link + QR download. The memorial product's canonical URL
+  // is /memorial/{token} (what the wizard mints and QR-encodes —
+  // MemorialWizardPage.jsx:217,430,433), NOT SongCard's own QR panel, which
+  // encodes /songs/share/{share_token} — the wrong page entirely for this
+  // product. mark-qr-generated is only fired on an actual download (same as
+  // the wizard), not just from rendering the code, so it doesn't arm the
+  // delete-confirmation guard for a QR the owner never downloaded. ──
+  const shareUrl = `${window.location.origin}/memorial/${token}`;
+
+  async function handleCopyShareLink() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // clipboard access denied/unavailable — button just won't confirm, non-fatal
+    }
+  }
+
+  function handleQrDownload() {
+    const canvas = qrWrapRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(data?.occasion_name || data?.title || 'memorial').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-qr.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    if (fullVariant) handleMarkQrGenerated(fullVariant.variant_id);
   }
 
   // ── SongCard handlers ("More song tools") — real REST calls against the
@@ -721,6 +770,24 @@ export default function MemorialPage() {
               {photoError && <p style={{ color: '#c0392b', fontSize: 12, marginTop: 8 }}>{photoError}</p>}
             </div>
 
+            <div style={{ background: 'var(--sp-mat)', border: '1px solid var(--sp-border)', borderRadius: 12, padding: 18, marginBottom: 18 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--sp-muted)', marginBottom: 10 }}>Share this memorial</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
+                <input readOnly value={shareUrl} className="zb-owner-input" style={{ flex: 1, fontSize: 12 }} onFocus={(e) => e.target.select()} />
+                <button type="button" className="zb-share-btn" onClick={handleCopyShareLink} style={{ padding: '9px 14px', borderRadius: 8, fontSize: 12, flexShrink: 0 }}>
+                  {linkCopied ? 'Copied ✓' : 'Copy'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div ref={qrWrapRef} style={{ display: 'inline-block', padding: 8, background: '#fff', borderRadius: 8, lineHeight: 0 }}>
+                  <QRCodeCanvas value={shareUrl} size={96} bgColor="#ffffff" fgColor="#0b0b14" level="H" />
+                </div>
+                <button type="button" className="zb-share-btn" onClick={handleQrDownload} style={{ padding: '9px 16px', borderRadius: 8, fontSize: 12 }}>
+                  Download QR code
+                </button>
+              </div>
+            </div>
+
             {deleteError && <p style={{ color: '#c0392b', fontSize: 13, marginBottom: 10 }}>{deleteError}</p>}
             {soundToast && <p style={{ fontSize: 13, color: 'var(--sp-accent)', marginBottom: 10 }}>{soundToast}</p>}
             {upgradeNotice && <p style={{ fontSize: 13, color: 'var(--sp-accent)', marginBottom: 10 }}>{upgradeNotice}</p>}
@@ -730,7 +797,7 @@ export default function MemorialPage() {
                 variant={{ ...fullVariant, is_favourite: isFavourite, is_public: isPublicDiscover }}
                 title={fullVariant.title || data.title}
                 lyricId={fullVariant.lyric_id}
-                activeWsRef={wsRef}
+                activeWsRef={activeWsRef}
                 canYouTube={canYouTube(credits)}
                 ytConnected={!!credits.youtube_connected}
                 ytStatus={ytStatus}
@@ -750,7 +817,13 @@ export default function MemorialPage() {
                 onRemake={goToLibrary}
                 onTelegramClick={handleTelegramClick}
                 artistName={credits.artist_name}
-                onRegenerate={undefined}
+                // Same reduction as onRemake/onAvatarClick above (a real
+                // regenerate needs credits + job-polling infrastructure this
+                // page doesn't have) — but leaving this undefined made the
+                // button silently do nothing on click (SongCard's handleRegen
+                // no-ops when !onRegenerate) rather than visibly redirecting
+                // like Remake/Avatar do. Route it the same way instead.
+                onRegenerate={goToLibrary}
                 isFavourite={isFavourite}
                 onToggleFavourite={handleToggleFavourite}
                 isFreeTier={isFreeTier}
@@ -774,8 +847,13 @@ export default function MemorialPage() {
                 onSetCoverPhoto={handleSetCoverPhoto}
                 isSaved={false}
                 isDownloading={false}
-                onSaveOffline={null}
-                onRemoveSaved={null}
+                // Offline save is a PWA feature backed by useOfflineSongs in
+                // SongsPage.jsx, not reimplemented here — but null left the
+                // "Save Offline" button enabled and silently inert on click
+                // (unlike Remake/Avatar/Regenerate, which visibly redirect).
+                // Route it the same way instead of leaving it dead.
+                onSaveOffline={goToLibrary}
+                onRemoveSaved={goToLibrary}
                 onPlayOffline={null}
               />
             </CollapsibleSection>
