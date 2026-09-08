@@ -3937,6 +3937,11 @@ async def get_song_variant_public(identifier: str):
         "photos": photos,
         "occasion": variant.get("occasion"),
         "occasion_name": variant.get("occasion_name"),
+        # Same privacy rule as photos: a memorial tribute is personal content
+        # about the deceased and must never be reachable via the plain numeric
+        # route (susceptible to sequential-ID enumeration) — only the
+        # unguessable share_token route may expose it.
+        "tribute_message": None if identifier.isdigit() else variant.get("tribute_message"),
     }
 
 
