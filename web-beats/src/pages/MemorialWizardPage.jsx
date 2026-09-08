@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { BeatsNavbar } from '../components/BeatsNavbar';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 import { startGenerationPoll } from '../utils/generationPoller';
+
+// Stripe's redirect to success_url frequently beats its own webhook delivery,
+// so a customer who pays and moves quickly to the Song step can otherwise hit
+// a 402 telling them to buy a package they just bought. When we land here via
+// that redirect (?checkout=success), poll briefly for the credit to land
+// before letting the Song step's button go live. A timeout here is NOT a
+// failure — it just stops the confirming state and falls through to the
+// normal flow, where the existing 402 handling covers a genuine no-credit case.
+const CHECKOUT_POLL_INTERVAL_MS = 1500;
+const CHECKOUT_POLL_MAX_ATTEMPTS = 8; // ~12s total
 
 // The wizard's fixed genre. 'ambient' is a real key in backend/song_genres.py's
 // GENRE_PRESETS ("ambient music, atmospheric soundscapes, ... no vocals,
@@ -26,7 +36,10 @@ const STEP_LABELS = {
 
 export default function MemorialWizardPage() {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const location = useLocation();
+  const { token, refreshUser } = useAuth();
+
+  const [confirmingPurchase, setConfirmingPurchase] = useState(false);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [name, setName] = useState('');
@@ -56,6 +69,39 @@ export default function MemorialWizardPage() {
   // Stop any in-flight poll on unmount so it can't keep firing after the
   // wizard has been navigated away from.
   useEffect(() => () => pollRef.current?.stop(), []);
+
+  // Only true right after Stripe's redirect (?checkout=success) — visiting
+  // /memorials/create directly (e.g. an existing credit already on the
+  // account) never sets this, so there's no polling delay in that case.
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('checkout') !== 'success') return;
+    let cancelled = false;
+    let timeoutId;
+    let attempts = 0;
+    setConfirmingPurchase(true);
+    const poll = async () => {
+      attempts += 1;
+      const fresh = await refreshUser();
+      if (cancelled) return;
+      if ((fresh?.memorial_credits_available || 0) >= 1) {
+        setConfirmingPurchase(false);
+        return;
+      }
+      if (attempts >= CHECKOUT_POLL_MAX_ATTEMPTS) {
+        setConfirmingPurchase(false);
+        return;
+      }
+      timeoutId = setTimeout(poll, CHECKOUT_POLL_INTERVAL_MS);
+    };
+    poll();
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+    // Runs once on mount only — re-reading location.search on every render
+    // would restart the poll whenever stepIndex changes and re-renders this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const step = STEPS[stepIndex];
   const next = () => setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
@@ -294,12 +340,20 @@ export default function MemorialWizardPage() {
                   We'll create a gentle instrumental tribute song for {name.trim() || 'your loved one'}. This uses
                   one of your Memorial Package credits.
                 </p>
+                {confirmingPurchase && (
+                  <p style={{ opacity: 0.7, fontSize: 14 }}>Confirming your purchase…</p>
+                )}
                 <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between' }}>
                   <button type="button" className="btn btn-ghost" onClick={back}>
                     Back
                   </button>
-                  <button type="button" className="btn btn-primary" onClick={generateSong}>
-                    Create Song
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={generateSong}
+                    disabled={confirmingPurchase}
+                  >
+                    {confirmingPurchase ? 'Confirming purchase…' : 'Create Song'}
                   </button>
                 </div>
               </>
