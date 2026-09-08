@@ -43,6 +43,9 @@ const KidsStoryMode          = lazy(() => import('./pages/kids/KidsStoryMode'));
 const KidsSongsListPage      = lazy(() => import('./pages/kids/KidsSongsListPage'));
 const KidsLanguagePage       = lazy(() => import('./pages/kids/KidsLanguagePage'));
 const SchoolRegisterPage     = lazy(() => import('./pages/SchoolRegisterPage'));
+const MemorialsLandingPage   = lazy(() => import('./pages/MemorialsLandingPage'));
+const MemorialWizardPage     = lazy(() => import('./pages/MemorialWizardPage'));
+const MemorialPage           = lazy(() => import('./pages/MemorialPage'));
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -154,6 +157,16 @@ export default function App() {
               }
             />
             <Route path="/songs/share/:variantId" element={<SongSharePage />} />
+            <Route path="/memorials" element={<MemorialsLandingPage />} />
+            <Route path="/memorial/:token" element={<MemorialPage />} />
+            <Route
+              path="/memorials/create"
+              element={
+                <SchoolSafeRoute>
+                  <MemorialWizardPage />
+                </SchoolSafeRoute>
+              }
+            />
             <Route path="/discover" element={<DiscoverPage />} />
             <Route path="/discover/:variantId" element={<DiscoverSongPage />} />
             <Route
