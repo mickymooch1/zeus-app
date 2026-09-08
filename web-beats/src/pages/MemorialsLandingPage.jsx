@@ -9,11 +9,12 @@ import IOSWebViewBanner from '../components/IOSWebViewBanner';
 export default function MemorialsLandingPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, token } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { user, token, loading: authLoading } = useAuth();
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function handleCreate() {
+    if (authLoading) return; // auth state not resolved yet — button is disabled/hidden anyway
     if (!user) {
       navigate('/login', { state: { from: location } });
       return;
@@ -23,7 +24,7 @@ export default function MemorialsLandingPage() {
       navigate('/memorials/create');
       return;
     }
-    setLoading(true);
+    setCheckoutLoading(true);
     try {
       const res = await fetch(`${BACKEND_URL}/api/memorials/checkout`, {
         method: 'POST',
@@ -34,7 +35,7 @@ export default function MemorialsLandingPage() {
       window.location.href = data.url;
     } catch (err) {
       setError(err.message || 'Something went wrong — please try again.');
-      setLoading(false);
+      setCheckoutLoading(false);
     }
   }
 
@@ -57,16 +58,20 @@ export default function MemorialsLandingPage() {
           <div style={{ marginTop: 32, textAlign: 'left' }}>
             <IOSWebViewBanner />
           </div>
+        ) : authLoading ? (
+          <div style={{ marginTop: 32 }}>
+            <div className="spinner" />
+          </div>
         ) : (
           <>
             <button
               type="button"
               className="btn btn-primary"
               onClick={handleCreate}
-              disabled={loading}
+              disabled={checkoutLoading}
               style={{ marginTop: 32, padding: '14px 32px', fontSize: 16 }}
             >
-              {loading ? 'One moment…' : 'Create a Memorial'}
+              {checkoutLoading ? 'One moment…' : 'Create a Memorial'}
             </button>
             {error && (
               <p style={{ color: '#ef4444', marginTop: 14, fontSize: 14 }}>{error}</p>
