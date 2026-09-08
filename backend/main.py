@@ -661,6 +661,8 @@ app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(_webhooks_mod.router)
+from ai.api import router as _hub_router
+app.include_router(_hub_router)
 
 import voice_agent as _voice_agent_mod
 app.include_router(_voice_agent_mod.router)
