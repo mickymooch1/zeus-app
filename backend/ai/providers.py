@@ -1,12 +1,16 @@
 """Five providers, one final-text interface. Endpoints and keys are server-only."""
 import asyncio
+import logging
 import os
+import re
 from typing import Protocol
 
 import httpx
 
 from .config import HubError
 from .pricing import cost
+
+log = logging.getLogger('zeus.hub')
 
 ENDPOINTS = {
     'openai': ('https://api.openai.com/v1/chat/completions', 'OPENAI_API_KEY'),
@@ -16,6 +20,32 @@ ENDPOINTS = {
     'openrouter': ('https://openrouter.ai/api/v1/chat/completions', 'OPENROUTER_API_KEY'),
 }
 SYSTEM = 'You are Zeus, a helpful AI assistant. Return only the useful final answer, with concise explanations and uncertainty where needed. Do not reveal hidden reasoning. You cannot browse, execute code, deploy websites or take external actions in this chat.'
+
+# Diagnostic logging for a failed provider HTTP response -- never the request
+# (headers/payload, so the API key can't appear) and never the user's prompt
+# or the model's generated text (those aren't in an error response at all).
+# Only a truncated, secret-scrubbed slice of the provider's own error body.
+_SECRET_PATTERN = re.compile(r'(sk|pk)-[A-Za-z0-9_-]{8,}|AIza[A-Za-z0-9_-]{10,}|xai-[A-Za-z0-9_-]{8,}|Bearer\s+\S+', re.IGNORECASE)
+
+
+def _sanitize(text, limit=300):
+    if not isinstance(text, str):
+        return None
+    return _SECRET_PATTERN.sub('[redacted]', text).strip()[:limit]
+
+
+def _error_detail(response):
+    try:
+        body = response.json()
+    except ValueError:
+        return {'error_type': None, 'error_code': None, 'error_message': _sanitize(response.text)}
+    error = body.get('error') if isinstance(body, dict) else None
+    if not isinstance(error, dict):
+        return {'error_type': None, 'error_code': None, 'error_message': _sanitize(response.text)}
+    error_type, error_code, message = error.get('type') or error.get('status'), error.get('code'), error.get('message')
+    return {'error_type': _sanitize(str(error_type), limit=100) if error_type is not None else None,
+            'error_code': _sanitize(str(error_code), limit=100) if error_code is not None else None,
+            'error_message': _sanitize(message) if isinstance(message, str) else None}
 
 
 class AIProvider(Protocol):
@@ -88,5 +118,10 @@ class Provider:
             return {'text': text, **measured}
         except httpx.TimeoutException:
             raise HubError('The AI provider timed out. Your Hub credits will be refunded.', 504) from None
+        except httpx.HTTPStatusError as error:
+            detail = _error_detail(error.response)
+            log.warning('hub provider_error provider=%s status=%s error_type=%s error_code=%s error_message=%s',
+                        model.provider, error.response.status_code, detail['error_type'], detail['error_code'], detail['error_message'])
+            raise HubError('The AI provider is unavailable. Please try a new request later.', 502) from None
         except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
             raise HubError('The AI provider is unavailable. Please try a new request later.', 502) from None
