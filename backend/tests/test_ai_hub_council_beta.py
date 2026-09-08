@@ -153,7 +153,7 @@ def test_one_member_failure_charges_exactly_12(api_client, monkeypatch):
     from ai.providers import Provider
     c, path = api_client
     async def generate(self, messages):
-        if self.model.model == 'gemini-2.5-flash-lite':
+        if self.model.model == 'gemini-3.5-flash-lite':
             raise RuntimeError('provider outage')
         return {'text': f'answer from {self.model.model}', 'input_tokens': 50, 'output_tokens': 50,
                 'estimated_cost': 0.001, 'usage_known': True, 'provider': self.model.provider, 'model': self.model.model}
@@ -167,7 +167,7 @@ def test_one_member_failure_charges_exactly_12(api_client, monkeypatch):
 def test_two_member_failures_refund_all_15(api_client, monkeypatch):
     from ai.providers import Provider
     c, path = api_client
-    failed = {'gpt-4.1-mini-2025-04-14', 'gemini-2.5-flash-lite'}
+    failed = {'gpt-4.1-mini-2025-04-14', 'gemini-3.5-flash-lite'}
     async def generate(self, messages):
         if self.model.model in failed:
             raise RuntimeError('provider outage')

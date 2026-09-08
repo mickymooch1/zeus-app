@@ -31,7 +31,11 @@ _SECRET_PATTERN = re.compile(r'(sk|pk)-[A-Za-z0-9_-]{8,}|AIza[A-Za-z0-9_-]{10,}|
 def _sanitize(text, limit=300):
     if not isinstance(text, str):
         return None
-    return _SECRET_PATTERN.sub('[redacted]', text).strip()[:limit]
+    text = _SECRET_PATTERN.sub('[redacted]', text)
+    # Collapse newlines/control whitespace so one provider error can never
+    # split into multiple Railway log lines (pretty-printed JSON bodies do
+    # this by default -- e.g. Gemini's error responses).
+    return re.sub(r'\s+', ' ', text).strip()[:limit]
 
 
 def _error_detail(response):
@@ -39,6 +43,10 @@ def _error_detail(response):
         body = response.json()
     except ValueError:
         return {'error_type': None, 'error_code': None, 'error_message': _sanitize(response.text)}
+    # Most providers return a bare {"error": {...}} object; Gemini's
+    # OpenAI-compatibility endpoint instead wraps it in a one-element list.
+    if isinstance(body, list) and body and isinstance(body[0], dict):
+        body = body[0]
     error = body.get('error') if isinstance(body, dict) else None
     if not isinstance(error, dict):
         return {'error_type': None, 'error_code': None, 'error_message': _sanitize(response.text)}

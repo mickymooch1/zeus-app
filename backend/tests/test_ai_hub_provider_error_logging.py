@@ -10,6 +10,7 @@ from ai.config import HubError, Model, Settings
 from ai.providers import Provider, _error_detail, _sanitize
 
 OPENAI_MODEL = Model(provider='openai', model='gpt-4.1-mini-2025-04-14', input_per_million=0.40, output_per_million=1.60, max_output_tokens=400)
+GEMINI_MODEL = Model(provider='gemini', model='gemini-3.5-flash-lite', input_per_million=0.30, output_per_million=2.50, max_output_tokens=400)
 
 
 def _response(status, json_body=None, text_body=None):
@@ -29,6 +30,13 @@ def test_sanitize_redacts_common_secret_shapes_and_truncates():
     assert len(_sanitize('x' * 1000)) == 300
 
 
+def test_sanitize_collapses_newlines_so_one_error_cant_split_into_many_log_lines():
+    pretty_printed = '[{\n  "error": {\n    "code": 404,\n    "message": "Model not found.",\n    "status": "NOT_FOUND"\n  }\n}]'
+    cleaned = _sanitize(pretty_printed)
+    assert '\n' not in cleaned
+    assert cleaned == '[{ "error": { "code": 404, "message": "Model not found.", "status": "NOT_FOUND" } }]'
+
+
 def test_error_detail_extracts_openai_style_error_body():
     detail = _error_detail(_response(429, {'error': {'message': 'You exceeded your current quota.', 'type': 'insufficient_quota', 'code': 'insufficient_quota'}}))
     assert detail == {'error_type': 'insufficient_quota', 'error_code': 'insufficient_quota', 'error_message': 'You exceeded your current quota.'}
@@ -46,6 +54,17 @@ def test_error_detail_extracts_gemini_style_error_body_with_numeric_code():
     assert detail['error_type'] == 'NOT_FOUND'
     assert detail['error_code'] == '404'
     assert detail['error_message'] == 'Model not found.'
+
+
+def test_error_detail_extracts_gemini_list_wrapped_error_body():
+    # Gemini's OpenAI-compatibility endpoint wraps its error object in a
+    # one-element JSON array, unlike every other provider's bare {"error":...}.
+    # This is the real shape returned for a retired model (2026-09-08 prod
+    # incident): gemini-2.5-flash-lite became unavailable to new API keys.
+    detail = _error_detail(_response(404, [{'error': {'code': 404, 'status': 'NOT_FOUND',
+        'message': 'This model models/gemini-2.5-flash-lite is no longer available to new users.'}}]))
+    assert detail == {'error_type': 'NOT_FOUND', 'error_code': '404',
+                       'error_message': 'This model models/gemini-2.5-flash-lite is no longer available to new users.'}
 
 
 def test_error_detail_falls_back_to_sanitized_text_for_non_json_body():
@@ -90,6 +109,37 @@ async def test_failed_provider_call_logs_sanitized_detail_and_raises_same_generi
     assert secret_in_body not in record.message
     assert '[redacted]' in record.message
     assert 'a private user prompt that must never be logged' not in record.message
+
+
+@pytest.mark.asyncio
+async def test_gemini_list_wrapped_failure_populates_log_fields_correctly_and_stays_on_one_line(monkeypatch, caplog):
+    # Regression test for the 2026-09-08 production incident: Gemini's
+    # pretty-printed, list-wrapped error body previously fell through to the
+    # raw-text fallback (type/code came back None) and split across multiple
+    # Railway log lines. Both are fixed now.
+    monkeypatch.setenv('GEMINI_API_KEY', 'fake-test-key-not-real')
+    real_shaped_body = ('[{\n  "error": {\n    "code": 404,\n    "message": '
+                         '"This model models/gemini-2.5-flash-lite is no longer available to new users.",\n'
+                         '    "status": "NOT_FOUND"\n  }\n}]')
+
+    async def fake_post(self, url, headers=None, json=None):
+        return _response(404, text_body=real_shaped_body)
+    monkeypatch.setattr(httpx.AsyncClient, 'post', fake_post)
+
+    settings = Settings(mode='beta', timeout_seconds=30)
+    provider = Provider(GEMINI_MODEL, settings)
+    with caplog.at_level(logging.WARNING, logger='zeus.hub'):
+        with pytest.raises(HubError) as exc_info:
+            await provider.generate([{'role': 'user', 'content': 'hi'}])
+    assert exc_info.value.status == 502
+
+    [record] = [r for r in caplog.records if r.name == 'zeus.hub']
+    assert 'provider=gemini' in record.message
+    assert 'status=404' in record.message
+    assert 'error_type=NOT_FOUND' in record.message
+    assert 'error_code=404' in record.message
+    assert 'no longer available to new users' in record.message
+    assert '\n' not in record.message
 
 
 @pytest.mark.asyncio
