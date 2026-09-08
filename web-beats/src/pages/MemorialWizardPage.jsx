@@ -41,6 +41,9 @@ export default function MemorialWizardPage() {
   const [photos, setPhotos] = useState([]);
   const [photoUploading, setPhotoUploading] = useState(false);
 
+  const [occasionFailed, setOccasionFailed] = useState(false);
+  const [occasionSaving, setOccasionSaving] = useState(false);
+
   const [qrMarked, setQrMarked] = useState(false);
 
   const [error, setError] = useState('');
@@ -57,6 +60,34 @@ export default function MemorialWizardPage() {
   const step = STEPS[stepIndex];
   const next = () => setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
   const back = () => setStepIndex((i) => Math.max(i - 1, 0));
+
+  // Sets the public-page occasion + tribute text on the variant. This is what
+  // flips the server-side photo cap from 5 to 10 (backend/main.py gates it on
+  // variant.occasion === 'memorial'), so a failure here is not cosmetic — it
+  // silently halves the photo cap. Exposed as a standalone function so both
+  // the post-generation call and the Review step's retry button can use it.
+  async function postOccasion(vId) {
+    setOccasionSaving(true);
+    try {
+      const resp = await fetch(`${BACKEND_URL}/api/songs/variants/${vId}/occasion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          occasion: 'memorial',
+          occasion_name: name.trim() || null,
+          tribute_message: tribute.trim() || null,
+        }),
+      });
+      if (!resp.ok) throw new Error('occasion save failed');
+      setOccasionFailed(false);
+      return true;
+    } catch (_) {
+      setOccasionFailed(true);
+      return false;
+    } finally {
+      setOccasionSaving(false);
+    }
+  }
 
   async function generateSong() {
     setSongStatus('generating');
@@ -106,20 +137,7 @@ export default function MemorialWizardPage() {
         onSettled: async ({ anyComplete }) => {
           setPollWarning('');
           if (anyComplete && latestVariantRef.current?.status === 'complete') {
-            try {
-              await fetch(`${BACKEND_URL}/api/songs/variants/${firstVariant.variant_id}/occasion`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({
-                  occasion: 'memorial',
-                  occasion_name: name.trim() || null,
-                  tribute_message: tribute.trim() || null,
-                }),
-              });
-            } catch (_) {
-              // Non-fatal — the song still exists; the occasion/tribute can be
-              // retried from the review step if needed.
-            }
+            await postOccasion(firstVariant.variant_id);
             setSongStatus('complete');
             next();
           } else {
@@ -191,13 +209,12 @@ export default function MemorialWizardPage() {
     markQrGenerated();
   }
 
-  // Fall back to the plain numeric variant id when no photo has been uploaded
-  // (and so no share_token has been minted yet) — same fallback the library
-  // page's QR code uses. The public endpoint accepts either.
-  const shareIdentifier = shareToken || variantId;
-  const shareUrl = shareIdentifier
-    ? `${window.location.origin}/memorial/${shareIdentifier}`
-    : '';
+  // /memorial/:token resolves tokens only — never the plain numeric variant
+  // id (unlike the library's /songs/share/:id_or_token, which intentionally
+  // supports both as a legacy pre-photos link). share_token is minted only
+  // by the photo-upload endpoint, so the Photos step requires at least one
+  // photo before Next is enabled, guaranteeing this is set by the QR step.
+  const shareUrl = shareToken ? `${window.location.origin}/memorial/${shareToken}` : '';
 
   return (
     <div className="memorial-wizard-page">
@@ -323,7 +340,10 @@ export default function MemorialWizardPage() {
         {step === 'photos' && (
           <div>
             <h2>Add photos (up to {PHOTO_MAX})</h2>
-            <p style={{ opacity: 0.75 }}>These appear in the memorial page's photo slideshow. Optional.</p>
+            <p style={{ opacity: 0.75 }}>
+              These appear in the memorial page's photo slideshow. Add at least one photo to
+              generate the memorial's shareable link and QR code.
+            </p>
             <input
               ref={fileInputRef}
               type="file"
@@ -353,7 +373,7 @@ export default function MemorialWizardPage() {
               <button type="button" className="btn btn-ghost" onClick={back}>
                 Back
               </button>
-              <button type="button" className="btn btn-primary" onClick={next}>
+              <button type="button" className="btn btn-primary" onClick={next} disabled={photos.length === 0}>
                 Next
               </button>
             </div>
@@ -366,6 +386,23 @@ export default function MemorialWizardPage() {
             <p style={{ fontWeight: 700 }}>{name}</p>
             {tribute && <p style={{ opacity: 0.85, whiteSpace: 'pre-wrap' }}>{tribute}</p>}
             <p style={{ fontSize: 14, opacity: 0.75 }}>{photos.length} photo(s) added</p>
+            {occasionFailed && (
+              <div style={{ marginTop: 12, padding: 12, border: '1px solid #ef4444', borderRadius: 8 }}>
+                <p style={{ color: '#ef4444', fontSize: 14, margin: 0 }}>
+                  We couldn't save the memorial details (name/tribute) to the song — your photo limit may
+                  still be capped at 5 instead of 10 until this succeeds.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  style={{ marginTop: 8 }}
+                  disabled={occasionSaving || !variantId}
+                  onClick={() => postOccasion(variantId)}
+                >
+                  {occasionSaving ? 'Retrying…' : 'Retry'}
+                </button>
+              </div>
+            )}
             <button type="button" className="btn btn-outline" disabled title="Coming soon" style={{ marginTop: 12 }}>
               Download plaque artwork — coming soon
             </button>
@@ -383,7 +420,7 @@ export default function MemorialWizardPage() {
         {step === 'qr' && (
           <div style={{ textAlign: 'center' }}>
             <h2>Your memorial page is ready</h2>
-            {shareUrl ? (
+            {shareToken && shareUrl ? (
               <>
                 <p style={{ wordBreak: 'break-all', opacity: 0.85 }}>{shareUrl}</p>
                 <div
@@ -396,15 +433,26 @@ export default function MemorialWizardPage() {
                   <button type="button" className="btn btn-primary" onClick={handleQrDownload}>
                     Download QR code
                   </button>
-                  <button type="button" className="btn btn-outline" onClick={() => navigate(`/memorial/${shareIdentifier}`)}>
+                  <button type="button" className="btn btn-outline" onClick={() => navigate(`/memorial/${shareToken}`)}>
                     View memorial page
                   </button>
                 </div>
               </>
             ) : (
-              <p style={{ opacity: 0.75 }}>
-                Something went wrong generating a share link — please go back and try creating the song again.
-              </p>
+              <div>
+                <p style={{ opacity: 0.85 }}>
+                  We don't have a shareable link yet — this memorial needs at least one photo before a
+                  QR code and page link can be generated.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ marginTop: 12 }}
+                  onClick={() => setStepIndex(STEPS.indexOf('photos'))}
+                >
+                  Back to Photos
+                </button>
+              </div>
             )}
             <div style={{ marginTop: 32 }}>
               <button type="button" className="btn btn-ghost" onClick={() => navigate('/songs')}>
