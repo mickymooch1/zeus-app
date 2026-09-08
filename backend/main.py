@@ -2415,10 +2415,14 @@ async def songs_generate(
     # except blocks below if generation fails.
     _memorial_temp_credit_granted = False
     if body.is_memorial:
-        _memorial_balance = db.get_user_by_id(db_path, user_id)["memorial_credits_available"]
-        if _memorial_balance < 1:
+        # Atomic check-and-decrement — a read-then-decrement here would let
+        # two concurrent requests both read balance=1, both pass, and both
+        # deduct (decrement_memorial_credits floors at 0, so the second
+        # deduction wouldn't error — it would just silently grant a second
+        # song generation off one credit). The UPDATE's WHERE clause is the
+        # atomicity guarantee, not this line of Python.
+        if not db.consume_memorial_credit(db_path, user_id):
             raise HTTPException(status_code=402, detail="No memorial credits available — purchase a Memorial Package first")
-        db.decrement_memorial_credits(db_path, user_id, 1)
         db.increment_song_credits(db_path, user_id, 1)
         _memorial_temp_credit_granted = True
         credits_row = db.get_song_credits(db_path, user_id)

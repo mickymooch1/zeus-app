@@ -1582,6 +1582,21 @@ def decrement_memorial_credits(db_path: pathlib.Path, user_id: str, amount: int)
         conn.close()
 
 
+def consume_memorial_credit(db_path: pathlib.Path, user_id: str) -> bool:
+    """Atomically consume one memorial credit. Returns True if a credit was
+    available and consumed, False if the balance was already zero — the
+    UPDATE's WHERE clause is the atomicity guarantee, not a prior read."""
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            "UPDATE users SET memorial_credits_available = memorial_credits_available - 1 "
+            "WHERE id = ? AND memorial_credits_available >= 1", (user_id,))
+        conn.commit()
+        return cur.rowcount == 1
+    finally:
+        conn.close()
+
+
 def decrement_song_credits(db_path: pathlib.Path, user_id: str, amount: int) -> None:
     conn = _conn(db_path)
     try:

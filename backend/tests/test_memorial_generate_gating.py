@@ -159,3 +159,34 @@ def test_non_memorial_generate_unaffected(app_client):
     assert resp.status_code == 200, resp.text
     assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 0
     assert _db.get_song_credits(db_path, user["id"])["balance"] == 0
+
+
+# ── db.consume_memorial_credit — atomicity-by-construction ─────────────────
+#
+# The TOCTOU fix for the memorial gate: a read-then-decrement (get balance,
+# check >=1, then decrement_memorial_credits) lets two concurrent requests
+# both read balance=1, both pass, and both deduct — decrement_memorial_credits
+# floors at 0 via MAX(x-1, 0) so neither deduction errors, silently granting
+# two generations off one credit. consume_memorial_credit folds the check
+# into the UPDATE's WHERE clause instead, so SQLite's own single-writer
+# transaction semantics make the check-and-decrement atomic; a genuine
+# concurrency test isn't needed to prove that, just that the WHERE-clause
+# gate itself is correct.
+
+def test_consume_memorial_credit_succeeds_once_then_fails_at_zero(app_client):
+    client, _db, _main, db_path, user, token = app_client
+    _db.increment_memorial_credits(db_path, user["id"], 1)
+
+    assert _db.consume_memorial_credit(db_path, user["id"]) is True
+    assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 0
+
+    assert _db.consume_memorial_credit(db_path, user["id"]) is False
+    assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 0
+
+
+def test_consume_memorial_credit_false_when_already_zero(app_client):
+    client, _db, _main, db_path, user, token = app_client
+    assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 0
+
+    assert _db.consume_memorial_credit(db_path, user["id"]) is False
+    assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 0
