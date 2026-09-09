@@ -120,9 +120,9 @@ def test_sensitive_or_invalid_queries_never_leave_server(hub, query):
     assert store.balance('alice', 'live') == 100
 
 
-def test_council_web_flag_rejected_without_calls(hub):
+def test_unconfigured_council_still_rejected_without_calls(hub):
     client, store, settings, sent, reply = hub
-    assert client.post('/api/hub/requests', json=body(feature='council')).status_code == 422
+    assert client.post('/api/hub/requests', json=body(feature='council')).status_code == 503
     assert sent == []
 
 
@@ -205,7 +205,8 @@ def test_oversized_response_fails_without_model_call(hub):
     assert store.balance('alice', 'live') == 100
 
 
-def test_ui_toggle_payload_recovery_and_safe_citations():
+@pytest.mark.parametrize('feature', ['ask', 'council'])
+def test_ui_toggle_payload_recovery_and_safe_citations(feature):
     """Exercise the real JSX with mocked hooks/API; use installed React/Markdown renderer."""
     import shutil
     import subprocess
@@ -234,7 +235,7 @@ const useCallback = fn => fn;
 let failSend = false;
 const hubApi = async (token, path, body) => {
   calls.push({ path, body });
-  if (path === '/status') return { enabled: true, mode: 'live', balance: 100 };
+  if (path === '/status') return { enabled: true, mode: 'live', balance: 100, council_enabled: true };
   if (path === '/conversations') return [];
   if (path === '/quote') return { credits: 5, balance: 100 };
   if (path === '/requests') { if (failSend) throw new Error('connection lost'); return { conversation_id: 'c1' }; }
@@ -248,18 +249,19 @@ const deps = { React, ReactMarkdown, useState, useRef, useEffect, useCallback,
   DashboardHeader: noop, BetaStatus: noop, DiagnosticsLink: noop, UsageDiagnostics: noop,
   setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout: () => {} };
 const { HubChatPage, Answer } = new Function(...Object.keys(deps), compiled.code + '\nreturn {HubChatPage, Answer};')(...Object.values(deps));
-function render(feature = 'ask') { index = 0; refIndex = 0; effects.length = 0; return HubChatPage({feature}); }
+function render(feature = '__FEATURE__') { index = 0; refIndex = 0; effects.length = 0; return HubChatPage({feature}); }
 function all(tree) { if (!tree || typeof tree !== 'object') return []; return [tree, ...React.Children.toArray(tree.props?.children).flatMap(all)]; }
 function find(tree, predicate) { return all(tree).find(predicate); }
 let tree = render();
 let toggle = find(tree, n => n.props?.role === 'switch');
-assert.ok(toggle, 'Ask must show Search the web toggle');
+assert.ok(toggle, 'Hub chat must show Search the web toggle');
 assert.equal(toggle.props.checked, false);
-assert.ok(!find(render('council'), n => n.props?.role === 'switch'));
+assert.equal(find(render('council'), n => n.props?.role === 'switch').props.checked, false);
 tree = render(); effects[0](); await new Promise(resolve => globalThis.setTimeout(resolve, 0));
 find(tree, n => n.type === 'textarea').props.onChange({target:{value:'Private question'}});
 tree = render();
 find(tree, n => n.props?.role === 'switch').props.onChange({target:{checked:true}});
+assert.equal(find(render('__OTHER_FEATURE__'), n => n.props?.role === 'switch').props.checked, false);
 tree = render();
 const query = find(tree, n => n.props?.id === 'zeus-search-query');
 assert.ok(query); assert.equal(query.props.value, '');
@@ -294,16 +296,20 @@ assert.ok(!('web_search' in calls.findLast(c => c.path === '/quote').body));
 await find(tree, n => n.type === 'form').props.onSubmit({preventDefault(){}});
 assert.ok(!('web_search' in calls.findLast(c => c.path === '/requests').body));
 assert.ok(!('search_query' in calls.findLast(c => c.path === '/requests').body));
-const html = renderToStaticMarkup(React.createElement(Answer, {request:{feature:'ask', prompt:'Question', result:{
+const html = renderToStaticMarkup(React.createElement(Answer, {request:{feature:'__FEATURE__', prompt:'Question', result:{
  text:'Fact [1](#zeus-source-1). [Bad](https://evil.example) [Missing](#zeus-source-99)',
+ members: [{member:1, provider:'mock', model:'mock', text:'Member [1](#zeus-source-1) [Bad member](https://evil.example/member)'}],
  sources:[{id:1,title:'Report <script>',url:'https://example.org/report'}]}}}));
 assert.ok(html.includes('href="https://example.org/report"'));
 assert.ok(html.includes('Sources'));
 assert.ok(!html.includes('href="https://evil.example"'));
 assert.ok(!html.includes('href="#zeus-source-99"'));
 assert.ok(!html.includes('<script>'));
+assert.ok(!html.includes('href="https://evil.example/member"'));
+assert.equal((html.match(/href="https:\/\/example.org\/report"/g) || []).length, 3);
 console.log('Mocked UI checks passed');
 '''
+    script = script.replace('__FEATURE__', feature).replace('__OTHER_FEATURE__', 'council' if feature == 'ask' else 'ask')
     run = subprocess.run([node, '--input-type=module', '-e', script], cwd=web, capture_output=True, text=True)
     assert run.returncode == 0, run.stdout + run.stderr
 

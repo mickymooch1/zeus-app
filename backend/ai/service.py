@@ -25,8 +25,6 @@ def fingerprint(body, mode):
 def prepare(store, settings, user, body):
     web_search = getattr(body, 'web_search', False)
     if web_search:
-        if body.feature != 'ask':
-            raise HubError('Web search is only available in Ask Zeus.', 422)
         validate_query(body.search_query)
     settings.authorize(user['id'], body.feature)
     if settings.mode == 'disabled':
@@ -87,17 +85,23 @@ async def execute(store, settings, user_id, request_id, feature, messages, selec
 
     try:
         async with asyncio.timeout(settings.timeout_seconds * 2 + 10):
+            # One search after reservation; the shared callback supplies identical
+            # bounded evidence to every member and the judge, without duplicating it.
+            if search_query is not None and settings.mode != 'development':
+                await progress('Zeus is searching the web…')
+                web_context, sources = await search(search_query)
             if feature == 'council':
                 result = await consult(settings.members, settings.judge, messages, generate, progress)
             else:
-                if search_query is not None and settings.mode != 'development':
-                    await progress('Zeus is searching the web…')
-                    web_context, sources = await search(search_query)
                 await progress('Zeus is working…')
                 result = await generate(selected, messages)
-                if sources:
-                    result['text'] = cite(result['text'], sources)
-                    result['sources'] = sources
+            if sources:
+                result['text'] = cite(result['text'], sources)
+                result['sources'] = sources
+                # Preserve raw member IDs during synthesis so link expansion cannot
+                # inflate the judge input beyond its existing conservative quote.
+                for member in result.get('members', []):
+                    member['text'] = cite(member['text'], sources)
         # Only successful calls with reported tokens are charged. Unknown/failed work is waived.
         usd = sum(row['estimated_cost'] or 0 for row in store.usage(user_id, request_id) if row['status'] == 'succeeded')
         if feature == 'council' and settings.mode == 'beta':
