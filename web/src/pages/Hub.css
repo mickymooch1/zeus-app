@@ -2,14 +2,7 @@ html:has(.hub-page),body:has(.hub-page),#root:has(>.hub-page) { height:auto; min
 .hub-page {
   min-height:100dvh;
   color:var(--text);
-  background-color:#030815;
-  background-image:linear-gradient(180deg,#030815c0 0%,#030815a0 30%,#03081530 65%,transparent 100%),url('../assets/hub-cosmos-desktop.webp');
-  background-repeat:no-repeat;
-  background-position:center top;
-  background-size:100% auto;
-}
-@media(max-width:720px) {
-  .hub-page { background-image:linear-gradient(180deg,#030815c8 0%,#030815a8 30%,#03081540 65%,transparent 100%),url('../assets/hub-cosmos-mobile.webp'); background-position:right top; background-size:cover; }
+  background:transparent; /* cosmic background now painted once by the global .space-bg layer */
 }
 .hub-main { width:min(1120px, 100%); margin:auto; padding:36px 28px 48px; }
 .hub-eyebrow,.hub-kicker { font-size:11px; letter-spacing:2.2px; font-weight:700; color:var(--accent-1); }
