@@ -9,6 +9,7 @@ import httpx
 
 from .config import HubError
 from .pricing import cost
+from .search import WEB_RULES
 
 log = logging.getLogger('zeus.hub')
 
@@ -74,7 +75,7 @@ class Provider:
         self.provider_name = model.provider
         self.model_name = model.model
 
-    async def generate(self, messages):
+    async def generate(self, messages, *, web_context=None):
         model = self.model
         if self.settings.mode == 'development' and model.provider == 'simulated':
             await asyncio.sleep(0.05)
@@ -90,11 +91,15 @@ class Provider:
         key = os.environ.get(key_name, '').strip()
         if not key:
             raise HubError('The selected AI provider is not configured.')
+        system = SYSTEM
+        if web_context is not None:
+            system += ' ' + WEB_RULES
+            messages = messages + [{'role': 'user', 'content': web_context}]
         headers = {'Authorization': f'Bearer {key}'}
-        payload = {'model': model.model, 'messages': [{'role': 'system', 'content': SYSTEM}] + messages}
+        payload = {'model': model.model, 'messages': [{'role': 'system', 'content': system}] + messages}
         if model.provider == 'anthropic':
             headers = {'x-api-key': key, 'anthropic-version': '2023-06-01'}
-            payload.update(messages=messages, system=SYSTEM, max_tokens=model.max_output_tokens)
+            payload.update(messages=messages, system=system, max_tokens=model.max_output_tokens)
         else:
             limit_key = 'max_completion_tokens' if model.provider == 'openai' else 'max_tokens'
             payload[limit_key] = model.max_output_tokens

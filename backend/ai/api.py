@@ -3,7 +3,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 
 from auth import get_current_user
 from db import get_db_path_dep
@@ -20,6 +20,8 @@ class Submission(BaseModel):
     feature: Literal['ask', 'council'] = 'ask'
     prompt: str = Field(min_length=1, max_length=12000)
     max_credits: int = Field(default=0, ge=0, le=100000)
+    web_search: StrictBool = False
+    search_query: str = Field(default='', max_length=300)
 
 
 def context(user=Depends(get_current_user), path=Depends(get_db_path_dep)):
@@ -90,7 +92,8 @@ def submit(body: Submission, background: BackgroundTasks, ctx=Depends(context)):
         reserved = store.reserve(user['id'], settings.mode, request_id, conversation_id, body.feature, body.prompt,
                                  estimate['credits'], digest, settings.requests_per_minute, daily)
         if not reserved['duplicate']:
-            background.add_task(execute, store, settings, user['id'], request_id, body.feature, messages, selected)
+            background.add_task(execute, store, settings, user['id'], request_id, body.feature, messages, selected,
+                                **({'search_query': body.search_query} if body.web_search else {}))
         return {'request_id': request_id, 'conversation_id': conversation_id}
     except HubError as error:
         raise HTTPException(error.status, str(error)) from None

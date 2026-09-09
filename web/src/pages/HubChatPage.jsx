@@ -11,11 +11,20 @@ import './Hub.css';
 
 function Answer({ request }) {
   const result = request.result;
+  const sources = request.feature === 'ask' ? result?.sources : null;
+  const citationComponents = sources ? {
+    a: ({ href, children }) => {
+      const id = /^#zeus-source-(\d+)$/.exec(href || '')?.[1];
+      const source = sources.find(source => String(source.id) === id);
+      return source ? <a href={source.url} target="_blank" rel="noopener noreferrer">{children}</a> : <span>{children}</span>;
+    },
+  } : undefined;
   return <article className="hub-turn">
     <div className="hub-user-message"><span>YOU</span><p>{request.prompt}</p></div>
     {result && <div className="hub-answer"><span className="hub-kicker">{request.feature === 'council' ? '🧠 ZEUS VERDICT' : '⚡ ZEUS'}</span>
       {result.simulated && <p className="hub-beta-caption">Private beta · simulated response</p>}
-      <ReactMarkdown disallowedElements={['img']}>{result.text}</ReactMarkdown>
+      <ReactMarkdown disallowedElements={['img']} components={citationComponents}>{result.text}</ReactMarkdown>
+      {sources?.length > 0 && <section className="hub-sources" aria-label="Web sources"><h3>Sources</h3><ol>{sources.map(source => <li key={source.id}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a></li>)}</ol><p>Based on search snippets; full webpages were not read.</p></section>}
       {result.unavailable > 0 && <p className="hub-notice">{result.unavailable} Council member was unavailable. This verdict uses the remaining responses.</p>}
       {result.members && <details><summary>View Council Responses</summary>{result.members.map(member => <section key={member.member}><h3>AI {member.member} · {member.provider} / {member.model}</h3><ReactMarkdown disallowedElements={['img']}>{member.text}</ReactMarkdown></section>)}</details>}
       <p className="hub-selection">Zeus selected the best AI for this task.</p>
@@ -33,6 +42,8 @@ export default function HubChatPage({ feature = 'ask' }) {
   const conversationId = params.get('conversation');
   const council = feature === 'council';
   const [prompt, setPrompt] = useState(location.state?.prompt || '');
+  const [webSearch, setWebSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [status, setStatus] = useState(null);
   const [history, setHistory] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -45,7 +56,9 @@ export default function HubChatPage({ feature = 'ask' }) {
   const bottom = useRef(null);
   const pendingKey = `zeus-hub-pending:${user?.id}:${feature}`;
   const featureEnabled = status?.enabled && (!council || status?.council_enabled);
-  const quoteKey = `${conversationId || ''}:${prompt}`;
+  const webActive = !council && webSearch;
+  const searchReady = !webActive || Boolean(searchQuery.trim());
+  const quoteKey = webActive ? JSON.stringify([conversationId, prompt, true, searchQuery]) : `${conversationId || ''}:${prompt}`;
 
   const refresh = useCallback(async () => {
     const [s, h] = await Promise.all([hubApi(token, '/status'), hubApi(token, '/conversations')]);
@@ -76,15 +89,15 @@ export default function HubChatPage({ feature = 'ask' }) {
   }, [conversationId, token, feature]);
 
   useEffect(() => {
-    if (!prompt.trim() || busy || !featureEnabled) return;
+    if (!prompt.trim() || busy || !featureEnabled || !searchReady) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      hubApi(token, '/quote', { request_id: crypto.randomUUID(), conversation_id: conversationId, feature, prompt }, controller.signal)
+      hubApi(token, '/quote', { request_id: crypto.randomUUID(), conversation_id: conversationId, feature, prompt, ...(webActive ? { web_search: true, search_query: searchQuery } : {}) }, controller.signal)
         .then(q => setQuote({ ...q, key: quoteKey }))
         .catch(e => { if (e.name !== 'AbortError') setQuote({ error: e.message, key: quoteKey }); });
     }, 450);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [prompt, conversationId, feature, token, busy, featureEnabled, quoteKey]);
+  }, [prompt, conversationId, feature, token, busy, featureEnabled, quoteKey, webActive, searchQuery, searchReady]);
 
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, [requests]);
 
@@ -121,13 +134,13 @@ export default function HubChatPage({ feature = 'ask' }) {
 
   async function send(e) {
     e.preventDefault();
-    if (lock.current || busy || !quote || quote.key !== quoteKey || quote.error) return;
+    if (lock.current || busy || !searchReady || !quote || quote.key !== quoteKey || quote.error) return;
     lock.current = true; setBusy(true); setError('');
-    const body = { request_id: crypto.randomUUID(), conversation_id: conversationId, feature, prompt, max_credits: quote.credits };
+    const body = { request_id: crypto.randomUUID(), conversation_id: conversationId, feature, prompt, max_credits: quote.credits, ...(webActive ? { web_search: true, search_query: searchQuery } : {}) };
     sessionStorage.setItem(pendingKey, JSON.stringify(body));
     try {
       const accepted = await hubApi(token, '/requests', body);
-      setPending(body); setPrompt(''); setQuote(null);
+      setPending(body); setPrompt(''); setSearchQuery(''); setQuote(null);
       setParams({ conversation: accepted.conversation_id });
     } catch (e) {
       setError(e.message);
@@ -153,7 +166,10 @@ export default function HubChatPage({ feature = 'ask' }) {
     } catch (e) {
       setError(e.message);
       if (e.status && (e.status < 500 || e.status === 503)) {
-        if (pending.prompt) setPrompt(pending.prompt);
+        if (pending.prompt) {
+          setPrompt(pending.prompt);
+          if (!council) { setWebSearch(Boolean(pending.web_search)); setSearchQuery(pending.search_query || ''); }
+        }
         sessionStorage.removeItem(pendingKey);
         setPending(null); setBusy(false); lock.current = false;
       }
@@ -164,9 +180,10 @@ export default function HubChatPage({ feature = 'ask' }) {
   function newChat() {
     if (busy) return;
     setParams({}); setRequests([]); setPrompt(''); setError(''); setQuote(null);
+    setWebSearch(false); setSearchQuery('');
   }
   const currentQuote = quote?.key === quoteKey ? quote : null;
-  const affordable = currentQuote && !currentQuote.error && currentQuote.balance >= currentQuote.credits;
+  const affordable = searchReady && currentQuote && !currentQuote.error && currentQuote.balance >= currentQuote.credits;
   return <div className="hub-page"><DashboardHeader /><main className="hub-chat-layout">
     <aside className="hub-history"><Link className="hub-back" to="/hub">← Zeus Missions</Link><button className="hub-secondary" onClick={newChat} disabled={busy}>＋ New Chat</button><h2>Conversation history</h2>
       <nav aria-label="Hub conversation history">{history.length === 0 && <p>Your conversations will appear here.</p>}{history.map(c => <button disabled={busy} className={conversationId === c.id ? 'hub-history-active' : ''} key={c.id} onClick={() => { setRequests([]); setError(''); setParams({ conversation: c.id }); }}>{c.title}</button>)}</nav>
@@ -181,8 +198,12 @@ export default function HubChatPage({ feature = 'ask' }) {
     {error && <p className="hub-error" role="alert">{error}</p>}
     {pending && <button className="hub-secondary" disabled={checking} onClick={recover}>{checking ? 'Checking…' : 'Check / retry request'}</button>}
     <form className="hub-composer" onSubmit={send}><label htmlFor="zeus-message">{council ? 'Your question for the Council' : 'Message Zeus'}</label><textarea id="zeus-message" rows={4} maxLength={12000} value={prompt} onChange={e => setPrompt(e.target.value)} disabled={busy || !featureEnabled} placeholder={council ? 'What decision or question should the Council consider?' : params.get('mission') === 'coding' ? 'Describe your coding question or paste a small snippet…' : 'What do you want to do?'} />
-      <div className="hub-composer-bottom"><div className="hub-quote" aria-live="polite">{busy ? 'Zeus is working. Your credit reservation is protected.' : currentQuote?.error || (currentQuote ? `Up to ${currentQuote.credits} ${status?.mode === 'beta' ? 'Hub Beta Credits' : status?.mode === 'development' ? 'test Hub credits' : 'Hub credits'} reserved; unused credits released.${affordable ? '' : ' Insufficient Hub credits.'}` : prompt.trim() && featureEnabled ? 'Calculating credit requirement…' : 'Your credit estimate appears before sending.')}</div><button type="submit" className="hub-primary" disabled={busy || !featureEnabled || !affordable}>{busy ? 'Working…' : council ? 'Consult Council ↗' : 'Send ↗'}</button></div>
-      <p className="hub-fine-print">Text only for this MVP. No browsing or automatic actions. Recent conversation context is used within size limits.</p>
+      {!council && <div className="hub-web-search">
+        <label className="hub-search-toggle"><input type="checkbox" role="switch" checked={webActive} onChange={e => setWebSearch(e.target.checked)} disabled={busy || !featureEnabled} />Search the web</label>
+        {webActive && <div className="hub-search-query"><label htmlFor="zeus-search-query">Public search query</label><input id="zeus-search-query" type="text" maxLength={300} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} disabled={busy || !featureEnabled} required autoComplete="off" aria-describedby="zeus-search-help" placeholder="e.g. London weather this weekend" /><p id="zeus-search-help">Only these terms are sent to web search. Use public terms only; leave out secrets and private account details.</p></div>}
+      </div>}
+      <div className="hub-composer-bottom"><div className="hub-quote" aria-live="polite">{busy ? 'Zeus is working. Your credit reservation is protected.' : !searchReady ? 'Enter public search terms to get your estimate.' : currentQuote?.error || (currentQuote ? `Up to ${currentQuote.credits} ${status?.mode === 'beta' ? 'Hub Beta Credits' : status?.mode === 'development' ? 'test Hub credits' : 'Hub credits'} reserved; unused credits released.${affordable ? '' : ' Insufficient Hub credits.'}` : prompt.trim() && featureEnabled ? 'Calculating credit requirement…' : 'Your credit estimate appears before sending.')}</div><button type="submit" className="hub-primary" disabled={busy || !featureEnabled || !affordable}>{busy ? 'Working…' : council ? 'Consult Council ↗' : 'Send ↗'}</button></div>
+      <p className="hub-fine-print">{council ? 'Text only for this MVP. No browsing or automatic actions. Recent conversation context is used within size limits.' : webActive ? 'One web search per message, with up to five sources. The estimate includes room for search evidence. Development mode simulates without searching.' : 'Web search is off. Recent conversation context is used within size limits.'}</p>
     </form></section>
   </main></div>;
 }

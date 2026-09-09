@@ -144,3 +144,15 @@ a.hub-mission:hover { transform:translateY(-3px); border-color:#00f0ff88; backgr
 .hub-diag-status-running,.hub-diag-status-unknown { background:#cdb65420; color:#e5d691; }
 .hub-diag-reqid { font-family:monospace; color:#8994ab; }
 @media(max-width:720px) { .hub-diag-stats { grid-template-columns:repeat(2, 1fr); } .hub-diag-table { font-size:12px; } }
+
+/* Ask-only search controls share the existing cosmic palette. */
+.hub-web-search { margin-top:16px; }
+.hub-composer .hub-search-toggle { display:flex; align-items:center; gap:10px; width:fit-content; cursor:pointer; font-size:14px; }
+.hub-search-toggle input { width:18px; height:18px; accent-color:var(--accent-1); }
+.hub-search-query { margin-top:12px; }
+.hub-composer .hub-search-query label { font-size:13px; }
+.hub-search-query input { width:100%; box-sizing:border-box; padding:12px; border:1px solid var(--border); border-radius:10px; background:#03081590; color:white; font:inherit; }
+.hub-search-query input:focus,.hub-search-toggle input:focus-visible { outline:2px solid var(--accent-1); outline-offset:2px; }
+.hub-search-query p,.hub-sources p { font-size:12px; color:#a6b1c5; margin-top:8px; }
+.hub-sources { margin-top:18px; border-top:1px solid var(--border); padding-top:8px; }
+.hub-sources a { color:var(--accent-1); overflow-wrap:anywhere; }
