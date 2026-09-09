@@ -58,14 +58,14 @@ export default function LandingPage() {
         <div className="container hero-content">
           <div className="hero-badge">
             <span className="badge-dot" />
-            AI-Powered · Built for Business
+            Research · Create · Build
           </div>
           <h1 className="hero-title">
-            Build websites, create AI music<br />
-            <span className="gradient-text">&amp; publish everywhere</span>
+            One AI platform to research, create,<br />
+            <span className="gradient-text">build and get things done.</span>
           </h1>
           <p className="hero-sub">
-            Zeus is your all-in-one AI business assistant — chat to create stunning websites, generate original songs, produce avatar videos, write copy, and deploy live in seconds.
+            Get answers with Ask Zeus, search the live web and compare AI perspectives with Zeus Council. Build websites, create music with Zeus Beats, create memorial QR tributes and use practical business tools—all in one place. Ask Zeus and Zeus Council are currently in private beta.
           </p>
           <div className="hero-actions">
             <Link to="/register" className="btn-primary btn-lg">
@@ -113,25 +113,25 @@ export default function LandingPage() {
         <div className="container">
           <div className="section-label">What Zeus Can Do</div>
           <h2 className="section-title">Everything Zeus Can Do.<br /><span className="gradient-text">All in one place.</span></h2>
-          <p className="section-sub">Music creation, website building, publishing, content writing — Zeus handles it all from a single conversation.</p>
+          <p className="section-sub">Answers, research, websites, music, tributes and business tools—choose what you need from one AI platform.</p>
 
-          {/* MUSIC CREATION */}
+          {/* RESEARCH, CREATE & BUILD */}
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-1)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14, marginTop: 40 }}>🎵 Music Creation</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-1)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14, marginTop: 40 }}>🎵 Research, Create &amp; Build</div>
             <div className="features-grid">
               <div className="feat-card feat-lead">
                 <span className="feat-icon">🎵</span>
-                <h3>AI Song Generator</h3>
-                <p>Turn a text brief into a full original song — lyrics by Claude AI, audio by Suno. Full lyrics and vocals in 60 seconds.</p>
-                <div className="feat-tags"><span>100+ Genres</span><span>Custom Lyrics</span><span>AI Vocals</span><span>Instrumental Mode</span></div>
+                <h3>Ask Zeus</h3>
+                <p>Ask questions, explore ideas and get help with writing and everyday tasks.</p>
+                <div className="feat-tags"><span>Answers</span><span>Writing</span><span>Ideas</span><span>Everyday Tasks</span></div>
               </div>
-              <div className="feat-card"><span className="feat-icon">🎸</span><h3>100+ Genres</h3><p>Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&amp;B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline and more.</p></div>
-              <div className="feat-card"><span className="feat-icon">🎨</span><h3>Animated Cover Art</h3><p>AI generates and animates your artwork automatically — every song gets a unique, genre-matched cover image that moves.</p></div>
-              <div className="feat-card"><span className="feat-icon">🎬</span><h3>Avatar Lip-Sync Videos</h3><p>AI performer sings your track in HD video. Perfect for YouTube, Instagram Reels, and music promotion.</p></div>
-              <div className="feat-card"><span className="feat-icon">🎛️</span><h3>DJ Mixer</h3><p>Mix your songs together and record your set — a built-in DJ deck for blending your AI tracks.</p></div>
-              <div className="feat-card"><span className="feat-icon">🔄</span><h3>Song Remake</h3><p>Regenerate any song in a completely different genre — same lyrics, totally new sound.</p></div>
-              <div className="feat-card"><span className="feat-icon">🎤</span><h3>Voice to Text</h3><p>Describe your song by speaking, not typing. Hit the mic and Zeus transcribes your idea instantly.</p></div>
-              <div className="feat-card"><span className="feat-icon">📋</span><h3>Song Templates</h3><p>One-click starters: Club Banger, Emotional R&amp;B, Grime Bars and more — skip the blank page.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎸</span><h3>Live Web Search</h3><p>Turn on Search the web to research current information, with source links to check the evidence.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎨</span><h3>Zeus Council</h3><p>Compare responses from multiple AIs and read a final Zeus Verdict. Optional web search gives them shared evidence.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎬</span><h3>Website Building</h3><p>Describe the website you need, refine its content and design, and publish when ready.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎛️</span><h3>Zeus Beats</h3><p>Create original music from your ideas and explore different genres, moods and sounds.</p></div>
+              <div className="feat-card"><span className="feat-icon">🔄</span><h3>Memorial QR &amp; Tributes</h3><p>Create a digital tribute and connect people to it through a memorial QR code.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎤</span><h3>Business Tools</h3><p>Draft business content, plan projects and work through practical tasks.</p></div>
+              <div className="feat-card"><span className="feat-icon">📋</span><h3>Publishing &amp; Sharing</h3><p>Share and publish your work using the options available within each Zeus tool.</p></div>
             </div>
           </div>
 
@@ -142,7 +142,7 @@ export default function LandingPage() {
               <div className="feat-card"><span className="feat-icon">▶️</span><h3>YouTube Upload</h3><p>One click — song goes live on your channel. Zeus uploads the audio, sets the title, and handles everything.</p></div>
               <div className="feat-card"><span className="feat-icon">📘</span><h3>Facebook Auto-posting</h3><p>Zeus writes the caption and posts directly to your Facebook page — no copying, no switching apps.</p></div>
               <div className="feat-card"><span className="feat-icon">✈️</span><h3>Telegram Sharing</h3><p>Share directly to your Telegram channel with one tap. Your audience gets it instantly.</p></div>
-              <div className="feat-card"><span className="feat-icon">🔍</span><h3>Music Search</h3><p>Find any artist, copy their style, generate your version — search for inspiration and make it your own.</p></div>
+              <div className="feat-card"><span className="feat-icon">🔍</span><h3>Music Search</h3><p>Explore music for inspiration, then describe your own original direction through genre, mood and instrumentation.</p></div>
             </div>
           </div>
 
@@ -171,7 +171,7 @@ export default function LandingPage() {
               <div className="feat-card"><span className="feat-icon">🔞</span><h3>Explicit Toggle</h3><p>Enable explicit content for grime, drill, and street genres — authentic language where it fits.</p></div>
               <div className="feat-card"><span className="feat-icon">🌀</span><h3>Weirdness Control</h3><p>Slide from Safe to Experimental — control how conventional or boundary-pushing your track sounds.</p></div>
               <div className="feat-card"><span className="feat-icon">🚫</span><h3>Avoid Tags</h3><p>Tell Zeus what NOT to include — no piano, no trumpet, no slow sections. You're in control.</p></div>
-              <div className="feat-card"><span className="feat-icon">🎨</span><h3>Inspired by Artist</h3><p>Type any artist name for style inspiration — Zeus captures the vibe without copying the sound.</p></div>
+              <div className="feat-card"><span className="feat-icon">🎨</span><h3>Music Inspiration</h3><p>Shape an original musical direction with genres, moods and instruments that fit your idea.</p></div>
             </div>
           </div>
 
@@ -192,7 +192,7 @@ export default function LandingPage() {
       <section className="capabilities" id="capabilities">
         <div className="container">
           <div className="section-label">How Zeus Works</div>
-          <h2 className="section-title">One chat.<br /><span className="gradient-text">Infinite possibilities.</span></h2>
+          <h2 className="section-title">One platform.<br /><span className="gradient-text">More ways to get things done.</span></h2>
 
           <div className="caps-layout">
             <div className="caps-list">
@@ -206,8 +206,8 @@ export default function LandingPage() {
               <div className="cap-item">
                 <div className="cap-num">02</div>
                 <div className="cap-body">
-                  <h4>Zeus plans and executes</h4>
-                  <p>It builds the site, writes the copy, generates images, searches the web — whatever the task needs. You see a live progress summary.</p>
+                  <h4>Use the tools your task needs</h4>
+                  <p>Research with Ask Zeus, compare AI perspectives with Council, or open a creation tool. For live web results in Ask Zeus or Council, turn on Search the web and enter a public search query.</p>
                 </div>
               </div>
               <div className="cap-item">
