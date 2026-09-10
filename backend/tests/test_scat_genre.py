@@ -54,7 +54,9 @@ def test_scat_lyric_directive_forces_vocables():
 
 
 def test_scat_registered_in_web_app():
-    p = _ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx"
+    # web-beats extracted its genre category/label data into utils/genres.js
+    # (Task 14, to break a circular import) — read the data there.
+    p = _ROOT / "web-beats" / "src" / "utils" / "genres.js"
     s = p.read_text(encoding="utf-8")
     assert "'scat'" in s, "missing from the GENRES list"
     assert "scat:'Scat Jazz'" in s, "missing its label"
@@ -104,7 +106,9 @@ def test_opera_style_describes_the_voice_and_the_orchestra():
 
 
 def test_opera_registered_in_web_app():
-    s = (_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
+    # web-beats extracted its genre category/label data into utils/genres.js
+    # (Task 14, to break a circular import) — read the data there.
+    s = (_ROOT / "web-beats" / "src" / "utils" / "genres.js").read_text(encoding="utf-8")
     assert "'opera'" in s, "missing from the GENRES list"
     assert "opera:'Opera'" in s, "missing its label"
     assert "'classical','opera'" in s, "missing from the classical category group"
@@ -168,7 +172,9 @@ def test_dancehall_has_its_own_cover_prompt():
 
 
 def test_dancehall_registered_in_both_apps():
-    web = (_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
+    # web-beats extracted its genre category/label data into utils/genres.js
+    # (Task 14, to break a circular import) — read the data there.
+    web = (_ROOT / "web-beats" / "src" / "utils" / "genres.js").read_text(encoding="utf-8")
     assert "'dancehall'" in web
     assert web.count("dancehall:'Dancehall'") == 1, "duplicate object key"
     assert "'ragga','dancehall'" in web, "should sit with the reggae family"
@@ -220,7 +226,9 @@ def test_celticpunk_has_its_own_cover_prompt():
 
 
 def test_celticpunk_registered_in_both_apps():
-    web = (_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
+    # web-beats extracted its genre category/label data into utils/genres.js
+    # (Task 14, to break a circular import) — read the data there.
+    web = (_ROOT / "web-beats" / "src" / "utils" / "genres.js").read_text(encoding="utf-8")
     assert "'celticpunk'" in web
     assert web.count("celticpunk:'Celtic Punk'") == 1, "duplicate object key"
     assert "'acousticblues','celticpunk'" in web, "should sit in Country & Folk"
@@ -293,7 +301,9 @@ def test_countryballad_has_its_own_cover_prompt():
 
 
 def test_countryballad_registered_in_both_apps():
-    web = (_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx").read_text(encoding="utf-8")
+    # web-beats extracted its genre category/label data into utils/genres.js
+    # (Task 14, to break a circular import) — read the data there.
+    web = (_ROOT / "web-beats" / "src" / "utils" / "genres.js").read_text(encoding="utf-8")
     assert "'countryballad'" in web
     assert web.count("countryballad:'Country Ballad'") == 1, "duplicate object key"
     assert "'countrypop','countryballad'" in web, "should sit in Country & Folk"

@@ -28,7 +28,10 @@ REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
 
 # Every frontend that renders the genre picker. Each must stay in sync with the backend.
 FRONTEND_GENRE_PICKERS = [
-    REPO_ROOT / "web-beats" / "src" / "pages" / "SongsPage.jsx",
+    # web-beats extracted its genre category/label data into utils/genres.js
+    # (Task 14, to break a circular import) — read the data there, not the
+    # page component that now just imports it.
+    REPO_ROOT / "web-beats" / "src" / "utils" / "genres.js",
     REPO_ROOT / "web" / "src" / "pages" / "SongsPage.jsx",
     REPO_ROOT / "zeus-beats-ios" / "src" / "screens" / "CreateSongScreen.tsx",
 ]
