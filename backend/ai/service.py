@@ -89,7 +89,7 @@ async def execute(store, settings, user_id, request_id, feature, messages, selec
             # bounded evidence to every member and the judge, without duplicating it.
             if search_query is not None and settings.mode != 'development':
                 await progress('Zeus is searching the web…')
-                web_context, sources = await search(search_query)
+                web_context, sources = await search(search_query, prompt=messages[-1]['content'])
             if feature == 'council':
                 result = await consult(settings.members, settings.judge, messages, generate, progress)
             else:

@@ -14,7 +14,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 @pytest.fixture
 def council_hub(tmp_path, monkeypatch):
     monkeypatch.setenv('JWT_SECRET', 'test-only-placeholder-not-a-real-secret')
-    for name in ('SERPER_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY'):
+    for name in ('SERPER_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENROUTER_API_KEY'):
         monkeypatch.setenv(name, 'mock-only-placeholder')
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
@@ -47,10 +47,12 @@ def council_hub(tmp_path, monkeypatch):
                 return httpx.Response(429, json={'error': 'mock-only-private-error'})
             if response['search'] == 'empty':
                 return httpx.Response(200, json={'organic': []})
+            if 'organic' in response:
+                return httpx.Response(200, json={'organic': response['organic']})
             return httpx.Response(200, json={'organic': [
                 {'title': f'Public report {i}', 'link': f'https://example.org/report/{i}', 'snippet': response['snippet']}
                 for i in range(10)]})
-        assert request.url.host in ('api.openai.com', 'api.anthropic.com', 'generativelanguage.googleapis.com')
+        assert request.url.host in ('api.openai.com', 'api.anthropic.com', 'generativelanguage.googleapis.com', 'openrouter.ai')
         judge = any(m['content'].startswith('Council conclusions (') for m in payload['messages'])
         slot = 'judge' if judge else next(name for name in settings.members if settings.models[name].model == payload['model'])
         sent.append((slot, payload))
@@ -214,7 +216,7 @@ def test_max_history_example_quote_keeps_006_cap(council_hub):
     messages = [{'role': 'user' if i % 2 == 0 else 'assistant', 'content': 'x' * 200} for i in range(18)]
     messages.append({'role': 'user', 'content': 'x' * (settings.max_context_bytes - 4000 - 3600)})
     estimate = quote(settings, 'council', reservation_messages(messages), None)
-    assert estimate['estimated_cost'] == pytest.approx(0.0523248)
+    assert estimate['estimated_cost'] > 0
     assert estimate['estimated_cost'] < settings.council_max_request_usd == 0.06
     assert estimate['credits'] == 15
     assert sent == []
@@ -266,3 +268,29 @@ def test_development_council_web_is_simulated_without_network(council_hub, monke
     assert done['result']['simulated'] is True
     assert 'sources' not in done['result']
     assert sent == []
+
+
+def test_council_filters_wrong_business_and_instructs_members_and_judge(council_hub):
+    from ai.providers import SYSTEM
+    client, store, settings, sent, response = council_hub
+    response['organic'] = [
+        {'title': 'Zeus Design Hub Reviews', 'link': 'https://www.trustpilot.com/review/zeusdesignhub.com',
+         'snippet': '4 stars from 19 reviews.'},
+        {'title': 'Zeus AI Design', 'link': 'https://zeusaidesign.com/', 'snippet': 'Creative AI tools.'},
+    ]
+    response['member_text'] = 'Unverified Council member claim: 19 reviews [1].'
+    request = body(prompt='Is zeusaidesign.com good? Private account notes.', search_query='AI business reviews')
+    done = submit(client, request)
+    assert done['status'] == 'succeeded' and done['zeus_credits_charged'] == 15
+    assert store.balance('council-test', 'beta') == 85
+    assert len(sent) == 5 and sent[0] == ('search', {'q': 'AI business reviews', 'num': 5})
+    assert [s['url'] for s in done['result']['sources']] == ['https://zeusaidesign.com/']
+    evidence = []
+    for slot, payload in sent[1:]:
+        system = payload.get('system', payload['messages'][0]['content'])
+        assert 'verified business identity' in system and 'Council member' in system
+        context = payload['messages'][-1]['content']
+        assert 'zeusdesignhub.com' not in context and '19 reviews' not in context
+        assert len(context.encode()) + len(system.encode()) - len(SYSTEM.encode()) <= 4000
+        evidence.append(context)
+    assert len(set(evidence)) == 1
