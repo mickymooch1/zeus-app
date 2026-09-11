@@ -50,9 +50,9 @@ export function CreditsIndicator({ token, isAdmin, user, messageCount }) {
     return (
       <div className={`credits-indicator credits-indicator--free${atLimit ? ' credits-indicator--limit' : ''}`}>
         {atLimit ? (
-          <>Daily limit reached. <Link to="/pricing">Upgrade</Link> for unlimited messages.</>
+          <>Website-builder assistant daily limit reached. <Link to="/pricing">Upgrade</Link> for unlimited chat with this assistant.</>
         ) : (
-          `${dailyState.count} of ${LIMIT} daily messages used`
+          `Website-builder assistant: ${dailyState.count} of ${LIMIT} messages used today (UTC)`
         )}
       </div>
     );

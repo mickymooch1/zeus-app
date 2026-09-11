@@ -19,7 +19,7 @@ PLANS: dict = {
         "price": "£29/mo",
         "price_id": os.environ.get("STRIPE_PRO_PRICE_ID", ""),
         "features": [
-            "Unlimited messages",
+            "Unlimited chat with the website-builder assistant",
             "Persistent memory & learning",
             "Client & project tracking",
             "Website builder",
@@ -117,7 +117,7 @@ MUSIC_PLANS: dict = {
         "price": "£9/mo",
         "price_id": MUSIC_STARTER_PRICE_ID,
         "features": [
-            "60 song versions/month",
+            "30 song credits/month — up to 60 generated versions",
             "YouTube upload",
             "Song download & share",
             "All music genres",
@@ -129,7 +129,7 @@ MUSIC_PLANS: dict = {
         "price": "£19/mo",
         "price_id": MUSIC_PRO_PRICE_ID,
         "features": [
-            "150 song versions/month",
+            "75 song credits/month — up to 150 generated versions",
             "YouTube upload",
             "3 avatar videos/month",
             "Song download & share",
@@ -142,7 +142,7 @@ MUSIC_PLANS: dict = {
         "price": "£39/mo",
         "price_id": MUSIC_AGENCY_PRICE_ID,
         "features": [
-            "300 song versions/month",
+            "150 song credits/month — up to 300 generated versions",
             "YouTube upload",
             "10 avatar videos/month",
             "Song download & share",

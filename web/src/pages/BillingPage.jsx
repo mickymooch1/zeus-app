@@ -5,16 +5,19 @@ import { useAuth } from '../contexts/AuthContext';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
-function UsageBar({ used, limit }) {
-  if (limit === null || limit === undefined) {
+function UsageBar({ used, limit, unlimited = false }) {
+  if (unlimited) {
     return (
       <div className="usage-bar-wrap">
         <div className="usage-bar">
           <div className="usage-bar-fill usage-bar-fill--unlimited" style={{ width: '100%' }} />
         </div>
-        <span className="usage-label">Unlimited messages</span>
+        <span className="usage-label">Unlimited chat with the website-builder assistant</span>
       </div>
     );
+  }
+  if (!Number.isInteger(used) || used < 0 || !Number.isInteger(limit) || limit <= 0) {
+    return <span className="usage-label">Usage temporarily unavailable.</span>;
   }
   const pct = Math.min(100, (used / limit) * 100);
   const isNearLimit = pct >= 75;
@@ -27,7 +30,7 @@ function UsageBar({ used, limit }) {
         />
       </div>
       <span className="usage-label">
-        {used} / {limit} messages this month
+        Website-builder assistant: {used} / {limit} messages today (UTC)
       </span>
     </div>
   );
@@ -37,6 +40,7 @@ export default function BillingPage() {
   const { user, token } = useAuth();
   const location = useLocation();
   const [status, setStatus] = useState(null);
+  const [dailyUsage, setDailyUsage] = useState(null);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(null);
   const [error, setError] = useState('');
@@ -78,6 +82,19 @@ export default function BillingPage() {
       .then((data) => { if (data) setStatus(data); })
       .catch(() => {});
   }, [token]);
+
+  useEffect(() => {
+    if (!token || !status || status.is_active || status.is_admin) return;
+    const controller = new AbortController();
+    fetch(`${BACKEND_URL}/api/users/me/chat-usage`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (!controller.signal.aborted) setDailyUsage(data); })
+      .catch(() => { if (!controller.signal.aborted) setDailyUsage(null); });
+    return () => controller.abort();
+  }, [token, status]);
 
   useEffect(() => {
     if (!token) return;
@@ -290,7 +307,7 @@ export default function BillingPage() {
           <div className="billing-plan-name">{planName}</div>
 
           {status ? (
-            <UsageBar used={status.messages_used} limit={status.messages_limit} />
+            <UsageBar used={dailyUsage?.daily_count} limit={dailyUsage?.daily_limit} unlimited={isActive} />
           ) : (
             <div className="spinner" />
           )}
@@ -343,13 +360,13 @@ export default function BillingPage() {
         {/* Upgrade options for free users */}
         {!isActive && (
           <div className="billing-upgrade-section">
-            <h2 className="billing-section-title">Upgrade for unlimited access</h2>
+            <h2 className="billing-section-title">Upgrade your website-builder plan</h2>
             <div className="billing-upgrade-grid">
               <div className="billing-upgrade-card">
                 <span className="badge-pro">Pro</span>
                 <div className="billing-upgrade-price">£29/mo</div>
                 <p className="billing-upgrade-desc">
-                  Unlimited messages, all features, Netlify deploy, persistent memory
+                  Unlimited chat with the website-builder assistant, Netlify deployment and persistent memory
                 </p>
                 <button
                   className="btn btn-primary btn-full"
@@ -384,7 +401,7 @@ export default function BillingPage() {
               <div className="billing-upgrade-card">
                 <span className="badge-pro">Music Starter</span>
                 <div className="billing-upgrade-price">£9/mo</div>
-                <p className="billing-upgrade-desc">15 songs/month, YouTube upload</p>
+                <p className="billing-upgrade-desc">30 song credits/month, YouTube upload</p>
                 <button
                   className="btn btn-primary btn-full"
                   disabled={loadingCheckout === 'music_starter'}
@@ -397,7 +414,7 @@ export default function BillingPage() {
               <div className="billing-upgrade-card">
                 <span className="badge-pro">Music Pro</span>
                 <div className="billing-upgrade-price">£19/mo</div>
-                <p className="billing-upgrade-desc">55 songs/month, YouTube upload, 3 avatar videos</p>
+                <p className="billing-upgrade-desc">75 song credits/month, YouTube upload, 3 avatar videos</p>
                 <button
                   className="btn btn-primary btn-full"
                   disabled={loadingCheckout === 'music_pro'}
@@ -410,7 +427,7 @@ export default function BillingPage() {
               <div className="billing-upgrade-card">
                 <span className="badge-agency">Music Agency</span>
                 <div className="billing-upgrade-price">£39/mo</div>
-                <p className="billing-upgrade-desc">110 songs/month, YouTube upload, 10 avatar videos</p>
+                <p className="billing-upgrade-desc">150 song credits/month, YouTube upload, 10 avatar videos</p>
                 <button
                   className="btn btn-outline btn-full"
                   disabled={loadingCheckout === 'music_agency'}
@@ -426,9 +443,10 @@ export default function BillingPage() {
         {/* Plan features */}
         <div className="billing-card">
           <h2 className="billing-card-title">Your plan includes</h2>
+          <p>Ask Zeus and Zeus Council use separate Hub Credits. These subscriptions do not include a monthly Hub Credit allowance.</p>
           <ul className="pricing-features" style={{ marginTop: '1rem' }}>
             {(!status?.plan || !isActive) && [
-              '20 messages per month',
+              '30 messages per day with the website-builder assistant',
               '0 website builds',
               'AI chat assistant',
             ].map((f) => (
@@ -437,7 +455,7 @@ export default function BillingPage() {
               </li>
             ))}
             {effectivePlan === 'pro' && isActive && [
-              'Unlimited messages',
+              'Unlimited chat with the website-builder assistant',
               '5 website builds/month',
               'AI chat assistant',
               'Priority support',
@@ -447,7 +465,7 @@ export default function BillingPage() {
               </li>
             ))}
             {effectivePlan === 'agency' && isActive && [
-              'Unlimited messages',
+              'Unlimited chat with the website-builder assistant',
               '10 website builds/month',
               'AI chat assistant',
               'Team features',
@@ -458,7 +476,7 @@ export default function BillingPage() {
               </li>
             ))}
             {effectivePlan === 'enterprise' && isActive && [
-              'Unlimited messages',
+              'Unlimited chat with the website-builder assistant',
               '20 website builds/month',
               'Multi-agent website builder',
               'Background tasks',
@@ -471,7 +489,7 @@ export default function BillingPage() {
               </li>
             ))}
             {effectivePlan === 'music_starter' && isActive && [
-              '15 AI songs/month',
+              '30 song credits/month — up to 60 generated versions',
               'YouTube upload',
               'Song download & share',
               'All music genres & styles',
@@ -481,7 +499,7 @@ export default function BillingPage() {
               </li>
             ))}
             {effectivePlan === 'music_pro' && isActive && [
-              '55 AI songs/month',
+              '75 song credits/month — up to 150 generated versions',
               'YouTube upload',
               '3 avatar videos/month',
               'Song download & share',
@@ -492,7 +510,7 @@ export default function BillingPage() {
               </li>
             ))}
             {effectivePlan === 'music_agency' && isActive && [
-              '110 AI songs/month',
+              '150 song credits/month — up to 300 generated versions',
               'YouTube upload',
               '10 avatar videos/month',
               'Song download & share',

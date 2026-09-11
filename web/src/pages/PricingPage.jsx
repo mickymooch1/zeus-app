@@ -6,12 +6,12 @@ import { useAuth } from '../contexts/AuthContext';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 const FREE_FEATURES = [
-  '20 messages per month',
+  '30 messages per day with the website-builder assistant',
   '0 website builds',
   'AI chat assistant',
   'Content & copy writing',
   'Web research',
-  '3 free songs on signup',
+  '3 song credits on signup — one-time allowance',
 ];
 
 const DEFAULT_PLANS = {
@@ -19,7 +19,7 @@ const DEFAULT_PLANS = {
     name: 'Professional',
     price: '£29/mo',
     features: [
-      'Unlimited messages',
+      'Unlimited chat with the website-builder assistant',
       '5 website builds/month',
       'AI chat assistant',
       'Content & copy writing',
@@ -28,7 +28,7 @@ const DEFAULT_PLANS = {
       'Email via Gmail',
       'Client & project CRM',
       'Priority support',
-      '20 AI songs/month',
+      '20 song credits/month',
       'AI song download & share',
     ],
   },
@@ -36,13 +36,13 @@ const DEFAULT_PLANS = {
     name: 'Agency',
     price: '£79/mo',
     features: [
-      'Unlimited messages',
+      'Unlimited chat with the website-builder assistant',
       '10 website builds/month',
       'AI chat assistant',
       'Everything in Pro',
       'Team features',
       'Priority support',
-      '80 AI songs/month',
+      '70 song credits/month',
       'YouTube music upload',
       'Explicit content toggle',
       'Google indexing',
@@ -53,14 +53,14 @@ const DEFAULT_PLANS = {
     name: 'Enterprise',
     price: '£150/mo',
     features: [
-      'Unlimited messages',
+      'Unlimited chat with the website-builder assistant',
       '20 website builds/month',
       'Multi-agent website builder',
       'Background tasks',
       'Scheduled tasks',
       'Appointment booking',
       'Priority support',
-      '100 AI songs/month',
+      '100 song credits/month',
       'All Agency music features',
     ],
   },
@@ -71,7 +71,7 @@ const DEFAULT_MUSIC_PLANS = {
     name: 'Music Starter',
     price: '£9/mo',
     features: [
-      '25 AI songs/month',
+      '30 song credits/month — up to 60 generated versions',
       'YouTube upload',
       'Song download & share',
       'All music genres & styles',
@@ -82,7 +82,7 @@ const DEFAULT_MUSIC_PLANS = {
     name: 'Music Pro',
     price: '£19/mo',
     features: [
-      '55 AI songs/month',
+      '75 song credits/month — up to 150 generated versions',
       'YouTube upload',
       '3 avatar videos/month',
       'Song download & share',
@@ -94,7 +94,7 @@ const DEFAULT_MUSIC_PLANS = {
     name: 'Music Agency',
     price: '£39/mo',
     features: [
-      '110 AI songs/month',
+      '150 song credits/month — up to 300 generated versions',
       'YouTube upload',
       '10 avatar videos/month',
       'Song download & share',
@@ -293,8 +293,9 @@ export default function PricingPage() {
         </div>
 
         <p className="pricing-footer-note">
-          All plans include a 7-day free trial. Cancel anytime. Prices in GBP (+ VAT where applicable).
+          Paid subscriptions include 50% off your first month, then the listed monthly price. No free trial. Cancel anytime. Prices in GBP (+ VAT where applicable).
         </p>
+        <p className="pricing-footer-note">Ask Zeus and Zeus Council use separate Hub Credits. These subscriptions do not include a monthly Hub Credit allowance.</p>
 
         {/* ── Music Plans ──────────────────────────────────────────────────── */}
         <div style={{ marginTop: '5rem' }}>

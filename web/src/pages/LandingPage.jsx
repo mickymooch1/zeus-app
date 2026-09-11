@@ -256,6 +256,7 @@ export default function LandingPage() {
           <div className="section-label">Pricing</div>
           <h2 className="section-title">Simple, honest pricing.</h2>
           <p className="section-sub">Start free. Upgrade when you're ready.</p>
+          <p className="section-sub">Ask Zeus and Zeus Council use separate Hub Credits. These subscriptions do not include a monthly Hub Credit allowance.</p>
 
           <div className="pricing-grid">
             <div className="price-card">
@@ -263,11 +264,11 @@ export default function LandingPage() {
               <div className="plan-price">£0<span>/mo</span></div>
               <p className="plan-desc">Try Zeus with no commitment. Perfect for exploring what's possible.</p>
               <ul className="plan-features">
-                <li>✓ 20 messages per month</li>
+                <li>✓ 30 messages per day with the website-builder assistant</li>
                 <li>✓ AI chat assistant</li>
                 <li>✓ Content writing</li>
                 <li>✓ Web research</li>
-                <li>✓ 3 songs to get started</li>
+                <li>✓ 3 song credits to get started — one-time allowance</li>
                 <li className="feat-dim">✗ Website builds</li>
                 <li className="feat-dim">✗ Netlify deployment</li>
               </ul>
@@ -279,7 +280,7 @@ export default function LandingPage() {
               <div className="plan-price">£29<span>/mo</span></div>
               <p className="plan-desc">Everything you need to run a web design business with AI.</p>
               <ul className="plan-features">
-                <li>✓ Unlimited messages</li>
+                <li>✓ Unlimited chat with the website-builder assistant</li>
                 <li>✓ 5 website builds/month</li>
                 <li>✓ AI chat assistant</li>
                 <li>✓ Deploy to Netlify</li>
@@ -287,7 +288,7 @@ export default function LandingPage() {
                 <li>✓ Email via Gmail</li>
                 <li>✓ Client &amp; project CRM</li>
                 <li>✓ Priority support</li>
-                <li>✓ 20 AI songs/month</li>
+                <li>✓ 20 song credits/month</li>
                 <li>✓ 10 animations/month</li>
                 <li>✓ AI song download &amp; share</li>
               </ul>
@@ -299,13 +300,13 @@ export default function LandingPage() {
               <div className="plan-price">£79<span>/mo</span></div>
               <p className="plan-desc">For teams and agencies running multiple clients at scale.</p>
               <ul className="plan-features">
-                <li>✓ Unlimited messages</li>
+                <li>✓ Unlimited chat with the website-builder assistant</li>
                 <li>✓ 10 website builds/month</li>
                 <li>✓ AI chat assistant</li>
                 <li>✓ Everything in Pro</li>
                 <li>✓ Team features</li>
                 <li>✓ Priority support</li>
-                <li>✓ 70 AI songs/month</li>
+                <li>✓ 70 song credits/month</li>
                 <li>✓ 20 animations/month</li>
                 <li>✓ YouTube music upload</li>
                 <li>✓ Explicit content toggle</li>
@@ -320,14 +321,14 @@ export default function LandingPage() {
               <div className="plan-price">£150<span>/mo</span></div>
               <p className="plan-desc">The full Zeus AI power stack. Autonomous agents build and deploy sites while you sleep.</p>
               <ul className="plan-features">
-                <li>✓ Unlimited messages</li>
+                <li>✓ Unlimited chat with the website-builder assistant</li>
                 <li>✓ Unlimited website builds</li>
                 <li>✓ Multi-agent website builder</li>
                 <li>✓ Background tasks</li>
                 <li>✓ Scheduled tasks</li>
                 <li>✓ Appointment booking</li>
                 <li>✓ Priority support</li>
-                <li>✓ Unlimited AI songs</li>
+                <li>✓ 100 song credits/month</li>
                 <li>✓ 50 animations/month</li>
                 <li>✓ All Agency music features</li>
               </ul>
@@ -358,7 +359,7 @@ export default function LandingPage() {
                 </div>
                 <p className="plan-desc">For artists getting started with AI music creation.</p>
                 <ul className="plan-features">
-                  <li>✓ 25 AI songs/month</li>
+                  <li>✓ 30 song credits/month — up to 60 generated versions</li>
                   <li>✓ 3 animated cover arts/month</li>
                   <li>✓ YouTube upload</li>
                   <li>✓ Song download &amp; share</li>
@@ -376,7 +377,7 @@ export default function LandingPage() {
                 </div>
                 <p className="plan-desc">For active creators who want avatar videos.</p>
                 <ul className="plan-features">
-                  <li>✓ 55 AI songs/month</li>
+                  <li>✓ 75 song credits/month — up to 150 generated versions</li>
                   <li>✓ 10 animated cover arts/month</li>
                   <li>✓ 3 avatar lip-sync videos/month</li>
                   <li>✓ YouTube upload</li>
@@ -394,7 +395,7 @@ export default function LandingPage() {
                 </div>
                 <p className="plan-desc">For prolific creators and label teams.</p>
                 <ul className="plan-features">
-                  <li>✓ 110 AI songs/month</li>
+                  <li>✓ 150 song credits/month — up to 300 generated versions</li>
                   <li>✓ 20 animated cover arts/month</li>
                   <li>✓ 10 avatar lip-sync videos/month</li>
                   <li>✓ YouTube upload</li>

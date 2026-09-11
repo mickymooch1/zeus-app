@@ -1903,8 +1903,8 @@ async def chat_endpoint(websocket: WebSocket, token: str = Query(None)):
                 await websocket.send_json({
                     "type": "error",
                     "message": (
-                        f"You've used your {billing.DAILY_FREE_LIMIT} free messages for today. "
-                        "Upgrade to Pro for unlimited conversations with Zeus."
+                        f"You've used your {billing.DAILY_FREE_LIMIT} free website-builder assistant messages for today. "
+                        "Upgrade to Pro for unlimited chat with the website-builder assistant."
                     ),
                 })
                 await websocket.send_json({"type": "done"})

@@ -1709,7 +1709,7 @@ export default function SongsPage() {
               }} />
             </div>
             <span style={{ fontSize: 13, color: '#666', whiteSpace: 'nowrap' }}>
-              {isAdmin ? 'Unlimited' : `${balance} / ${allowance} songs`}
+              {isAdmin ? 'Unlimited' : `${balance} song credits remaining`}
             </span>
             {didPlanOk && !isAdmin && (
               <span style={{ fontSize: 13, color: credits.video_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
