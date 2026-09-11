@@ -542,7 +542,7 @@ const SongCard = memo(function SongCard({
               whiteSpace: 'nowrap',
               letterSpacing: '0.02em',
             }}
-          >🎬 Upgrade for HD Video Animation</a>
+          >🎬 Upgrade for avatar videos</a>
         )}
         {!isFailed && (
           <button
@@ -2426,30 +2426,6 @@ export default function SongsPage() {
                 </div>
                 )}
 
-                {/* Animated cover art toggle — paid users only */}
-                {!isFreeTier && (
-                  <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                      <div
-                        onClick={() => setAnimateCoverPref((v) => !v)}
-                        style={{ width: 36, height: 20, borderRadius: 10, background: animateCoverPref ? '#7c3aed' : 'rgba(255,255,255,0.08)', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}
-                      >
-                        <div style={{ position: 'absolute', top: 3, left: animateCoverPref ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
-                      </div>
-                      <span style={{ fontSize: 12, color: animateCoverPref ? '#c4b5fd' : '#555', fontWeight: 500 }}>
-                        {animateCoverPref ? 'Animated Cover Art' : 'Animated Cover Art (off)'}
-                      </span>
-                    </label>
-                    {animateCoverPref && !isAdmin && credits.premium_credits === 0 && (
-                      <p style={{ fontSize: 11, color: '#f87171', margin: '6px 0 0 46px' }}>
-                        No premium credits left this month.{' '}
-                        <button onClick={() => handleAnimationTopup('animation_pack_5')} disabled={topupLoading !== null} style={{ background: 'none', border: 'none', color: '#f87171', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: 11 }}>Buy more</button>
-                        {' '}or <Link to="/billing" style={{ color: '#f87171' }}>upgrade</Link>.
-                      </p>
-                    )}
-                  </div>
-                )}
-
                 {/* PIN modal for explicit content */}
                 {pinModalOpen && (
                   <div
@@ -2761,7 +2737,7 @@ export default function SongsPage() {
                 ))}
               </div>
               <p style={{ fontSize: 11, color: '#7c3aed', marginTop: 12, marginBottom: 0 }}>
-                Credits never expire · Used for animated covers &amp; stem separation
+                Credits never expire · Used for stem separation
               </p>
             </div>
           )}

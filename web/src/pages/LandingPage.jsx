@@ -289,7 +289,7 @@ export default function LandingPage() {
                 <li>✓ Client &amp; project CRM</li>
                 <li>✓ Priority support</li>
                 <li>✓ 20 song credits/month</li>
-                <li>✓ 10 animations/month</li>
+                <li>✓ 10 premium credits/month for stem separation</li>
                 <li>✓ AI song download &amp; share</li>
               </ul>
               <Link to="/register" className="btn-plan-ghost">Start Pro</Link>
@@ -307,7 +307,7 @@ export default function LandingPage() {
                 <li>✓ Team features</li>
                 <li>✓ Priority support</li>
                 <li>✓ 70 song credits/month</li>
-                <li>✓ 20 animations/month</li>
+                <li>✓ 20 premium credits/month for stem separation</li>
                 <li>✓ YouTube music upload</li>
                 <li>✓ Explicit content toggle</li>
                 <li>✓ Google indexing</li>
@@ -329,7 +329,7 @@ export default function LandingPage() {
                 <li>✓ Appointment booking</li>
                 <li>✓ Priority support</li>
                 <li>✓ 100 song credits/month</li>
-                <li>✓ 50 animations/month</li>
+                <li>✓ 50 premium credits/month for stem separation</li>
                 <li>✓ All Agency music features</li>
               </ul>
               <Link to="/register" className="btn-plan-primary">Start Enterprise</Link>
@@ -360,7 +360,7 @@ export default function LandingPage() {
                 <p className="plan-desc">For artists getting started with AI music creation.</p>
                 <ul className="plan-features">
                   <li>✓ 30 song credits/month — up to 60 generated versions</li>
-                  <li>✓ 3 animated cover arts/month</li>
+                  <li>✓ 3 premium credits/month for stem separation</li>
                   <li>✓ YouTube upload</li>
                   <li>✓ Song download &amp; share</li>
                   <li>✓ All 100+ genres &amp; styles</li>
@@ -378,7 +378,7 @@ export default function LandingPage() {
                 <p className="plan-desc">For active creators who want avatar videos.</p>
                 <ul className="plan-features">
                   <li>✓ 75 song credits/month — up to 150 generated versions</li>
-                  <li>✓ 10 animated cover arts/month</li>
+                  <li>✓ 10 premium credits/month for stem separation</li>
                   <li>✓ 3 avatar lip-sync videos/month</li>
                   <li>✓ YouTube upload</li>
                   <li>✓ Genre blending</li>
@@ -396,7 +396,7 @@ export default function LandingPage() {
                 <p className="plan-desc">For prolific creators and label teams.</p>
                 <ul className="plan-features">
                   <li>✓ 150 song credits/month — up to 300 generated versions</li>
-                  <li>✓ 20 animated cover arts/month</li>
+                  <li>✓ 20 premium credits/month for stem separation</li>
                   <li>✓ 10 avatar lip-sync videos/month</li>
                   <li>✓ YouTube upload</li>
                   <li>✓ Genre blending</li>
