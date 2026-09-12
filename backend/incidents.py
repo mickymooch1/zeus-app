@@ -317,6 +317,7 @@ def _diagnose_in_background(incident: dict) -> None:
         evidence_blob = f"--- Recent log lines ---\n{log_evidence}\n\n--- Recent commits on master ---\n{git_evidence}"
         _write_diagnosis(incident["id"], evidence_blob, likely_cause, confidence)
         _send_diagnosis_followup(cause, confidence, reasoning)
+        _maybe_offer_action(incident, cause, confidence)
     except Exception:
         log.exception("incidents: diagnosis failed for incident id=%s (fields remain empty)", incident.get("id"))
 
@@ -466,6 +467,18 @@ def _send_diagnosis_followup(cause: str, confidence: str, reasoning: str) -> Non
     display_cause = "insufficient evidence" if cause == "unknown" else cause
     tail = f" — {reasoning}" if reasoning else ""
     send_admin_alert(f"🔍 {label}: {display_cause} (confidence: {confidence}){tail}")
+
+
+def _maybe_offer_action(incident: dict, cause: str, confidence: str) -> None:
+    """Belt-and-braces wrapper around incident_actions.maybe_offer_action --
+    that function already never raises on its own terms, but this call is
+    wrapped independently too so a bug there can never take down diagnosis
+    (matching note()'s own defensive style around record(), just above)."""
+    try:
+        import incident_actions
+        incident_actions.maybe_offer_action(incident, cause, confidence)
+    except Exception:
+        log.exception("incidents: could not evaluate action offer for incident id=%s", incident.get("id"))
 
 
 def note(category: str, symptoms: str, *, severity: str | None = None) -> str:

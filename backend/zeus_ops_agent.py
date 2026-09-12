@@ -170,8 +170,15 @@ def stuck_song_sweep() -> None:
     # This is the most frequent cycle in the whole monitoring system (every 15
     # min, vs health_check's once a day) — running the auto-resolve sweep here
     # too, not just in health_check, is what actually makes "no new occurrence
-    # for 60 minutes" a responsive check rather than a once-a-day one.
+    # for 60 minutes" a responsive check rather than a once-a-day one. Same
+    # reasoning for expiring stale action offers: a 30-min TTL is only
+    # actually enforced if something checks it more often than once a day.
     _send_recovery_notices()
+    try:
+        import incident_actions
+        incident_actions.expire_stale_offers()
+    except Exception:
+        log.exception("ops_agent: incident_actions.expire_stale_offers() raised")
 
 
 def health_check() -> None:

@@ -65,6 +65,7 @@ Just talk to me naturally, mate! Examples:
 <code>make school EMAIL</code> — set account_type='school' for testing
 <code>incidents</code> — list open incidents (severity, count, age)
 <code>history CATEGORY</code> — last 5 resolved incidents for a category
+<code>yes</code> / <code>no</code> — reply to a pending fix-it offer (30 min window)
 <code>help</code>"""
 
 
@@ -2214,6 +2215,17 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
     m = re.match(r'^(?:porick\s+)?history\s+(\S+)$', t, re.IGNORECASE)
     if m:
         return _cmd_history(m.group(1).strip())
+
+    # yes / no — reply to a pending incident-action offer (see
+    # incident_actions.py). Exact match, checked before anything else so a
+    # bare "yes"/"no" never gets misread by the AI parser. Falls through to
+    # normal handling (returns None from handle_admin_reply) when nothing is
+    # currently pending.
+    if re.match(r'^(?:porick\s+)?(yes|no)$', t, re.IGNORECASE):
+        import incident_actions
+        reply = incident_actions.handle_admin_reply(re.sub(r'^porick\s+', '', tl, flags=re.IGNORECASE).strip())
+        if reply is not None:
+            return reply
 
     # db exec / db query — raw SQL (too dangerous to let AI interpret)
     m = re.match(r'^db\s+exec\s+"(.+)"$', t, re.IGNORECASE | re.DOTALL)
