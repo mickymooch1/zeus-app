@@ -235,6 +235,22 @@ CAUSE_CATEGORIES = ("code", "api_credits", "database", "deployment",
                      "third_party_outage", "configuration", "unknown")
 CONFIDENCE_LEVELS = ("low", "medium", "high")
 
+# The one and only marker meaning "we could not retrieve git history at
+# all" -- deliberately distinct from a successful call that legitimately
+# found nothing ("(no recent commits found)"). Both _gather_git_evidence()
+# and get_latest_master_commit() use this so a retrieval failure (missing
+# token, expired/revoked token, network error) is never mistaken for "no
+# commits happened" by a human reading Telegram output OR by the diagnosis
+# model reading its evidence -- see _DIAGNOSIS_SYSTEM_PROMPT's own rule 4
+# below. This was the root cause of a real production incident
+# (2026-09-13): an expired GITHUB_TOKEN returned a 401, but the collapsed
+# "GITHUB_TOKEN not set / API call failed" phrasing in check_deploy_status
+# made a rejected token indistinguishable from a missing one, and
+# _gather_git_evidence's identical failure was never logged at all, so
+# diagnosis had been silently reasoning without any real git evidence with
+# nothing in the logs to reveal it.
+_GIT_EVIDENCE_UNAVAILABLE = "GIT EVIDENCE UNAVAILABLE"
+
 _DIAGNOSIS_SYSTEM_PROMPT = f"""You are diagnosing a production incident for Zeus, a platform that \
 combines Zeus Beats (AI music generation) and Zeus Hub (an AI assistant with Ask Zeus / Council chat \
 and web search) on shared backend infrastructure. You are given the incident's title, its symptoms, \
@@ -257,6 +273,15 @@ naming a specific failing service or provider is evidence for "third_party_outag
 absence of an obvious alternative is never, by itself, evidence for any specific cause.
 3. Never invent specifics (file names, error codes, commit hashes, service names) that do not \
 appear in the evidence you were given.
+4. If the commits section contains the exact phrase "{_GIT_EVIDENCE_UNAVAILABLE}", git history \
+could NOT be retrieved at all (a token/auth/network problem on our end) -- this is a MISSING \
+input, not evidence that nothing changed in code or deploys. Never reason as if you had checked \
+recent commits and found nothing; say so explicitly in your reasoning (e.g. "git history could \
+not be retrieved, so a recent deploy/code change cannot be ruled out") and let that push toward \
+lower confidence rather than toward "deployment"/"code" being ruled out. This is different from \
+the commits section instead saying "(no recent commits found)" -- that means git history WAS \
+successfully checked and is genuinely empty, which you may treat as real evidence against a \
+recent code/deploy cause.
 
 Respond with ONLY a JSON object, no other text before or after it, in exactly this shape:
 {{"cause_category": "<one of the categories above>", "confidence": "<low|medium|high>", \
@@ -278,6 +303,24 @@ _SERVICE_LOG_KEYWORDS: dict[str, tuple[str, ...]] = {
 
 _GITHUB_REPO = "mickymooch1/zeus-app"
 _GITHUB_API = "https://api.github.com"
+
+
+def _github_headers(token: str) -> dict:
+    return {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+
+def _github_get(url: str, headers: dict, **kwargs):
+    """One GET against the GitHub API. Raises on any non-2xx status
+    (requests.exceptions.HTTPError, with .response set) or network error --
+    callers classify auth failures (401/403) from genuine outages
+    themselves, since the message an admin sees should differ."""
+    resp = requests.get(url, headers=headers, timeout=10, **kwargs)
+    resp.raise_for_status()
+    return resp
 
 
 def _maybe_trigger_diagnosis(row: sqlite3.Row | None) -> None:
@@ -357,6 +400,23 @@ def _gather_log_evidence(service: str, limit: int = 50) -> str:
     return "\n".join(lines) if lines else "(no relevant log lines captured)"
 
 
+def _classify_github_failure(exc: Exception) -> tuple[str, int | None, str]:
+    """(reason, status, detail) for any exception raised talking to GitHub.
+    reason is one of "auth_failed" (401/403 -- the token is present but
+    rejected: expired, revoked, or wrong scope/repo access) or "api_error"
+    (anything else: a different HTTP status, a timeout, a connection
+    error). Never returns "no_token" -- that's checked separately, before
+    any request is even made.
+    """
+    status = None
+    if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+        status = exc.response.status_code
+    if status in (401, 403):
+        return "auth_failed", status, f"GitHub rejected the token (status={status}) — likely expired, revoked, or missing repo access"
+    detail = f"{type(exc).__name__}: {exc}" if status is None else f"GitHub API returned status={status}"
+    return "api_error", status, detail
+
+
 def _gather_git_evidence(count: int = 5) -> str:
     """The last `count` commits on master: message + changed file list, no
     diffs. Via the GitHub API rather than a local `git log` -- the deployed
@@ -364,24 +424,25 @@ def _gather_git_evidence(count: int = 5) -> str:
     so .git is never present at runtime and a local git log would have
     nothing to read. Uses the same GITHUB_TOKEN + repo already established in
     github_push.py.
+
+    On any retrieval failure, returns a string starting with
+    _GIT_EVIDENCE_UNAVAILABLE and ALSO logs a warning -- previously this
+    failed completely silently (no logging at all), which is exactly how a
+    401 from an expired token went unnoticed here for as long as it did.
     """
     token = os.environ.get("GITHUB_TOKEN", "").strip()
     if not token:
-        return "(git history unavailable — GITHUB_TOKEN not set)"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
+        log.warning("incidents: _gather_git_evidence has no GITHUB_TOKEN configured")
+        return f"({_GIT_EVIDENCE_UNAVAILABLE}: GITHUB_TOKEN is not set)"
+    headers = _github_headers(token)
     try:
-        resp = requests.get(
-            f"{_GITHUB_API}/repos/{_GITHUB_REPO}/commits",
-            headers=headers, params={"sha": "master", "per_page": count}, timeout=10,
-        )
-        resp.raise_for_status()
+        resp = _github_get(f"{_GITHUB_API}/repos/{_GITHUB_REPO}/commits",
+                            headers, params={"sha": "master", "per_page": count})
         commits = resp.json()
     except Exception as exc:
-        return f"(git history unavailable — {type(exc).__name__}: {exc})"
+        reason, status, detail = _classify_github_failure(exc)
+        log.warning("incidents: _gather_git_evidence failed (%s): %s", reason, detail)
+        return f"({_GIT_EVIDENCE_UNAVAILABLE}: {detail})"
 
     lines = []
     for c in commits[:count]:
@@ -390,8 +451,7 @@ def _gather_git_evidence(count: int = 5) -> str:
         message = raw_message.splitlines()[0][:200] if raw_message else "(no commit message)"
         files_str = "(file list unavailable)"
         try:
-            detail = requests.get(f"{_GITHUB_API}/repos/{_GITHUB_REPO}/commits/{sha}", headers=headers, timeout=10)
-            detail.raise_for_status()
+            detail = _github_get(f"{_GITHUB_API}/repos/{_GITHUB_REPO}/commits/{sha}", headers)
             files = [f["filename"] for f in detail.json().get("files", [])][:20]
             if files:
                 files_str = ", ".join(files)
@@ -401,34 +461,39 @@ def _gather_git_evidence(count: int = 5) -> str:
     return "\n".join(lines) if lines else "(no recent commits found)"
 
 
-def get_latest_master_commit() -> dict | None:
+def get_latest_master_commit() -> dict:
     """The current HEAD commit on master: short sha + first line of the
     commit message. Same GitHub API access as _gather_git_evidence above
     (the deployed container has no .git -- see Dockerfile), reused here so
     Porick's chat mode can answer "is the update live" with the real answer
-    instead of guessing. Returns None on any failure (no GITHUB_TOKEN,
-    network error, ...) -- callers must treat that as "couldn't check", not
-    "nothing shipped".
+    instead of guessing.
+
+    Always returns a dict with an "ok" key:
+      {"ok": True, "sha": "...", "message": "..."}
+      {"ok": False, "reason": "no_token", "status": None, "detail": "..."}
+      {"ok": False, "reason": "auth_failed", "status": 401|403, "detail": "..."}
+      {"ok": False, "reason": "api_error", "status": <int or None>, "detail": "..."}
+    "no_token" and "auth_failed" are deliberately distinguishable -- a
+    missing GITHUB_TOKEN and a present-but-rejected one are different
+    problems with different fixes, and collapsing them into one message
+    is exactly what caused a real production incident (see
+    _GIT_EVIDENCE_UNAVAILABLE's comment above).
     """
     token = os.environ.get("GITHUB_TOKEN", "").strip()
     if not token:
-        return None
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
+        return {"ok": False, "reason": "no_token", "status": None, "detail": "GITHUB_TOKEN is not set"}
+    headers = _github_headers(token)
     try:
-        resp = requests.get(f"{_GITHUB_API}/repos/{_GITHUB_REPO}/commits/master", headers=headers, timeout=10)
-        resp.raise_for_status()
+        resp = _github_get(f"{_GITHUB_API}/repos/{_GITHUB_REPO}/commits/master", headers)
         commit = resp.json()
-    except Exception:
-        log.exception("incidents: get_latest_master_commit failed")
-        return None
+    except Exception as exc:
+        reason, status, detail = _classify_github_failure(exc)
+        log.warning("incidents: get_latest_master_commit failed (%s): %s", reason, detail)
+        return {"ok": False, "reason": reason, "status": status, "detail": detail}
     sha = commit.get("sha", "")
     raw_message = (commit.get("commit", {}).get("message") or "").strip()
     message = raw_message.splitlines()[0][:200] if raw_message else "(no commit message)"
-    return {"sha": sha[:7], "message": message}
+    return {"ok": True, "sha": sha[:7], "message": message}
 
 
 def list_recent_resolved(limit: int = 10) -> list[dict]:

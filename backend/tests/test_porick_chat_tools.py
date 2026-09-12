@@ -14,6 +14,7 @@ so these tests pin two different things:
    behaviour -- a plain regression guard so the instruction can't be quietly
    deleted or weakened later.
 """
+import logging
 import os
 import pathlib
 import sys
@@ -75,7 +76,8 @@ def test_deploy_status_question_triggers_the_tool_not_a_guess(temp_db, monkeypat
     question, parse_and_run must call the REAL git/GitHub lookup and relay
     its actual answer -- not free text invented by the model."""
     _mock_model_response(monkeypatch, '{"type": "action", "action": "check_deploy_status"}')
-    monkeypatch.setattr(incidents, "get_latest_master_commit", lambda: {"sha": "abc1234", "message": "fix: something real"})
+    monkeypatch.setattr(incidents, "get_latest_master_commit",
+                         lambda: {"ok": True, "sha": "abc1234", "message": "fix: something real"})
 
     reply = ta.parse_and_run("is the update live", chat_id="")
 
@@ -83,14 +85,31 @@ def test_deploy_status_question_triggers_the_tool_not_a_guess(temp_db, monkeypat
     assert "fix: something real" in reply
 
 
-def test_deploy_status_tool_is_honest_when_github_is_unreachable(temp_db, monkeypatch):
+def test_deploy_status_tool_is_honest_when_no_token_is_configured(temp_db, monkeypatch):
     _mock_model_response(monkeypatch, '{"type": "action", "action": "check_deploy_status"}')
-    monkeypatch.setattr(incidents, "get_latest_master_commit", lambda: None)
+    monkeypatch.setattr(incidents, "get_latest_master_commit",
+                         lambda: {"ok": False, "reason": "no_token", "status": None, "detail": "GITHUB_TOKEN is not set"})
 
     reply = ta.parse_and_run("did the fix ship yet", chat_id="")
 
     assert "❓" in reply
-    assert "couldn't check github" in reply.lower()
+    assert "isn't set" in reply.lower() or "not set" in reply.lower()
+
+
+def test_deploy_status_tool_distinguishes_a_rejected_token_from_a_missing_one(temp_db, monkeypatch):
+    """This exact confusion caused a real production incident: an expired
+    token returning 401 must NEVER read the same as no token configured."""
+    _mock_model_response(monkeypatch, '{"type": "action", "action": "check_deploy_status"}')
+    monkeypatch.setattr(incidents, "get_latest_master_commit",
+                         lambda: {"ok": False, "reason": "auth_failed", "status": 401,
+                                  "detail": "GitHub rejected the token (status=401)"})
+
+    reply = ta.parse_and_run("did the fix ship yet", chat_id="")
+
+    assert "❌" in reply
+    assert "401" in reply
+    assert "rejected" in reply.lower() or "invalid" in reply.lower()
+    assert "isn't set" not in reply.lower() and "not set" not in reply.lower()
 
 
 # ── Tool wiring: check_incidents ────────────────────────────────────────────
@@ -180,16 +199,48 @@ def test_system_prompt_still_preserves_banter_personality_instructions():
 # ── Direct command-function tests (no model involved) ──────────────────────
 
 def test_cmd_check_deploy_status_reports_the_real_commit(monkeypatch):
-    monkeypatch.setattr(incidents, "get_latest_master_commit", lambda: {"sha": "def5678", "message": "feat: thing"})
+    monkeypatch.setattr(incidents, "get_latest_master_commit",
+                         lambda: {"ok": True, "sha": "def5678", "message": "feat: thing"})
     result = ta._cmd_check_deploy_status()
     assert "def5678" in result
     assert "feat: thing" in result
 
 
-def test_cmd_check_deploy_status_is_honest_when_it_cannot_check(monkeypatch):
-    monkeypatch.setattr(incidents, "get_latest_master_commit", lambda: None)
+def test_cmd_check_deploy_status_no_token_and_auth_failed_produce_different_messages(monkeypatch):
+    """The bug that caused a real incident: these two situations used to
+    collapse into one identical message. They must now be distinguishable
+    both from each other and unambiguously so."""
+    monkeypatch.setattr(incidents, "get_latest_master_commit",
+                         lambda: {"ok": False, "reason": "no_token", "status": None, "detail": "GITHUB_TOKEN is not set"})
+    no_token_result = ta._cmd_check_deploy_status()
+
+    monkeypatch.setattr(incidents, "get_latest_master_commit",
+                         lambda: {"ok": False, "reason": "auth_failed", "status": 401,
+                                  "detail": "GitHub rejected the token (status=401)"})
+    auth_failed_result = ta._cmd_check_deploy_status()
+
+    assert no_token_result != auth_failed_result
+    assert "401" in auth_failed_result and "401" not in no_token_result
+    assert "❌" in auth_failed_result
+    assert "❓" in no_token_result
+
+
+def test_cmd_check_deploy_status_surfaces_403_as_auth_failed_too(monkeypatch):
+    monkeypatch.setattr(incidents, "get_latest_master_commit",
+                         lambda: {"ok": False, "reason": "auth_failed", "status": 403,
+                                  "detail": "GitHub rejected the token (status=403)"})
+    result = ta._cmd_check_deploy_status()
+    assert "403" in result
+    assert "❌" in result
+
+
+def test_cmd_check_deploy_status_reports_a_plain_api_error_distinctly(monkeypatch):
+    monkeypatch.setattr(incidents, "get_latest_master_commit",
+                         lambda: {"ok": False, "reason": "api_error", "status": None,
+                                  "detail": "ConnectionError: network down"})
     result = ta._cmd_check_deploy_status()
     assert "❓" in result
+    assert "network down" in result.lower() or "connectionerror" in result.lower()
 
 
 def test_cmd_check_incidents_open_reuses_existing_cmd_incidents(temp_db):
@@ -237,7 +288,7 @@ def test_get_latest_master_commit_uses_the_same_github_api_pattern_as_diagnosis(
     with patch("incidents.requests.get", return_value=resp) as mock_get:
         result = incidents.get_latest_master_commit()
 
-    assert result == {"sha": "1234567", "message": "feat: real change"}
+    assert result == {"ok": True, "sha": "1234567", "message": "feat: real change"}
     call_url = mock_get.call_args.args[0] if mock_get.call_args.args else mock_get.call_args.kwargs.get("url")
     assert "mickymooch1/zeus-app" in call_url
     assert "master" in call_url
@@ -250,14 +301,119 @@ def test_get_latest_master_commit_handles_a_commit_with_no_message():
     resp.raise_for_status = lambda: None
     with patch("incidents.requests.get", return_value=resp):
         result = incidents.get_latest_master_commit()
-    assert result == {"sha": "abc1234", "message": "(no commit message)"}
+    assert result == {"ok": True, "sha": "abc1234", "message": "(no commit message)"}
 
 
-def test_get_latest_master_commit_returns_none_without_a_token():
+def test_get_latest_master_commit_reports_no_token_distinctly():
     with patch.dict(os.environ, {"GITHUB_TOKEN": ""}):
-        assert incidents.get_latest_master_commit() is None
+        result = incidents.get_latest_master_commit()
+    assert result == {"ok": False, "reason": "no_token", "status": None, "detail": "GITHUB_TOKEN is not set"}
 
 
-def test_get_latest_master_commit_returns_none_on_network_failure():
+def _fake_http_error(status_code):
+    import requests
+    resp = MagicMock(status_code=status_code)
+    error = requests.exceptions.HTTPError(f"{status_code} error")
+    error.response = resp
+    return error
+
+
+def test_get_latest_master_commit_distinguishes_401_as_auth_failed(monkeypatch, caplog):
+    """A present-but-rejected token (401) must never be reported the same
+    way as a missing one -- this exact confusion caused a real production
+    incident."""
+    monkeypatch.setenv("GITHUB_TOKEN", "expired-token")
+    with patch("incidents.requests.get", side_effect=_fake_http_error(401)):
+        with caplog.at_level(logging.WARNING, logger="zeus.incidents"):
+            result = incidents.get_latest_master_commit()
+
+    assert result["ok"] is False
+    assert result["reason"] == "auth_failed"
+    assert result["status"] == 401
+    assert result != {"ok": False, "reason": "no_token", "status": None, "detail": "GITHUB_TOKEN is not set"}
+    assert any("auth_failed" in r.message for r in caplog.records)
+
+
+def test_get_latest_master_commit_distinguishes_403_as_auth_failed(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "wrong-scope-token")
+    with patch("incidents.requests.get", side_effect=_fake_http_error(403)):
+        result = incidents.get_latest_master_commit()
+    assert result["reason"] == "auth_failed"
+    assert result["status"] == 403
+
+
+def test_get_latest_master_commit_reports_other_failures_as_api_error(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "some-token")
     with patch("incidents.requests.get", side_effect=RuntimeError("network down")):
-        assert incidents.get_latest_master_commit() is None
+        result = incidents.get_latest_master_commit()
+    assert result["ok"] is False
+    assert result["reason"] == "api_error"
+    assert "network down" in result["detail"]
+
+
+# ── The 401/403 → GIT EVIDENCE UNAVAILABLE guarantee (the actual fix) ──────
+
+def test_gather_git_evidence_logs_and_visibly_flags_a_401(monkeypatch, caplog):
+    """This is the exact case that went unnoticed in production: an
+    expired token returns 401, and _gather_git_evidence used to swallow it
+    completely silently into a placeholder indistinguishable from a
+    generic failure, with zero logging."""
+    monkeypatch.setenv("GITHUB_TOKEN", "expired-token")
+    with patch("incidents.requests.get", side_effect=_fake_http_error(401)):
+        with caplog.at_level(logging.WARNING, logger="zeus.incidents"):
+            evidence = incidents._gather_git_evidence()
+
+    assert incidents._GIT_EVIDENCE_UNAVAILABLE in evidence
+    assert "401" in evidence
+    assert evidence != "(no recent commits found)"
+    assert any("_gather_git_evidence failed" in r.message for r in caplog.records)
+
+
+def test_gather_git_evidence_401_is_distinguishable_from_a_genuinely_empty_result():
+    """The two "nothing here" outcomes must never look alike: a retrieval
+    failure and a successful call that found no commits are different
+    situations with different implications for the diagnosis."""
+    with patch("incidents.requests.get", side_effect=_fake_http_error(401)):
+        failed_evidence = incidents._gather_git_evidence()
+
+    empty_resp = MagicMock(status_code=200)
+    empty_resp.json.return_value = []
+    empty_resp.raise_for_status = lambda: None
+    with patch("incidents.requests.get", return_value=empty_resp):
+        empty_evidence = incidents._gather_git_evidence()
+
+    assert failed_evidence != empty_evidence
+    assert incidents._GIT_EVIDENCE_UNAVAILABLE in failed_evidence
+    assert incidents._GIT_EVIDENCE_UNAVAILABLE not in empty_evidence
+    assert "no recent commits found" in empty_evidence
+
+
+def test_diagnosis_system_prompt_explains_the_git_evidence_unavailable_marker():
+    """Regression guard on the model's own instructions: it must be told
+    the marker means retrieval failed, not "nothing changed"."""
+    prompt = incidents._DIAGNOSIS_SYSTEM_PROMPT
+    assert incidents._GIT_EVIDENCE_UNAVAILABLE in prompt
+    assert "no recent commits found" in prompt
+
+
+def test_diagnosis_evidence_blob_visibly_carries_a_401_through_to_the_model_input(monkeypatch):
+    """End-to-end: when GitHub rejects the token during a real diagnosis
+    run, the evidence actually sent to the model must show the failure,
+    not a normal-looking empty result."""
+    incident = {"id": 1, "title": "Test incident", "symptoms": "boom", "service": "beats"}
+    monkeypatch.setattr(incidents, "_gather_log_evidence", lambda service: "(no relevant log lines captured)")
+
+    captured = {}
+
+    def fake_call_diagnosis_model(incident_arg, log_evidence, git_evidence):
+        captured["git_evidence"] = git_evidence
+        return None  # short-circuit -- we only care what evidence it was handed
+
+    monkeypatch.setattr(incidents, "_call_diagnosis_model", fake_call_diagnosis_model)
+    monkeypatch.setenv("GITHUB_TOKEN", "expired-token")
+
+    with patch("incidents.requests.get", side_effect=_fake_http_error(401)):
+        incidents._diagnose_in_background(incident)
+
+    assert incidents._GIT_EVIDENCE_UNAVAILABLE in captured["git_evidence"]
+    assert "401" in captured["git_evidence"]

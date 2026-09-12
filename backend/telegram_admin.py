@@ -1726,12 +1726,24 @@ def _cmd_check_deploy_status() -> str:
     """Porick chat-mode tool: the real current commit on master, not a
     guess -- via the same GitHub API access incidents.py's diagnosis
     feature already uses (the deployed container has no .git, see
-    Dockerfile)."""
+    Dockerfile).
+
+    "no_token" and "auth_failed" get visibly different messages on
+    purpose -- collapsing them into one ("no GITHUB_TOKEN configured, or
+    the API call failed") is what caused a real production incident: an
+    expired token returning 401 read as if no token were configured at
+    all, when the actual fix was rotating the token, not setting one.
+    """
     import incidents
-    commit = incidents.get_latest_master_commit()
-    if commit is None:
-        return "❓ Couldn't check GitHub — no GITHUB_TOKEN configured, or the API call failed."
-    return f"📦 Latest on master: <code>{commit['sha']}</code> — {_esc(commit['message'])}"
+    result = incidents.get_latest_master_commit()
+    if result["ok"]:
+        return f"📦 Latest on master: <code>{result['sha']}</code> — {_esc(result['message'])}"
+    if result["reason"] == "no_token":
+        return "❓ Can't check GitHub — GITHUB_TOKEN isn't set in Railway."
+    if result["reason"] == "auth_failed":
+        return (f"❌ GitHub rejected the token (status {result['status']}) — it's present but "
+                f"invalid. Likely expired or revoked; check/rotate GITHUB_TOKEN in Railway.")
+    return f"❓ Couldn't reach GitHub to check — {_esc(result['detail'])}."
 
 
 def _cmd_check_incidents(status: str = "open") -> str:
