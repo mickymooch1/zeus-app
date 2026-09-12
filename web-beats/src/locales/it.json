@@ -123,7 +123,6 @@
     "emptySongs": "Nessuna canzone ancora — crea la tua prima qui sopra.",
     "unlimited": "Illimitato",
     "songsBalance": "{{balance}} / {{allowance}} canzoni",
-    "videoCredits": "· {{count}} video avatar rimanente/i",
     "topUp": "Ricarica →",
     "topupSuccess": "Pagamento riuscito — i tuoi crediti sono stati aggiunti.",
     "ytConnectedSuccess": "YouTube connesso — puoi caricare canzoni direttamente sul tuo canale.",
@@ -135,7 +134,7 @@
       "noFavourites": "Nessun preferito ancora. Tocca la ★ su una canzone per salvarla.",
       "noRecent": "Nessuna canzone recente. Genera il tuo primo brano sopra."
     },
-    "upgradeBanner": "Migliora per più canzoni, video avatar ed esportazioni premium",
+    "upgradeBanner": "Migliora per più canzoni ed esportazioni premium",
     "viewPlans": "Vedi piani",
     "buttons": {
       "download": "↓ Scarica",
@@ -146,11 +145,6 @@
       "connectYT": "+ Collega YT",
       "viewYT": "▶ Guarda su YT",
       "uploading": "Caricamento…",
-      "avatarMaking": "Creazione…",
-      "avatarRedo": "◉ Rifare",
-      "avatarRetry": "Riprova",
-      "avatar": "◉ Avatar",
-      "avatarNoCredits": "◉ Nessun credito",
       "remake": "🔄 Rifai",
       "regenerate": "↺ Rigenera",
       "delete": "✕ Elimina",
@@ -167,8 +161,6 @@
     "locked": {
       "upgradeYT": "Migliora il tuo piano per caricare su YouTube.",
       "connectYT": "Collega YouTube nelle impostazioni per caricare.",
-      "upgradeAvatar": "Migliora a Music Pro per i video avatar.",
-      "noAvatarCredits": "Nessun credito avatar rimanente.",
       "upgradeLink": "Migliora →",
       "topUpLink": "Ricarica →"
     },
@@ -190,28 +182,6 @@
       "cancel": "Annulla",
       "generate": "Genera remake",
       "generating": "Generazione…"
-    },
-    "avatarModal": {
-      "title": "Crea video avatar",
-      "desc": "Scegli un presentatore — sincronizzerà le labbra alla tua canzone.",
-      "tip": "Per la migliore qualità, usa una foto frontale chiara. Carica la tua per un performer personalizzato.",
-      "loadingAvatars": "Caricamento avatar…",
-      "uploadDesc": "O carica la tua foto (JPEG / PNG / WebP, sotto 10 MB):",
-      "choosePhoto": "Scegli foto",
-      "uploadingPhoto": "Caricamento…",
-      "customPhotoSelected": "Foto personalizzata selezionata",
-      "generateAI": "Genera performer AI",
-      "timeout": "La generazione del ritratto è scaduta. Riprova.",
-      "retry": "↺ Riprova",
-      "generating": "Generazione ritratto (~30s)…",
-      "selected": "Selezionato — clicca Crea video",
-      "clickSelect": "Clicca per selezionare",
-      "regenerate": "Rigenera",
-      "genderMale": "♂ Maschio",
-      "genderFemale": "♀ Femmina",
-      "cancel": "Annulla",
-      "create": "Crea video",
-      "submitting": "Invio…"
     },
     "advancedSubtitle": "Perfeziona il tuo brano"
   },
@@ -282,10 +252,10 @@
       "starterDesc": "60 canzoni/mese, caricamento YouTube, copertina AI",
       "pro": "Music Pro",
       "proPrice": "£19/mese",
-      "proDesc": "150 canzoni/mese, caricamento YouTube, 3 video avatar",
+      "proDesc": "150 canzoni/mese, caricamento YouTube",
       "agency": "Music Agency",
       "agencyPrice": "£39/mese",
-      "agencyDesc": "300 canzoni/mese, YouTube, 10 video avatar, Facebook",
+      "agencyDesc": "300 canzoni/mese, YouTube, Facebook",
       "enterprise": "Enterprise (Admin)",
       "free": "Gratuito",
       "getStarter": "Ottieni Music Starter",
@@ -301,8 +271,6 @@
         "download": "Download e condivisione canzoni",
         "genres": "Tutti i 100+ generi e stili",
         "coverArt": "Copertina AI",
-        "avatar3": "3 video lip-sync/mese",
-        "avatar10": "10 video lip-sync/mese",
         "facebook": "Pubblicazione Facebook"
       }
     }
@@ -335,7 +303,7 @@
     "starterName": "Music Starter",
     "starterDesc": "Per gli artisti che iniziano con la musica AI.",
     "proName": "Music Pro",
-    "proDesc": "Per i creator attivi che vogliono i video avatar.",
+    "proDesc": "Per i creator attivi che vogliono più canzoni e funzionalità.",
     "agencyName": "Music Agency",
     "agencyDesc": "Per i creator prolifici e i team discografici.",
     "getStarter": "Ottieni Music Starter",
@@ -377,10 +345,6 @@
         "coverArt": {
           "title": "Copertine cinematografiche",
           "desc": "Ogni copertina ha un fluido effetto di movimento Ken Burns — gratis per tutti."
-        },
-        "avatarVideos": {
-          "title": "Video avatar in lip-sync",
-          "desc": "Un performer AI canta la tua traccia in video HD. Perfetto per YouTube, Instagram Reels e la promozione musicale."
         },
         "genreBlending": {
           "title": "Fusione di generi",

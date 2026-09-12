@@ -15,7 +15,6 @@ const FEATURE_GROUPS = [
       { id: 'songGenerator', icon: '🎵', lead: true, tags: ['genres', 'customLyrics', 'aiVocals', 'instrumental'] },
       { id: 'genres', icon: '🎸' },
       { id: 'coverArt', icon: '🎨' },
-      { id: 'avatarVideos', icon: '🎬' },
       { id: 'genreBlending', icon: '🎚️' },
       { id: 'djMixer', icon: '🎛️' },
       { id: 'voiceToText', icon: '🎤' },
@@ -462,7 +461,7 @@ export default function LandingPage() {
               Ready to create more? Subscribe and save.
             </h2>
             <p style={{ fontSize: 15, color: '#94a3b8' }}>
-              Monthly plans with more songs, avatar videos and YouTube upload
+              Monthly plans with more songs, premium credits and YouTube upload
             </p>
           </div>
 
@@ -510,11 +509,10 @@ export default function LandingPage() {
                 <span style={{ textDecoration: 'line-through', opacity: 0.4, fontSize: '0.6em', marginRight: 6 }}>£19</span>£9.50<span>/mo</span>
                 <div style={{ fontSize: '0.38em', color: '#00F0FF', marginTop: 3, fontWeight: 600 }}>then £19/month</div>
               </div>
-              <p className="plan-desc">For active creators who want avatar videos.</p>
+              <p className="plan-desc">For active creators who want more songs and features.</p>
               <ul className="plan-features">
                 <li>✓ 150 song versions/month</li>
                 <li>✓ 10 premium credits (stem separation)</li>
-                <li>✓ 3 avatar videos/month</li>
                 <li>✓ YouTube upload</li>
                 <li>✓ Genre blending</li>
                 <li>✓ DJ Mixer</li>
@@ -532,7 +530,6 @@ export default function LandingPage() {
               <ul className="plan-features">
                 <li>✓ 300 song versions/month</li>
                 <li>✓ 20 premium credits (stem separation)</li>
-                <li>✓ 10 avatar videos/month</li>
                 <li>✓ YouTube upload</li>
                 <li>✓ Genre blending</li>
                 <li>✓ DJ Mixer</li>

@@ -126,7 +126,6 @@
     "emptySongs": "لا توجد أغاني بعد — أنشئ أولى أغانيك أعلاه.",
     "unlimited": "غير محدود",
     "songsBalance": "{{balance}} / {{allowance}} أغنية",
-    "videoCredits": "· {{count}} فيديو أفاتار متبقي",
     "topUp": "إعادة الشحن →",
     "topupSuccess": "تمت عملية الدفع — تمت إضافة رصيدك.",
     "ytConnectedSuccess": "تم الاتصال بـ YouTube — يمكنك رفع الأغاني مباشرة إلى قناتك.",
@@ -138,7 +137,7 @@
       "noFavourites": "لا توجد مفضلة بعد. انقر على ★ على أغنية لحفظها.",
       "noRecent": "لا توجد أغانٍ حديثة. أنشئ أول مسار لك أعلاه."
     },
-    "upgradeBanner": "الترقية للحصول على المزيد من الأغاني ومقاطع فيديو الأفاتار والصادرات المميزة",
+    "upgradeBanner": "الترقية للحصول على المزيد من الأغاني والصادرات المميزة",
     "viewPlans": "عرض الخطط",
     "buttons": {
       "download": "↓ تحميل",
@@ -149,11 +148,6 @@
       "connectYT": "+ ربط YT",
       "viewYT": "▶ عرض على YT",
       "uploading": "جارٍ الرفع…",
-      "avatarMaking": "جارٍ الإنشاء…",
-      "avatarRedo": "◉ إعادة",
-      "avatarRetry": "إعادة المحاولة",
-      "avatar": "◉ أفاتار",
-      "avatarNoCredits": "◉ لا يوجد رصيد",
       "remake": "🔄 إعادة صنع",
       "regenerate": "↺ إعادة التوليد",
       "delete": "✕ حذف",
@@ -170,8 +164,6 @@
     "locked": {
       "upgradeYT": "قم بترقية خطتك للرفع على YouTube.",
       "connectYT": "اربط YouTube في الإعدادات للرفع.",
-      "upgradeAvatar": "قم بالترقية إلى Music Pro لمقاطع فيديو الأفاتار.",
-      "noAvatarCredits": "لا يوجد رصيد أفاتار متبقي.",
       "upgradeLink": "ترقية →",
       "topUpLink": "إعادة الشحن →"
     },
@@ -193,28 +185,6 @@
       "cancel": "إلغاء",
       "generate": "توليد إعادة الصنع",
       "generating": "جارٍ التوليد…"
-    },
-    "avatarModal": {
-      "title": "إنشاء فيديو أفاتار",
-      "desc": "اختر مقدماً — سيقوم بمزامنة الشفاه مع أغنيتك.",
-      "tip": "للحصول على أفضل جودة، استخدم صورة واضحة من الأمام.",
-      "loadingAvatars": "جارٍ تحميل الأفاتار…",
-      "uploadDesc": "أو ارفع صورتك الخاصة (JPEG/PNG/WebP، أقل من 10 ميجابايت):",
-      "choosePhoto": "اختيار صورة",
-      "uploadingPhoto": "جارٍ الرفع…",
-      "customPhotoSelected": "تم اختيار صورة مخصصة",
-      "generateAI": "توليد فنان AI",
-      "timeout": "انتهت مهلة توليد الصورة. حاول مرة أخرى.",
-      "retry": "↺ إعادة المحاولة",
-      "generating": "جارٍ توليد الصورة (~30 ثانية)…",
-      "selected": "تم الاختيار — انقر على إنشاء الفيديو",
-      "clickSelect": "انقر للاختيار",
-      "regenerate": "إعادة التوليد",
-      "genderMale": "♂ ذكر",
-      "genderFemale": "♀ أنثى",
-      "cancel": "إلغاء",
-      "create": "إنشاء الفيديو",
-      "submitting": "جارٍ الإرسال…"
     },
     "advancedSubtitle": "اضبط صوتك بدقة"
   },
@@ -285,10 +255,10 @@
       "starterDesc": "60 أغنية/شهر، YouTube، غلاف AI",
       "pro": "Music Pro",
       "proPrice": "£19/شهر",
-      "proDesc": "150 أغنية/شهر، YouTube، 3 فيديوهات أفاتار",
+      "proDesc": "150 أغنية/شهر، YouTube",
       "agency": "Music Agency",
       "agencyPrice": "£39/شهر",
-      "agencyDesc": "300 أغنية/شهر، YouTube، 10 فيديوهات أفاتار، Facebook",
+      "agencyDesc": "300 أغنية/شهر، YouTube، Facebook",
       "enterprise": "Enterprise (الإدارة)",
       "free": "مجاني",
       "getStarter": "احصل على Music Starter",
@@ -304,8 +274,6 @@
         "download": "تحميل ومشاركة الأغاني",
         "genres": "جميع 100+ أنواع وأساليب",
         "coverArt": "غلاف AI",
-        "avatar3": "3 فيديوهات مزامنة شفاه/شهر",
-        "avatar10": "10 فيديوهات مزامنة شفاه/شهر",
         "facebook": "نشر Facebook"
       }
     }
@@ -338,7 +306,7 @@
     "starterName": "Music Starter",
     "starterDesc": "للفنانين الذين يبدأون مع موسيقى AI.",
     "proName": "Music Pro",
-    "proDesc": "للمبدعين النشطين الذين يريدون فيديوهات الأفاتار.",
+    "proDesc": "للمبدعين النشطين الذين يريدون المزيد من الأغاني والميزات.",
     "agencyName": "Music Agency",
     "agencyDesc": "للمبدعين الغزيرين وفرق التسجيل.",
     "getStarter": "احصل على Music Starter",
@@ -380,10 +348,6 @@
         "coverArt": {
           "title": "غلاف سينمائي",
           "desc": "كل غلاف يحصل على حركة Ken Burns السينمائية السلسة — مجاناً لجميع المستخدمين."
-        },
-        "avatarVideos": {
-          "title": "فيديوهات أفاتار بمزامنة الشفاه",
-          "desc": "فنان AI يغني مسارك بفيديو HD. مثالي لـ YouTube وInstagram Reels والترويج لموسيقاك."
         },
         "genreBlending": {
           "title": "مزج الأنواع",

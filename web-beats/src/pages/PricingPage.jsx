@@ -22,7 +22,6 @@ const DEFAULT_PLANS = {
     features: [
       '150 song versions/month',
       'YouTube upload',
-      '3 avatar lip-sync videos/month',
       'Song download & share',
       'All 100+ genres & styles',
       'Cinematic Motion Covers (free)',
@@ -34,7 +33,6 @@ const DEFAULT_PLANS = {
     features: [
       '300 song versions/month',
       'YouTube upload',
-      '10 avatar lip-sync videos/month',
       'Song download & share',
       'All 100+ genres & styles',
       'Cinematic Motion Covers (free)',
@@ -127,7 +125,7 @@ export default function PricingPage() {
                   <div className="pricing-price">{plan.price}</div>
                   <p className="pricing-desc">
                     {key === 'music_starter' && 'For artists getting started with AI music creation.'}
-                    {key === 'music_pro'     && 'For active creators who want avatar videos.'}
+                    {key === 'music_pro'     && 'For active creators who want more songs and features.'}
                     {key === 'music_agency'  && 'For prolific creators and label teams.'}
                   </p>
                 </div>

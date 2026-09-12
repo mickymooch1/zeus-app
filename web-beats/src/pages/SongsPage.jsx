@@ -108,7 +108,6 @@ const PAGE_CSS = `
 }
 .song-card-anim { animation: fadeInUp 0.3s ease both; }
 .songs-textarea:focus { border-color: rgba(167,139,250,0.4) !important; }
-.avatar-thumb:hover { border-color: #a78bfa !important; opacity: 1 !important; }
 .genre-pill:not(.genre-pill--sel):hover { background: var(--pill-hover-bg, rgba(255,255,255,0.13)) !important; border-color: var(--pill-color, rgba(255,255,255,0.65)) !important; color: var(--pill-color, #fff) !important; }
 .genre-pill--sel:hover { opacity: 0.88 !important; }
 @keyframes favToastFade { 0% { opacity:0 } 10% { opacity:1 } 70% { opacity:1 } 100% { opacity:0 } }
@@ -374,7 +373,6 @@ function KidsPinGateLoader({ token, hasPIN, onSuccess, onCancel }) {
 const UPGRADE_FEATURES = {
   youtube: { icon: '📺', title: 'YouTube Upload', desc: 'Upload your songs directly to YouTube with Music Starter and above.' },
   stems:   { icon: '🎵', title: 'Stem Separator', desc: 'Split your track into separate vocals, drums, bass and melody stems — available with premium credits on paid plans.' },
-  avatar:  { icon: '🎬', title: 'Avatar Videos',  desc: 'Turn your songs into animated avatar performance videos with Music Pro and above.' },
 };
 
 export default function SongsPage() {
@@ -497,13 +495,6 @@ export default function SongsPage() {
   const [artistTheme, setArtistTheme] = useState(() => location.state?.prefillTheme || '');
   const [artistLoading, setArtistLoading]         = useState(false);
 
-  const [avatarModal, setAvatarModal]             = useState(null);
-  const [avatars, setAvatars]                     = useState([]);
-  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(null);
-  const [uploadingPhoto, setUploadingPhoto]       = useState(false);
-  const [avatarSubmitting, setAvatarSubmitting]   = useState(false);
-  const [didStatus, setDidStatus]                 = useState({});
-  const [videoUrls, setVideoUrls]                 = useState({});
   const [musicVideoUrls, setMusicVideoUrls]       = useState({});
 
   const [remakeModal, setRemakeModal]     = useState(null);
@@ -512,11 +503,6 @@ export default function SongsPage() {
   const [remakeStyle, setRemakeStyle]     = useState('');
   const [remakeLoading, setRemakeLoading] = useState(false);
   const [remakeError, setRemakeError]     = useState('');
-
-  const [portraitGenerating, setPortraitGenerating] = useState(false);
-  const [portraitJobId, setPortraitJobId]           = useState(null);
-  const [portraitImageUrl, setPortraitImageUrl]     = useState(null);
-  const [portraitTimedOut, setPortraitTimedOut]     = useState(false);
 
   const [deletingVariants, setDeletingVariants]     = useState(new Set());
 
@@ -609,8 +595,6 @@ export default function SongsPage() {
   const jobStartedRef   = useRef({ id: null, at: 0 });
   // Shown only after repeated failures — a single blip is invisible and harmless.
   const [pollWarning, setPollWarning] = useState('');
-  const photoInputRef   = useRef(null);
-  const portraitPollRef = useRef(null);
   const recognitionRef  = useRef(null);
 
   const isAdmin          = credits.is_admin;
@@ -618,8 +602,6 @@ export default function SongsPage() {
   const isMusicPlan      = ['music_starter', 'music_pro', 'music_agency'].includes(credits.plan);
   const canShowExplicit  = true;
   const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan) || isMusicPlan;
-  const didPlanOk        = isAdmin || ['agency', 'enterprise', 'music_pro', 'music_agency'].includes(credits.plan);
-  const canDid           = didPlanOk && (isAdmin || credits.video_credits > 0);
   const youtubeConnected = credits.youtube_connected;
   const ytConnectedParam = new URLSearchParams(location.search).get('youtube');
   const cost           = isKidsMode ? 1 : selGenres.size;
@@ -719,19 +701,6 @@ export default function SongsPage() {
       setLibrary(flat);
       setFavourites(new Set(flat.filter(v => v.is_favourite).map(v => v.variant_id)));
       setPublicVariants(new Set(flat.filter(v => v.is_public).map(v => v.variant_id)));
-
-      const newDidSt = {};
-      const newVidUrls = {};
-      for (const v of flat) {
-        if (v.video_url) {
-          newDidSt[v.variant_id] = 'done';
-          newVidUrls[v.variant_id] = v.video_url;
-        } else if (v.did_job_id) {
-          newDidSt[v.variant_id] = 'processing';
-        }
-      }
-      setDidStatus((prev) => ({ ...prev, ...newDidSt }));
-      setVideoUrls((prev) => ({ ...prev, ...newVidUrls }));
 
       const newYtUrls = {};
       const newYtSt = {};
@@ -933,32 +902,6 @@ export default function SongsPage() {
     return () => poller.stop();
   }, [activeJob?.lyric_id, token, fetchCredits, fetchLibrary, user?.name]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    const processingIds = Object.entries(didStatus)
-      .filter(([, st]) => st === 'processing')
-      .map(([id]) => Number(id));
-    if (processingIds.length === 0) return;
-
-    const timer = setTimeout(async () => {
-      for (const vid of processingIds) {
-        try {
-          const r = await fetch(`${BACKEND_URL}/api/songs/variants/${vid}/did-status`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!r.ok) continue;
-          const d = await r.json();
-          if (d.status === 'done' && d.video_url) {
-            setDidStatus((prev) => ({ ...prev, [vid]: 'done' }));
-            setVideoUrls((prev) => ({ ...prev, [vid]: d.video_url }));
-          } else if (d.status === 'error') {
-            setDidStatus((prev) => ({ ...prev, [vid]: 'error' }));
-          }
-        } catch (_) {}
-      }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [didStatus, token]);
-
   // Music video polling (30s). The old condition was
   //   library.some(v => v.image_url && !musicVideoUrls[v.variant_id])
   // which is true for practically every song — cover art is normal, music videos
@@ -985,43 +928,6 @@ export default function SongsPage() {
   }, []);
 
   useEffect(() => () => clearTimeout(lockToastTimer.current), []);
-
-  useEffect(() => {
-    if (!portraitJobId) return;
-    let pollCount = 0;
-    const poll = async () => {
-      pollCount += 1;
-      if (pollCount > 36) {
-        setPortraitGenerating(false);
-        setPortraitJobId(null);
-        setPortraitTimedOut(true);
-        return;
-      }
-      try {
-        const r = await fetch(`${BACKEND_URL}/api/did/portrait-status/${portraitJobId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!r.ok) { portraitPollRef.current = setTimeout(poll, 5000); return; }
-        const d = await r.json();
-        if (d.status === 'completed' && d.image_url) {
-          setPortraitImageUrl(d.image_url);
-          setSelectedAvatarUrl(d.image_url);
-          setPortraitGenerating(false);
-          setPortraitJobId(null);
-        } else if (d.status === 'failed') {
-          setPortraitGenerating(false);
-          setPortraitJobId(null);
-          setError('Portrait generation failed — try again');
-        } else {
-          portraitPollRef.current = setTimeout(poll, 5000);
-        }
-      } catch (_) {
-        portraitPollRef.current = setTimeout(poll, 5000);
-      }
-    };
-    portraitPollRef.current = setTimeout(poll, 5000);
-    return () => { if (portraitPollRef.current) clearTimeout(portraitPollRef.current); };
-  }, [portraitJobId, token]);
 
   const handleVoicePreview = (voiceKey) => {
     // Toggle off: user taps the same voice that is currently playing
@@ -1511,91 +1417,6 @@ export default function SongsPage() {
     }
   };
 
-  const closeAvatarModal = () => {
-    setAvatarModal(null);
-    setPortraitGenerating(false);
-    setPortraitJobId(null);
-    setPortraitImageUrl(null);
-    setPortraitTimedOut(false);
-    if (portraitPollRef.current) clearTimeout(portraitPollRef.current);
-  };
-
-  const handleAvatarClick = useCallback(async (variant, titleArg) => {
-    if (!canDid) return;
-    setSelectedAvatarUrl(null);
-    setPortraitGenerating(false);
-    setPortraitJobId(null);
-    setPortraitImageUrl(null);
-    setPortraitTimedOut(false);
-    setAvatarModal({ ...variant, title: titleArg || variant.title });
-    if (avatars.length === 0) {
-      try {
-        const r = await fetch(`${BACKEND_URL}/api/did/avatars`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (r.ok) {
-          const d = await r.json();
-          setAvatars(d.avatars || []);
-        }
-      } catch (_) {}
-    }
-  }, [canDid, token, avatars.length]);
-
-  const handlePhotoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingPhoto(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const r = await fetch(`${BACKEND_URL}/api/avatars/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.detail || 'Upload failed');
-      setSelectedAvatarUrl(d.url);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setUploadingPhoto(false);
-      if (photoInputRef.current) photoInputRef.current.value = '';
-    }
-  };
-
-  const handleGeneratePortrait = async (gender) => {
-    if (!avatarModal || portraitGenerating) return;
-    setPortraitGenerating(true);
-    setPortraitImageUrl(null);
-    setPortraitJobId(null);
-    setPortraitTimedOut(false);
-    try {
-      const r = await fetch(`${BACKEND_URL}/api/did/generate-portrait`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          genre: avatarModal.genre_tag || 'pop',
-          gender,
-          variant_id: avatarModal.variant_id,
-        }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.detail || 'Portrait generation failed');
-      setPortraitJobId(d.job_id);
-    } catch (err) {
-      setPortraitGenerating(false);
-      setError(err.message);
-    }
-  };
-
-  const handlePortraitRetry = () => {
-    setPortraitTimedOut(false);
-    setPortraitGenerating(false);
-    setPortraitJobId(null);
-    setPortraitImageUrl(null);
-  };
-
   const handleDeleteVariant = useCallback(async (variantId, { confirmQrDelete = false } = {}) => {
     setDeletingVariants((prev) => new Set(prev).add(variantId));
     try {
@@ -1739,28 +1560,6 @@ export default function SongsPage() {
     }
   };
 
-  const handleAvatarSubmit = async () => {
-    if (!avatarModal || !selectedAvatarUrl || avatarSubmitting) return;
-    const vId = avatarModal.variant_id;
-    setAvatarSubmitting(true);
-    setAvatarModal(null);
-    setDidStatus((prev) => ({ ...prev, [vId]: 'processing' }));
-    try {
-      const r = await fetch(`${BACKEND_URL}/api/songs/variants/${vId}/create-avatar-video`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ source_url: selectedAvatarUrl }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.detail || 'Submission failed');
-    } catch (err) {
-      setDidStatus((prev) => ({ ...prev, [vId]: 'error' }));
-      setError(err.message);
-    } finally {
-      setAvatarSubmitting(false);
-    }
-  };
-
   const startListening = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
@@ -1868,13 +1667,6 @@ export default function SongsPage() {
       )}
 
       <style>{PAGE_CSS}</style>
-      <input
-        ref={photoInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        style={{ display: 'none' }}
-        onChange={handlePhotoUpload}
-      />
       <div style={{ background: '#0b0b14', minHeight: '100vh', color: '#f0eeff', overflowX: 'hidden' }}>
 
         <BeatsDashboardHeader />
@@ -1894,11 +1686,6 @@ export default function SongsPage() {
             <span style={{ fontSize: 13, color: '#666', whiteSpace: 'nowrap' }}>
               {isAdmin ? t('songs.unlimited') : t('songs.songsBalance', { balance, allowance })}
             </span>
-            {didPlanOk && !isAdmin && (
-              <span style={{ fontSize: 13, color: credits.video_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
-                {t('songs.videoCredits', { count: credits.video_credits })}
-              </span>
-            )}
             {!isFreeTier && !isAdmin && credits.premium_monthly_allowance > 0 && (
               <span style={{ fontSize: 13, color: credits.premium_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
                 · {credits.premium_credits} premium credit{credits.premium_credits !== 1 ? 's' : ''} remaining
@@ -3447,13 +3234,6 @@ export default function SongsPage() {
                         ytUrl={ytUrls[v.variant_id]}
                         ytError={ytErrors[v.variant_id]}
                         onYouTubeClick={handleYouTubeClick}
-                        canDid={canDid}
-                        didSt={didStatus[v.variant_id]}
-                        videoUrl={videoUrls[v.variant_id]}
-                        onAvatarClick={handleAvatarClick}
-                        videoCredits={credits.video_credits}
-                        didPlanOk={didPlanOk}
-                        isAdmin={isAdmin}
                         onDelete={handleDeleteVariant}
                         deleting={deletingVariants.has(v.variant_id)}
                         musicVideoUrl={musicVideoUrls[v.variant_id]}
@@ -3627,13 +3407,6 @@ export default function SongsPage() {
                       ytUrl={ytUrls[v.variant_id]}
                       ytError={ytErrors[v.variant_id]}
                       onYouTubeClick={handleYouTubeClick}
-                      canDid={canDid}
-                      didSt={didStatus[v.variant_id]}
-                      videoUrl={videoUrls[v.variant_id]}
-                      onAvatarClick={handleAvatarClick}
-                      videoCredits={credits.video_credits}
-                      didPlanOk={didPlanOk}
-                      isAdmin={isAdmin}
                       onDelete={handleDeleteVariant}
                       deleting={deletingVariants.has(v.variant_id)}
                       musicVideoUrl={musicVideoUrls[v.variant_id]}
@@ -3888,111 +3661,6 @@ export default function SongsPage() {
               <button onClick={() => { setRemakeModal(null); setRemakeGenre(''); setRemakeStyle(''); setRemakeError(''); }} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>{t('songs.remakeModal.cancel')}</button>
               <button onClick={handleRemake} disabled={!remakeGenre || remakeLoading} style={{ flex: 2, padding: '11px 0', borderRadius: 8, border: 'none', background: remakeLoading || !remakeGenre ? 'rgba(0,240,255,0.3)' : '#00f0ff', color: '#000', fontSize: 14, fontWeight: 700, cursor: remakeLoading || !remakeGenre ? 'not-allowed' : 'pointer' }}>
                 {remakeLoading ? t('songs.remakeModal.generating') : t('songs.remakeModal.generate')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {avatarModal && (
-        <div onClick={closeAvatarModal} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#12121e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '28px 28px 24px', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2d9f3', marginBottom: 4 }}>{t('songs.avatarModal.title')}</h3>
-            <p style={{ fontSize: 13, color: '#cccccc', marginBottom: 16 }}>{t('songs.avatarModal.desc')}</p>
-            <p style={{ fontSize: 12, color: '#4a4a6a', background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.12)', borderRadius: 8, padding: '8px 12px', marginBottom: 20, lineHeight: 1.5 }}>
-              {t('songs.avatarModal.tip')}
-            </p>
-
-            {avatars.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
-                {avatars.map((av) => {
-                  const sel = selectedAvatarUrl === av.image_url;
-                  const isFemale = av.id.startsWith('w');
-                  return (
-                    <button
-                      key={av.id}
-                      className="avatar-thumb"
-                      onClick={() => setSelectedAvatarUrl(av.image_url)}
-                      style={{ border: `2px solid ${sel ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`, borderRadius: 10, padding: 0, overflow: 'hidden', background: 'transparent', cursor: 'pointer', opacity: sel ? 1 : 0.65, transition: 'border-color 0.15s, opacity 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
-                    >
-                      <img src={av.image_url} alt={av.name} style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }} />
-                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: sel ? '#c4b5fd' : '#666', padding: '5px 4px' }}>
-                        {av.name}
-                        <span style={{ fontSize: 9, fontWeight: 600, color: isFemale ? '#f9a8d4' : '#93c5fd', background: isFemale ? 'rgba(249,168,212,0.12)' : 'rgba(147,197,253,0.12)', borderRadius: 4, padding: '1px 4px', letterSpacing: '0.3px' }}>
-                          {isFemale ? 'F' : 'M'}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{ height: 40, display: 'flex', alignItems: 'center', marginBottom: 20 }}>
-                <span style={{ color: '#444', fontSize: 13 }}>{t('songs.avatarModal.loadingAvatars')}</span>
-              </div>
-            )}
-
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, marginBottom: 24 }}>
-              <p style={{ fontSize: 12, color: '#cccccc', marginBottom: 10 }}>{t('songs.avatarModal.uploadDesc')}</p>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <button
-                  onClick={() => photoInputRef.current?.click()}
-                  disabled={uploadingPhoto}
-                  style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: '#888', fontSize: 12, cursor: uploadingPhoto ? 'default' : 'pointer', flexShrink: 0 }}
-                >
-                  {uploadingPhoto ? t('songs.avatarModal.uploadingPhoto') : t('songs.avatarModal.choosePhoto')}
-                </button>
-                {selectedAvatarUrl && selectedAvatarUrl.startsWith('/files/avatars/') && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <img src={`${BACKEND_URL}${selectedAvatarUrl}`} alt="Custom" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', border: '2px solid #a78bfa' }} />
-                    <span style={{ fontSize: 11, color: '#a78bfa' }}>{t('songs.avatarModal.customPhotoSelected')}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, marginBottom: 24 }}>
-              <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>{t('songs.avatarModal.generateAI')}</p>
-              {portraitTimedOut ? (
-                <div>
-                  <p style={{ fontSize: 13, color: '#f87171', marginBottom: 10 }}>{t('songs.avatarModal.timeout')}</p>
-                  <button onClick={handlePortraitRetry} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid rgba(248,113,113,0.35)', background: 'rgba(248,113,113,0.08)', color: '#f87171', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>{t('songs.avatarModal.retry')}</button>
-                </div>
-              ) : portraitImageUrl ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <button
-                    onClick={() => setSelectedAvatarUrl(portraitImageUrl)}
-                    style={{ border: `2px solid ${selectedAvatarUrl === portraitImageUrl ? '#a78bfa' : 'rgba(255,255,255,0.15)'}`, borderRadius: 10, padding: 0, overflow: 'hidden', background: 'transparent', cursor: 'pointer', width: 80, height: 80, flexShrink: 0, transition: 'border-color 0.15s' }}
-                  >
-                    <img src={portraitImageUrl} alt="AI Generated" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                  </button>
-                  <div>
-                    <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.25)', borderRadius: 4, padding: '2px 7px', letterSpacing: '0.3px', textTransform: 'uppercase', marginBottom: 6 }}>AI Generated</span>
-                    <p style={{ fontSize: 12, color: '#cccccc', margin: '0 0 4px' }}>{selectedAvatarUrl === portraitImageUrl ? t('songs.avatarModal.selected') : t('songs.avatarModal.clickSelect')}</p>
-                    <button onClick={() => { if (selectedAvatarUrl === portraitImageUrl) setSelectedAvatarUrl(null); setPortraitImageUrl(null); setPortraitJobId(null); }} style={{ fontSize: 11, color: '#444', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>{t('songs.avatarModal.regenerate')}</button>
-                  </div>
-                </div>
-              ) : portraitGenerating ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13, color: '#666' }}>{t('songs.avatarModal.generating')}</span>
-                  <span style={{ fontSize: 14, color: '#444', letterSpacing: 2 }}>···</span>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => handleGeneratePortrait('m')} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid rgba(147,197,253,0.3)', background: 'rgba(147,197,253,0.06)', color: '#93c5fd', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>{t('songs.avatarModal.genderMale')}</button>
-                  <button onClick={() => handleGeneratePortrait('f')} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid rgba(249,168,212,0.3)', background: 'rgba(249,168,212,0.06)', color: '#f9a8d4', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>{t('songs.avatarModal.genderFemale')}</button>
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={closeAvatarModal} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>{t('songs.avatarModal.cancel')}</button>
-              <button
-                onClick={handleAvatarSubmit}
-                disabled={!selectedAvatarUrl || avatarSubmitting}
-                style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: selectedAvatarUrl ? 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)' : 'rgba(255,255,255,0.05)', color: selectedAvatarUrl ? '#fff' : '#444', fontSize: 14, fontWeight: 700, cursor: selectedAvatarUrl ? 'pointer' : 'default' }}
-              >
-                {avatarSubmitting ? t('songs.avatarModal.submitting') : t('songs.avatarModal.create')}
               </button>
             </div>
           </div>

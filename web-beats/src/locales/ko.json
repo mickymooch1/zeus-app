@@ -122,7 +122,6 @@
     "emptySongs": "노래가 없습니다 — 위에서 첫 번째 곡을 만들어보세요.",
     "unlimited": "무제한",
     "songsBalance": "{{balance}} / {{allowance}}곡",
-    "videoCredits": "· 아바타 영상 {{count}}개 남음",
     "topUp": "충전 →",
     "topupSuccess": "결제 완료 — 크레딧이 추가되었습니다.",
     "ytConnectedSuccess": "YouTube 연결됨 — 채널에 직접 업로드할 수 있습니다.",
@@ -134,7 +133,7 @@
       "noFavourites": "즐겨찾기가 없습니다. 노래의 ★을 눌러 저장하세요.",
       "noRecent": "최근 노래가 없습니다. 위에서 첫 번째 트랙을 만들어보세요."
     },
-    "upgradeBanner": "더 많은 노래, 아바타 영상, 프리미엄 내보내기를 위해 업그레이드",
+    "upgradeBanner": "더 많은 노래, 프리미엄 내보내기를 위해 업그레이드",
     "viewPlans": "요금제 보기",
     "buttons": {
       "download": "↓ 다운로드",
@@ -145,11 +144,6 @@
       "connectYT": "+ YT 연결",
       "viewYT": "▶ YouTube에서 보기",
       "uploading": "업로드 중…",
-      "avatarMaking": "제작 중…",
-      "avatarRedo": "◉ 다시 하기",
-      "avatarRetry": "재시도",
-      "avatar": "◉ 아바타",
-      "avatarNoCredits": "◉ 크레딧 없음",
       "remake": "🔄 리메이크",
       "regenerate": "↺ 재생성",
       "delete": "✕ 삭제",
@@ -166,8 +160,6 @@
     "locked": {
       "upgradeYT": "YouTube 업로드를 위해 요금제를 업그레이드하세요.",
       "connectYT": "업로드하려면 설정에서 YouTube를 연결하세요.",
-      "upgradeAvatar": "아바타 영상을 위해 Music Pro로 업그레이드하세요.",
-      "noAvatarCredits": "아바타 크레딧이 없습니다.",
       "upgradeLink": "업그레이드 →",
       "topUpLink": "충전 →"
     },
@@ -189,28 +181,6 @@
       "cancel": "취소",
       "generate": "리메이크 생성",
       "generating": "생성 중…"
-    },
-    "avatarModal": {
-      "title": "아바타 영상 만들기",
-      "desc": "발표자를 선택하세요 — 노래에 맞춰 립싱크합니다.",
-      "tip": "최고의 립싱크 품질을 위해 정면 얼굴 사진을 사용하세요.",
-      "loadingAvatars": "아바타 불러오는 중…",
-      "uploadDesc": "또는 직접 사진 업로드 (JPEG/PNG/WebP, 10MB 미만):",
-      "choosePhoto": "사진 선택",
-      "uploadingPhoto": "업로드 중…",
-      "customPhotoSelected": "커스텀 사진 선택됨",
-      "generateAI": "AI 퍼포머 생성",
-      "timeout": "초상화 생성 시간 초과. 다시 시도해 주세요.",
-      "retry": "↺ 재시도",
-      "generating": "초상화 생성 중 (~30초)…",
-      "selected": "선택됨 — 영상 만들기 클릭",
-      "clickSelect": "클릭하여 선택",
-      "regenerate": "재생성",
-      "genderMale": "♂ 남성",
-      "genderFemale": "♀ 여성",
-      "cancel": "취소",
-      "create": "영상 만들기",
-      "submitting": "제출 중…"
     },
     "advancedSubtitle": "사운드 세밀 조정"
   },
@@ -281,10 +251,10 @@
       "starterDesc": "월 60곡, YouTube 업로드, AI 커버",
       "pro": "Music Pro",
       "proPrice": "£19/월",
-      "proDesc": "월 150곡, YouTube 업로드, 아바타 영상 3개",
+      "proDesc": "월 150곡, YouTube 업로드",
       "agency": "Music Agency",
       "agencyPrice": "£39/월",
-      "agencyDesc": "월 300곡, YouTube, 아바타 영상 10개, Facebook",
+      "agencyDesc": "월 300곡, YouTube, Facebook",
       "enterprise": "Enterprise (관리자)",
       "free": "무료",
       "getStarter": "Music Starter 시작",
@@ -300,8 +270,6 @@
         "download": "노래 다운로드 및 공유",
         "genres": "100개 이상의 장르 및 스타일",
         "coverArt": "AI 커버 아트",
-        "avatar3": "월 립싱크 영상 3개",
-        "avatar10": "월 립싱크 영상 10개",
         "facebook": "Facebook 게시"
       }
     }
@@ -334,7 +302,7 @@
     "starterName": "Music Starter",
     "starterDesc": "AI 음악 제작을 시작하는 아티스트를 위한.",
     "proName": "Music Pro",
-    "proDesc": "아바타 영상을 원하는 활동적인 크리에이터를 위한.",
+    "proDesc": "더 많은 곡과 기능을 원하는 활동적인 크리에이터를 위한.",
     "agencyName": "Music Agency",
     "agencyDesc": "활발한 크리에이터와 레이블 팀을 위한.",
     "getStarter": "Music Starter 시작",
@@ -376,10 +344,6 @@
         "coverArt": {
           "title": "시네마틱 커버 아트",
           "desc": "모든 커버에 부드러운 Ken Burns 모션 효과가 적용됩니다 — 전 사용자 무료."
-        },
-        "avatarVideos": {
-          "title": "아바타 립싱크 영상",
-          "desc": "AI 퍼포머가 HD 영상으로 내 트랙을 부릅니다. YouTube, Instagram Reels, 음악 홍보에 딱 맞습니다."
         },
         "genreBlending": {
           "title": "장르 블렌딩",

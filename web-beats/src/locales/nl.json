@@ -123,7 +123,6 @@
     "emptySongs": "Nog geen nummers — maak je eerste hierboven.",
     "unlimited": "Onbeperkt",
     "songsBalance": "{{balance}} / {{allowance}} nummers",
-    "videoCredits": "· {{count}} avatarvideo('s) resterend",
     "topUp": "Herlaad →",
     "topupSuccess": "Betaling geslaagd — je credits zijn toegevoegd.",
     "ytConnectedSuccess": "YouTube verbonden — je kunt nu nummers uploaden naar je kanaal.",
@@ -135,7 +134,7 @@
       "noFavourites": "Nog geen favorieten. Tik op de ★ op een nummer om het op te slaan.",
       "noRecent": "Geen recente nummers. Genereer je eerste track hierboven."
     },
-    "upgradeBanner": "Upgrade voor meer nummers, avatarvideo's en premium exports",
+    "upgradeBanner": "Upgrade voor meer nummers en premium exports",
     "viewPlans": "Bekijk plannen",
     "buttons": {
       "download": "↓ Downloaden",
@@ -146,11 +145,6 @@
       "connectYT": "+ YT koppelen",
       "viewYT": "▶ Bekijk op YT",
       "uploading": "Uploaden…",
-      "avatarMaking": "Maken…",
-      "avatarRedo": "◉ Opnieuw",
-      "avatarRetry": "Opnieuw proberen",
-      "avatar": "◉ Avatar",
-      "avatarNoCredits": "◉ Geen credits",
       "remake": "🔄 Opnieuw maken",
       "regenerate": "↺ Opnieuw genereren",
       "delete": "✕ Verwijderen",
@@ -167,8 +161,6 @@
     "locked": {
       "upgradeYT": "Upgrade je plan om naar YouTube te uploaden.",
       "connectYT": "Koppel YouTube in Instellingen om te uploaden.",
-      "upgradeAvatar": "Upgrade naar Music Pro voor avatarvideo's.",
-      "noAvatarCredits": "Geen avatarcredits meer.",
       "upgradeLink": "Upgrade →",
       "topUpLink": "Herlaad →"
     },
@@ -190,28 +182,6 @@
       "cancel": "Annuleren",
       "generate": "Remake genereren",
       "generating": "Genereren…"
-    },
-    "avatarModal": {
-      "title": "Avatarvideo maken",
-      "desc": "Kies een presentator — zij lipsyncen met je nummer.",
-      "tip": "Gebruik een duidelijke frontale foto voor de beste kwaliteit.",
-      "loadingAvatars": "Avatars laden…",
-      "uploadDesc": "Of upload je eigen foto (JPEG / PNG / WebP, onder 10 MB):",
-      "choosePhoto": "Foto kiezen",
-      "uploadingPhoto": "Uploaden…",
-      "customPhotoSelected": "Aangepaste foto geselecteerd",
-      "generateAI": "AI-performer genereren",
-      "timeout": "Portretgeneratie verlopen. Probeer opnieuw.",
-      "retry": "↺ Opnieuw",
-      "generating": "Portret genereren (~30s)…",
-      "selected": "Geselecteerd — klik op Video maken",
-      "clickSelect": "Klik om te selecteren",
-      "regenerate": "Opnieuw genereren",
-      "genderMale": "♂ Man",
-      "genderFemale": "♀ Vrouw",
-      "cancel": "Annuleren",
-      "create": "Video maken",
-      "submitting": "Verzenden…"
     },
     "advancedSubtitle": "Stem je track fijn af"
   },
@@ -282,10 +252,10 @@
       "starterDesc": "60 nummers/maand, YouTube-upload, AI-hoes",
       "pro": "Music Pro",
       "proPrice": "£19/mnd",
-      "proDesc": "150 nummers/maand, YouTube-upload, 3 avatarvideo's",
+      "proDesc": "150 nummers/maand, YouTube-upload",
       "agency": "Music Agency",
       "agencyPrice": "£39/mnd",
-      "agencyDesc": "300 nummers/maand, YouTube, 10 avatarvideo's, Facebook",
+      "agencyDesc": "300 nummers/maand, YouTube, Facebook",
       "enterprise": "Enterprise (Admin)",
       "free": "Gratis",
       "getStarter": "Music Starter halen",
@@ -301,8 +271,6 @@
         "download": "Nummers downloaden en delen",
         "genres": "Alle 100+ genres en stijlen",
         "coverArt": "AI-hoes",
-        "avatar3": "3 lipsync-video's/maand",
-        "avatar10": "10 lipsync-video's/maand",
         "facebook": "Facebook-plaatsing"
       }
     }
@@ -335,7 +303,7 @@
     "starterName": "Music Starter",
     "starterDesc": "Voor artiesten die beginnen met AI-muziek.",
     "proName": "Music Pro",
-    "proDesc": "Voor actieve creators die avatarvideo's willen.",
+    "proDesc": "Voor actieve creators die meer nummers en functies willen.",
     "agencyName": "Music Agency",
     "agencyDesc": "Voor productieve creators en labelteams.",
     "getStarter": "Music Starter halen",
@@ -377,10 +345,6 @@
         "coverArt": {
           "title": "Filmische hoes",
           "desc": "Elke hoes krijgt een vloeiend cinematisch Ken Burns-effect — gratis voor alle gebruikers."
-        },
-        "avatarVideos": {
-          "title": "Avatar-lipsyncvideo's",
-          "desc": "Een AI-performer zingt je track in HD-video. Perfect voor YouTube, Instagram Reels en muziekpromotie."
         },
         "genreBlending": {
           "title": "Genres mengen",

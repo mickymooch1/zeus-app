@@ -122,7 +122,6 @@
     "emptySongs": "楽曲がありません — 上で最初の曲を作成してください。",
     "unlimited": "無制限",
     "songsBalance": "{{balance}} / {{allowance}} 曲",
-    "videoCredits": "· アバター動画{{count}}本残り",
     "topUp": "チャージ →",
     "topupSuccess": "支払い完了 — クレジットが追加されました。",
     "ytConnectedSuccess": "YouTubeが接続されました — チャンネルに直接アップロードできます。",
@@ -134,7 +133,7 @@
       "noFavourites": "お気に入りはまだありません。楽曲の★をタップして保存。",
       "noRecent": "最近の楽曲はありません。上で最初のトラックを作成してください。"
     },
-    "upgradeBanner": "より多くの楽曲、アバター動画、プレミアムエクスポートにアップグレード",
+    "upgradeBanner": "より多くの楽曲、プレミアムエクスポートにアップグレード",
     "viewPlans": "プランを見る",
     "buttons": {
       "download": "↓ ダウンロード",
@@ -145,11 +144,6 @@
       "connectYT": "+ YT接続",
       "viewYT": "▶ YouTubeで見る",
       "uploading": "アップロード中…",
-      "avatarMaking": "作成中…",
-      "avatarRedo": "◉ やり直し",
-      "avatarRetry": "再試行",
-      "avatar": "◉ アバター",
-      "avatarNoCredits": "◉ クレジットなし",
       "remake": "🔄 リメイク",
       "regenerate": "↺ 再生成",
       "delete": "✕ 削除",
@@ -166,8 +160,6 @@
     "locked": {
       "upgradeYT": "YouTubeにアップロードするにはプランをアップグレードしてください。",
       "connectYT": "アップロードするには設定でYouTubeを接続してください。",
-      "upgradeAvatar": "アバター動画にはMusic Proにアップグレードしてください。",
-      "noAvatarCredits": "アバタークレジットが残っていません。",
       "upgradeLink": "アップグレード →",
       "topUpLink": "チャージ →"
     },
@@ -189,28 +181,6 @@
       "cancel": "キャンセル",
       "generate": "リメイクを生成",
       "generating": "生成中…"
-    },
-    "avatarModal": {
-      "title": "アバター動画を作成",
-      "desc": "プレゼンターを選択 — あなたの楽曲に口パクします。",
-      "tip": "最高の口パク品質のために、正面からの明確な顔写真を使用してください。",
-      "loadingAvatars": "アバターを読み込み中…",
-      "uploadDesc": "または自分の写真をアップロード（JPEG/PNG/WebP、10MB未満）:",
-      "choosePhoto": "写真を選択",
-      "uploadingPhoto": "アップロード中…",
-      "customPhotoSelected": "カスタム写真が選択されました",
-      "generateAI": "AIパフォーマーを生成",
-      "timeout": "ポートレートの生成がタイムアウトしました。再試行してください。",
-      "retry": "↺ 再試行",
-      "generating": "ポートレートを生成中（~30秒）…",
-      "selected": "選択済み — 動画を作成をクリック",
-      "clickSelect": "クリックして選択",
-      "regenerate": "再生成",
-      "genderMale": "♂ 男性",
-      "genderFemale": "♀ 女性",
-      "cancel": "キャンセル",
-      "create": "動画を作成",
-      "submitting": "送信中…"
     },
     "advancedSubtitle": "サウンドを微調整"
   },
@@ -281,10 +251,10 @@
       "starterDesc": "月60曲、YouTube、AIカバー",
       "pro": "Music Pro",
       "proPrice": "£19/月",
-      "proDesc": "月150曲、YouTube、アバター動画3本",
+      "proDesc": "月150曲、YouTube",
       "agency": "Music Agency",
       "agencyPrice": "£39/月",
-      "agencyDesc": "月300曲、YouTube、アバター動画10本、Facebook",
+      "agencyDesc": "月300曲、YouTube、Facebook",
       "enterprise": "Enterprise（Admin）",
       "free": "無料",
       "getStarter": "Music Starterを入手",
@@ -300,8 +270,6 @@
         "download": "楽曲ダウンロード＆シェア",
         "genres": "100以上のジャンルとスタイル",
         "coverArt": "AIカバーアート",
-        "avatar3": "月3本のリップシンク動画",
-        "avatar10": "月10本のリップシンク動画",
         "facebook": "Facebook投稿"
       }
     }
@@ -334,7 +302,7 @@
     "starterName": "Music Starter",
     "starterDesc": "AI音楽制作を始めるアーティスト向け。",
     "proName": "Music Pro",
-    "proDesc": "アバター動画を求めるアクティブなクリエイター向け。",
+    "proDesc": "もっと多くの楽曲や機能を求めるアクティブなクリエイター向け。",
     "agencyName": "Music Agency",
     "agencyDesc": "多作なクリエイターとレーベルチーム向け。",
     "getStarter": "Music Starterを入手",
@@ -376,10 +344,6 @@
         "coverArt": {
           "title": "シネマティックなカバーアート",
           "desc": "すべてのカバーにKen Burns風の滑らかなカメラワークが付きます（全ユーザー無料）。"
-        },
-        "avatarVideos": {
-          "title": "アバターのリップシンク動画",
-          "desc": "AIパフォーマーがあなたの楽曲をHD動画で歌います。YouTubeやInstagram Reels、プロモーションに最適です。"
         },
         "genreBlending": {
           "title": "ジャンルブレンド",

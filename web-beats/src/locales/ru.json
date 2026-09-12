@@ -125,7 +125,6 @@
     "emptySongs": "Нет песен — создайте первую выше.",
     "unlimited": "Безлимитно",
     "songsBalance": "{{balance}} / {{allowance}} песен",
-    "videoCredits": "· {{count}} аватар-видео осталось",
     "topUp": "Пополнить →",
     "topupSuccess": "Оплата прошла — кредиты добавлены.",
     "ytConnectedSuccess": "YouTube подключён — теперь можно загружать песни на канал.",
@@ -137,7 +136,7 @@
       "noFavourites": "Нет избранного. Нажмите ★ на песне, чтобы сохранить.",
       "noRecent": "Нет недавних песен. Создайте первый трек выше."
     },
-    "upgradeBanner": "Улучшите план для большего числа песен, аватар-видео и премиум экспорта",
+    "upgradeBanner": "Улучшите план для большего числа песен и премиум экспорта",
     "viewPlans": "Смотреть планы",
     "buttons": {
       "download": "↓ Скачать",
@@ -148,11 +147,6 @@
       "connectYT": "+ Подключить YT",
       "viewYT": "▶ Смотреть на YT",
       "uploading": "Загрузка…",
-      "avatarMaking": "Создание…",
-      "avatarRedo": "◉ Переделать",
-      "avatarRetry": "Повторить",
-      "avatar": "◉ Аватар",
-      "avatarNoCredits": "◉ Нет кредитов",
       "remake": "🔄 Переделать",
       "regenerate": "↺ Перегенерировать",
       "delete": "✕ Удалить",
@@ -169,8 +163,6 @@
     "locked": {
       "upgradeYT": "Улучшите план для загрузки на YouTube.",
       "connectYT": "Подключите YouTube в настройках для загрузки.",
-      "upgradeAvatar": "Перейдите на Music Pro для аватар-видео.",
-      "noAvatarCredits": "Кредиты аватара закончились.",
       "upgradeLink": "Улучшить →",
       "topUpLink": "Пополнить →"
     },
@@ -192,28 +184,6 @@
       "cancel": "Отмена",
       "generate": "Создать ремейк",
       "generating": "Создание…"
-    },
-    "avatarModal": {
-      "title": "Создать аватар-видео",
-      "desc": "Выберите ведущего — он будет синхронизировать губы с вашей песней.",
-      "tip": "Для лучшего качества используйте чёткое фронтальное фото.",
-      "loadingAvatars": "Загрузка аватаров…",
-      "uploadDesc": "Или загрузите своё фото (JPEG / PNG / WebP, до 10 МБ):",
-      "choosePhoto": "Выбрать фото",
-      "uploadingPhoto": "Загрузка…",
-      "customPhotoSelected": "Своё фото выбрано",
-      "generateAI": "Создать AI-исполнителя",
-      "timeout": "Время создания портрета истекло. Попробуйте снова.",
-      "retry": "↺ Повторить",
-      "generating": "Создание портрета (~30с)…",
-      "selected": "Выбрано — нажмите Создать видео",
-      "clickSelect": "Нажмите для выбора",
-      "regenerate": "Перегенерировать",
-      "genderMale": "♂ Мужской",
-      "genderFemale": "♀ Женский",
-      "cancel": "Отмена",
-      "create": "Создать видео",
-      "submitting": "Отправка…"
     },
     "advancedSubtitle": "Настройте свой трек"
   },
@@ -284,10 +254,10 @@
       "starterDesc": "60 песен/месяц, YouTube, AI-обложка",
       "pro": "Music Pro",
       "proPrice": "£19/мес",
-      "proDesc": "150 песен/месяц, YouTube, 3 аватар-видео",
+      "proDesc": "150 песен/месяц, YouTube",
       "agency": "Music Agency",
       "agencyPrice": "£39/мес",
-      "agencyDesc": "300 песен/месяц, YouTube, 10 аватар-видео, Facebook",
+      "agencyDesc": "300 песен/месяц, YouTube, Facebook",
       "enterprise": "Enterprise (Admin)",
       "free": "Бесплатно",
       "getStarter": "Выбрать Music Starter",
@@ -303,8 +273,6 @@
         "download": "Скачивание и публикация",
         "genres": "Все 100+ жанров и стилей",
         "coverArt": "AI-обложка",
-        "avatar3": "3 lip-sync видео/месяц",
-        "avatar10": "10 lip-sync видео/месяц",
         "facebook": "Публикация в Facebook"
       }
     }
@@ -337,7 +305,7 @@
     "starterName": "Music Starter",
     "starterDesc": "Для артистов, начинающих работу с AI-музыкой.",
     "proName": "Music Pro",
-    "proDesc": "Для активных создателей, которым нужны аватар-видео.",
+    "proDesc": "Для активных создателей, которым нужно больше песен и функций.",
     "agencyName": "Music Agency",
     "agencyDesc": "Для продуктивных создателей и команд лейблов.",
     "getStarter": "Выбрать Music Starter",
@@ -379,10 +347,6 @@
         "coverArt": {
           "title": "Кинематографичные обложки",
           "desc": "Каждая обложка получает плавный кинематографический эффект Ken Burns — бесплатно для всех."
-        },
-        "avatarVideos": {
-          "title": "Аватар-видео с lip-sync",
-          "desc": "AI-исполнитель споёт ваш трек в HD-видео. Идеально для YouTube, Instagram Reels и продвижения музыки."
         },
         "genreBlending": {
           "title": "Смешение жанров",

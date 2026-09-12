@@ -119,7 +119,6 @@
     "emptySongs": "Pas encore de chansons — créez votre première ci-dessus.",
     "unlimited": "Illimité",
     "songsBalance": "{{balance}} / {{allowance}} chansons",
-    "videoCredits": "· {{count}} vidéo(s) avatar restante(s)",
     "topUp": "Recharger →",
     "topupSuccess": "Paiement réussi — vos crédits de chansons ont été ajoutés.",
     "ytConnectedSuccess": "YouTube connecté — vous pouvez maintenant télécharger des chansons directement sur votre chaîne.",
@@ -142,11 +141,6 @@
       "connectYT": "+ Connecter YT",
       "viewYT": "▶ Voir sur YT",
       "uploading": "Téléchargement…",
-      "avatarMaking": "Création…",
-      "avatarRedo": "◉ Refaire",
-      "avatarRetry": "Réessayer",
-      "avatar": "◉ Avatar",
-      "avatarNoCredits": "◉ Plus de crédits",
       "remake": "🔄 Refaire",
       "regenerate": "↺ Regen",
       "delete": "✕ Supprimer",
@@ -163,8 +157,6 @@
     "locked": {
       "upgradeYT": "Passez à un plan supérieur pour publier sur YouTube.",
       "connectYT": "Connectez YouTube dans les Paramètres pour publier.",
-      "upgradeAvatar": "Passez à Music Pro pour les vidéos avatar.",
-      "noAvatarCredits": "Plus de crédits avatar disponibles.",
       "upgradeLink": "Mettre à niveau →",
       "topUpLink": "Recharger →"
     },
@@ -186,28 +178,6 @@
       "cancel": "Annuler",
       "generate": "Générer la reprise",
       "generating": "Génération…"
-    },
-    "avatarModal": {
-      "title": "Créer une vidéo avatar",
-      "desc": "Choisissez un présentateur — il synchronisera ses lèvres sur votre chanson.",
-      "tip": "Pour une meilleure synchronisation, utilisez une photo de face nette. Importez la vôtre pour un interprète personnalisé.",
-      "loadingAvatars": "Chargement des avatars…",
-      "uploadDesc": "Ou importez votre propre photo (JPEG / PNG / WebP, moins de 10 Mo) :",
-      "choosePhoto": "Choisir une photo",
-      "uploadingPhoto": "Importation…",
-      "customPhotoSelected": "Photo personnalisée sélectionnée",
-      "generateAI": "Générer un artiste IA",
-      "timeout": "La génération du portrait a expiré. Veuillez réessayer.",
-      "retry": "↺ Réessayer",
-      "generating": "Génération du portrait (~30s)…",
-      "selected": "Sélectionné — cliquez sur Créer la vidéo",
-      "clickSelect": "Cliquer pour sélectionner",
-      "regenerate": "Régénérer",
-      "genderMale": "♂ Masculin",
-      "genderFemale": "♀ Féminin",
-      "cancel": "Annuler",
-      "create": "Créer la vidéo",
-      "submitting": "Envoi…"
     },
     "negativeTagsLabel": "À éviter",
     "negativeTagsPlaceholder": "ex. pas de piano, pas de trompette (500 caractères max)",
@@ -279,10 +249,10 @@
       "starterDesc": "60 chansons/mois, YouTube, pochette IA",
       "pro": "Music Pro",
       "proPrice": "19 £/mois",
-      "proDesc": "150 chansons/mois, YouTube, 3 vidéos avatar",
+      "proDesc": "150 chansons/mois, YouTube",
       "agency": "Music Agency",
       "agencyPrice": "39 £/mois",
-      "agencyDesc": "300 chansons/mois, YouTube, 10 vidéos avatar, Facebook",
+      "agencyDesc": "300 chansons/mois, YouTube, Facebook",
       "enterprise": "Entreprise (Admin)",
       "free": "Gratuit",
       "getStarter": "Choisir Music Starter",
@@ -298,8 +268,6 @@
         "download": "Téléchargement & partage",
         "genres": "Plus de 100 genres & styles",
         "coverArt": "Pochette IA",
-        "avatar3": "3 vidéos lip-sync avatar/mois",
-        "avatar10": "10 vidéos lip-sync avatar/mois",
         "facebook": "Publication Facebook"
       }
     },
@@ -335,7 +303,7 @@
     "starterName": "Music Starter",
     "starterDesc": "Pour les artistes qui débutent avec la création musicale IA.",
     "proName": "Music Pro",
-    "proDesc": "Pour les créateurs actifs qui veulent des vidéos avatar.",
+    "proDesc": "Pour les créateurs actifs qui veulent plus de chansons et de fonctionnalités.",
     "agencyName": "Music Agency",
     "agencyDesc": "Pour les créateurs prolifiques et les équipes de labels.",
     "getStarter": "Choisir Music Starter",
@@ -377,10 +345,6 @@
         "coverArt": {
           "title": "Pochette cinématique",
           "desc": "Chaque pochette bénéficie d'un effet de mouvement cinématique Ken Burns — gratuit pour tous."
-        },
-        "avatarVideos": {
-          "title": "Vidéos avatar lip-sync",
-          "desc": "Un interprète IA chante votre morceau en vidéo HD. Parfait pour YouTube, les Reels Instagram et la promotion musicale."
         },
         "genreBlending": {
           "title": "Fusion de genres",

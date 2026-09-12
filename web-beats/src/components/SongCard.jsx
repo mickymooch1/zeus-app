@@ -92,7 +92,6 @@ const OCCASION_OPTIONS = [
 const SongCard = memo(function SongCard({
   variant, title, artistName, activeWsRef,
   canYouTube, ytConnected, ytStatus: ytSt, ytUrl, ytError, onYouTubeClick,
-  canDid, didSt, videoUrl, onAvatarClick, videoCredits, didPlanOk, isAdmin,
   onDelete, deleting, musicVideoUrl, onRemake, onTelegramClick, onRegenerate,
   isFavourite, onToggleFavourite, isFreeTier,
   isPublic, onShareToggle,
@@ -420,40 +419,6 @@ const SongCard = memo(function SongCard({
   const safeFilename = `${(title || 'song').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp3`;
   const displayMusicVideoUrl = !isFreeTier && musicVideoUrl;   // existing videos still play
 
-  const avatarStyle = { ...actionBtnStyle, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.55)' };
-  let avatarBtn;
-  if (!didPlanOk) {
-    avatarBtn = (
-      <button onClick={() => onUpgrade('avatar')} style={avatarStyle}>
-        {t('songs.buttons.avatar')}
-      </button>
-    );
-  } else if (!isAdmin && videoCredits === 0) {
-    avatarBtn = (
-      <button onClick={() => showLocked('no-avatar-credits')} style={avatarStyle}>
-        {t('songs.buttons.avatar')}
-      </button>
-    );
-  } else if (didSt === 'processing') {
-    avatarBtn = (
-      <button disabled style={{ ...avatarStyle, opacity: 0.55, cursor: 'default' }}>
-        {t('songs.buttons.avatarMaking')}
-      </button>
-    );
-  } else if (didSt === 'done' && videoUrl) {
-    avatarBtn = (
-      <button onClick={() => onAvatarClick(variant, title)} style={avatarStyle}>
-        {t('songs.buttons.avatarRedo')}
-      </button>
-    );
-  } else {
-    avatarBtn = (
-      <button onClick={() => onAvatarClick(variant, title)} style={{ ...avatarStyle, color: didSt === 'error' ? '#f87171' : '#a78bfa' }}>
-        {didSt === 'error' ? t('songs.buttons.avatarRetry') : t('songs.buttons.avatar')}
-      </button>
-    );
-  }
-
   const ytStyle = { ...actionBtnStyle, color: '#ff4444', borderColor: 'rgba(255,68,68,0.5)' };
   let ytBtn;
   if (!canYouTube) {
@@ -606,15 +571,6 @@ const SongCard = memo(function SongCard({
         )}
       </div>
 
-      {videoUrl && (
-        <video
-          src={`${BACKEND_URL}${videoUrl}`}
-          controls
-          playsInline
-          style={{ width: '100%', display: 'block', background: '#000', maxHeight: 180 }}
-        />
-      )}
-
       <div style={S.cardBody}>
         {isFailed ? (
           <div style={{ padding: '8px 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -746,10 +702,9 @@ const SongCard = memo(function SongCard({
                 </p>
               )}
             </div>
-            {/* Row 3: YouTube + Avatar */}
+            {/* Row 3: YouTube */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               {ytBtn}
-              {avatarBtn}
             </div>
             {ytSt === 'error' && ytError && (
               <p style={{ color: '#f87171', fontSize: 11, marginTop: 4, marginBottom: 0, wordBreak: 'break-word' }}>{ytError}</p>
@@ -1083,8 +1038,6 @@ const SongCard = memo(function SongCard({
               }}>
                 {lockedMsg === 'upgrade-yt' && <>{t('songs.locked.upgradeYT')} {!isIOSWebView && <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.upgradeLink')}</Link>}</>}
                 {lockedMsg === 'connect-yt' && <>{t('songs.locked.connectYT')}</>}
-                {lockedMsg === 'upgrade-avatar' && <>{t('songs.locked.upgradeAvatar')} {!isIOSWebView && <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.upgradeLink')}</Link>}</>}
-                {lockedMsg === 'no-avatar-credits' && <>{t('songs.locked.noAvatarCredits')} {!isIOSWebView && <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.topUpLink')}</Link>}</>}
               </div>
             )}
             {/* Row 5: Add to Playlist + Delete */}

@@ -346,11 +346,11 @@ export default function MemorialPage() {
 
   // ── SongCard handlers ("More song tools") — real REST calls against the
   // same owner-scoped endpoints SongsPage.jsx already uses for these exact
-  // actions. Two (onRemake, onAvatarClick) fall back to sending the owner to
-  // their full Songs library instead of reimplementing SongsPage's
-  // multi-step genre-picker / D-ID portrait modals here — those are real UI
-  // flows, not simple REST calls, and out of scope for a memorial page's
-  // secondary tools panel. Everything else here is a real, working call. ──
+  // actions. onRemake falls back to sending the owner to their full Songs
+  // library instead of reimplementing SongsPage's multi-step genre-picker
+  // modal here — that's a real UI flow, not a simple REST call, and out of
+  // scope for a memorial page's secondary tools panel. Everything else here
+  // is a real, working call. ──
 
   async function handleSetOccasion(variantId, occasion, occasionName) {
     const r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}/occasion`, {
@@ -594,8 +594,6 @@ export default function MemorialPage() {
   }
   const isAdmin = !!credits.is_admin;
   const isFreeTier = !isAdmin && !credits.plan && !credits.has_paid;
-  const didPlanOk = isAdmin || ['agency', 'enterprise', 'music_pro', 'music_agency'].includes(credits.plan);
-  const canDid = didPlanOk && (isAdmin || credits.video_credits > 0);
 
   if (notFound) {
     return (
@@ -804,25 +802,18 @@ export default function MemorialPage() {
                 ytUrl={ytUrl}
                 ytError={ytError}
                 onYouTubeClick={handleYouTubeClick}
-                canDid={canDid}
-                didSt={undefined}
-                videoUrl={fullVariant.video_url}
-                onAvatarClick={goToLibrary}
-                videoCredits={credits.video_credits}
-                didPlanOk={didPlanOk}
-                isAdmin={isAdmin}
                 onDelete={handleDelete}
                 deleting={deleting}
                 musicVideoUrl={fullVariant.music_video_url}
                 onRemake={goToLibrary}
                 onTelegramClick={handleTelegramClick}
                 artistName={credits.artist_name}
-                // Same reduction as onRemake/onAvatarClick above (a real
-                // regenerate needs credits + job-polling infrastructure this
-                // page doesn't have) — but leaving this undefined made the
-                // button silently do nothing on click (SongCard's handleRegen
+                // Same reduction as onRemake above (a real regenerate needs
+                // credits + job-polling infrastructure this page doesn't
+                // have) — but leaving this undefined made the button
+                // silently do nothing on click (SongCard's handleRegen
                 // no-ops when !onRegenerate) rather than visibly redirecting
-                // like Remake/Avatar do. Route it the same way instead.
+                // like Remake does. Route it the same way instead.
                 onRegenerate={goToLibrary}
                 isFavourite={isFavourite}
                 onToggleFavourite={handleToggleFavourite}
@@ -850,7 +841,7 @@ export default function MemorialPage() {
                 // Offline save is a PWA feature backed by useOfflineSongs in
                 // SongsPage.jsx, not reimplemented here — but null left the
                 // "Save Offline" button enabled and silently inert on click
-                // (unlike Remake/Avatar/Regenerate, which visibly redirect).
+                // (unlike Remake/Regenerate, which visibly redirect).
                 // Route it the same way instead of leaving it dead.
                 onSaveOffline={goToLibrary}
                 onRemoveSaved={goToLibrary}

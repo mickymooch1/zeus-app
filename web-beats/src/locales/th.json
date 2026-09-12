@@ -122,7 +122,6 @@
     "emptySongs": "ยังไม่มีเพลง — สร้างเพลงแรกของคุณด้านบน",
     "unlimited": "ไม่จำกัด",
     "songsBalance": "{{balance}} / {{allowance}} เพลง",
-    "videoCredits": "· เหลือวิดีโอ avatar {{count}} รายการ",
     "topUp": "เติมเครดิต →",
     "topupSuccess": "ชำระเงินสำเร็จ — เพิ่มเครดิตเพลงของคุณแล้ว",
     "ytConnectedSuccess": "เชื่อมต่อ YouTube แล้ว — คุณสามารถอัปโหลดเพลงไปยังช่องของคุณได้โดยตรง",
@@ -134,7 +133,7 @@
       "noFavourites": "ยังไม่มีรายการโปรด แตะ ★ บนเพลงเพื่อบันทึก",
       "noRecent": "ไม่มีเพลงล่าสุด สร้างเพลงแรกของคุณด้านบน"
     },
-    "upgradeBanner": "อัปเกรดเพื่อรับเพลงเพิ่ม วิดีโอ avatar และการส่งออกระดับพรีเมียม",
+    "upgradeBanner": "อัปเกรดเพื่อรับเพลงเพิ่ม และการส่งออกระดับพรีเมียม",
     "viewPlans": "ดูแผน",
     "buttons": {
       "download": "↓ ดาวน์โหลด",
@@ -145,11 +144,6 @@
       "connectYT": "+ เชื่อมต่อ YT",
       "viewYT": "▶ ดูบน YT",
       "uploading": "กำลังอัปโหลด…",
-      "avatarMaking": "กำลังสร้าง…",
-      "avatarRedo": "◉ ทำใหม่",
-      "avatarRetry": "ลองใหม่",
-      "avatar": "◉ Avatar",
-      "avatarNoCredits": "◉ ไม่มีเครดิต",
       "remake": "🔄 สร้างใหม่",
       "regenerate": "↺ สร้างใหม่",
       "delete": "✕ ลบ",
@@ -166,8 +160,6 @@
     "locked": {
       "upgradeYT": "อัปเกรดแผนของคุณเพื่ออัปโหลดไปยัง YouTube",
       "connectYT": "เชื่อมต่อ YouTube ในการตั้งค่าเพื่ออัปโหลด",
-      "upgradeAvatar": "อัปเกรดเป็น Music Pro สำหรับวิดีโอ avatar",
-      "noAvatarCredits": "ไม่มีเครดิต avatar เหลืออยู่",
       "upgradeLink": "อัปเกรด →",
       "topUpLink": "เติมเครดิต →"
     },
@@ -189,28 +181,6 @@
       "cancel": "ยกเลิก",
       "generate": "สร้างใหม่",
       "generating": "กำลังสร้าง…"
-    },
-    "avatarModal": {
-      "title": "สร้างวิดีโอ Avatar",
-      "desc": "เลือกผู้นำเสนอ — พวกเขาจะพากย์ปากตามเพลงของคุณ",
-      "tip": "เพื่อคุณภาพการพากย์ปากที่ดีที่สุด ใช้ภาพถ่ายหน้าตรงที่ชัดเจน อัปโหลดภาพของคุณเองสำหรับนักแสดงที่กำหนดเอง",
-      "loadingAvatars": "กำลังโหลด avatar…",
-      "uploadDesc": "หรืออัปโหลดภาพของคุณเอง (JPEG / PNG / WebP ขนาดต่ำกว่า 10 MB):",
-      "choosePhoto": "เลือกภาพ",
-      "uploadingPhoto": "กำลังอัปโหลด…",
-      "customPhotoSelected": "เลือกภาพที่กำหนดเองแล้ว",
-      "generateAI": "สร้างนักแสดง AI",
-      "timeout": "การสร้างภาพหมดเวลา กรุณาลองใหม่",
-      "retry": "↺ ลองใหม่",
-      "generating": "กำลังสร้างภาพ (~30 วินาที)…",
-      "selected": "เลือกแล้ว — คลิกสร้างวิดีโอ",
-      "clickSelect": "คลิกเพื่อเลือก",
-      "regenerate": "สร้างใหม่",
-      "genderMale": "♂ ชาย",
-      "genderFemale": "♀ หญิง",
-      "cancel": "ยกเลิก",
-      "create": "สร้างวิดีโอ",
-      "submitting": "กำลังส่ง…"
     },
     "advancedSubtitle": "ปรับแต่งเสียงเพลงของคุณ"
   },
@@ -281,10 +251,10 @@
       "starterDesc": "60 เพลง/เดือน อัปโหลด YouTube ภาพปก AI",
       "pro": "Music Pro",
       "proPrice": "£19/เดือน",
-      "proDesc": "150 เพลง/เดือน อัปโหลด YouTube วิดีโอ avatar 3 รายการ",
+      "proDesc": "150 เพลง/เดือน อัปโหลด YouTube",
       "agency": "Music Agency",
       "agencyPrice": "£39/เดือน",
-      "agencyDesc": "300 เพลง/เดือน อัปโหลด YouTube วิดีโอ avatar 10 รายการ โพสต์ Facebook",
+      "agencyDesc": "300 เพลง/เดือน อัปโหลด YouTube โพสต์ Facebook",
       "enterprise": "Enterprise (แอดมิน)",
       "free": "ฟรี",
       "getStarter": "รับ Music Starter",
@@ -300,8 +270,6 @@
         "download": "ดาวน์โหลดและแชร์เพลง",
         "genres": "แนวเพลงและสไตล์ 100+ แบบ",
         "coverArt": "ภาพปก AI",
-        "avatar3": "วิดีโอ avatar พากย์ปาก 3 รายการ/เดือน",
-        "avatar10": "วิดีโอ avatar พากย์ปาก 10 รายการ/เดือน",
         "facebook": "โพสต์ Facebook"
       }
     }
@@ -334,7 +302,7 @@
     "starterName": "Music Starter",
     "starterDesc": "สำหรับศิลปินที่เริ่มต้นสร้างดนตรีด้วย AI",
     "proName": "Music Pro",
-    "proDesc": "สำหรับผู้สร้างสรรค์ที่ต้องการวิดีโอ avatar",
+    "proDesc": "สำหรับผู้สร้างสรรค์ที่ต้องการเพลงและฟีเจอร์เพิ่มเติม",
     "agencyName": "Music Agency",
     "agencyDesc": "สำหรับผู้สร้างสรรค์และทีมค่ายเพลง",
     "getStarter": "รับ Music Starter",
@@ -376,10 +344,6 @@
         "coverArt": {
           "title": "ภาพปกสไตล์ภาพยนตร์",
           "desc": "ทุกภาพปกมาพร้อมเอฟเฟกต์เคลื่อนไหวแบบ Ken Burns ที่ลื่นไหล — ฟรีสำหรับผู้ใช้ทุกคน"
-        },
-        "avatarVideos": {
-          "title": "วิดีโอ avatar พากย์ปาก",
-          "desc": "นักแสดง AI ร้องเพลงของคุณในวิดีโอ HD เหมาะสำหรับ YouTube, Instagram Reels และการโปรโมตดนตรี"
         },
         "genreBlending": {
           "title": "ผสมแนวเพลง",

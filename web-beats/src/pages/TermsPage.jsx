@@ -28,8 +28,8 @@ export default function TermsPage() {
           <h2>2. Service Description</h2>
           <p>
             Zeus Beats is an AI-powered SaaS platform designed to help musicians, content creators,
-            and businesses with tasks including: AI music generation, cover art creation, avatar
-            lip-sync videos, YouTube uploads, and automated social media posting.
+            and businesses with tasks including: AI music generation, cover art creation,
+            YouTube uploads, and automated social media posting.
           </p>
           <p>
             The Service is provided "as is" and we make no warranties that outputs will be

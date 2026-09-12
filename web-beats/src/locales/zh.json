@@ -122,7 +122,6 @@
     "emptySongs": "暂无歌曲 — 在上方创建您的第一首。",
     "unlimited": "无限",
     "songsBalance": "{{balance}} / {{allowance}} 首歌",
-    "videoCredits": "· 剩余{{count}}个头像视频",
     "topUp": "充值 →",
     "topupSuccess": "支付成功 — 积分已添加。",
     "ytConnectedSuccess": "YouTube已连接 — 可直接上传歌曲到频道。",
@@ -134,7 +133,7 @@
       "noFavourites": "还没有收藏。点击歌曲上的★保存。",
       "noRecent": "没有最近的歌曲。在上方创建您的第一首曲目。"
     },
-    "upgradeBanner": "升级以获得更多歌曲、头像视频和高级导出",
+    "upgradeBanner": "升级以获得更多歌曲和高级导出",
     "viewPlans": "查看方案",
     "buttons": {
       "download": "↓ 下载",
@@ -145,11 +144,6 @@
       "connectYT": "+ 连接YT",
       "viewYT": "▶ 在YT上查看",
       "uploading": "上传中…",
-      "avatarMaking": "制作中…",
-      "avatarRedo": "◉ 重做",
-      "avatarRetry": "重试",
-      "avatar": "◉ 头像",
-      "avatarNoCredits": "◉ 无积分",
       "remake": "🔄 重制",
       "regenerate": "↺ 重新生成",
       "delete": "✕ 删除",
@@ -166,8 +160,6 @@
     "locked": {
       "upgradeYT": "升级方案以上传到YouTube。",
       "connectYT": "在设置中连接YouTube以上传。",
-      "upgradeAvatar": "升级到Music Pro以获得头像视频。",
-      "noAvatarCredits": "没有剩余头像积分。",
       "upgradeLink": "升级 →",
       "topUpLink": "充值 →"
     },
@@ -189,28 +181,6 @@
       "cancel": "取消",
       "generate": "生成重制版",
       "generating": "生成中…"
-    },
-    "avatarModal": {
-      "title": "创建头像视频",
-      "desc": "选择一位主持人 — 他们将对您的歌曲进行口型同步。",
-      "tip": "为获得最佳口型同步质量，请使用清晰的正面照片。",
-      "loadingAvatars": "正在加载头像…",
-      "uploadDesc": "或上传您自己的照片（JPEG/PNG/WebP，10MB以下）：",
-      "choosePhoto": "选择照片",
-      "uploadingPhoto": "上传中…",
-      "customPhotoSelected": "已选择自定义照片",
-      "generateAI": "生成AI表演者",
-      "timeout": "肖像生成超时。请重试。",
-      "retry": "↺ 重试",
-      "generating": "生成肖像中（约30秒）…",
-      "selected": "已选择 — 点击创建视频",
-      "clickSelect": "点击选择",
-      "regenerate": "重新生成",
-      "genderMale": "♂ 男性",
-      "genderFemale": "♀ 女性",
-      "cancel": "取消",
-      "create": "创建视频",
-      "submitting": "提交中…"
     },
     "advancedSubtitle": "微调你的音轨"
   },
@@ -281,10 +251,10 @@
       "starterDesc": "每月60首，YouTube上传，AI封面",
       "pro": "Music Pro",
       "proPrice": "£19/月",
-      "proDesc": "每月150首，YouTube上传，3个头像视频",
+      "proDesc": "每月150首，YouTube上传",
       "agency": "Music Agency",
       "agencyPrice": "£39/月",
-      "agencyDesc": "每月300首，YouTube，10个头像视频，Facebook",
+      "agencyDesc": "每月300首，YouTube，Facebook",
       "enterprise": "企业版（管理员）",
       "free": "免费",
       "getStarter": "获取Music Starter",
@@ -300,8 +270,6 @@
         "download": "歌曲下载与分享",
         "genres": "所有100+风格类型",
         "coverArt": "AI封面",
-        "avatar3": "每月3个口型同步视频",
-        "avatar10": "每月10个口型同步视频",
         "facebook": "Facebook发布"
       }
     }
@@ -334,7 +302,7 @@
     "starterName": "Music Starter",
     "starterDesc": "适合开始AI音乐创作的艺术家。",
     "proName": "Music Pro",
-    "proDesc": "适合想要头像视频的活跃创作者。",
+    "proDesc": "适合想要更多歌曲和功能的活跃创作者。",
     "agencyName": "Music Agency",
     "agencyDesc": "适合高产创作者和唱片公司团队。",
     "getStarter": "获取Music Starter",
@@ -376,10 +344,6 @@
         "coverArt": {
           "title": "电影级封面",
           "desc": "每张封面都自带流畅的Ken Burns电影运镜效果，所有用户免费使用。"
-        },
-        "avatarVideos": {
-          "title": "头像口型同步视频",
-          "desc": "AI表演者以高清视频演唱您的歌曲。适合YouTube、Instagram Reels和音乐推广。"
         },
         "genreBlending": {
           "title": "风格融合",

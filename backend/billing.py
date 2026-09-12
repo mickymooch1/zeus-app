@@ -95,12 +95,10 @@ _PLAN_SONG_CREDITS = {
     "music_agency":  150,
 }
 
-_PLAN_VIDEO_CREDITS = {
-    "agency":       5,
-    "enterprise":   15,
-    "music_pro":    3,
-    "music_agency": 10,
-}
+# Avatar videos (D-ID lip-sync) are no longer offered — no plan grants video
+# credits. Left as a dict (rather than removed) so the two .get(plan, 0) call
+# sites below don't need touching and no plan can silently regain credits.
+_PLAN_VIDEO_CREDITS: dict[str, int] = {}
 
 _PLAN_PREMIUM_CREDITS = {
     "pro":           10,
@@ -131,7 +129,6 @@ MUSIC_PLANS: dict = {
         "features": [
             "75 song credits/month — up to 150 generated versions",
             "YouTube upload",
-            "3 avatar videos/month",
             "Song download & share",
             "All music genres",
             "No website builder",
@@ -144,7 +141,6 @@ MUSIC_PLANS: dict = {
         "features": [
             "150 song credits/month — up to 300 generated versions",
             "YouTube upload",
-            "10 avatar videos/month",
             "Song download & share",
             "All music genres",
             "No website builder",
