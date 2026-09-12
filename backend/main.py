@@ -381,9 +381,9 @@ async def lifespan(app: FastAPI):
             log.warning("Telegram setWebhook failed (non-fatal): %s", _exc)
     threading.Thread(target=_register_telegram_webhook, daemon=True).start()
 
-    _serper_key = os.environ.get("SERPER_API_KEY", "").strip()
-    log.info("SERPER_API_KEY present: %s — value prefix: %s", bool(_serper_key), (_serper_key[:6] + "…") if _serper_key else "MISSING")
-    print(f"[startup] SERPER_API_KEY present={bool(_serper_key)} prefix={(_serper_key[:6] + '…') if _serper_key else 'MISSING'}", file=sys.stderr, flush=True)
+    _serper_present = bool(os.environ.get("SERPER_API_KEY", "").strip())
+    log.info("SERPER_API_KEY present: %s", _serper_present)
+    print(f"[startup] SERPER_API_KEY present={_serper_present}", file=sys.stderr, flush=True)
     # One-time migration: give song credits to any user who doesn't have a record yet
     try:
         _backfilled = db.backfill_missing_song_credits(
