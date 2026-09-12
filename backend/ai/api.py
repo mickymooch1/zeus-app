@@ -33,11 +33,24 @@ def context(user=Depends(get_current_user), path=Depends(get_db_path_dep)):
         if settings.mode != 'disabled':
             if not user.get('email_verified'):
                 raise HubError('Verify your email before using Zeus Hub.', 403)
-            # One-time explicitly configured allowance; later configuration changes do not top up old accounts.
-            with store.connection() as conn:
-                granted = conn.execute("SELECT 1 FROM hub_ledger WHERE user_id=? AND mode=? AND reference='grant:initial-v1'", (user['id'], settings.mode)).fetchone()
-            if not granted and settings.mode != 'beta':
-                store.grant(user['id'], settings.mode, settings.initial_allowance, 'initial-v1')
+            if settings.mode == 'beta':
+                # Distinct one-time public-beta grant; retain any existing
+                # initial-v1 ledger history and add to the current balance.
+                grant_reference = 'public-beta-v1'
+                if settings.initial_allowance == 0:
+                    grant_reference = None
+            else:
+                grant_reference = 'initial-v1'
+            # Later configuration changes do not top up accounts that already
+            # received this grant. Store.grant is transactionally idempotent.
+            if grant_reference is not None:
+                with store.connection() as conn:
+                    granted = conn.execute(
+                        'SELECT 1 FROM hub_ledger WHERE user_id=? AND mode=? AND reference=?',
+                        (user['id'], settings.mode, 'grant:' + grant_reference),
+                    ).fetchone()
+                if not granted:
+                    store.grant(user['id'], settings.mode, settings.initial_allowance, grant_reference)
         return store, settings, user
     except HubError as error:
         raise HTTPException(error.status, str(error)) from None
@@ -46,11 +59,9 @@ def context(user=Depends(get_current_user), path=Depends(get_db_path_dep)):
 @router.get('/status')
 def status(ctx=Depends(context)):
     store, settings, user = ctx
-    # Outside beta, unchanged: council_enabled reflects whether a council is
-    # configured at all. In beta, it's per-caller -- true only for the one
-    # allowlisted private-Council-beta account; everyone else on the general
-    # Hub beta still sees Council as disabled, exactly as before.
-    council_enabled = (settings.mode != 'beta' and len(settings.members) >= 2) or (settings.mode == 'beta' and user['id'] in settings.council_beta_user_ids)
+    # Council availability is global; each user's verified API access and
+    # sufficient credit balance are enforced separately.
+    council_enabled = len(settings.members) >= 2
     return {'mode': settings.mode, 'balance': store.balance(user['id'], settings.mode), 'balance_name': 'Hub Beta Credits' if settings.mode == 'beta' else 'Zeus Hub credits',
             'enabled': settings.mode != 'disabled', 'council_enabled': council_enabled,
             'max_input_bytes': settings.max_input_bytes, 'message': 'Development simulation: no paid AI calls.' if settings.mode == 'development' else None}

@@ -65,7 +65,7 @@ export default function LandingPage() {
             <span className="gradient-text">build and get things done.</span>
           </h1>
           <p className="hero-sub">
-            Get answers with Ask Zeus, search the live web and compare AI perspectives with Zeus Council. Build websites, create music with Zeus Beats, create memorial QR tributes and use practical business tools—all in one place. Ask Zeus and Zeus Council are currently in private beta.
+            Get answers with Ask Zeus, search the live web and compare AI perspectives with Zeus Council. Build websites, create music with Zeus Beats, create memorial QR tributes and use practical business tools—all in one place. Ask Zeus and Zeus Council are currently in public beta.
           </p>
           <div className="hero-actions">
             <Link to="/register" className="btn-primary btn-lg">

@@ -37,12 +37,12 @@ references. There is no read, migration, conversion, or deduction of any legacy
 music, video, premium or payment ledger. This isolated ledger can later feed an
 explicit universal-wallet adapter.
 
-The configured `initial_allowance` is a **one-time** grant per user in live mode,
-not a recurring entitlement. Changing the configuration does not refill existing
-accounts. Zero is allowed. No checkout or automatic paid top-up has been added.
-For a future approved grant integration use `Store.grant(user_id, 'live', amount,
-unique_reference)`; it is idempotent and rejects reuse with a different amount.
-Keep that operation behind trusted administration. There is intentionally no public
+The beta `initial_allowance` is a **one-time** public-beta grant per verified
+account using the distinct `public-beta-v1` ledger reference. It adds to the
+existing beta Hub balance and is idempotent; the earlier `initial-v1` history is
+not modified. Changing the configuration does not refill accounts that already
+received the grant. Live-mode `initial-v1` behavior remains separate. No checkout
+or automatic paid top-up has been added, and there is intentionally no public
 credit-grant endpoint.
 
 The quote uses a conservative UTF-8 input bound, output caps, model prices and the

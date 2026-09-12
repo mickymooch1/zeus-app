@@ -43,7 +43,7 @@
   "judge": "council-gpt-judge",
   "credit_usd": 0.01,
   "council_multiplier": 1,
-  "initial_allowance": 0,
+  "initial_allowance": 20,
   "free_daily_requests": 20,
   "daily_requests": 20,
   "requests_per_minute": 3,

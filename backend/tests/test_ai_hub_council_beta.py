@@ -1,5 +1,4 @@
-"""Private Zeus Council beta: a separate, narrower allowlist than general
-Hub beta access, fixed 15/12/refund settlement, and an explicit per-request
+"""Public Zeus Council beta: global Council config, fixed 15/12/refund settlement, and an explicit per-request
 cost cap. All provider traffic is mocked -- no real network/API calls."""
 import json
 import uuid
@@ -15,8 +14,8 @@ OTHER_BETA_USER = 'ordinary-beta-user'
 
 def _raw_config():
     raw = json.loads((Path(__file__).parents[1] / 'ai/beta-config.example.json').read_text())
-    raw['beta_user_ids'] = [COUNCIL_USER, OTHER_BETA_USER]
-    raw['council_beta_user_ids'] = [COUNCIL_USER]
+    raw['beta_user_ids'] = [COUNCIL_USER]
+    raw['council_beta_user_ids'] = []
     return raw
 
 
@@ -32,7 +31,7 @@ def council_settings(monkeypatch):
 
 def test_council_beta_config_validates_and_matches_expected_shape(council_settings):
     s = council_settings
-    assert s.council_beta_user_ids == [COUNCIL_USER]
+    assert s.council_beta_user_ids == []
     assert len(s.members) == 3 and len(set(s.members)) == 3
     assert s.judge and s.judge in s.models
     assert s.council_max_request_usd == pytest.approx(0.06)
@@ -40,17 +39,13 @@ def test_council_beta_config_validates_and_matches_expected_shape(council_settin
     assert s.models['beta'].model == 'claude-haiku-4-5-20251001'
 
 
-def test_council_denied_for_ordinary_beta_user(council_settings):
-    # On the general Hub beta allowlist (Ask Zeus works), but not on the
-    # separate, narrower council allowlist.
-    with pytest.raises(HubError, match='Council live calls are disabled'):
-        council_settings.authorize(OTHER_BETA_USER, 'council')
-    council_settings.authorize(OTHER_BETA_USER, 'ask')  # unaffected, does not raise
+def test_council_allowed_for_verified_user_outside_both_allowlists(council_settings):
+    council_settings.authorize(OTHER_BETA_USER, 'council')
+    council_settings.authorize(OTHER_BETA_USER, 'ask')
 
 
-def test_council_denied_for_unknown_user(council_settings):
-    with pytest.raises(HubError, match='invitation-only'):
-        council_settings.authorize('nobody', 'council')
+def test_council_authorization_does_not_require_allowlisted_id(council_settings):
+    council_settings.authorize('nobody', 'council')
 
 
 def test_council_allowed_for_council_beta_user(council_settings):
@@ -113,7 +108,7 @@ def _balance(c):
     return c.get('/api/hub/status').json()['balance']
 
 
-def test_status_reports_council_enabled_only_for_the_allowlisted_user(council_settings, tmp_path, monkeypatch):
+def test_status_reports_global_council_enabled_and_preserves_diagnostics_gate(council_settings, tmp_path, monkeypatch):
     # Regression: /api/hub/status must actually reflect council access per
     # caller in beta mode -- the frontend's whole Council UI (HubChatPage's
     # featureEnabled) gates on this exact field. Getting it wrong makes the
@@ -133,7 +128,8 @@ def test_status_reports_council_enabled_only_for_the_allowlisted_user(council_se
         app.dependency_overrides[auth.get_current_user] = lambda: {'id': COUNCIL_USER, 'email_verified': 1, 'subscription_status': 'free'}
         assert c.get('/api/hub/status').json()['council_enabled'] is True
         app.dependency_overrides[auth.get_current_user] = lambda: {'id': OTHER_BETA_USER, 'email_verified': 1, 'subscription_status': 'free'}
-        assert c.get('/api/hub/status').json()['council_enabled'] is False
+        public_status = c.get('/api/hub/status').json()
+        assert public_status['council_enabled'] is True
 
 
 def test_full_success_charges_exactly_15(api_client, monkeypatch):
@@ -146,7 +142,7 @@ def test_full_success_charges_exactly_15(api_client, monkeypatch):
     result = _submit(c)
     assert result['status'] == 'succeeded'
     assert result['zeus_credits_charged'] == 15
-    assert _balance(c) == 0
+    assert _balance(c) == 20
 
 
 def test_one_member_failure_charges_exactly_12(api_client, monkeypatch):
@@ -161,7 +157,7 @@ def test_one_member_failure_charges_exactly_12(api_client, monkeypatch):
     result = _submit(c)
     assert result['status'] == 'succeeded'
     assert result['zeus_credits_charged'] == 12
-    assert _balance(c) == 3  # 15 reserved - 12 charged = 3 refunded
+    assert _balance(c) == 23  # public allowance plus the 3 refunded credits
 
 
 def test_two_member_failures_refund_all_15(api_client, monkeypatch):
@@ -177,7 +173,7 @@ def test_two_member_failures_refund_all_15(api_client, monkeypatch):
     result = _submit(c)
     assert result['status'] == 'failed'
     assert result['zeus_credits_charged'] == 0
-    assert _balance(c) == 15  # fully refunded, no verdict was ever produced
+    assert _balance(c) == 35  # original 15 plus public allowance; fully refunded
 
 
 def test_judge_failure_refunds_all_15_even_if_every_member_succeeded(api_client, monkeypatch):
@@ -194,7 +190,7 @@ def test_judge_failure_refunds_all_15_even_if_every_member_succeeded(api_client,
     result = _submit(c)
     assert result['status'] == 'failed'
     assert result['zeus_credits_charged'] == 0
-    assert _balance(c) == 15
+    assert _balance(c) == 35
 
 
 def test_cost_cap_rejects_a_request_that_would_exceed_it(api_client, monkeypatch):
