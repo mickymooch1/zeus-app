@@ -98,6 +98,33 @@ def _fix_stuck_songs() -> list[str]:
     return warnings
 
 
+def _send_recovery_notices() -> None:
+    """Auto-resolve any incident quiet for incidents.AUTO_RESOLVE_QUIET_MINUTES+
+    and ping a short recovered notice for each. Safe to call from multiple
+    cycles (health_check daily, stuck_song_sweep every 15 min): resolving an
+    incident that's already resolved is impossible by construction (the
+    query only matches status='open'), so calling this more often only makes
+    resolution more responsive, never double-fires.
+    """
+    import incidents
+    from alerts import send_admin_alert
+
+    try:
+        resolved = incidents.resolve_stale()
+    except Exception:
+        log.exception("ops_agent: incidents.resolve_stale() raised")
+        return
+    for incident in resolved:
+        try:
+            send_admin_alert(
+                f"✅ Recovered: {incident['title']} ({incident['category']})\n"
+                f"No recurrence in {incidents.AUTO_RESOLVE_QUIET_MINUTES}+ min — "
+                f"was open ×{incident['occurrence_count']} since {incident['first_seen'][:16]}"
+            )
+        except Exception:
+            log.exception("ops_agent: recovery notice failed for category=%r", incident.get("category"))
+
+
 def stuck_song_sweep() -> None:
     """Recover songs whose provider webhook never arrived. Runs every 15 min.
 
@@ -116,6 +143,7 @@ def stuck_song_sweep() -> None:
     Safe to run alongside health_check: _fix_stuck_songs flips status to 'failed', so
     a swept row no longer matches its own WHERE clause and cannot be refunded twice.
     """
+    import incidents
     from alerts import send_admin_alert
 
     try:
@@ -126,18 +154,24 @@ def stuck_song_sweep() -> None:
         log.exception("ops_agent: stuck_song_sweep raised")
         return
 
-    if not warnings:
+    if warnings:
+        # Log BEFORE alerting, and never let the alert take down the job. The refund is
+        # already committed by this point, so a Telegram outage must not turn a completed
+        # recovery into a raised exception — the record of it has to survive regardless.
+        log.warning("ops_agent stuck_song_sweep: %s", warnings)
+        try:
+            prefix = incidents.note("stuck_song_sweep", "\n".join(warnings))
+            send_admin_alert(f"{prefix}\n⏳ <b>Zeus Ops</b> — stuck song sweep\n" + "\n".join(warnings))
+        except Exception:
+            log.exception("ops_agent: stuck_song_sweep alert failed (refund already applied)")
+    else:
         log.info("ops_agent stuck_song_sweep: nothing stuck")
-        return
 
-    # Log BEFORE alerting, and never let the alert take down the job. The refund is
-    # already committed by this point, so a Telegram outage must not turn a completed
-    # recovery into a raised exception — the record of it has to survive regardless.
-    log.warning("ops_agent stuck_song_sweep: %s", warnings)
-    try:
-        send_admin_alert("⏳ <b>Zeus Ops</b> — stuck song sweep\n" + "\n".join(warnings))
-    except Exception:
-        log.exception("ops_agent: stuck_song_sweep alert failed (refund already applied)")
+    # This is the most frequent cycle in the whole monitoring system (every 15
+    # min, vs health_check's once a day) — running the auto-resolve sweep here
+    # too, not just in health_check, is what actually makes "no new occurrence
+    # for 60 minutes" a responsive check rather than a once-a-day one.
+    _send_recovery_notices()
 
 
 def health_check() -> None:
@@ -146,17 +180,36 @@ def health_check() -> None:
     Fixes stuck songs, checks provider balances, alerts Michael if anything
     needs attention.
     """
+    import incidents
     from alerts import _check_ai_providers, _check_apiframe_credits, _check_fal_balance, send_admin_alert
 
     warnings: list[str] = []
 
-    warnings.extend(_fix_stuck_songs())
+    stuck_warnings = _fix_stuck_songs()
+    if stuck_warnings:
+        try:
+            prefix = incidents.note("stuck_song_sweep", "\n".join(stuck_warnings))
+            stuck_warnings = [f"{prefix}\n{w}" for w in stuck_warnings]
+        except Exception:
+            log.exception("ops_agent health_check: incident tracking failed for stuck songs")
+    warnings.extend(stuck_warnings)
+
+    # (checker, category) pairs, explicit rather than derived from
+    # checker.__name__ -- a name-string lookup would be one indirection away
+    # from a category silently failing to match (a wrapped/mocked checker
+    # with a different __name__, for instance) and incident tracking just
+    # going quiet with no error. Pairing them directly can't drift apart.
+    _CHECKERS = (
+        (_check_fal_balance, "fal_balance"),
+        (_check_apiframe_credits, "apiframe_credits"),
+        (_check_ai_providers, "ai_providers"),
+    )
 
     # A checker returns None ONLY when it positively read a healthy balance —
     # "couldn't check" comes back as a loud warning, never silence. If a checker
     # itself blows up, that is also reported rather than swallowed: a monitor
     # that fails quietly is worse than no monitor (see alerts.py header).
-    for checker in (_check_fal_balance, _check_apiframe_credits, _check_ai_providers):
+    for checker, category in _CHECKERS:
         # getattr guard: this is the error path, so it must not be able to throw.
         name = getattr(checker, "__name__", str(checker))
         try:
@@ -166,6 +219,12 @@ def health_check() -> None:
             w = (f"⁉️ {name} CRASHED — {type(exc).__name__}: {exc}. "
                  "Provider balance is currently unmonitored.")
         if w:
+            try:
+                severity = incidents.severity_from_checker_message(w)
+                prefix = incidents.note(category, w, severity=severity)
+                w = f"{prefix}\n{w}"
+            except Exception:
+                log.exception("ops_agent health_check: incident tracking failed for %s", category)
             warnings.append(w)
 
     if warnings:
@@ -173,6 +232,8 @@ def health_check() -> None:
         log.warning("ops_agent health_check: %d warning(s) sent — %s", len(warnings), warnings)
     else:
         log.info("ops_agent health_check: all OK (fal.ai, Apiframe and every configured AI provider key)")
+
+    _send_recovery_notices()
 
 
 # ── Daily report ──────────────────────────────────────────────────────────────

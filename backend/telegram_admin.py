@@ -63,6 +63,8 @@ Just talk to me naturally, mate! Examples:
 <code>school list</code> — all schools contacted with status
 <code>school followup</code> — follow up with schools >7 days, no reply
 <code>make school EMAIL</code> — set account_type='school' for testing
+<code>incidents</code> — list open incidents (severity, count, age)
+<code>history CATEGORY</code> — last 5 resolved incidents for a category
 <code>help</code>"""
 
 
@@ -1681,6 +1683,44 @@ def _cmd_status() -> str:
         return f"❌ Status error: {exc}"
 
 
+def _cmd_incidents() -> str:
+    """List open incidents: severity, occurrence count, age. Plain Python —
+    no AI call, matches the incident-tracking feature's own cost contract."""
+    import incidents
+
+    rows = incidents.list_open()
+    if not rows:
+        return "✅ No open incidents."
+    lines = ["📋 <b>Open incidents</b>"]
+    for row in rows:
+        prefix = incidents.SEVERITY_PREFIX.get(row["severity"], "🔵 INFO")
+        age = incidents.humanize_age(row["first_seen"])
+        lines.append(
+            f"{prefix} {_esc(row['title'])} <code>{_esc(row['category'])}</code>\n"
+            f"  ×{row['occurrence_count']} · open {age}"
+        )
+    return "\n".join(lines)
+
+
+def _cmd_history(category: str) -> str:
+    """Last 5 resolved incidents for one category, with likely_cause and
+    resolution (populated by a later diagnosis stage — may still be empty)."""
+    import incidents
+
+    rows = incidents.list_history(category, limit=5)
+    if not rows:
+        return f"No resolved incidents found for category <code>{_esc(category)}</code>."
+    lines = [f"📜 <b>History: {_esc(category)}</b> (last {len(rows)})"]
+    for row in rows:
+        resolved_at = (row.get("resolved_at") or "")[:16].replace("T", " ")
+        lines.append(
+            f"• {resolved_at} — {_esc(row['title'])} (×{row['occurrence_count']})\n"
+            f"  cause: {_esc(row.get('likely_cause')) or '—'}\n"
+            f"  resolution: {_esc(row.get('resolution')) or '—'}"
+        )
+    return "\n".join(lines)
+
+
 # ── Persistent conversation memory ───────────────────────────────────────────
 
 def _ensure_admin_tables() -> None:
@@ -2163,6 +2203,17 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
         return HELP_TEXT
 
     # ── Precision commands — exact match, bypass AI ───────────────────────────
+
+    # incidents — list open incidents (severity, count, age). No AI call: the
+    # "porick" prefix is optional, matching the bare-word style every other
+    # exact command here already uses.
+    if re.match(r'^(?:porick\s+)?incidents$', t, re.IGNORECASE):
+        return _cmd_incidents()
+
+    # history CATEGORY — last 5 resolved incidents for that category
+    m = re.match(r'^(?:porick\s+)?history\s+(\S+)$', t, re.IGNORECASE)
+    if m:
+        return _cmd_history(m.group(1).strip())
 
     # db exec / db query — raw SQL (too dangerous to let AI interpret)
     m = re.match(r'^db\s+exec\s+"(.+)"$', t, re.IGNORECASE | re.DOTALL)

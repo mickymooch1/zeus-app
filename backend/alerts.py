@@ -12,6 +12,8 @@ import time
 
 import requests
 
+import incidents as _incidents
+
 log = logging.getLogger("zeus.alerts")
 
 # ── Digest counters ─────────────────────────────────────────────────────────────
@@ -173,7 +175,9 @@ def send_admin_alert(message: str) -> bool:
 
 def alert_new_user(email: str) -> None:
     try:
+        prefix = _incidents.note("new_signup", f"{email} signed up")
         send_admin_alert(
+            f"{prefix}\n"
             "👤 New signup!\n"
             f"📧 {email}\n"
             "📅 Just now\n"
@@ -286,7 +290,9 @@ def alert_contact_submission(name: str, email: str, subject: str, message: str,
                 f"To send, edit as needed and run:\n<code>{cmd}</code>")
 
     try:
+        prefix = _incidents.note("contact_submission", f"{email or 'unknown'}: {subject or '(no subject)'}")
         return send_admin_alert(
+            f"{prefix}\n"
             "📬 <b>New contact form submission</b>\n"
             f"👤 {esc(name) or '(no name)'}\n"
             f"📧 {esc(email) or '(no email)'}\n"
@@ -308,7 +314,9 @@ _FLAG_LABELS = {
 def alert_signup_flag(email: str, reason: str, detail: str) -> None:
     """Soft abuse signal — the signup was ALLOWED, this is for pattern-spotting."""
     try:
+        prefix = _incidents.note("signup_flag", f"{email}: {reason} — {detail}")
         send_admin_alert(
+            f"{prefix}\n"
             "🚩 Signup flagged (not blocked)\n"
             f"📧 {email}\n"
             f"{_FLAG_LABELS.get(reason, reason)}\n"
@@ -322,7 +330,9 @@ def alert_payment(email: str, plan_key: str, amount_display: str) -> None:
     try:
         _bump_digest_counter("new_subscriptions")
         plan_display = _PLAN_DISPLAY.get(plan_key, plan_key or "Unknown plan")
+        prefix = _incidents.note("new_subscription", f"{email}: {plan_display} ({amount_display})")
         send_admin_alert(
+            f"{prefix}\n"
             "💰 New payment!\n"
             f"📧 {email}\n"
             f"💳 Plan: {plan_display}\n"
@@ -335,7 +345,9 @@ def alert_payment(email: str, plan_key: str, amount_display: str) -> None:
 def alert_payment_failed(email: str, session_id: str = "") -> None:
     try:
         _bump_digest_counter("errors")
+        prefix = _incidents.note("payment_failed", f"{email or 'unknown'}: session={session_id or 'n/a'}")
         send_admin_alert(
+            f"{prefix}\n"
             "🚨 Payment FAILED (delayed payment method)\n"
             f"📧 {email or 'unknown'}\n"
             f"🧾 session={session_id or 'n/a'}\n"
@@ -353,7 +365,9 @@ def alert_payg_purchase(email: str, pack_label: str, credits: int, amount_displa
     Telegram). Fire-and-forget: never raises into the webhook handler.
     """
     try:
+        prefix = _incidents.note("payg_purchase", f"{email or 'unknown'}: {pack_label} ({credits} credits)")
         send_admin_alert(
+            f"{prefix}\n"
             "💰 PAYG PURCHASE\n"
             f"📧 Customer: {email or 'unknown'}\n"
             f"📦 Pack: {pack_label} ({credits} credits)\n"
@@ -372,7 +386,9 @@ def alert_webhook_error(event_type: str, event_id: str, error: str) -> None:
     """
     try:
         _bump_digest_counter("errors")
+        prefix = _incidents.note("stripe_webhook_error", f"event={event_type or 'unknown'} ({event_id or 'n/a'}): {error}")
         send_admin_alert(
+            f"{prefix}\n"
             "🚨 STRIPE WEBHOOK CRASHED — credits may NOT be granted!\n"
             f"📩 event: {event_type or 'unknown'} ({event_id or 'n/a'})\n"
             f"💥 error: {error}\n"
@@ -386,7 +402,9 @@ def alert_credit_not_granted(email: str, amount: str, detail: str, ref: str = ""
     """A payment succeeded but no credits were granted (user not found, unknown pack…)."""
     try:
         _bump_digest_counter("errors")
+        prefix = _incidents.note("credit_not_granted", f"{email or 'unknown'}: {amount} — {detail} (ref={ref or 'n/a'})")
         send_admin_alert(
+            f"{prefix}\n"
             "🚨 PAID but NO CREDITS granted!\n"
             f"📧 {email or 'unknown'}\n"
             f"💵 {amount}\n"
@@ -414,8 +432,11 @@ def alert_lyrics_generation_failed(email: str, song_type: str, error: str) -> No
     """
     try:
         _bump_digest_counter("errors")
+        category = f"lyrics_failed:{song_type}"
+        prefix = _incidents.note(category, f"{email or 'unknown'} ({song_type}): {error[:400]}")
         send_admin_alert_deduped(
-            f"lyrics_failed:{song_type}",
+            category,
+            f"{prefix}\n"
             "🚨 SONG GENERATION FAILED (lyrics)\n"
             f"👤 {email or 'unknown'}\n"
             f"🎵 Type: {song_type}\n"
@@ -437,8 +458,10 @@ def alert_fade_out_failed(variant_id: int, detail: str) -> None:
     tends to recur on every song, not just one.
     """
     try:
+        prefix = _incidents.note("fade_out_failed", f"variant_id={variant_id}: {detail[:400]}")
         send_admin_alert_deduped(
             "fade_out_failed",
+            f"{prefix}\n"
             "🎚️ SONG FADE-OUT FAILED\n"
             f"🎵 variant_id: {variant_id}\n"
             f"💥 {detail[:400]}\n"
@@ -458,8 +481,12 @@ def alert_service_error(service: str, status_code, detail: str) -> None:
     """
     try:
         _bump_digest_counter("errors")
+        category = f"service_error:{service}:{status_code}"
+        severity = _incidents.severity_from_status_code(status_code)
+        prefix = _incidents.note(category, f"{service} {status_code}: {detail[:400]}", severity=severity)
         send_admin_alert_deduped(
-            f"service_error:{service}:{status_code}",
+            category,
+            f"{prefix}\n"
             "🔌 EXTERNAL SERVICE ERROR\n"
             f"🛠️ Service: {service}\n"
             f"📟 Status: {status_code}\n"
@@ -482,8 +509,12 @@ def alert_song_failed(email: str, variant_id: int, error_msg: str = "", song_typ
     """
     try:
         _bump_digest_counter("errors")
+        category = f"song_failed:{song_type or 'normal'}"
+        symptoms = f"user={email} variant_id={variant_id}: {error_msg[:400] if error_msg else 'no error detail'}"
+        prefix = _incidents.note(category, symptoms)
         send_admin_alert_deduped(
-            f"song_failed:{song_type or 'normal'}",
+            category,
+            f"{prefix}\n"
             "⚠️ SONG GENERATION FAILED (music)\n"
             f"👤 {email}\n"
             f"🎵 variant_id={variant_id} type={song_type or 'normal'}\n"
@@ -497,7 +528,9 @@ def alert_song_failed(email: str, variant_id: int, error_msg: str = "", song_typ
 def alert_subscription_cancelled(email: str, plan_key: str) -> None:
     try:
         plan_display = _PLAN_DISPLAY.get(plan_key, plan_key or "Unknown plan")
+        prefix = _incidents.note("subscription_cancelled", f"{email}: was on {plan_display}")
         send_admin_alert(
+            f"{prefix}\n"
             "😢 Subscription cancelled\n"
             f"📧 {email}\n"
             f"💳 Was on: {plan_display}"
