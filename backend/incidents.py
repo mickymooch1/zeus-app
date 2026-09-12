@@ -401,6 +401,56 @@ def _gather_git_evidence(count: int = 5) -> str:
     return "\n".join(lines) if lines else "(no recent commits found)"
 
 
+def get_latest_master_commit() -> dict | None:
+    """The current HEAD commit on master: short sha + first line of the
+    commit message. Same GitHub API access as _gather_git_evidence above
+    (the deployed container has no .git -- see Dockerfile), reused here so
+    Porick's chat mode can answer "is the update live" with the real answer
+    instead of guessing. Returns None on any failure (no GITHUB_TOKEN,
+    network error, ...) -- callers must treat that as "couldn't check", not
+    "nothing shipped".
+    """
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if not token:
+        return None
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    try:
+        resp = requests.get(f"{_GITHUB_API}/repos/{_GITHUB_REPO}/commits/master", headers=headers, timeout=10)
+        resp.raise_for_status()
+        commit = resp.json()
+    except Exception:
+        log.exception("incidents: get_latest_master_commit failed")
+        return None
+    sha = commit.get("sha", "")
+    raw_message = (commit.get("commit", {}).get("message") or "").strip()
+    message = raw_message.splitlines()[0][:200] if raw_message else "(no commit message)"
+    return {"sha": sha[:7], "message": message}
+
+
+def list_recent_resolved(limit: int = 10) -> list[dict]:
+    """The most recently resolved incidents across EVERY category, newest
+    first -- unlike list_history(), which is scoped to one category. Powers
+    Porick's chat-mode check_incidents(status="resolved")."""
+    try:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                """SELECT * FROM incidents WHERE status = 'resolved'
+                   ORDER BY resolved_at DESC LIMIT ?""",
+                (limit,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+    except Exception:
+        log.exception("incidents: list_recent_resolved() failed")
+        return []
+
+
 def _call_diagnosis_model(incident: dict, log_evidence: str, git_evidence: str) -> dict | None:
     """Direct to api.anthropic.com (the `anthropic` SDK, no base_url override
     -- matching every other Anthropic call site in this codebase). Returns

@@ -1722,6 +1722,38 @@ def _cmd_history(category: str) -> str:
     return "\n".join(lines)
 
 
+def _cmd_check_deploy_status() -> str:
+    """Porick chat-mode tool: the real current commit on master, not a
+    guess -- via the same GitHub API access incidents.py's diagnosis
+    feature already uses (the deployed container has no .git, see
+    Dockerfile)."""
+    import incidents
+    commit = incidents.get_latest_master_commit()
+    if commit is None:
+        return "❓ Couldn't check GitHub — no GITHUB_TOKEN configured, or the API call failed."
+    return f"📦 Latest on master: <code>{commit['sha']}</code> — {_esc(commit['message'])}"
+
+
+def _cmd_check_incidents(status: str = "open") -> str:
+    """Porick chat-mode tool: real incident state, not a guess. "open"
+    reuses _cmd_incidents()'s own formatting directly; anything else falls
+    back to the most recently resolved incidents across every category
+    (list_history() is scoped to one category, which chat mode won't
+    usually know in advance)."""
+    status = (status or "open").strip().lower()
+    if status not in ("resolved", "recent", "closed"):
+        return _cmd_incidents()
+    import incidents
+    rows = incidents.list_recent_resolved(limit=10)
+    if not rows:
+        return "📭 Nothing resolved recently."
+    lines = ["📜 <b>Recently resolved</b>"]
+    for row in rows:
+        resolved_at = (row.get("resolved_at") or "")[:16].replace("T", " ")
+        lines.append(f"• {resolved_at} — {_esc(row['title'])} <code>{_esc(row['category'])}</code> (×{row['occurrence_count']})")
+    return "\n".join(lines)
+
+
 # ── Persistent conversation memory ───────────────────────────────────────────
 
 def _ensure_admin_tables() -> None:
@@ -1852,6 +1884,8 @@ mate who happens to run Zeus Beats infrastructure.
 Your capabilities:
 - status — users, songs, pending jobs, credits
 - logs — recent app logs
+- check_deploy_status — the ACTUAL current commit on master (hash + message). Use this whenever Michael asks if something shipped, is live, or is deployed — never guess or assume from memory.
+- check_incidents — real open (or recently resolved) incidents from the incident tracker. Use this whenever Michael asks if anything's broken, failing, or what's been fixed lately — never guess.
 - redeploy — trigger Railway redeploy
 - post_channel — post to @zeusbeatsmusic Telegram channel
 - email_user — send email to one user
@@ -1891,6 +1925,8 @@ For a clarifying question, banter, or any reply to show Michael:
 Action schemas (all include "type": "action"):
 {"type": "action", "action": "status"}
 {"type": "action", "action": "logs"}
+{"type": "action", "action": "check_deploy_status"}
+{"type": "action", "action": "check_incidents", "status": "open"}
 {"type": "action", "action": "redeploy"}
 {"type": "action", "action": "post_channel", "message": "..."}
 {"type": "action", "action": "email_user", "email": "...", "subject": "...", "body": "..."}
@@ -1924,11 +1960,31 @@ Rules:
 - add_credits duplicate guard: if a grant would duplicate a recent one, the system replies with a "⚠️ ... Grant again anyway? Reply yes" warning. If Michael then confirms ("yes", "yeah do it", "go on"), re-issue the SAME add_credits action from history but add "force": true. Only add "force": true right after such a warning — never by default.
 - For upgrade_user: plan must be one of the exact plan keys listed above.
 
+FACTUAL CLAIMS ABOUT SYSTEM STATE — CRITICAL:
+Never state that something is or isn't deployed, live, working, broken, or fixed as if
+it were a checked fact unless you called check_deploy_status or check_incidents earlier
+IN THIS SAME EXCHANGE and are reporting exactly what it returned. Memory of an earlier
+message, training knowledge, or "should be live by now" is a guess, not a fact — never
+phrase a guess as a finding.
+- Asked if something shipped / is live / is deployed → call check_deploy_status.
+- Asked if anything's broken / failing / what's gone wrong → call check_incidents.
+- Asked what's been fixed recently → call check_incidents with "status": "resolved".
+- If neither tool actually answers the question, or the tool comes back empty/unhelpful,
+  say so plainly instead of inventing an answer — e.g. {"type": "message", "text":
+  "I don't know, want me to check the logs?"} (your own words are fine, keep the tone).
+- Banter, jokes and speculation are still totally fine — that's your personality — but
+  frame them obviously as such ("no idea mate, but knowing your code it's probably held
+  together with tape 😄"), never delivered as if it were a checked fact.
+
 Examples:
 "give laky120@yahoo.com 20 more songs" → {"type": "action", "action": "add_credits", "email": "laky120@yahoo.com", "amount": 20}
 "anne is on free, give her music starter" → {"type": "action", "action": "upgrade_user", "email": "cummins.anne@yahoo.co.uk", "plan": "music_starter"}
 "how's everything going" → {"type": "action", "action": "status"}
 "check the logs" → {"type": "action", "action": "logs"}
+"is the update live" → {"type": "action", "action": "check_deploy_status"}
+"did the fix ship yet" → {"type": "action", "action": "check_deploy_status"}
+"is anything broken right now" → {"type": "action", "action": "check_incidents", "status": "open"}
+"what's been fixed lately" → {"type": "action", "action": "check_incidents", "status": "resolved"}
 "redeploy" → {"type": "action", "action": "redeploy"}
 "post on the channel that we have new genres" → {"type": "action", "action": "post_channel", "message": "🎵 New genres just dropped on Zeus Beats!\\n\\nFresh sounds added — go create your next hit now 🚀\\n\\nzeusbeats.com"}
 "what's the latest signup" → {"type": "action", "action": "recent_users"}
@@ -1945,6 +2001,7 @@ Examples:
 "email the schools again" → {"type": "message", "text": "Which schools do you mean, mate — the ones we already blasted, or a new city?"}
 "what's Suno pricing now" → {"type": "action", "action": "web_search", "query": "Suno AI music pricing 2026"}
 "who's the CEO of Spotify" → {"type": "action", "action": "web_search", "query": "Spotify CEO 2026"}
+"is my nan's broadband working" → {"type": "message", "text": "I don't know, mate — no tool of mine covers that one. Want me to check the logs instead?"}
 """
 
 
@@ -2039,6 +2096,12 @@ def _execute_action(action: dict, chat_id: str = "") -> str:
 
     if act == "logs":
         return _cmd_logs()
+
+    if act == "check_deploy_status":
+        return _cmd_check_deploy_status()
+
+    if act == "check_incidents":
+        return _cmd_check_incidents(action.get("status", "open"))
 
     if act == "redeploy":
         result = _cmd_redeploy()
