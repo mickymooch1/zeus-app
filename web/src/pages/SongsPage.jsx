@@ -874,9 +874,6 @@ export default function SongsPage() {
   const [pinInput, setPinInput]           = useState('');
   const [pinError, setPinError]           = useState('');
   const [vocalMode, setVocalMode]         = useState('full'); // 'full' | 'intermittent' | 'instrumental'
-  const [animateCoverPref, setAnimateCoverPref] = useState(
-    () => localStorage.getItem('zeus_animated_covers') === 'true'
-  );
   const [songTitle, setSongTitle]         = useState('');
   const [healingFrequency, setHealingFrequency] = useState('432');
 
@@ -948,7 +945,10 @@ export default function SongsPage() {
 
   const isAdmin          = credits.is_admin;
   const isFreeTier       = !isAdmin && !credits.plan && !credits.has_paid;
-  const animateCover     = !isFreeTier && animateCoverPref;
+  // Cinematic Motion Covers are free for every tier now — same as web-beats.
+  // animate_cover is otherwise a no-op server-side (Kling, the pipeline it
+  // used to gate, was removed), so this only needs to stay true.
+  const animateCover     = true;
   const isMusicPlan      = ['music_starter', 'music_pro', 'music_agency'].includes(credits.plan);
   const canShowExplicit  = isAdmin || ['agency', 'enterprise'].includes(credits.plan);
   const canYouTube       = isAdmin || ['agency', 'enterprise'].includes(credits.plan) || isMusicPlan;
@@ -1078,10 +1078,6 @@ export default function SongsPage() {
     fetchLibrary();
     fetchPlaylists();
   }, [fetchCredits, fetchLibrary, fetchPlaylists]);
-
-  useEffect(() => {
-    localStorage.setItem('zeus_animated_covers', animateCoverPref ? 'true' : 'false');
-  }, [animateCoverPref]);
 
   // Kids mode forces explicit off and the toggle hidden
   useEffect(() => { if (isKidsMode || isRoastMode) setExplicit(false); }, [isKidsMode, isRoastMode]);
@@ -2697,7 +2693,7 @@ export default function SongsPage() {
           </div>
 
           {/* ── Premium credits top-up ────────────────────────────────── */}
-          {!isAdmin && !isFreeTier && animateCoverPref && credits.premium_credits === 0 && (
+          {!isAdmin && !isFreeTier && credits.premium_credits === 0 && (
             <div style={{
               marginBottom: 44,
               padding: '20px 24px',
