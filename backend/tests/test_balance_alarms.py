@@ -156,6 +156,7 @@ def test_health_check_alerts_when_a_balance_is_unreadable():
     with patch.object(ops, "_fix_stuck_songs", return_value=[]), \
          patch("alerts._check_fal_balance", return_value="⁉️ fal.ai balance UNREADABLE — HTTP 404"), \
          patch("alerts._check_apiframe_credits", return_value=None), \
+         patch("alerts._check_ai_providers", return_value=None), \
          patch("alerts.send_admin_alert", side_effect=lambda m: sent.append(m)):
         ops.health_check()
     assert sent, "an unreadable balance must raise a Telegram alert"
@@ -168,6 +169,7 @@ def test_health_check_reports_a_crashing_checker():
     with patch.object(ops, "_fix_stuck_songs", return_value=[]), \
          patch("alerts._check_fal_balance", side_effect=RuntimeError("boom")), \
          patch("alerts._check_apiframe_credits", return_value=None), \
+         patch("alerts._check_ai_providers", return_value=None), \
          patch("alerts.send_admin_alert", side_effect=lambda m: sent.append(m)):
         ops.health_check()
     assert sent, "a crashing checker must not be swallowed"
@@ -180,6 +182,7 @@ def test_health_check_stays_quiet_when_both_balances_are_healthy():
     with patch.object(ops, "_fix_stuck_songs", return_value=[]), \
          patch("alerts._check_fal_balance", return_value=None), \
          patch("alerts._check_apiframe_credits", return_value=None), \
+         patch("alerts._check_ai_providers", return_value=None), \
          patch("alerts.send_admin_alert", side_effect=lambda m: sent.append(m)):
         ops.health_check()
     assert sent == []

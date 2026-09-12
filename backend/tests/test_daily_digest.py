@@ -181,6 +181,7 @@ def test_daily_report_includes_songs_by_type_and_counters(ops_db, monkeypatch):
     import zeus_ops_agent as _ops
     monkeypatch.setattr(alerts, "_check_fal_balance", lambda: None)
     monkeypatch.setattr(alerts, "_check_apiframe_credits", lambda: None)
+    monkeypatch.setattr(alerts, "_check_ai_providers", lambda: None)
     sent = []
     monkeypatch.setattr(alerts, "_send_telegram", lambda msg: sent.append(msg) or True)
 
@@ -193,7 +194,7 @@ def test_daily_report_includes_songs_by_type_and_counters(ops_db, monkeypatch):
     assert "New subscriptions: 1" in msg
     assert "Renewals: 1" in msg
     assert "Errors alerted: 1" in msg
-    assert "fal.ai + Apiframe balances healthy" in msg
+    assert "fal.ai, Apiframe and every configured AI provider key healthy" in msg
     # Counters must reset after being read into the digest
     assert alerts.pop_digest_counters() == {}
 
@@ -204,6 +205,7 @@ def test_daily_report_surfaces_low_provider_balance(ops_db, monkeypatch):
     import zeus_ops_agent as _ops
     monkeypatch.setattr(alerts, "_check_fal_balance", lambda: "⚠️ fal.ai balance low: $3.00")
     monkeypatch.setattr(alerts, "_check_apiframe_credits", lambda: None)
+    monkeypatch.setattr(alerts, "_check_ai_providers", lambda: None)
     sent = []
     monkeypatch.setattr(alerts, "_send_telegram", lambda msg: sent.append(msg) or True)
 
@@ -219,6 +221,7 @@ def test_daily_report_never_raises_if_a_balance_checker_throws(ops_db, monkeypat
     import zeus_ops_agent as _ops
     monkeypatch.setattr(alerts, "_check_fal_balance", lambda: (_ for _ in ()).throw(RuntimeError("down")))
     monkeypatch.setattr(alerts, "_check_apiframe_credits", lambda: None)
+    monkeypatch.setattr(alerts, "_check_ai_providers", lambda: None)
     sent = []
     monkeypatch.setattr(alerts, "_send_telegram", lambda msg: sent.append(msg) or True)
 

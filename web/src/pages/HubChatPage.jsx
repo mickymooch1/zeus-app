@@ -25,7 +25,7 @@ function Answer({ request }) {
       {result.simulated && <p className="hub-beta-caption">Private beta · simulated response</p>}
       <ReactMarkdown disallowedElements={['img']} components={citationComponents}>{result.text}</ReactMarkdown>
       {sources?.length > 0 && <section className="hub-sources" aria-label="Web sources"><h3>Sources</h3><ol>{sources.map(source => <li key={source.id}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a></li>)}</ol><p>Based on search snippets; full webpages were not read.</p></section>}
-      {result.unavailable > 0 && <p className="hub-notice">{result.unavailable} Council member was unavailable. This verdict uses the remaining responses.</p>}
+      {result.unavailable > 0 && <p className="hub-notice">{result.unavailable_members?.length > 0 ? `${result.unavailable_members.join(', ')} unavailable.` : `${result.unavailable} Council member was unavailable.`} This verdict uses the remaining responses.</p>}
       {result.members && <details><summary>View Council Responses</summary>{result.members.map(member => <section key={member.member}><h3>AI {member.member} · {member.provider} / {member.model}</h3><ReactMarkdown disallowedElements={['img']} components={citationComponents}>{member.text}</ReactMarkdown></section>)}</details>}
       <p className="hub-selection">Zeus selected the best AI for this task.</p>
     </div>}

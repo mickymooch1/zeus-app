@@ -120,6 +120,23 @@ class Settings:
                 _require(isinstance(model.model, str) and 0 < len(model.model) <= 200)
                 _require(all(math.isfinite(x) and x > 0 for x in (model.input_per_million, model.output_per_million)))
                 _require(type(model.max_output_tokens) is int and 128 <= model.max_output_tokens <= 2048)
+                # Anthropic and OpenAI must never be reached via OpenRouter, and
+                # OpenRouter must only carry models with no direct option (e.g.
+                # Mistral). OpenRouter's own API requires a "vendor/model-name"
+                # model id; Anthropic's and OpenAI's native APIs never accept a
+                # slash in the model id. That's a hard fact of both APIs, not a
+                # convention, so it catches both directions of misconfiguration:
+                # an Anthropic/OpenAI model accidentally pointed at OpenRouter
+                # (which would silently make OpenRouter a hard dependency for a
+                # model that doesn't need it), and a slash-qualified model (no
+                # direct provider here) accidentally pointed at a direct
+                # provider (which would otherwise 404 at request time instead
+                # of failing config validation up front).
+                if model.provider in ('anthropic', 'openai'):
+                    _require('/' not in model.model)
+                if model.provider == 'openrouter':
+                    _require('/' in model.model)
+                    _require(model.model.split('/', 1)[0].lower() not in ('anthropic', 'openai'))
             return settings
         except (KeyError, TypeError, ValueError, AttributeError):
             raise HubError('Hub model rates and allowances need valid server configuration before live use.') from None

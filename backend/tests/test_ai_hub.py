@@ -23,6 +23,65 @@ def test_live_requires_explicit_rates_and_allowances(monkeypatch):
         Settings.from_env()
 
 
+def _hub_config(monkeypatch, models):
+    """Minimal valid ZEUS_HUB_CONFIG with the given models substituted in."""
+    import json
+    raw = {'models': models, 'routes': {'default': next(iter(models))},
+           'credit_usd': 1, 'council_multiplier': 1, 'initial_allowance': 0,
+           'free_daily_requests': 5, 'max_request_usd': 1}
+    monkeypatch.setenv('ZEUS_HUB_MODE', 'live')
+    monkeypatch.setenv('ZEUS_HUB_CONFIG', json.dumps(raw))
+
+
+def test_anthropic_model_rejected_if_slash_qualified_like_openrouter(monkeypatch):
+    """A slash in the model id is how OpenRouter names models — an Anthropic
+    or OpenAI model id never has one, so this is either a stray OpenRouter-style
+    id on a direct provider, or (more dangerously) provider was meant to say
+    'openrouter' and got left as 'anthropic'/'openai' by mistake."""
+    _hub_config(monkeypatch, {'fast': {'provider': 'anthropic', 'model': 'anthropic/claude-sonnet-4-6',
+                                        'input_per_million': 1, 'output_per_million': 1}})
+    from ai.config import Settings, HubError
+    with pytest.raises(HubError):
+        Settings.from_env()
+
+
+def test_openai_model_rejected_if_slash_qualified(monkeypatch):
+    _hub_config(monkeypatch, {'fast': {'provider': 'openai', 'model': 'openai/gpt-5',
+                                        'input_per_million': 1, 'output_per_million': 1}})
+    from ai.config import Settings, HubError
+    with pytest.raises(HubError):
+        Settings.from_env()
+
+
+def test_openrouter_model_rejected_without_vendor_prefix(monkeypatch):
+    """OpenRouter model ids are always vendor/model-name; a bare id here means
+    this model almost certainly belongs on a direct provider instead."""
+    _hub_config(monkeypatch, {'fast': {'provider': 'openrouter', 'model': 'claude-sonnet-4-6',
+                                        'input_per_million': 1, 'output_per_million': 1}})
+    from ai.config import Settings, HubError
+    with pytest.raises(HubError):
+        Settings.from_env()
+
+
+def test_openrouter_rejected_for_anthropic_or_openai_vendor_prefix(monkeypatch):
+    """Anthropic and OpenAI both have direct options — routing them through
+    OpenRouter anyway is exactly the hard dependency this guards against."""
+    _hub_config(monkeypatch, {'fast': {'provider': 'openrouter', 'model': 'anthropic/claude-3-opus',
+                                        'input_per_million': 1, 'output_per_million': 1}})
+    from ai.config import Settings, HubError
+    with pytest.raises(HubError):
+        Settings.from_env()
+
+
+def test_openrouter_accepted_for_a_vendor_with_no_direct_option(monkeypatch):
+    """Mistral (or anything else with no direct provider slot) is exactly what
+    OpenRouter is meant to carry, and must keep working."""
+    _hub_config(monkeypatch, {'fast': {'provider': 'openrouter', 'model': 'mistralai/mistral-large-2411',
+                                        'input_per_million': 1, 'output_per_million': 1}})
+    from ai.config import Settings
+    assert Settings.from_env().models['fast'].provider == 'openrouter'
+
+
 def test_routing_conservative():
     from ai.routing import classify
     assert classify('Hello there') == 'default'
@@ -92,6 +151,7 @@ def test_council_survives_one_failed_member():
         result = await consult(['a', 'b', 'c'], 'judge', [{'role': 'user', 'content': 'Question'}], generate, progress)
         assert len(result['members']) == 2
         assert result['unavailable'] == 1
+        assert result['unavailable_members'] == ['b']
         assert 'judge' in result['text']
     asyncio.run(run())
 
@@ -266,6 +326,7 @@ def test_live_cost_settlement_and_council_preflight(client, monkeypatch):
     result = c.get('/api/hub/requests/' + body['request_id']).json()
     assert result['status'] == 'succeeded'
     assert result['result']['unavailable'] == 1
+    assert result['result']['unavailable_members'] == ['b']
     assert result['zeus_credits_charged'] == 1
     assert len(result['usage']) == 4
     assert store.balance('alice', 'live') == 20

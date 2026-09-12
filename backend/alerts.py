@@ -603,6 +603,150 @@ def _check_apiframe_credits() -> str | None:
     return None
 
 
+# ── AI provider health (Anthropic / OpenAI / Gemini / Grok / OpenRouter) ────────
+# Two severities only, per the monitoring contract: CRITICAL means the key
+# itself is bad or the provider couldn't be confirmed healthy at all (auth
+# rejected, unreachable, or an unexpected response — all three mean "we can't
+# vouch for this provider right now", not just "billing is low"); WARNING
+# means auth is fine but the account is running low on prepaid balance.
+# Never put a raw request URL or body into a returned message for a provider
+# whose key travels in the query string (Gemini) — everywhere else the key is
+# in a header, so the existing fal.ai/Apiframe style of including the URL is
+# safe there, but it is deliberately not extended to Gemini.
+ANTHROPIC_LOW_BALANCE_USD = 10.0
+OPENROUTER_LOW_BALANCE_USD = 5.0
+
+
+def _check_anthropic_provider(api_key: str) -> str | None:
+    """Auth + balance via the same endpoint main.py's /admin/credits already uses."""
+    try:
+        resp = requests.get(
+            "https://api.anthropic.com/v1/organizations/credits/balance",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+            timeout=10,
+        )
+    except Exception as exc:
+        return f"🔴 CRITICAL: Anthropic unreachable — {type(exc).__name__}: {exc}"
+    if resp.status_code in (401, 403):
+        return "🔴 CRITICAL: Anthropic auth failed — ANTHROPIC_API_KEY was rejected."
+    if resp.status_code != 200:
+        return f"🔴 CRITICAL: Anthropic health check failed — HTTP {resp.status_code}."
+    try:
+        available = resp.json().get("balance", {}).get("available", [])
+        amount = round(available[0]["amount"] / 100, 2) if available else None
+    except Exception:
+        return "🔴 CRITICAL: Anthropic balance response unreadable — the response shape may have changed."
+    # Some accounts (e.g. pay-as-you-go with no prepaid credit grant) don't
+    # expose a balance at all -- that is not a failure, just nothing to warn on.
+    if amount is None:
+        return None
+    if amount < ANTHROPIC_LOW_BALANCE_USD:
+        return f"🟡 WARNING: Anthropic balance low: ${amount:.2f} (warn below ${ANTHROPIC_LOW_BALANCE_USD:.0f})."
+    return None
+
+
+def _check_openai_provider(api_key: str) -> str | None:
+    """Auth only -- standard API keys have no stable public balance endpoint."""
+    try:
+        resp = requests.get("https://api.openai.com/v1/models",
+                             headers={"Authorization": f"Bearer {api_key}"}, timeout=10)
+    except Exception as exc:
+        return f"🔴 CRITICAL: OpenAI unreachable — {type(exc).__name__}: {exc}"
+    if resp.status_code in (401, 403):
+        return "🔴 CRITICAL: OpenAI auth failed — OPENAI_API_KEY was rejected."
+    if resp.status_code != 200:
+        return f"🔴 CRITICAL: OpenAI health check failed — HTTP {resp.status_code}."
+    return None
+
+
+def _check_gemini_provider(api_key: str) -> str | None:
+    """Auth only. The key travels in the query string for this endpoint --
+    never include the request URL in a returned message."""
+    try:
+        resp = requests.get("https://generativelanguage.googleapis.com/v1beta/models",
+                             params={"key": api_key}, timeout=10)
+    except Exception as exc:
+        return f"🔴 CRITICAL: Gemini unreachable — {type(exc).__name__}: {exc}"
+    if resp.status_code in (400, 401, 403):
+        return "🔴 CRITICAL: Gemini auth failed — GEMINI_API_KEY was rejected."
+    if resp.status_code != 200:
+        return f"🔴 CRITICAL: Gemini health check failed — HTTP {resp.status_code}."
+    return None
+
+
+def _check_grok_provider(api_key: str) -> str | None:
+    """Auth only -- xAI has no documented balance endpoint for this key type."""
+    try:
+        resp = requests.get("https://api.x.ai/v1/models",
+                             headers={"Authorization": f"Bearer {api_key}"}, timeout=10)
+    except Exception as exc:
+        return f"🔴 CRITICAL: Grok (xAI) unreachable — {type(exc).__name__}: {exc}"
+    if resp.status_code in (401, 403):
+        return "🔴 CRITICAL: Grok (xAI) auth failed — XAI_API_KEY was rejected."
+    if resp.status_code != 200:
+        return f"🔴 CRITICAL: Grok (xAI) health check failed — HTTP {resp.status_code}."
+    return None
+
+
+def _check_openrouter_provider(api_key: str) -> str | None:
+    """Auth + balance via OpenRouter's own credits endpoint."""
+    try:
+        resp = requests.get("https://openrouter.ai/api/v1/credits",
+                             headers={"Authorization": f"Bearer {api_key}"}, timeout=10)
+    except Exception as exc:
+        return f"🔴 CRITICAL: OpenRouter unreachable — {type(exc).__name__}: {exc}"
+    if resp.status_code in (401, 403):
+        return "🔴 CRITICAL: OpenRouter auth failed — OPENROUTER_API_KEY was rejected."
+    if resp.status_code != 200:
+        return f"🔴 CRITICAL: OpenRouter health check failed — HTTP {resp.status_code}."
+    try:
+        data = resp.json().get("data", {})
+        total_credits, total_usage = data.get("total_credits"), data.get("total_usage")
+        remaining = (total_credits - total_usage
+                     if isinstance(total_credits, (int, float)) and isinstance(total_usage, (int, float))
+                     else None)
+    except Exception:
+        remaining = None
+    if remaining is None:
+        return None
+    if remaining < OPENROUTER_LOW_BALANCE_USD:
+        return f"🟡 WARNING: OpenRouter balance low: ${remaining:.2f} (warn below ${OPENROUTER_LOW_BALANCE_USD:.0f})."
+    return None
+
+
+# env var name -> checker. A key that isn't set is skipped, not reported --
+# not every Hub provider needs to be in use (e.g. Grok/Gemini are optional).
+def _check_ai_providers() -> str | None:
+    """Every configured Hub AI provider key, once per call. Returns None only
+    if every configured key came back healthy (auth is fine and whatever
+    balance the checker could confirm is not low).
+
+    The env-name -> checker mapping is built fresh on every call (not once at
+    module import) so a test's patch.object(alerts, "_check_anthropic_provider",
+    ...) is actually picked up — a module-level dict built once would have
+    frozen in the original function objects before any patch could apply.
+    """
+    checkers = {
+        "ANTHROPIC_API_KEY": _check_anthropic_provider,
+        "OPENAI_API_KEY": _check_openai_provider,
+        "GEMINI_API_KEY": _check_gemini_provider,
+        "XAI_API_KEY": _check_grok_provider,
+        "OPENROUTER_API_KEY": _check_openrouter_provider,
+    }
+    lines = []
+    for env_name, checker in checkers.items():
+        key = os.environ.get(env_name, "").strip()
+        if not key:
+            continue
+        try:
+            result = checker(key)
+        except Exception as exc:
+            result = f"🔴 CRITICAL: {env_name} health check crashed — {type(exc).__name__}: {exc}"
+        if result:
+            lines.append(result)
+    return "\n".join(lines) if lines else None
+
+
 # The live health check is zeus_ops_agent.health_check(), scheduled at 09:00 UTC
 # in scheduler.py. A second, unscheduled run_health_check() used to sit here with
 # its own _check_stuck_songs() helper; both had zero callers. Two implementations

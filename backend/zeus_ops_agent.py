@@ -146,7 +146,7 @@ def health_check() -> None:
     Fixes stuck songs, checks provider balances, alerts Michael if anything
     needs attention.
     """
-    from alerts import _check_apiframe_credits, _check_fal_balance, send_admin_alert
+    from alerts import _check_ai_providers, _check_apiframe_credits, _check_fal_balance, send_admin_alert
 
     warnings: list[str] = []
 
@@ -156,7 +156,7 @@ def health_check() -> None:
     # "couldn't check" comes back as a loud warning, never silence. If a checker
     # itself blows up, that is also reported rather than swallowed: a monitor
     # that fails quietly is worse than no monitor (see alerts.py header).
-    for checker in (_check_fal_balance, _check_apiframe_credits):
+    for checker in (_check_fal_balance, _check_apiframe_credits, _check_ai_providers):
         # getattr guard: this is the error path, so it must not be able to throw.
         name = getattr(checker, "__name__", str(checker))
         try:
@@ -172,7 +172,7 @@ def health_check() -> None:
         send_admin_alert("🚨 <b>Zeus Ops</b> — issues detected!\n" + "\n".join(warnings))
         log.warning("ops_agent health_check: %d warning(s) sent — %s", len(warnings), warnings)
     else:
-        log.info("ops_agent health_check: all OK (both provider balances read successfully)")
+        log.info("ops_agent health_check: all OK (fal.ai, Apiframe and every configured AI provider key)")
 
 
 # ── Daily report ──────────────────────────────────────────────────────────────
@@ -242,7 +242,7 @@ def daily_report() -> None:
         counters = _alerts.pop_digest_counters()
 
         provider_lines = []
-        for checker in (_alerts._check_fal_balance, _alerts._check_apiframe_credits):
+        for checker in (_alerts._check_fal_balance, _alerts._check_apiframe_credits, _alerts._check_ai_providers):
             try:
                 warning = checker()
             except Exception:
@@ -250,7 +250,7 @@ def daily_report() -> None:
             if warning:
                 provider_lines.append(warning)
         if not provider_lines:
-            provider_lines.append("✅ fal.ai + Apiframe balances healthy")
+            provider_lines.append("✅ fal.ai, Apiframe and every configured AI provider key healthy")
 
         msg = (
             "📊 <b>Zeus Beats Daily Report</b>\n"
