@@ -43,6 +43,19 @@ def temp_db(tmp_path, monkeypatch):
     return path
 
 
+@pytest.fixture(autouse=True)
+def no_diagnosis(monkeypatch):
+    """None of these tests are about automatic diagnosis (see
+    test_incident_diagnosis.py for that) -- without this, the several
+    critical-severity alerts exercised here (payment_failed, a 401 service
+    error, etc.) would each spawn a real background thread making a real
+    network call."""
+    monkeypatch.setattr(incidents, "_spawn_diagnosis", lambda incident: None)
+    incidents._diagnosed_incident_ids.clear()
+    yield
+    incidents._diagnosed_incident_ids.clear()
+
+
 # ── alerts.py wrapping ───────────────────────────────────────────────────────
 
 def test_critical_alert_gets_the_critical_prefix(temp_db):

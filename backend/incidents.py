@@ -1,5 +1,6 @@
 """
-incidents.py — Incident tracking for Porickbot's monitoring.
+incidents.py — Incident tracking and automatic diagnosis for Porickbot's
+monitoring.
 
 Wraps the EXISTING alert triggers and dedup in alerts.py; does not change
 either. Every alert still fires exactly when and as often as it did before,
@@ -8,20 +9,24 @@ untouched. This module just also keeps a durable, queryable record: one
 open row per category, occurrence_count bumped on every repeat, closed
 automatically after AUTO_RESOLVE_QUIET_MINUTES of quiet.
 
-No AI model calls anywhere in this file. Severity is a plain lookup table
-keyed on category (a handful of categories need a small deterministic rule
-instead of a fixed value — a status code range, or a keyword in an
-already-composed message — but that's still ordinary Python, not a model
-call). This must cost nothing to run beyond the SQLite writes it was
-already going to make room for.
-
-The diagnosis columns (evidence, likely_cause, confidence, actions_attempted,
-resolution) are created here but deliberately left NULL — a later stage
-fills them in. Nothing in this module writes to them.
+Severity classification (which categories are critical/warning/info) is a
+plain lookup table — no model call. The ONE thing in this file that does
+call a model is automatic diagnosis: the first time an incident reaches
+critical severity (creation or escalation) and has no likely_cause yet, a
+background thread gathers evidence (recent log lines + recent git commits)
+and asks claude-sonnet-4-6 to classify a likely cause. This never blocks or
+delays the alert that triggered it — see record()/_maybe_trigger_diagnosis()
+— and fails completely silently: any failure just leaves likely_cause/
+confidence/evidence NULL, exactly as if diagnosis had never run.
 """
+import json
 import logging
+import os
 import sqlite3
+import threading
 from datetime import datetime, timedelta, timezone
+
+import requests
 
 import db as _db
 
@@ -147,11 +152,20 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+_SEVERITY_RANK = {"info": 0, "warning": 1, "critical": 2}
+
+
 def record(category: str, symptoms: str, *, severity: str | None = None) -> sqlite3.Row | None:
     """Find the open incident for `category`; if found, bump occurrence_count
     and last_seen. If not, create one. Returns the resulting row, or None if
     incident tracking itself failed -- which must never take down the alert
     it's describing, so every exception is caught here.
+
+    Severity on an existing open incident only ever escalates (the higher of
+    the stored value and this occurrence's), never silently downgrades --
+    once something has been critical, that stays visible until the incident
+    resolves. This is also what lets automatic diagnosis detect "escalated
+    to critical": see _maybe_trigger_diagnosis() below.
     """
     try:
         auto_service, auto_severity, title = classify(category)
@@ -167,9 +181,11 @@ def record(category: str, symptoms: str, *, severity: str | None = None) -> sqli
                 "SELECT * FROM incidents WHERE category = ? AND status = 'open'", (category,)
             ).fetchone()
             if row:
+                stored_severity = row["severity"]
+                new_severity = severity if _SEVERITY_RANK.get(severity, 0) > _SEVERITY_RANK.get(stored_severity, 0) else stored_severity
                 conn.execute(
-                    "UPDATE incidents SET occurrence_count = occurrence_count + 1, last_seen = ? WHERE id = ?",
-                    (now, row["id"]),
+                    "UPDATE incidents SET occurrence_count = occurrence_count + 1, last_seen = ?, severity = ? WHERE id = ?",
+                    (now, new_severity, row["id"]),
                 )
                 incident_id = row["id"]
             else:
@@ -182,12 +198,274 @@ def record(category: str, symptoms: str, *, severity: str | None = None) -> sqli
                 )
                 incident_id = cur.lastrowid
             conn.commit()
-            return conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,)).fetchone()
+            result = conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,)).fetchone()
         finally:
             conn.close()
+        _maybe_trigger_diagnosis(result)
+        return result
     except Exception:
         log.exception("incidents: record() failed for category=%r (alert itself is unaffected)", category)
         return None
+
+
+# ── Automatic diagnosis ──────────────────────────────────────────────────────
+#
+# Triggered from record() the moment an incident first reaches critical
+# severity (creation or escalation) with no likely_cause yet. In-memory guard
+# below covers the race where two rapid occurrences of the same brand-new
+# critical incident both see likely_cause still NULL before the background
+# diagnosis has had a chance to write it -- cheap to avoid, so avoided,
+# even though the DB-level guard (likely_cause IS NULL) already makes a
+# second real diagnosis attempt merely wasteful rather than harmful.
+
+_diagnosed_incident_ids: set[int] = set()
+
+_DIAGNOSIS_MODEL = "claude-sonnet-4-6"
+
+CAUSE_CATEGORIES = ("code", "api_credits", "database", "deployment",
+                     "third_party_outage", "configuration", "unknown")
+CONFIDENCE_LEVELS = ("low", "medium", "high")
+
+_DIAGNOSIS_SYSTEM_PROMPT = f"""You are diagnosing a production incident for Zeus Beats, an AI \
+music generation platform. You are given the incident's title, its symptoms, and evidence: \
+recent application log lines and the last few git commits on master (commit message and changed \
+file list only, no diffs). Identify the LIKELY CAUSE from that evidence alone.
+
+Classify the cause as exactly one of: {", ".join(CAUSE_CATEGORIES)}.
+Rate your confidence as exactly one of: {", ".join(CONFIDENCE_LEVELS)}.
+
+Rules, in order of importance:
+1. Only state a specific cause if the evidence you were given actually supports it. If the logs \
+and commits do not clearly point to a cause, you MUST use cause_category "unknown", confidence \
+"low", and say so plainly in your reasoning ("insufficient evidence to determine a cause") -- do \
+not guess, and do not invent a plausible-sounding explanation that isn't grounded in what you \
+were actually shown.
+2. A recent commit touching a related file is evidence for "deployment" or "code"; a log line \
+naming a specific failing service or provider is evidence for "third_party_outage", \
+"api_credits", or "configuration"; a database error string is evidence for "database". The mere \
+absence of an obvious alternative is never, by itself, evidence for any specific cause.
+3. Never invent specifics (file names, error codes, commit hashes, service names) that do not \
+appear in the evidence you were given.
+
+Respond with ONLY a JSON object, no other text before or after it, in exactly this shape:
+{{"cause_category": "<one of the categories above>", "confidence": "<low|medium|high>", \
+"reasoning": "<one sentence, grounded only in the evidence given>"}}"""
+
+# Keyword filter applied to the shared log ring buffer so "relevant to the
+# incident's service" means something -- the buffer itself mixes every
+# service's log lines together with no partitioning of its own. An empty
+# tuple (beats) means no narrow filter: general app/user activity doesn't
+# have a small distinguishing vocabulary the way the others do.
+_SERVICE_LOG_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "billing": ("stripe", "billing", "credit", "webhook", "subscription", "payment", "invoice"),
+    "jobline": ("song", "lyric", "variant", "apiframe", "generat", "fade"),
+    "provider": ("anthropic", "openai", "gemini", "grok", "xai", "openrouter",
+                 "fal.ai", "apiframe", "provider"),
+    "hub": ("hub", "council", "ask zeus"),
+    "beats": (),
+}
+
+_GITHUB_REPO = "mickymooch1/zeus-app"
+_GITHUB_API = "https://api.github.com"
+
+
+def _maybe_trigger_diagnosis(row: sqlite3.Row | None) -> None:
+    """The only place diagnosis gets triggered from. Runs synchronously
+    (it's just a cheap condition check) but the actual work is dispatched to
+    a background thread by _spawn_diagnosis so this returns immediately --
+    record()'s caller (an alert_* function that's about to send a Telegram
+    message) is never delayed by it.
+    """
+    try:
+        if row is None or row["severity"] != "critical" or row["likely_cause"] is not None:
+            return
+        incident_id = row["id"]
+        if incident_id in _diagnosed_incident_ids:
+            return
+        _diagnosed_incident_ids.add(incident_id)
+        _spawn_diagnosis(dict(row))
+    except Exception:
+        log.exception("incidents: could not evaluate whether to trigger diagnosis")
+
+
+def _spawn_diagnosis(incident: dict) -> None:
+    """Thin wrapper around the background thread -- kept separate so tests
+    can monkeypatch just this one thing (e.g. to run _diagnose_in_background
+    synchronously with a mocked model call) instead of dealing with a real
+    thread making a real network call."""
+    threading.Thread(target=_diagnose_in_background, args=(incident,), daemon=True).start()
+
+
+def _diagnose_in_background(incident: dict) -> None:
+    """Runs off the alert path entirely -- by the time this executes,
+    send_admin_alert has already returned, so nothing here can delay or
+    block the alert that triggered it. Every failure is swallowed: the
+    incident simply keeps its empty diagnosis fields (the 'fail silently'
+    contract). Nothing is ever shown to the admin except a successful
+    diagnosis's own follow-up message, sent a few seconds after the original.
+    """
+    try:
+        log_evidence = _gather_log_evidence(incident.get("service", ""))
+        git_evidence = _gather_git_evidence()
+        diagnosis = _call_diagnosis_model(incident, log_evidence, git_evidence)
+        if diagnosis is None:
+            return
+        cause, confidence, reasoning = diagnosis["cause_category"], diagnosis["confidence"], diagnosis["reasoning"]
+        likely_cause = (f"insufficient evidence — {reasoning}" if cause == "unknown" and reasoning
+                         else "insufficient evidence" if cause == "unknown"
+                         else f"{cause}: {reasoning}" if reasoning else cause)
+        evidence_blob = f"--- Recent log lines ---\n{log_evidence}\n\n--- Recent commits on master ---\n{git_evidence}"
+        _write_diagnosis(incident["id"], evidence_blob, likely_cause, confidence)
+        _send_diagnosis_followup(cause, confidence, reasoning)
+    except Exception:
+        log.exception("incidents: diagnosis failed for incident id=%s (fields remain empty)", incident.get("id"))
+
+
+def _gather_log_evidence(service: str, limit: int = 50) -> str:
+    """The last (up to) `limit` in-memory log lines relevant to `service`.
+    Reuses telegram_admin._log_buffer -- the same ring buffer Porick's own
+    "show logs" command already reads, and the only log-fetching mechanism
+    that exists anywhere in this codebase. It only holds this process's last
+    100 lines and resets on redeploy, so a diagnosis triggered right after a
+    restart may have little to work with -- exactly the case the system
+    prompt's "insufficient evidence" instruction exists for.
+    """
+    try:
+        from telegram_admin import _log_buffer
+        lines = list(_log_buffer)
+    except Exception:
+        log.exception("incidents: could not read the log buffer")
+        return "(log buffer unavailable)"
+    keywords = _SERVICE_LOG_KEYWORDS.get(service, ())
+    if keywords:
+        filtered = [line for line in lines if any(k in line.lower() for k in keywords)]
+        if filtered:
+            lines = filtered
+    lines = lines[-limit:]
+    return "\n".join(lines) if lines else "(no relevant log lines captured)"
+
+
+def _gather_git_evidence(count: int = 5) -> str:
+    """The last `count` commits on master: message + changed file list, no
+    diffs. Via the GitHub API rather than a local `git log` -- the deployed
+    container is built from just the backend/ subdirectory (see Dockerfile),
+    so .git is never present at runtime and a local git log would have
+    nothing to read. Uses the same GITHUB_TOKEN + repo already established in
+    github_push.py.
+    """
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if not token:
+        return "(git history unavailable — GITHUB_TOKEN not set)"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    try:
+        resp = requests.get(
+            f"{_GITHUB_API}/repos/{_GITHUB_REPO}/commits",
+            headers=headers, params={"sha": "master", "per_page": count}, timeout=10,
+        )
+        resp.raise_for_status()
+        commits = resp.json()
+    except Exception as exc:
+        return f"(git history unavailable — {type(exc).__name__}: {exc})"
+
+    lines = []
+    for c in commits[:count]:
+        sha = c.get("sha", "")
+        raw_message = (c.get("commit", {}).get("message") or "").strip()
+        message = raw_message.splitlines()[0][:200] if raw_message else "(no commit message)"
+        files_str = "(file list unavailable)"
+        try:
+            detail = requests.get(f"{_GITHUB_API}/repos/{_GITHUB_REPO}/commits/{sha}", headers=headers, timeout=10)
+            detail.raise_for_status()
+            files = [f["filename"] for f in detail.json().get("files", [])][:20]
+            if files:
+                files_str = ", ".join(files)
+        except Exception:
+            pass
+        lines.append(f"{sha[:7]} — {message}\n  files: {files_str}")
+    return "\n".join(lines) if lines else "(no recent commits found)"
+
+
+def _call_diagnosis_model(incident: dict, log_evidence: str, git_evidence: str) -> dict | None:
+    """Direct to api.anthropic.com (the `anthropic` SDK, no base_url override
+    -- matching every other Anthropic call site in this codebase). Returns
+    None on any failure (missing key, network error, timeout, unparseable
+    response) so the caller can fail silently, per spec.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        return None
+    user_content = (
+        f"Incident title: {incident['title']}\n"
+        f"Symptoms: {incident['symptoms']}\n\n"
+        f"Recent application log lines (service={incident.get('service', 'unknown')}):\n{log_evidence}\n\n"
+        f"Last commits on master:\n{git_evidence}"
+    )
+    try:
+        from anthropic import Anthropic
+        resp = Anthropic(api_key=api_key, timeout=20.0).messages.create(
+            model=_DIAGNOSIS_MODEL,
+            max_tokens=300,
+            system=_DIAGNOSIS_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_content}],
+        )
+        text = (resp.content[0].text or "").strip()
+    except Exception:
+        log.exception("incidents: diagnosis model call failed")
+        return None
+
+    try:
+        data = json.loads(text)
+        cause = str(data.get("cause_category", "")).strip().lower()
+        confidence = str(data.get("confidence", "")).strip().lower()
+        reasoning = str(data.get("reasoning", "")).strip()
+    except Exception:
+        log.exception("incidents: diagnosis response was not valid JSON: %r", text[:300])
+        return None
+
+    if cause not in CAUSE_CATEGORIES:
+        cause = "unknown"
+    if confidence not in CONFIDENCE_LEVELS:
+        confidence = "low"
+    # Defense in depth: "unknown" can never carry anything but low confidence,
+    # regardless of what the model returned -- the prompt already instructs
+    # this, but a contradictory response must not be trusted over the rule.
+    if cause == "unknown":
+        confidence = "low"
+        if not reasoning:
+            reasoning = "insufficient evidence to determine a cause"
+
+    return {"cause_category": cause, "confidence": confidence, "reasoning": reasoning}
+
+
+def _write_diagnosis(incident_id: int, evidence: str, likely_cause: str, confidence: str) -> None:
+    """Writes ONLY evidence/likely_cause/confidence. actions_attempted and
+    resolution are untouched -- those belong to a later stage."""
+    conn = _connect()
+    try:
+        conn.execute(
+            "UPDATE incidents SET evidence = ?, likely_cause = ?, confidence = ? WHERE id = ?",
+            (evidence, likely_cause, confidence, incident_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _send_diagnosis_followup(cause: str, confidence: str, reasoning: str) -> None:
+    """A short follow-up message, sent a few seconds after the original
+    alert (this only runs from the background diagnosis thread). "Likely
+    cause" for medium/high confidence, "Possible cause" for low -- including
+    the "unknown" / insufficient-evidence case, which is always low."""
+    from alerts import send_admin_alert
+
+    label = "Possible cause" if confidence == "low" else "Likely cause"
+    display_cause = "insufficient evidence" if cause == "unknown" else cause
+    tail = f" — {reasoning}" if reasoning else ""
+    send_admin_alert(f"🔍 {label}: {display_cause} (confidence: {confidence}){tail}")
 
 
 def note(category: str, symptoms: str, *, severity: str | None = None) -> str:

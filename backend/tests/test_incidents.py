@@ -3,10 +3,16 @@
 Wraps the existing alert_* triggers and dedup in alerts.py without changing
 either -- these tests pin: the wrapping (severity prefix + occurrence line
 prepended to messages already sent), the storage contract (find-or-create by
-open category, bump occurrence_count/last_seen), auto-resolve after 60
-minutes of quiet, and the two read-only Telegram commands. No AI model call
-anywhere in this feature -- severity is a plain lookup, and these tests never
-mock or expect a model call for it.
+open category, bump occurrence_count/last_seen, severity escalates but never
+downgrades), auto-resolve after 60 minutes of quiet, and the two read-only
+Telegram commands.
+
+Severity classification itself is a plain lookup table, no model call. A
+critical incident CAN trigger the automatic-diagnosis model call (see
+record()) -- that flow, including the model call itself, is covered
+separately in test_incident_diagnosis.py. Here, `no_diagnosis` is applied
+autouse so creating a critical incident in these tests never spawns a real
+background thread making a real network call.
 """
 import os
 import pathlib
@@ -33,6 +39,17 @@ def temp_db(tmp_path, monkeypatch):
     path = tmp_path / "test.db"
     monkeypatch.setattr(db, "get_db_path", lambda: path)
     return path
+
+
+@pytest.fixture(autouse=True)
+def no_diagnosis(monkeypatch):
+    """Prevent record() from ever spawning a real diagnosis thread in this
+    file -- these tests aren't about diagnosis, and without this a
+    critical-severity call here would make a real network call."""
+    monkeypatch.setattr(incidents, "_spawn_diagnosis", lambda incident: None)
+    incidents._diagnosed_incident_ids.clear()
+    yield
+    incidents._diagnosed_incident_ids.clear()
 
 
 # ── classify() / severity helpers ────────────────────────────────────────────
