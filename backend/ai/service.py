@@ -14,6 +14,28 @@ from .search import WEB_CONTEXT_BYTES, cite, reservation_messages, search, valid
 log = logging.getLogger('zeus.hub')
 
 
+def _alert_orchestration_failure(feature: str, error: BaseException) -> None:
+    """Fires only for a failure that is NOT already a HubError -- a
+    provider-level failure (timeout/non-2xx/malformed) already raised as a
+    HubError from ai/providers.py and was already alerted right there;
+    alerting again here would double-count the same root cause. What
+    reaches this instead is an orchestration-level failure: the outer
+    asyncio.timeout(...) in execute() firing (distinct from any single
+    provider's own httpx timeout, see generate()'s inner asyncio.wait_for),
+    or an unexpected bug in council/routing/search glue code. Only the
+    exception's TYPE name is ever passed on -- never str(error), which
+    could in principle contain fragments of the request.
+    """
+    try:
+        import alerts
+        if isinstance(error, TimeoutError):
+            alerts.alert_hub_provider_timeout(f'{feature}(orchestration)')
+        else:
+            alerts.alert_hub_malformed_response(f'{feature}(orchestration)', type(error).__name__)
+    except Exception:
+        log.exception('hub: could not record incident for orchestration failure')
+
+
 def fingerprint(body, mode):
     parts = [mode, body.feature, body.prompt, str(body.conversation_id or '')]
     # Keep old/OFF fingerprints stable, including recovery of pre-feature requests.
@@ -121,3 +143,5 @@ async def execute(store, settings, user_id, request_id, feature, messages, selec
         store.finish(user_id, request_id, 'failed', None, 0, message)
         if isinstance(error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)):
             raise
+        if not isinstance(error, HubError):
+            _alert_orchestration_failure(feature, error)

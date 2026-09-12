@@ -497,6 +497,102 @@ def alert_service_error(service: str, status_code, detail: str) -> None:
         log.debug("alert_service_error failed (non-fatal)")
 
 
+def alert_hub_provider_timeout(provider: str, elapsed_seconds: float | None = None) -> None:
+    """Fire when a Zeus Hub AI provider call (Ask Zeus or Council, via
+    ai/providers.py) times out. Deliberately takes no request/response
+    content — provider name and elapsed time are the only things that can
+    ever reach here, so there is nothing to sanitize or leak.
+    """
+    try:
+        _bump_digest_counter("errors")
+        category = "provider_timeout"
+        timing = f" after {elapsed_seconds:.1f}s" if elapsed_seconds is not None else ""
+        prefix = _incidents.note(category, f"provider={provider}: timed out{timing}")
+        send_admin_alert_deduped(
+            category,
+            f"{prefix}\n"
+            "⏱️ ZEUS HUB — PROVIDER TIMEOUT\n"
+            f"🛠️ Provider: {provider}\n"
+            f"⏳ Timed out{timing}\n"
+            "🔍 Check the provider's status page / our configured timeout"
+        )
+    except Exception:
+        log.debug("alert_hub_provider_timeout failed (non-fatal)")
+
+
+def alert_hub_provider_unavailable(provider: str, status_code, error_type: str | None = None,
+                                    error_code: str | None = None) -> None:
+    """Fire on a non-2xx response from a Zeus Hub AI provider. error_type/
+    error_code come from ai/providers.py's own _error_detail(), which already
+    scrubs secrets and truncates — this deliberately does NOT accept that
+    function's free-text error_message field, only its short type/code
+    fields, so there is no room for an echoed prompt or query to ride along
+    even if the provider's own sanitization ever missed something.
+    """
+    try:
+        _bump_digest_counter("errors")
+        category = "provider_unavailable"
+        detail = f" ({error_type}/{error_code})" if (error_type or error_code) else ""
+        prefix = _incidents.note(category, f"provider={provider} status={status_code}{detail}")
+        send_admin_alert_deduped(
+            category,
+            f"{prefix}\n"
+            "🔌 ZEUS HUB — PROVIDER UNAVAILABLE\n"
+            f"🛠️ Provider: {provider}\n"
+            f"📟 Status: {status_code}{detail}\n"
+            "🔍 Check API key / account balance / quota for this provider"
+        )
+    except Exception:
+        log.debug("alert_hub_provider_unavailable failed (non-fatal)")
+
+
+def alert_hub_malformed_response(provider: str, reason: str) -> None:
+    """Fire when a Zeus Hub AI provider returns a 2xx response Hub couldn't
+    use (empty text, unexpected JSON shape, a KeyError/IndexError while
+    reading it, ...). `reason` must be a short categorical tag (an exception
+    class name like "KeyError", or a fixed label like "empty_response") —
+    NEVER the provider's raw response body or the model's generated text;
+    callers must not pass either of those here.
+    """
+    try:
+        _bump_digest_counter("errors")
+        category = "malformed_response"
+        prefix = _incidents.note(category, f"provider={provider}: {reason}")
+        send_admin_alert_deduped(
+            category,
+            f"{prefix}\n"
+            "🧩 ZEUS HUB — MALFORMED PROVIDER RESPONSE\n"
+            f"🛠️ Provider: {provider}\n"
+            f"💥 {reason}\n"
+            "🔍 Check the provider's response shape / recent API changes"
+        )
+    except Exception:
+        log.debug("alert_hub_malformed_response failed (non-fatal)")
+
+
+def alert_hub_search_failure(reason: str) -> None:
+    """Fire when Zeus Hub's web-search step (ai/search.py) fails. `reason`
+    must be a short categorical tag (an exception class name, or
+    "missing_api_key") — never the search query, a URL, or upstream Serper
+    response content. ai/search.py's own rule ("never log upstream bodies,
+    query strings, headers, keys or exception text") is the source of truth
+    this must not violate.
+    """
+    try:
+        _bump_digest_counter("errors")
+        category = "search_failure"
+        prefix = _incidents.note(category, f"web search failed: {reason}")
+        send_admin_alert_deduped(
+            category,
+            f"{prefix}\n"
+            "🔎 ZEUS HUB — SEARCH FAILURE\n"
+            f"💥 {reason}\n"
+            "🔍 Check SERPER_API_KEY / Serper account status"
+        )
+    except Exception:
+        log.debug("alert_hub_search_failure failed (non-fatal)")
+
+
 def alert_song_failed(email: str, variant_id: int, error_msg: str = "", song_type: str = "") -> None:
     """Fire when Apiframe's webhook reports a variant FAILED (music generation
     itself, distinct from alert_lyrics_generation_failed which covers the earlier

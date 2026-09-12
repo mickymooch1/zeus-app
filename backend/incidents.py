@@ -87,6 +87,15 @@ _CATEGORY_TABLE: dict[str, tuple[str, str, str]] = {
     "fal_balance":            ("provider", None, "fal.ai balance"),
     "apiframe_credits":       ("provider", None, "Apiframe credits"),
     "ai_providers":           ("provider", None, "AI provider health"),
+    # Zeus Hub (Ask Zeus / Council / web search) -- a Hub-side failure of any
+    # of these kinds always means the customer's own request just failed
+    # (see ai/providers.py, ai/service.py, ai/search.py), so severity is a
+    # fixed "critical" here rather than computed per-occurrence like the
+    # Beats provider-health checks above.
+    "provider_timeout":       ("hub", "critical", "Zeus Hub provider timeout"),
+    "provider_unavailable":   ("hub", "critical", "Zeus Hub provider unavailable"),
+    "malformed_response":     ("hub", "critical", "Zeus Hub malformed provider response"),
+    "search_failure":         ("hub", "critical", "Zeus Hub search failure"),
 }
 _CATEGORY_PREFIX_TABLE: dict[str, tuple[str, str, str]] = {
     "lyrics_failed:": ("jobline", "critical", "Song generation failed (lyrics)"),
@@ -226,8 +235,10 @@ CAUSE_CATEGORIES = ("code", "api_credits", "database", "deployment",
                      "third_party_outage", "configuration", "unknown")
 CONFIDENCE_LEVELS = ("low", "medium", "high")
 
-_DIAGNOSIS_SYSTEM_PROMPT = f"""You are diagnosing a production incident for Zeus Beats, an AI \
-music generation platform. You are given the incident's title, its symptoms, and evidence: \
+_DIAGNOSIS_SYSTEM_PROMPT = f"""You are diagnosing a production incident for Zeus, a platform that \
+combines Zeus Beats (AI music generation) and Zeus Hub (an AI assistant with Ask Zeus / Council chat \
+and web search) on shared backend infrastructure. You are given the incident's title, its symptoms, \
+and evidence: \
 recent application log lines and the last few git commits on master (commit message and changed \
 file list only, no diffs). Identify the LIKELY CAUSE from that evidence alone.
 

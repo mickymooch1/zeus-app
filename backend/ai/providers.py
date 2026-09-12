@@ -3,6 +3,7 @@ import asyncio
 import logging
 import os
 import re
+import time
 from typing import Protocol
 
 import httpx
@@ -57,6 +58,37 @@ def _error_detail(response):
             'error_message': _sanitize(message) if isinstance(message, str) else None}
 
 
+# Thin wrappers around alerts.py's Hub alert_* functions -- imported locally
+# (matching the rest of this codebase's lazy-import convention for
+# cross-cutting concerns) so this module never gains a hard top-level
+# dependency on the backend-root alerts/incidents modules. Each one only
+# ever forwards a provider name (from the fixed ENDPOINTS keys), a status
+# code, a pre-sanitized short error_type/error_code, or a fixed categorical
+# reason string -- never a request/response body, prompt, or key.
+def _alert_timeout(provider: str, elapsed: float) -> None:
+    try:
+        import alerts
+        alerts.alert_hub_provider_timeout(provider, elapsed)
+    except Exception:
+        log.exception('hub: alert_hub_provider_timeout failed')
+
+
+def _alert_unavailable(provider: str, status_code, detail: dict) -> None:
+    try:
+        import alerts
+        alerts.alert_hub_provider_unavailable(provider, status_code, detail.get('error_type'), detail.get('error_code'))
+    except Exception:
+        log.exception('hub: alert_hub_provider_unavailable failed')
+
+
+def _alert_malformed(provider: str, reason: str) -> None:
+    try:
+        import alerts
+        alerts.alert_hub_malformed_response(provider, reason)
+    except Exception:
+        log.exception('hub: alert_hub_malformed_response failed')
+
+
 class AIProvider(Protocol):
     provider_name: str
     model_name: str
@@ -105,6 +137,7 @@ class Provider:
             payload[limit_key] = model.max_output_tokens
             if model.provider == 'openrouter':
                 payload['provider'] = {'allow_fallbacks': False, 'require_parameters': True}
+        start = time.monotonic()
         try:
             async with httpx.AsyncClient(timeout=self.settings.timeout_seconds, follow_redirects=False) as client:
                 response = await client.post(url, headers=headers, json=payload)
@@ -125,16 +158,24 @@ class Provider:
                         'input_tokens': incoming if known else None, 'output_tokens': outgoing if known else None,
                         'estimated_cost': cost(model, incoming, outgoing) if known else None, 'usage_known': known}
             if not isinstance(text, str) or not text.strip():
+                _alert_malformed(model.provider, 'empty_response')
                 raise HubError('The AI provider returned no usable answer.', 502, usage=measured)
             # Hidden reasoning fields are deliberately ignored.
             text = text.encode('utf-8')[:model.max_output_tokens * 8].decode('utf-8', errors='ignore')
             return {'text': text, **measured}
         except httpx.TimeoutException:
+            _alert_timeout(model.provider, time.monotonic() - start)
             raise HubError('The AI provider timed out. Your Hub credits will be refunded.', 504) from None
         except httpx.HTTPStatusError as error:
             detail = _error_detail(error.response)
             log.warning('hub provider_error provider=%s status=%s error_type=%s error_code=%s error_message=%s',
                         model.provider, error.response.status_code, detail['error_type'], detail['error_code'], detail['error_message'])
+            _alert_unavailable(model.provider, error.response.status_code, detail)
             raise HubError('The AI provider is unavailable. Please try a new request later.', 502) from None
-        except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
+        except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as error:
+            # Never pass str(error) to _alert_malformed -- an unexpected response
+            # shape could in principle echo request/prompt content into a
+            # KeyError/ValueError's own message. The exception's TYPE name is
+            # always safe (it's one of Python's fixed builtin names).
+            _alert_malformed(model.provider, type(error).__name__)
             raise HubError('The AI provider is unavailable. Please try a new request later.', 502) from None
