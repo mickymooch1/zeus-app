@@ -1766,6 +1766,183 @@ def _cmd_check_incidents(status: str = "open") -> str:
     return "\n".join(lines)
 
 
+# ── check_transaction: real payment + credit-landing state ─────────────────
+#
+# Two independent facts get checked and reported separately, never
+# collapsed into one: (1) what Stripe says happened to the payment, and
+# (2) whether the corresponding credits or subscription state actually
+# landed in OUR database. A payment can succeed at Stripe and still fail
+# to land here (user lookup miss, an unrecognised price/pack id, a bug) --
+# that mismatch is exactly what admins need this tool to catch, per
+# alert_credit_not_granted's own existing "CREDITS FAILED" cases in
+# billing.py. This never inspects payment_method_details (card brand/last4)
+# or any other Stripe field beyond what's explicitly read below, and only
+# ever reports the specific match(es) the query actually resolved to.
+
+_TRANSACTION_DEFAULT_LOOKBACK_HOURS = 24 * 30  # used only when a user is given with no "since"
+_TRANSACTION_MAX_RESULTS = 15
+
+_PAYG_CATEGORY_SYNONYMS = {"payg", "topup", "top-up", "top_up", "one-time", "one_time",
+                           "onetime", "purchase", "pack", "credit", "credits"}
+_SUBSCRIPTION_CATEGORY_SYNONYMS = {"subscription", "subscriptions", "sub", "renewal", "plan"}
+
+
+def _parse_since(since: str) -> int | None:
+    """Parse a lookback window like "2h", "2 hours", "90m", "3d" into a Unix
+    timestamp cutoff (now - window). Returns None if unparseable."""
+    m = re.match(r'^\s*(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins|minute|minutes|d|day|days)?\s*$',
+                 since or "", re.IGNORECASE)
+    if not m:
+        return None
+    from datetime import datetime, timedelta, timezone
+    value = float(m.group(1))
+    unit = (m.group(2) or "h").lower()
+    if unit.startswith("d"):
+        delta = timedelta(days=value)
+    elif unit.startswith("m") and not unit.startswith("mo"):
+        delta = timedelta(minutes=value)
+    else:
+        delta = timedelta(hours=value)
+    return int((datetime.now(timezone.utc) - delta).timestamp())
+
+
+def _classify_charge_category(charge) -> str:
+    """"subscription" if the charge is tied to an invoice (recurring
+    billing); "payg" otherwise (a one-time song/animation/memorial pack)."""
+    return "subscription" if charge.get("invoice") else "payg"
+
+
+def _category_matches(charge_category: str, requested: str) -> bool:
+    if not requested:
+        return True
+    requested = requested.strip().lower()
+    if requested in _PAYG_CATEGORY_SYNONYMS:
+        return charge_category == "payg"
+    if requested in _SUBSCRIPTION_CATEGORY_SYNONYMS:
+        return charge_category == "subscription"
+    return True  # unrecognised filter value -- don't silently drop every result
+
+
+def _payment_status_label(charge) -> str:
+    if charge.get("refunded"):
+        return "refunded"
+    if charge.get("status") == "succeeded" and not charge.get("paid"):
+        return "pending"  # defensive: "paid" is the authoritative signal
+    return charge.get("status", "unknown")
+
+
+def _credits_landing_line(charge, category: str) -> str:
+    """The DB side of the check: did the payment Stripe says happened
+    actually result in credits or an active subscription for this user?
+    Deliberately separate from _payment_status_label() -- these two facts
+    must never be blended into one, since their disagreement IS the thing
+    this tool exists to surface."""
+    import db as _db
+    db_path = _db.get_db_path()
+
+    if category == "subscription":
+        email = (charge.get("billing_details") or {}).get("email")
+        customer_id = charge.get("customer")
+        user = _db.get_user_by_email(db_path, email) if email else None
+        if not user and customer_id:
+            conn = _ro_conn()
+            try:
+                row = conn.execute("SELECT * FROM users WHERE stripe_customer_id = ?", (customer_id,)).fetchone()
+                user = dict(row) if row else None
+            finally:
+                conn.close()
+        if not user:
+            return "Subscription: user not found in our database — mismatch, needs manual check"
+        if user.get("subscription_status") == "active" and user.get("has_paid"):
+            return f"Subscription: active ({_esc(user.get('subscription_plan') or 'unknown plan')})"
+        return f"Subscription: NOT active (status={_esc(user.get('subscription_status'))}) — mismatch, needs manual check"
+
+    pi_id = charge.get("payment_intent") or charge.get("id")
+    grants = _db.get_credit_grants_by_payment(db_path, pi_id) if pi_id else []
+    if grants:
+        parts = ", ".join(f"+{g['amount']} {g['credit_type']}" for g in grants)
+        return f"Credits: landed ({parts})"
+    return "Credits: NOT found — mismatch, needs manual check"
+
+
+def _cmd_check_transaction(email: str = "", user_id: str = "", since: str = "", category: str = "") -> str:
+    """Porick chat-mode tool: did a purchase or subscription actually go
+    through? Checks BOTH the Stripe payment status and whether the
+    corresponding credits/subscription state landed in our own database,
+    and reports them separately -- never guesses, never asks the admin for
+    an email when a time window would do (see check_transaction(since=...)
+    with no email/user_id, matching "all PAYG purchases in the last 2
+    hours"). Reuses the same stripe.Charge.list access _cmd_revenue already
+    established.
+    """
+    import billing as _billing
+    from datetime import datetime, timezone
+
+    email = (email or "").strip()
+    user_id = (user_id or "").strip()
+    since = (since or "").strip()
+    category = (category or "").strip()
+
+    if not email and not user_id and not since:
+        return "❓ I need at least an email, a user id, or a time window (\"since\") to check a transaction."
+
+    import db as _db
+    db_path = _db.get_db_path()
+
+    customer_id = None
+    resolved_email = email or None
+    if email or user_id:
+        user = _db.get_user_by_email(db_path, email) if email else _db.get_user_by_id(db_path, user_id)
+        if not user:
+            return f"📭 No user found for {_esc(email or user_id)} — nothing to check."
+        customer_id = user.get("stripe_customer_id")
+        resolved_email = user.get("email") or resolved_email
+        if not customer_id:
+            return f"📭 {_esc(resolved_email)} has no Stripe customer on file — no payment to check."
+
+    since_ts = None
+    if since:
+        since_ts = _parse_since(since)
+        if since_ts is None:
+            return "❓ I couldn't understand that time window — try something like \"2 hours\" or \"24h\"."
+    elif customer_id:
+        since_ts = int(datetime.now(timezone.utc).timestamp()) - _TRANSACTION_DEFAULT_LOOKBACK_HOURS * 3600
+
+    try:
+        stripe = _billing._get_stripe()
+        list_kwargs = {"created": {"gte": since_ts}, "limit": 100}
+        if customer_id:
+            list_kwargs["customer"] = customer_id
+        charges = stripe.Charge.list(**list_kwargs)
+        candidates = list(charges.auto_paging_iter())
+    except Exception as exc:
+        return f"❌ Stripe error: {exc}"
+
+    results = []
+    for charge in candidates:
+        if _category_matches(_classify_charge_category(charge), category):
+            results.append(charge)
+        if len(results) >= _TRANSACTION_MAX_RESULTS:
+            break
+
+    if not results:
+        scope = resolved_email or (f"the last {since}" if since else "that time window")
+        return f"📭 No matching transactions found for {_esc(scope)}."
+
+    lines = [f"🔎 <b>{len(results)} matching transaction(s)</b>"]
+    for charge in results:
+        payment_status = _payment_status_label(charge)
+        landing_line = _credits_landing_line(charge, _classify_charge_category(charge))
+        billing_email = (charge.get("billing_details") or {}).get("email") or resolved_email or "unknown"
+        amount = f"£{(charge.get('amount') or 0) / 100:.2f}"
+        when = datetime.fromtimestamp(charge.get("created", 0), tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
+        lines.append(
+            f"• {_esc(billing_email)} — {amount} — {when}\n"
+            f"  Payment: {_esc(payment_status)}. {landing_line}."
+        )
+    return "\n".join(lines)
+
+
 # ── Persistent conversation memory ───────────────────────────────────────────
 
 def _ensure_admin_tables() -> None:
@@ -1898,6 +2075,7 @@ Your capabilities:
 - logs — recent app logs
 - check_deploy_status — the ACTUAL current commit on master (hash + message). Use this whenever Michael asks if something shipped, is live, or is deployed — never guess or assume from memory.
 - check_incidents — real open (or recently resolved) incidents from the incident tracker. Use this whenever Michael asks if anything's broken, failing, or what's been fixed lately — never guess.
+- check_transaction — did a purchase/subscription actually go through: checks BOTH the real Stripe payment status AND whether credits/subscription actually landed in our database. Use this whenever Michael asks about a payment, a purchase, or whether credits landed — never guess, and never ask him for an email up front if a time window ("in the last 2 hours") would answer it just as well.
 - redeploy — trigger Railway redeploy
 - post_channel — post to @zeusbeatsmusic Telegram channel
 - email_user — send email to one user
@@ -1939,6 +2117,7 @@ Action schemas (all include "type": "action"):
 {"type": "action", "action": "logs"}
 {"type": "action", "action": "check_deploy_status"}
 {"type": "action", "action": "check_incidents", "status": "open"}
+{"type": "action", "action": "check_transaction", "email": "...", "user_id": "...", "since": "2h", "category": "payg|subscription"}
 {"type": "action", "action": "redeploy"}
 {"type": "action", "action": "post_channel", "message": "..."}
 {"type": "action", "action": "email_user", "email": "...", "subject": "...", "body": "..."}
@@ -1973,14 +2152,19 @@ Rules:
 - For upgrade_user: plan must be one of the exact plan keys listed above.
 
 FACTUAL CLAIMS ABOUT SYSTEM STATE — CRITICAL:
-Never state that something is or isn't deployed, live, working, broken, or fixed as if
-it were a checked fact unless you called check_deploy_status or check_incidents earlier
-IN THIS SAME EXCHANGE and are reporting exactly what it returned. Memory of an earlier
-message, training knowledge, or "should be live by now" is a guess, not a fact — never
-phrase a guess as a finding.
+Never state that something is or isn't deployed, live, working, broken, fixed, paid, or
+credited as if it were a checked fact unless you called check_deploy_status,
+check_incidents, or check_transaction earlier IN THIS SAME EXCHANGE and are reporting
+exactly what it returned. Memory of an earlier message, training knowledge, or "should
+be live by now" is a guess, not a fact — never phrase a guess as a finding.
 - Asked if something shipped / is live / is deployed → call check_deploy_status.
 - Asked if anything's broken / failing / what's gone wrong → call check_incidents.
 - Asked what's been fixed recently → call check_incidents with "status": "resolved".
+- Asked whether a payment/purchase/subscription went through, or whether credits landed
+  → call check_transaction. Don't ask Michael for an email first if he gave you a time
+  window instead ("check the last hour", "anything in the last 2 hours") — pass that as
+  "since" and let the tool return whatever matches. Only ask him for more detail if he
+  gave you NEITHER a person NOR a time window to search.
 - If neither tool actually answers the question, or the tool comes back empty/unhelpful,
   say so plainly instead of inventing an answer — e.g. {"type": "message", "text":
   "I don't know, want me to check the logs?"} (your own words are fine, keep the tone).
@@ -1997,6 +2181,10 @@ Examples:
 "did the fix ship yet" → {"type": "action", "action": "check_deploy_status"}
 "is anything broken right now" → {"type": "action", "action": "check_incidents", "status": "open"}
 "what's been fixed lately" → {"type": "action", "action": "check_incidents", "status": "resolved"}
+"did laky120@yahoo.com's payment go through" → {"type": "action", "action": "check_transaction", "email": "laky120@yahoo.com"}
+"any PAYG purchases in the last 2 hours" → {"type": "action", "action": "check_transaction", "since": "2h", "category": "payg"}
+"did anne's subscription actually renew" → {"type": "action", "action": "check_transaction", "email": "cummins.anne@yahoo.co.uk", "category": "subscription"}
+"someone said their credits didn't land, check recent purchases" → {"type": "action", "action": "check_transaction", "since": "24h", "category": "payg"}
 "redeploy" → {"type": "action", "action": "redeploy"}
 "post on the channel that we have new genres" → {"type": "action", "action": "post_channel", "message": "🎵 New genres just dropped on Zeus Beats!\\n\\nFresh sounds added — go create your next hit now 🚀\\n\\nzeusbeats.com"}
 "what's the latest signup" → {"type": "action", "action": "recent_users"}
@@ -2114,6 +2302,12 @@ def _execute_action(action: dict, chat_id: str = "") -> str:
 
     if act == "check_incidents":
         return _cmd_check_incidents(action.get("status", "open"))
+
+    if act == "check_transaction":
+        return _cmd_check_transaction(
+            action.get("email", ""), action.get("user_id", ""),
+            action.get("since", ""), action.get("category", ""),
+        )
 
     if act == "redeploy":
         result = _cmd_redeploy()

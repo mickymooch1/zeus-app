@@ -181,8 +181,8 @@ def test_system_prompt_lists_the_new_tools_and_when_to_use_them():
 
 
 def test_system_prompt_forbids_stating_deploy_or_incident_claims_without_a_tool_call():
-    prompt = ta.ADMIN_SYSTEM_PROMPT
-    assert "check_deploy_status or check_incidents" in prompt
+    prompt = " ".join(ta.ADMIN_SYSTEM_PROMPT.split())  # collapse line-wrap whitespace
+    assert "check_deploy_status, check_incidents, or check_transaction" in prompt
     assert "I don't know" in prompt
     assert "never" in prompt.lower() and "guess" in prompt.lower()
 

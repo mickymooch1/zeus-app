@@ -1662,6 +1662,23 @@ def get_credit_grant(db_path: pathlib.Path, stripe_payment_id: str, credit_type:
         conn.close()
 
 
+def get_credit_grants_by_payment(db_path: pathlib.Path, stripe_payment_id: str) -> list[dict]:
+    """All credit_ledger rows for a given Stripe payment id, across every
+    credit_type -- unlike get_credit_grant(), which requires knowing the
+    credit_type up front. Powers Porick's check_transaction chat tool,
+    which only has the payment id from Stripe and doesn't know in advance
+    what (if anything) was granted for it."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT * FROM credit_ledger WHERE stripe_payment_id = ? ORDER BY created_at DESC",
+            (stripe_payment_id,),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
 def get_recent_credit_grant(
     db_path: pathlib.Path, user_id: str, credit_type: str, amount: int, within_hours: int = 24
 ) -> dict | None:
