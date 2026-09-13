@@ -5,9 +5,17 @@ our own database, reported separately so a mismatch between the two is
 never hidden. Wired into the AI action-routing layer the same way
 check_deploy_status/check_incidents already are.
 
-Stripe is stood in with plain dicts (Stripe's SDK objects are themselves
-dict-like -- ch.get(...) is already how the rest of this codebase reads
-them, see _cmd_revenue), never a real network call.
+Stripe is stood in with REAL stripe.Charge SDK objects (via
+stripe.Charge.construct_from(...), the library's own documented way to
+build one from a plain dict without a network call) -- never plain
+dicts. This matters: a stripe.Charge is NOT dict-like in the installed
+stripe-python -- ch.get(...) raises "AttributeError: 'get' is a dict
+method, but a Charge is not a dict", and every plain-dict-mocked test in
+an earlier version of this file happily let .get()-based production code
+ship completely broken (2026-09-13 incident: check_transaction crashed
+with an unhandled 500 on every real call). construct_from() is what
+closes that gap -- it fails the exact same way a real Charge does if
+production code ever regresses to .get().
 """
 import os
 import pathlib
@@ -17,6 +25,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+import stripe as stripe_lib
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 os.environ.setdefault("ANTHROPIC_API_KEY", "test-key")
@@ -53,11 +62,17 @@ def _make_user(temp_db, email, customer_id=None, **extra_fields):
 def _charge(*, id="ch_1", payment_intent="pi_1", amount=999, created=None, status="succeeded",
             paid=True, refunded=False, customer=None, invoice=None, email=None,
             card_last4="4242", card_brand="visa", secret_marker="sk_live_should_never_leak_ABCDEF123456"):
-    """A fake Stripe Charge -- includes payment_method_details and a fake
-    secret-shaped string so tests can assert they never reach the reply."""
+    """A REAL stripe.Charge SDK object -- constructed via the library's own
+    construct_from(), not a plain dict, so a test using it exercises the
+    exact same attribute-access behaviour (and the exact same failure mode
+    if production code regresses to .get()) as a real API response.
+    Includes payment_method_details and a fake secret-shaped string so
+    tests can assert they never reach the reply.
+    """
     created = created if created is not None else int(_NOW.timestamp())
-    return {
+    data = {
         "id": id,
+        "object": "charge",
         "payment_intent": payment_intent,
         "amount": amount,
         "created": created,
@@ -72,6 +87,7 @@ def _charge(*, id="ch_1", payment_intent="pi_1", amount=999, created=None, statu
         },
         "description": f"internal note containing {secret_marker}",
     }
+    return stripe_lib.Charge.construct_from(data, "sk_test_fake_key_for_construct_from")
 
 
 class _FakeChargeList:
@@ -85,20 +101,57 @@ class _FakeChargeList:
 def _mock_stripe(monkeypatch, charges):
     """Real Stripe filters server-side by `customer` and `created` -- this
     fake must too, or a test could wrongly "leak" another customer's charge
-    that a real API call would never have returned in the first place."""
+    that a real API call would never have returned in the first place.
+    Uses getattr (not .get()) since `charges` are real Charge objects."""
     def _list(**kwargs):
         result = charges
         customer = kwargs.get("customer")
         if customer:
-            result = [c for c in result if c.get("customer") == customer]
+            result = [c for c in result if getattr(c, "customer", None) == customer]
         gte = (kwargs.get("created") or {}).get("gte")
         if gte is not None:
-            result = [c for c in result if c.get("created", 0) >= gte]
+            result = [c for c in result if getattr(c, "created", 0) >= gte]
         return _FakeChargeList(result)
 
     fake_stripe = SimpleNamespace(Charge=SimpleNamespace(list=_list))
     monkeypatch.setattr(billing, "_get_stripe", lambda: fake_stripe)
     return fake_stripe
+
+
+# ── Regression guard: real Stripe SDK objects are not dict-like ────────────
+#
+# 2026-09-13 incident: every real check_transaction call crashed with an
+# unhandled 500 ("AttributeError: 'get' is a dict method, but a Charge is
+# not a dict") because the code used ch.get(...) on a real stripe.Charge.
+# Every test in this file builds charges via _charge() -> stripe.Charge.
+# construct_from(...), a REAL SDK object, specifically so this class of bug
+# can never hide behind a plain-dict mock again. This test makes that
+# guarantee explicit and self-documenting rather than merely implicit.
+
+def test_charge_fixture_is_a_real_stripe_object_not_dict_like():
+    charge = _charge()
+    assert isinstance(charge, stripe_lib.StripeObject)
+    assert not isinstance(charge, dict)
+    with pytest.raises(AttributeError):
+        charge.get("paid")  # the exact call that crashed production
+    # Real attribute access (what the fixed code actually uses) works fine.
+    assert charge.paid is True
+    assert charge.status == "succeeded"
+
+
+def test_check_transaction_survives_a_real_charge_end_to_end(temp_db, monkeypatch):
+    """Would have raised the production AttributeError before the fix --
+    now must return a normal, well-formed result."""
+    charges = [_charge(id="ch_1", payment_intent="pi_real", email="rex@example.com", customer="cus_rex")]
+    _mock_stripe(monkeypatch, charges)
+    rex = _make_user(temp_db, "rex@example.com", customer_id="cus_rex")
+    db.record_credit_grant(temp_db, rex["id"], "rex@example.com", "song", 10, "checkout_topup", "pi_real")
+
+    result = ta._cmd_check_transaction(email="rex@example.com")
+
+    assert "❌" not in result
+    assert "Payment: succeeded" in result
+    assert "Credits: landed (+10 song)" in result
 
 
 # ── Input validation ─────────────────────────────────────────────────────────
@@ -107,6 +160,20 @@ def test_requires_at_least_one_of_email_user_id_since():
     result = ta._cmd_check_transaction()
     assert "❓" in result
     assert "email" in result.lower() or "user id" in result.lower() or "time window" in result.lower()
+
+
+def test_a_bug_that_crashes_reports_a_plain_error_not_a_raw_crash(temp_db, monkeypatch):
+    """Whatever goes wrong inside check_transaction, the admin must always
+    get a plain reply -- never a swallowed exception with no Telegram
+    message at all (the actual production symptom on 2026-09-13: three
+    unhandled 500s, three requests where Porick never replied)."""
+    monkeypatch.setattr(ta, "_check_transaction_impl",
+                         lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("boom, unexpected bug")))
+
+    result = ta._cmd_check_transaction(since="2h")
+
+    assert result.startswith("❌")
+    assert "boom, unexpected bug" in result
 
 
 # ── since-window lookup with no email/user_id ───────────────────────────────
@@ -369,3 +436,40 @@ def test_system_prompt_lists_check_transaction_and_prefers_time_window_over_aski
 def test_system_prompt_includes_check_transaction_in_the_never_guess_rule():
     prompt = " ".join(ta.ADMIN_SYSTEM_PROMPT.split())  # collapse line-wrap whitespace
     assert "check_deploy_status, check_incidents, or check_transaction" in prompt
+
+
+# ── _cmd_revenue: the same .get()-on-a-real-Charge bug, same fix ───────────
+#
+# _cmd_revenue predates check_transaction and used the identical ch.get(...)
+# pattern that crashed check_transaction on 2026-09-13 -- except _cmd_revenue
+# already wraps its whole body in try/except, so instead of a raw 500 it
+# was silently reporting "❌ Stripe error: ..." (always £0.00) for however
+# long the installed stripe-python has forbidden .get() on a Charge. These
+# tests use the same real-Charge-object fixture as check_transaction's own
+# tests specifically so this class of bug can't hide behind a dict mock here
+# either.
+
+def test_cmd_revenue_reports_a_real_total_with_real_charge_objects(monkeypatch):
+    charges = [
+        _charge(id="ch_1", amount=1000, status="succeeded", paid=True, refunded=False),
+        _charge(id="ch_2", amount=500, status="succeeded", paid=True, refunded=False),
+        _charge(id="ch_3", amount=2000, status="succeeded", paid=True, refunded=True),  # refunded, excluded
+    ]
+    _mock_stripe(monkeypatch, charges)
+
+    result = ta._cmd_revenue()
+
+    assert "❌" not in result
+    assert "£15.00" in result  # 1000 + 500 pence = £15.00, refunded charge excluded
+
+
+def test_cmd_revenue_never_raises_a_raw_attributeerror_on_real_charges(monkeypatch):
+    """Would have returned "❌ Stripe error: 'get' is a dict method..." before
+    the fix -- now must report a real number instead."""
+    charges = [_charge(id="ch_1", amount=999, status="succeeded", paid=True, refunded=False)]
+    _mock_stripe(monkeypatch, charges)
+
+    result = ta._cmd_revenue()
+
+    assert "dict method" not in result
+    assert "AttributeError" not in result

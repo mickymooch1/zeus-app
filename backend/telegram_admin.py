@@ -551,11 +551,18 @@ def _cmd_revenue() -> str:
         month_start = int(datetime(now.year, now.month, 1, tzinfo=timezone.utc).timestamp())
 
         def _total(since: int) -> float:
+            # ch is a real stripe.Charge SDK object, not a dict -- .get(...)
+            # raises "AttributeError: 'get' is a dict method, but a Charge
+            # is not a dict" on the installed stripe-python (see
+            # _stripe_attr's docstring). This was silently broken: every
+            # call here has been hitting that AttributeError and falling
+            # into this function's own try/except, always reporting
+            # £0.00 as "❌ Stripe error: ..." rather than real revenue.
             total = 0.0
             charges = stripe.Charge.list(created={"gte": since}, limit=100)
             for ch in charges.auto_paging_iter():
-                if ch.get("paid") and not ch.get("refunded"):
-                    total += ch["amount"] / 100
+                if _stripe_attr(ch, "paid") and not _stripe_attr(ch, "refunded"):
+                    total += _stripe_attr(ch, "amount", 0) / 100
             return total
 
         today_rev = _total(today_start)
@@ -1806,10 +1813,31 @@ def _parse_since(since: str) -> int | None:
     return int((datetime.now(timezone.utc) - delta).timestamp())
 
 
+def _stripe_attr(obj, name: str, default=None):
+    """Safe attribute access for a real Stripe SDK object (stripe.Charge and
+    friends). These are StripeObject instances, NOT dicts -- calling
+    .get(...) on one raises "AttributeError: 'get' is a dict method, but a
+    Charge is not a dict" in the currently-installed stripe-python (this
+    codebase's own earlier tests mocked charges as plain dicts, which DO
+    support .get(), and that mismatch is exactly what let this ship broken
+    on 2026-09-13: every real call crashed with an unhandled 500 and no
+    reply). getattr(..., default) mirrors dict.get()'s "missing means
+    default, never raise" behaviour without relying on .get() existing.
+    """
+    if obj is None:
+        return default
+    return getattr(obj, name, default)
+
+
+def _stripe_email(charge) -> str | None:
+    billing_details = _stripe_attr(charge, "billing_details")
+    return _stripe_attr(billing_details, "email")
+
+
 def _classify_charge_category(charge) -> str:
     """"subscription" if the charge is tied to an invoice (recurring
     billing); "payg" otherwise (a one-time song/animation/memorial pack)."""
-    return "subscription" if charge.get("invoice") else "payg"
+    return "subscription" if _stripe_attr(charge, "invoice") else "payg"
 
 
 def _category_matches(charge_category: str, requested: str) -> bool:
@@ -1824,11 +1852,12 @@ def _category_matches(charge_category: str, requested: str) -> bool:
 
 
 def _payment_status_label(charge) -> str:
-    if charge.get("refunded"):
+    if _stripe_attr(charge, "refunded"):
         return "refunded"
-    if charge.get("status") == "succeeded" and not charge.get("paid"):
+    status = _stripe_attr(charge, "status", "unknown")
+    if status == "succeeded" and not _stripe_attr(charge, "paid"):
         return "pending"  # defensive: "paid" is the authoritative signal
-    return charge.get("status", "unknown")
+    return status
 
 
 def _credits_landing_line(charge, category: str) -> str:
@@ -1841,8 +1870,8 @@ def _credits_landing_line(charge, category: str) -> str:
     db_path = _db.get_db_path()
 
     if category == "subscription":
-        email = (charge.get("billing_details") or {}).get("email")
-        customer_id = charge.get("customer")
+        email = _stripe_email(charge)
+        customer_id = _stripe_attr(charge, "customer")
         user = _db.get_user_by_email(db_path, email) if email else None
         if not user and customer_id:
             conn = _ro_conn()
@@ -1857,7 +1886,7 @@ def _credits_landing_line(charge, category: str) -> str:
             return f"Subscription: active ({_esc(user.get('subscription_plan') or 'unknown plan')})"
         return f"Subscription: NOT active (status={_esc(user.get('subscription_status'))}) — mismatch, needs manual check"
 
-    pi_id = charge.get("payment_intent") or charge.get("id")
+    pi_id = _stripe_attr(charge, "payment_intent") or _stripe_attr(charge, "id")
     grants = _db.get_credit_grants_by_payment(db_path, pi_id) if pi_id else []
     if grants:
         parts = ", ".join(f"+{g['amount']} {g['credit_type']}" for g in grants)
@@ -1874,7 +1903,21 @@ def _cmd_check_transaction(email: str = "", user_id: str = "", since: str = "", 
     with no email/user_id, matching "all PAYG purchases in the last 2
     hours"). Reuses the same stripe.Charge.list access _cmd_revenue already
     established.
+
+    The whole body is wrapped in a try/except: a raw crash here previously
+    meant an unhandled 500 with NO Telegram reply at all, which left
+    Porick's own conversation history showing "I decided to call this tool"
+    with no visible outcome -- exactly what caused it to narrate a fake
+    retry loop instead of reporting a plain failure (2026-09-13 incident).
     """
+    try:
+        return _check_transaction_impl(email, user_id, since, category)
+    except Exception as exc:
+        log.exception("_cmd_check_transaction failed")
+        return f"❌ check_transaction failed: {exc}"
+
+
+def _check_transaction_impl(email: str, user_id: str, since: str, category: str) -> str:
     import billing as _billing
     from datetime import datetime, timezone
 
@@ -1933,9 +1976,9 @@ def _cmd_check_transaction(email: str = "", user_id: str = "", since: str = "", 
     for charge in results:
         payment_status = _payment_status_label(charge)
         landing_line = _credits_landing_line(charge, _classify_charge_category(charge))
-        billing_email = (charge.get("billing_details") or {}).get("email") or resolved_email or "unknown"
-        amount = f"£{(charge.get('amount') or 0) / 100:.2f}"
-        when = datetime.fromtimestamp(charge.get("created", 0), tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
+        billing_email = _stripe_email(charge) or resolved_email or "unknown"
+        amount = f"£{(_stripe_attr(charge, 'amount', 0) or 0) / 100:.2f}"
+        when = datetime.fromtimestamp(_stripe_attr(charge, 'created', 0) or 0, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
         lines.append(
             f"• {_esc(billing_email)} — {amount} — {when}\n"
             f"  Payment: {_esc(payment_status)}. {landing_line}."
@@ -2018,6 +2061,44 @@ def _db_save_exchange(chat_id: str, user_msg: str, assistant_msg: str) -> None:
             conn.close()
     except Exception as exc:
         log.warning("_db_save_exchange: %s", exc)
+
+
+def _db_record_tool_failure(chat_id: str, outcome: str) -> None:
+    """Append a plain outcome note to the most recently saved assistant
+    turn for this chat.
+
+    _ai_parse() saves the model's raw JSON decision (e.g. deciding to call
+    check_transaction) to history BEFORE that action is actually executed
+    -- so history never reflected whether a tool call actually worked, only
+    that the model decided to make one. A crashed/failed call therefore
+    looked, on the next turn, exactly like a still-pending request with no
+    result -- which is what led Porick to narrate a fake retry loop instead
+    of just saying "that failed" (2026-09-13 incident). This appends the
+    real outcome directly onto that same assistant turn so the next model
+    call can see what actually happened and report it honestly.
+    """
+    try:
+        import db as _db
+        db_path = _db.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        try:
+            row = conn.execute(
+                """SELECT id, content FROM admin_conversation_history
+                   WHERE chat_id = ? AND role = 'assistant' ORDER BY id DESC LIMIT 1""",
+                (chat_id,),
+            ).fetchone()
+            if row is None:
+                return
+            row_id, content = row
+            conn.execute(
+                "UPDATE admin_conversation_history SET content = ? WHERE id = ?",
+                (f"{content}\n[TOOL RESULT: {outcome[:300]}]", row_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as exc:
+        log.warning("_db_record_tool_failure: %s", exc)
 
 
 def _db_log_action(chat_id: str, action: str, summary: str) -> None:
@@ -2597,7 +2678,14 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
             return search_results
         return _ai_answer_with_search(t, query, search_results, chat_id)
 
-    return _execute_action(action, chat_id)
+    result = _execute_action(action, chat_id)
+    # A tool that failed must be visible in history, not just the model's
+    # own past decision to call it -- see _db_record_tool_failure's
+    # docstring. "❌" is this codebase's established failure prefix
+    # (_cmd_revenue, _cmd_check_deploy_status, _cmd_check_transaction, ...).
+    if chat_id and isinstance(result, str) and result.startswith("❌"):
+        _db_record_tool_failure(chat_id, result)
+    return result
 
 
 # ── Log buffer setup ─────────────────────────────────────────────────────────
