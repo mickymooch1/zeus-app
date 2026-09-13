@@ -24,7 +24,7 @@ const GENRE_LABEL = {
   meditation:'Meditation', christmas:'Christmas', corridos:'Corridos',
   healingfrequency:'Healing Frequency', swing:'Swing', vocaljazz:'Vocal Jazz', scat:'Scat Jazz', opera:'Opera',
   traditionalpop:'Traditional Pop', rocknroll:"Rock 'n' Roll",
-  southemsoul:'Southern Soul', countryamericana:'Country Americana', countryballad:'Country Ballad',
+  southemsoul:'Southern Soul', countryamericana:'Country Americana', countryballad:'Country Ballad', outlawcountry:'Dark Outlaw Country',
 };
 
 const gLabel = (g) => {

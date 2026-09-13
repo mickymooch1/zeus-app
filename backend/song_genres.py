@@ -21,6 +21,7 @@ GENRE_PRESETS = {
     "patriotic":      "patriotic music, orchestral brass, rousing anthem, military drum, uplifting national pride, 90 BPM, choir voices, ceremonial feel, stirring emotional delivery, traditional patriotic march, grand orchestral arrangement",
     "country":  "country ballad, acoustic guitar, slide guitar, warm storytelling vocals, moderate tempo",
     "countryballad": "country ballad, slow emotional country, acoustic guitar fingerpicking, steel pedal guitar, heartfelt storytelling vocals, melancholic and tender atmosphere, gentle strings, warm production, emotional vulnerability, slow tempo 60-70 BPM, classic country heartbreak feel, intimate and sincere delivery",
+    "outlawcountry": "dark outlaw country, Southern Gothic atmosphere, dark Americana, gritty country rock, deep gravelly male vocals, heavy stomping drums, dirty distorted blues guitar, slide guitar, deep bass, sparse banjo, haunting fiddle, cinematic western atmosphere, raw and menacing tone, rebellious attitude, big powerful chorus, modern production, no cheerful pop-country sound",
     "reggae":   "reggae, punchy offbeat skank guitar, upbeat radio-friendly groove, polished modern production, catchy singalong hook, bright energetic vocals, crisp commercial mix, feel-good pop-reggae crossover, danceable uptempo feel, 95 BPM",
     "pop":      "modern pop, polished production, catchy synth melody, clear vocals, 120 BPM",
     "rock":     "rock anthem, electric guitar, driving drums, powerful vocals, 130 BPM",

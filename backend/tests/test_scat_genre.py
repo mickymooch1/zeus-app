@@ -318,3 +318,55 @@ def test_countryballad_label_in_display_maps():
                 "web-beats/src/pages/SongSharePage.jsx"]:
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert s.count("countryballad:'Country Ballad'") == 1, rel
+
+
+# ── Dark Outlaw Country (2026-09-13) ─────────────────────────────────────────
+
+def test_outlawcountry_preset_exists():
+    assert "outlawcountry" in GENRE_PRESETS
+    assert len(GENRE_PRESETS["outlawcountry"]) > 80
+
+
+def test_outlawcountry_describes_the_sound():
+    style = GENRE_PRESETS["outlawcountry"].lower()
+    for token in ["southern gothic", "gravelly", "slide guitar", "banjo", "fiddle", "cinematic western"]:
+        assert token in style, token
+
+
+def test_outlawcountry_is_distinct_from_its_neighbours():
+    """country/traditionalcountry are warm and twangy; countryballad is a
+    slow tender heartbreak ballad; countryamericana already namechecks
+    "outlaw country storytelling" in its own style string despite being a
+    hip-hop/trap-influenced fusion. outlawcountry must not collapse into
+    any of them -- it's the dark, gritty, cinematic one."""
+    oc = GENRE_PRESETS["outlawcountry"].lower()
+    for other in ("country", "traditionalcountry", "countryballad", "countryamericana"):
+        assert oc != GENRE_PRESETS[other].lower(), f"outlawcountry collapsed into {other}"
+    assert "no cheerful pop-country sound" in oc
+
+
+def test_outlawcountry_has_its_own_cover_prompt():
+    import webhooks
+    assert "outlawcountry" in webhooks.GENRE_COVER_PROMPTS
+    assert webhooks.GENRE_COVER_PROMPTS["outlawcountry"] != webhooks._DEFAULT_COVER_PROMPT
+    assert webhooks.GENRE_COVER_PROMPTS["outlawcountry"] != webhooks.GENRE_COVER_PROMPTS["country"]
+
+
+def test_outlawcountry_registered_in_both_apps():
+    # web-beats extracted its genre category/label data into utils/genres.js
+    # (Task 14, to break a circular import) — read the data there.
+    web = (_ROOT / "web-beats" / "src" / "utils" / "genres.js").read_text(encoding="utf-8")
+    assert "'outlawcountry'" in web
+    assert web.count("outlawcountry:'Dark Outlaw Country'") == 1, "duplicate object key"
+    assert "'countryballad','outlawcountry'" in web, "should sit in Country & Folk"
+    ios = (_ROOT / "zeus-beats-ios" / "src" / "screens" / "CreateSongScreen.tsx").read_text(encoding="utf-8")
+    assert ios.count("outlawcountry:'Dark Outlaw Country'") == 1
+    assert "'countryballad','outlawcountry'" in ios
+
+
+def test_outlawcountry_label_in_display_maps():
+    for rel in ["web-beats/src/components/NowPlayingBar.jsx",
+                "web-beats/src/pages/PlaylistPage.jsx",
+                "web-beats/src/pages/SongSharePage.jsx"]:
+        s = (_ROOT / rel).read_text(encoding="utf-8")
+        assert s.count("outlawcountry:'Dark Outlaw Country'") == 1, rel
