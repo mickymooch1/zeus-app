@@ -473,6 +473,32 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_variants ADD COLUMN cover_photo_id INTEGER",
             "ALTER TABLE users ADD COLUMN memorial_credits_available INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE song_variants ADD COLUMN tribute_message TEXT",
+            # Abuse blocklist (2026-09-14): hard-blocks a specific email (canonical
+            # form) from registering OR logging in; ip/device_fp entries are a SOFT
+            # signal only -- deliberately never rejected outright (a device/network
+            # fingerprint can legitimately be shared by more than one real person),
+            # just flagged to the admin via the same signup_flags/alert_signup_flag
+            # path device_reuse/ip_velocity already use. See is_email_blocklisted()/
+            # find_blocklisted_device_signal() below.
+            """CREATE TABLE IF NOT EXISTS abuse_blocklist (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                signal_type   TEXT NOT NULL,
+                signal_value  TEXT NOT NULL,
+                reason        TEXT NOT NULL,
+                created_at    TEXT NOT NULL,
+                UNIQUE(signal_type, signal_value)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_abuse_blocklist_lookup ON abuse_blocklist (signal_type, signal_value)",
+            # First case: multiple free-trial accounts from one device. OR IGNORE
+            # against the UNIQUE(signal_type, signal_value) constraint makes this
+            # safe to ship as a migration -- applies once, no manual step needed.
+            # The device/IP tied to these signups is a SEPARATE, deliberately
+            # soft-flag-only follow-up (not a block) — see abuse_blocklist's
+            # table comment above for why device/IP never hard-blocks here.
+            """INSERT OR IGNORE INTO abuse_blocklist (signal_type, signal_value, reason, created_at)
+               VALUES ('email', 'paulgb189@gmail.com',
+                       'Multiple free-trial accounts from one device (reported 2026-09-14)',
+                       datetime('now'))""",
         ]:
             try:
                 conn.execute(_migration)
@@ -542,6 +568,80 @@ def is_ip_allowlisted(ip_address: str) -> bool:
     import os
     allowlist = {ip.strip() for ip in os.environ.get("REGISTRATION_ALLOWLIST", "").split(",") if ip.strip()}
     return bool(ip_address) and ip_address in allowlist
+
+
+def is_email_blocklisted(db_path: pathlib.Path, email: str) -> str | None:
+    """The block reason if this canonical email is on abuse_blocklist, else
+    None. Callers pass the ALREADY-NORMALISED (signup_guard.normalize_email)
+    form so paulgb189+x@gmail.com / p.a.u.l.g.b.1.8.9@gmail.com etc. can't
+    dodge a block the same way they already can't dodge the existing
+    duplicate-account check (see get_user_by_canonical_email). This is a
+    HARD signal — callers should reject on a match.
+    """
+    if not email:
+        return None
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT reason FROM abuse_blocklist WHERE signal_type = 'email' AND signal_value = ?",
+            (email,),
+        ).fetchone()
+        return row["reason"] if row else None
+    finally:
+        conn.close()
+
+
+def find_blocklisted_device_signal(
+    db_path: pathlib.Path, *, ip_address: str | None = None, fp_hash: str | None = None
+) -> dict | None:
+    """The matching abuse_blocklist row (as a dict) if this IP or device
+    fingerprint hash is listed, else None.
+
+    SOFT signal only — an IP or a device fingerprint can legitimately be
+    shared by more than one real person (a household, a flatmate, a work
+    network), so a match here must never by itself reject a request. It
+    exists so a caller can flag the attempt for admin review instead —
+    exactly like the existing device_reuse/ip_velocity soft signals.
+    """
+    conn = _conn(db_path)
+    try:
+        if ip_address:
+            row = conn.execute(
+                "SELECT * FROM abuse_blocklist WHERE signal_type = 'ip' AND signal_value = ?",
+                (ip_address,),
+            ).fetchone()
+            if row:
+                return dict(row)
+        if fp_hash:
+            row = conn.execute(
+                "SELECT * FROM abuse_blocklist WHERE signal_type = 'device_fp' AND signal_value = ?",
+                (fp_hash,),
+            ).fetchone()
+            if row:
+                return dict(row)
+        return None
+    finally:
+        conn.close()
+
+
+def add_to_blocklist(db_path: pathlib.Path, signal_type: str, signal_value: str, reason: str) -> bool:
+    """Add one entry to abuse_blocklist. signal_type is 'email' (hard block
+    — pass the CANONICAL form), 'ip', or 'device_fp' (both soft-flag only).
+    Returns True if newly added, False if this exact (type, value) pair was
+    already listed (UNIQUE constraint — idempotent to re-run).
+    """
+    from datetime import datetime, timezone
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            """INSERT OR IGNORE INTO abuse_blocklist (signal_type, signal_value, reason, created_at)
+               VALUES (?, ?, ?, ?)""",
+            (signal_type, signal_value, reason, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
 
 
 def count_device_signups(db_path: pathlib.Path, fp_hash: str) -> int:

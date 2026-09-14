@@ -308,6 +308,7 @@ def alert_contact_submission(name: str, email: str, subject: str, message: str,
 _FLAG_LABELS = {
     "device_reuse": "🖥 Same device as an existing account",
     "ip_velocity": "🌐 Several signups from one IP",
+    "blocklisted_device": "⛔ Device/IP linked to a blocked account — new signup NOT auto-rejected, review manually",
 }
 
 

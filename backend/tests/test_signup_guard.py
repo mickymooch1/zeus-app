@@ -2,10 +2,12 @@
 
 The contract these tests defend:
 
-  * Only two things hard-block a signup — a disposable domain, and an email that
-    resolves to an existing account.
-  * Device reuse and IP volume are soft signals. The one IP hard cap sits far
-    above any household's plausible volume.
+  * Three things hard-block a signup — a disposable domain, an email that
+    resolves to an existing account, and an email on the abuse blocklist
+    (added 2026-09-14, see test_abuse_blocklist.py).
+  * Device reuse, IP volume, and a device/IP blocklist match are ALL soft
+    signals only. The one IP hard cap sits far above any household's
+    plausible volume.
   * Normalisation must catch the Gmail +alias/dot tricks WITHOUT merging two
     genuinely different people on providers where dots are significant.
 """

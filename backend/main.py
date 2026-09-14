@@ -896,7 +896,7 @@ async def register(request: Request, body: RegisterRequest):
         log.exception("register: failed to get DB path")
         raise HTTPException(status_code=500, detail=f"Database unavailable: {exc}")
 
-    # Hard block 2 of 2: the account already exists. Checked both exactly and
+    # Hard block 2 of 3: the account already exists. Checked both exactly and
     # against the normalised form, so name+1@gmail.com / n.a.m.e@gmail.com can't
     # farm fresh credits off one real inbox.
     if db.get_user_by_email(db_path, body.email):
@@ -908,6 +908,19 @@ async def register(request: Request, body: RegisterRequest):
             body.email, canonical_match.get("email_canonical"),
         )
         raise HTTPException(status_code=409, detail="An account with that email already exists")
+
+    # Hard block 3 of 3: this specific email is on the abuse blocklist (see
+    # db.is_email_blocklisted / abuse_blocklist table). Checked against the
+    # canonical form for the same alias-dodging reason as the block above.
+    # Unlike that block, this isn't "account exists" — say so plainly rather
+    # than a confusing generic error.
+    block_reason = db.is_email_blocklisted(db_path, signup_guard.normalize_email(body.email))
+    if block_reason:
+        log.warning("register: blocked email — email=%s reason=%s", body.email, block_reason)
+        raise HTTPException(
+            status_code=403,
+            detail="This account can't be created. If you believe this is a mistake, contact support.",
+        )
 
     ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
     db.record_registration_attempt(db_path, ip)
@@ -937,6 +950,12 @@ async def register(request: Request, body: RegisterRequest):
         # Legacy table holds one row per device from before device_signups existed.
         if device_count == 0 and db.check_device_fingerprint_exists(db_path, fp_hash):
             device_count = 1
+
+    # Blocked device/IP is ALSO a soft signal, deliberately — see
+    # db.find_blocklisted_device_signal's docstring. This never rejects the
+    # signup; it's flagged after the user row exists, same as device_reuse/
+    # ip_velocity below, so an admin can review case-by-case.
+    blocklisted_device = db.find_blocklisted_device_signal(db_path, ip_address=ip, fp_hash=fp_hash)
 
     try:
         password_hash = auth.hash_password(body.password)
@@ -1009,6 +1028,12 @@ async def register(request: Request, body: RegisterRequest):
         _record_signup_flag(
             db_path, user, ip, "ip_velocity",
             f"{ip_day_count} signups from this IP in {signup_guard.IP_FLAG_WINDOW_HOURS}h",
+        )
+    if blocklisted_device:
+        _record_signup_flag(
+            db_path, user, ip, "blocklisted_device",
+            f"matches blocklisted {blocklisted_device['signal_type']} "
+            f"(reason: {blocklisted_device['reason']})",
         )
 
     import zeus_ops_agent as _ops
@@ -1171,6 +1196,19 @@ async def login(request: Request, body: LoginRequest):
 
     if not password_ok:
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # Checked only after a correct password — a blocked account's existence
+    # (or block status) is never revealed to someone who doesn't know the
+    # password; they just get the same generic "Invalid email or password"
+    # above. The owner gets a clear, deliberate rejection, not a confusing
+    # generic error.
+    block_reason = db.is_email_blocklisted(db_path, signup_guard.normalize_email(body.email))
+    if block_reason:
+        log.warning("login: blocked account attempted login — email=%s reason=%s", body.email, block_reason)
+        raise HTTPException(
+            status_code=403,
+            detail="This account has been suspended. If you believe this is a mistake, contact support.",
+        )
 
     token = auth.create_token(user["id"], user["email"], is_admin=bool(user.get("is_admin", 0)))
     safe_user = _safe_user(user)
