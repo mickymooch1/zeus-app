@@ -57,6 +57,7 @@ Just talk to me naturally, mate! Examples:
 <code>stripe list</code>
 <code>post song VARIANT_ID</code> — post a specific song
 <code>broadcast Subject | Message body</code> — email ALL Zeus Beats users
+<code>announce Title | Message body</code> — post a What's New popup in the app
 <code>refund failures</code> — refund 1 credit per song failed in last 24h
 <code>school email EMAIL</code> — outreach email to one school
 <code>school blast CITY</code> — find schools in city and email them all
@@ -1127,6 +1128,17 @@ def _cmd_email_bulk(audience: str, subject: str, body: str) -> str:
     if failed:
         result += f"\n❌ Failed: {failed} (logged)"
     return result
+
+
+def _cmd_announce(title: str, body: str) -> str:
+    """Post a "What's New" in-app announcement — shown as a dismissible modal
+    to any user who hasn't seen it yet (see GET /announcements/unseen)."""
+    try:
+        import db as _db
+        row = _db.create_announcement(_db.get_db_path(), title, body)
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+    return f"✅ Announcement #{row['id']} posted: '{title}'"
 
 
 # ── School outreach ──────────────────────────────────────────────────────────
@@ -2613,6 +2625,18 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
         result = _cmd_email_bulk("all", subject, body)
         if chat_id and "✅" in result:
             _db_log_action(chat_id, "email_bulk", f"Broadcast to all users — subject: '{subject}'")
+        return result
+
+    # announce — in-app "What's New" popup; title and body separated by |
+    # Usage: announce Title here | Full message body here
+    m = re.match(r'^announce\s+(.+?)\s*\|\s*(.+)$', t, re.IGNORECASE | re.DOTALL)
+    if m:
+        title = m.group(1).strip()
+        body = m.group(2).strip()
+        log.info("announce: title=%r body_len=%d", title[:60], len(body))
+        result = _cmd_announce(title, body)
+        if chat_id and "✅" in result:
+            _db_log_action(chat_id, "announce", f"Posted announcement: '{title}'")
         return result
 
     # refund failures — exact command; NL variants go through the AI layer

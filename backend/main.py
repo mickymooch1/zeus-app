@@ -1235,6 +1235,22 @@ async def me(current_user: dict = Depends(auth.get_current_user)):
     return safe_user
 
 
+@app.get("/announcements/unseen")
+async def announcements_unseen(current_user: dict = Depends(auth.get_current_user)):
+    db_path = db.get_db_path()
+    last_seen = current_user.get("last_seen_announcement_id", 0) or 0
+    announcements = db.get_unseen_announcements(db_path, last_seen)
+    return {"announcements": announcements}
+
+
+@app.post("/announcements/seen")
+async def announcements_seen(current_user: dict = Depends(auth.get_current_user)):
+    db_path = db.get_db_path()
+    latest_id = db.get_latest_announcement_id(db_path)
+    db.update_user(db_path, current_user["id"], last_seen_announcement_id=latest_id)
+    return {"ok": True}
+
+
 @app.post("/api/voice/clone")
 async def clone_voice(request: Request, current_user: dict = Depends(auth.get_current_user)):
     """Instant Voice Cloning via ElevenLabs. Receives an audio recording + explicit

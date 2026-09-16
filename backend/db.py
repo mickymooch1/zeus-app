@@ -499,6 +499,20 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                VALUES ('email', 'paulgb189@gmail.com',
                        'Multiple free-trial accounts from one device (reported 2026-09-14)',
                        datetime('now'))""",
+            # "What's New" announcements (2026-09-17). last_seen_announcement_id
+            # defaults to 0 for existing rows -- harmless, since there is no
+            # announcement history yet the first time this migration runs. Going
+            # forward, create_user() stamps new signups to the then-current
+            # latest id instead of 0, so they never see a backlog of
+            # announcements posted before they existed.
+            """CREATE TABLE IF NOT EXISTS announcements (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                title      TEXT NOT NULL,
+                body       TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                active     INTEGER NOT NULL DEFAULT 1
+            )""",
+            "ALTER TABLE users ADD COLUMN last_seen_announcement_id INTEGER NOT NULL DEFAULT 0",
         ]:
             try:
                 conn.execute(_migration)
@@ -749,16 +763,21 @@ def create_user(
     import signup_guard
     now = datetime.now(timezone.utc).isoformat()
     user_id = str(uuid.uuid4())
+    # Stamp new signups caught up on announcement history that predates them —
+    # otherwise a user who joins after 10 announcements already exist would see
+    # all 10 as "new" the moment they log in.
+    last_seen_announcement_id = get_latest_announcement_id(db_path)
     conn = _conn(db_path)
     try:
         conn.execute(
             """
             INSERT INTO users (id, email, email_canonical, password_hash, name,
-                               subscription_status, tc_accepted_at, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, 'free', ?, ?, ?)
+                               subscription_status, tc_accepted_at, created_at, updated_at,
+                               last_seen_announcement_id)
+            VALUES (?, ?, ?, ?, ?, 'free', ?, ?, ?, ?)
             """,
             (user_id, email.lower().strip(), signup_guard.normalize_email(email),
-             password_hash, name, tc_accepted_at, now, now),
+             password_hash, name, tc_accepted_at, now, now, last_seen_announcement_id),
         )
         conn.commit()
         return get_user_by_id(db_path, user_id)
@@ -2703,5 +2722,62 @@ def get_for_you_songs(db_path: pathlib.Path, user_id: str, limit: int = 20) -> l
         results = [dict(r) for r in rows]
         _log.info("For You: trending last-resort returned %d songs", len(results))
         return results
+    finally:
+        conn.close()
+
+
+# ── Announcements ("What's New") ─────────────────────────────────────────────
+
+def create_announcement(db_path: pathlib.Path, title: str, body: str) -> dict:
+    """Insert a new active announcement and return its row."""
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            "INSERT INTO announcements (title, body, created_at, active) VALUES (?, ?, ?, 1)",
+            (title, body, now),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM announcements WHERE id = ?", (cur.lastrowid,)
+        ).fetchone()
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def get_latest_announcement_id(db_path: pathlib.Path) -> int:
+    """Highest announcement id that exists, or 0 if none do."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute("SELECT MAX(id) AS max_id FROM announcements").fetchone()
+        return row["max_id"] or 0
+    finally:
+        conn.close()
+
+
+def get_unseen_announcements(db_path: pathlib.Path, last_seen_id: int, limit: int = 3) -> list[dict]:
+    """Active announcements newer than last_seen_id, newest first, capped at limit."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            """SELECT * FROM announcements
+               WHERE active = 1 AND id > ?
+               ORDER BY id DESC LIMIT ?""",
+            (last_seen_id, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def update_announcement_active(db_path: pathlib.Path, announcement_id: int, active: bool) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE announcements SET active = ? WHERE id = ?",
+            (1 if active else 0, announcement_id),
+        )
+        conn.commit()
     finally:
         conn.close()

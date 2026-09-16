@@ -7,6 +7,7 @@ import { ProtectedRoute, SchoolSafeRoute } from './components/ProtectedRoute';
 import CookieBanner from './components/CookieBanner';
 import NowPlayingBar from './components/NowPlayingBar';
 import { UpdateToast } from './components/UpdateToast';
+import WhatsNewModal from './components/WhatsNewModal';
 import KidsShell from './components/KidsShell';
 import ParentPINGate from './components/ParentPINGate';
 import SpaceBackground from './components/SpaceBackground';
@@ -121,6 +122,7 @@ function AppInner() {
     <>
       {!isSharePage && <CookieBanner />}
       <UpdateToast />
+      <WhatsNewModal />
       {currentSong?.mp3_url && <NowPlayingBar />}
     </>
   );
