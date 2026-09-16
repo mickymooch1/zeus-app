@@ -39,6 +39,9 @@ GENRE_PRESETS = {
     # rather than in a third genre overlapping this and "folk".
     "irishfolk": "Irish folk song, acoustic guitar and fiddle, tin whistle, bodhran and hand percussion, mandolin and banjo, warm storytelling vocals, gentle harmonies, lilting Celtic melodies, timeless rustic arrangement, intimate acoustic production, ballad structure, 90 BPM",
     "blues":     "blues, electric guitar, soulful vocals, slow to mid tempo, 12-bar blues progression",
+    "chicagoblues": "Chicago electric blues, amplified harmonica through tube amp, heavily distorted harmonica, punchy electric guitar riffs, driving rhythm section, electric blues groove, powerful vocals, 1950s Chicago blues sound, heavy backbeat, raw electric energy, gritty blues feel, harmonica bends and wails, loud amplified sound, urban blues",
+    "deltablues": "Delta acoustic blues, raw acoustic harmonica, voice-like harmonica bends, mournful train whistle harmonica, acoustic slide guitar, lonely desolate atmosphere, sparse arrangement, call-and-response vocals, early American blues, plaintive and sorrowful mood, acoustic fingerpicking, lonesome country blues feel, old rural South sound",
+    "swampblues": "Louisiana swamp blues, slow hypnotic groove, lazy rhythmic feel, harmonica-driven melody, swampy atmospheric production, humid Southern atmosphere, slow burning blues, heavy reverb, mysterious and brooding mood, slow deliberate tempo 60-70 BPM, Louisiana bayou feel, hypnotic repetitive groove, soulful harmonica wail",
     "soul":      "soul music, warm brass, gospel-influenced vocals, rhythm section, emotional delivery",
     "rnb":        "R&B, smooth production, silky vocals, bass-forward, contemporary feel, 90 BPM",
     "bluessoul":  "blues soul fusion, soulful vocals, warm guitar, gospel undertones, emotional delivery, slow to mid tempo",
