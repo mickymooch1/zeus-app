@@ -95,6 +95,34 @@ _PLAN_SONG_CREDITS = {
     "music_agency":  150,
 }
 
+
+def reconcile_stale_credit_override(db_path, email: str, stale_allowance: int) -> bool:
+    """Correct an account still stuck at a hardcoded stale monthly_allowance
+    left over from a past manual SQL patch (see the 2026-09-16 laky120
+    incident: an unguarded startup script pinned her monthly_allowance to 25
+    on every deploy instead of her music_starter plan's real 30, silently
+    contradicting the "credits never expire" promise).
+
+    Self-limiting by construction: only touches the row if it is still at the
+    exact stale value, and derives the correction from the CURRENT plan
+    config (_PLAN_SONG_CREDITS) rather than writing a new hardcoded number --
+    so it cannot repeat the same mistake, and is a no-op (safe to leave
+    deployed) once the account is fixed. Returns True iff a correction was
+    applied.
+    """
+    user = db.get_user_by_email(db_path, email)
+    if not user:
+        return False
+    credits = db.get_song_credits(db_path, user["id"])
+    if not credits or credits.get("monthly_allowance") != stale_allowance:
+        return False
+    correct_allowance = _PLAN_SONG_CREDITS.get(user.get("subscription_plan"))
+    if not correct_allowance:
+        return False
+    db.upsert_song_credits(db_path, user["id"], balance=correct_allowance, monthly_allowance=correct_allowance)
+    return True
+
+
 # Avatar videos (D-ID lip-sync) are no longer offered — no plan grants video
 # credits. Left as a dict (rather than removed) so the two .get(plan, 0) call
 # sites below don't need touching and no plan can silently regain credits.

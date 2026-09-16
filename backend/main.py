@@ -463,122 +463,17 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("Free-user credit fix failed (non-fatal)")
 
-    # One-time: verify tinayarowle@icloud.com
+    # Corrects laky120@yahoo.com's account if it's still stuck at
+    # monthly_allowance=25 — the value a since-removed unguarded startup
+    # patch used to re-write on every deploy, contradicting the "credits
+    # never expire" promise (see billing.reconcile_stale_credit_override's
+    # docstring for the full incident). Self-limiting: a no-op once
+    # corrected, safe to leave running indefinitely.
     try:
-        import sqlite3 as _sqlite3
-        _vc = _sqlite3.connect(str(_db_path))
-        try:
-            _vc.execute(
-                "UPDATE users SET email_verified = 1 WHERE lower(email) = 'tinayarowle@icloud.com'"
-            )
-            _vc.commit()
-            _vrow = _vc.execute(
-                "SELECT email, email_verified FROM users WHERE lower(email) = 'tinayarowle@icloud.com'"
-            ).fetchone()
-            if _vrow:
-                log.info("tinayarowle@icloud.com — email_verified=%r", _vrow[1])
-            else:
-                log.info("tinayarowle@icloud.com — not found in DB")
-        finally:
-            _vc.close()
+        if billing.reconcile_stale_credit_override(_db_path, "laky120@yahoo.com", stale_allowance=25):
+            log.info("Corrected stale credit override for laky120@yahoo.com")
     except Exception:
-        log.exception("tinayarowle email verify patch failed (non-fatal)")
-
-    # One-time: manually activate Music Starter for laky120@yahoo.com (paid £9, localhost redirect bug)
-    try:
-        import sqlite3 as _sqlite3
-        _lk = _sqlite3.connect(str(_db_path))
-        try:
-            _lk.execute(
-                """UPDATE users SET subscription_plan = 'music_starter',
-                                    subscription_status = 'active',
-                                    has_paid = 1
-                   WHERE lower(email) = 'laky120@yahoo.com'"""
-            )
-            _lk.execute(
-                """UPDATE song_credits
-                   SET balance = CASE WHEN balance < 23 THEN 23 ELSE balance END,
-                       monthly_allowance = 25
-                   WHERE user_id = (SELECT id FROM users WHERE lower(email) = 'laky120@yahoo.com')"""
-            )
-            _lk.commit()
-            _lkrow = _lk.execute(
-                """SELECT u.email, u.subscription_plan, u.subscription_status, u.has_paid,
-                          sc.balance, sc.monthly_allowance
-                   FROM users u LEFT JOIN song_credits sc ON sc.user_id = u.id
-                   WHERE lower(u.email) = 'laky120@yahoo.com'"""
-            ).fetchone()
-            if _lkrow:
-                log.info(
-                    "laky120@yahoo.com — plan=%r status=%r has_paid=%r balance=%r allowance=%r",
-                    _lkrow[1], _lkrow[2], _lkrow[3], _lkrow[4], _lkrow[5],
-                )
-            else:
-                log.info("laky120@yahoo.com — not found in DB")
-        finally:
-            _lk.close()
-    except Exception:
-        log.exception("laky120 subscription patch failed (non-fatal)")
-
-    # One-time: mark variant 389 as failed and refund 1 credit to its owner
-    try:
-        import sqlite3 as _sqlite3
-        _v389 = _sqlite3.connect(str(_db_path))
-        _v389.row_factory = _sqlite3.Row
-        try:
-            _sv = _v389.execute(
-                "SELECT id, status, user_id FROM song_variants WHERE id = 389"
-            ).fetchone()
-            if _sv and _sv["status"] == "pending":
-                _v389.execute("UPDATE song_variants SET status = 'failed' WHERE id = 389")
-                _v389.execute(
-                    "UPDATE song_credits SET balance = balance + 1 WHERE user_id = ?",
-                    (_sv["user_id"],),
-                )
-                _v389.commit()
-                _owner = _v389.execute(
-                    "SELECT email FROM users WHERE id = ?", (_sv["user_id"],)
-                ).fetchone()
-                log.info(
-                    "variant 389 fix: marked failed + refunded 1 credit to user_id=%s email=%s",
-                    _sv["user_id"], _owner["email"] if _owner else "unknown",
-                )
-            elif _sv:
-                log.info("variant 389 fix: already status=%r — no action taken", _sv["status"])
-            else:
-                log.info("variant 389 fix: variant not found")
-        finally:
-            _v389.close()
-    except Exception:
-        log.exception("variant 389 fix failed (non-fatal)")
-
-    # One-time: give owner account 50 premium credits
-    try:
-        import sqlite3 as _sqlite3
-        _ac = _sqlite3.connect(str(_db_path))
-        try:
-            _ac.execute(
-                """UPDATE song_credits
-                   SET premium_balance = 50, premium_monthly_allowance = 50
-                   WHERE user_id = (SELECT id FROM users WHERE lower(email) = 'dominic.rowle@yahoo.com')"""
-            )
-            _ac.commit()
-            _acrow = _ac.execute(
-                """SELECT u.email, sc.premium_balance, sc.premium_monthly_allowance
-                   FROM users u LEFT JOIN song_credits sc ON sc.user_id = u.id
-                   WHERE lower(u.email) = 'dominic.rowle@yahoo.com'"""
-            ).fetchone()
-            if _acrow:
-                log.info(
-                    "owner premium credits — email=%r balance=%r allowance=%r",
-                    _acrow[0], _acrow[1], _acrow[2],
-                )
-            else:
-                log.info("owner premium credits patch: user not found")
-        finally:
-            _ac.close()
-    except Exception:
-        log.exception("owner premium credits patch failed (non-fatal)")
+        log.exception("laky120 credit reconciliation failed (non-fatal)")
 
     try:
         billing.ensure_promo_codes()
