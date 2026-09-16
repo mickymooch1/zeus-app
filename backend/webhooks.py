@@ -424,10 +424,13 @@ def _cover_pipeline(variant_id: int, source_mp3_url: str, lyrics_text: str) -> N
         logger.exception("Cover pipeline FAILED: variant_id=%d error=%s", variant_id, exc)
         conn = sqlite3.connect(DB_PATH)
         try:
+            row = conn.execute("SELECT user_id FROM song_variants WHERE id=?", (variant_id,)).fetchone()
             conn.execute("UPDATE song_variants SET status='failed' WHERE id=?", (variant_id,))
             conn.commit()
         finally:
             conn.close()
+        if row:
+            _refund_song_credit(variant_id, row[0], "cover_pipeline_failed")
 
 
 def _verify_signature(raw_body: bytes, signature_header: str) -> bool:
