@@ -6794,6 +6794,7 @@ _OG_GENRE_LABELS = {
 # Genres that should always generate lyrics in a specific language regardless of accent setting.
 _GENRE_LANGUAGE_MAP: dict[str, str] = {
     "corridos": "Spanish",
+    "brazilianphonk": "Portuguese",
 }
 
 

@@ -70,7 +70,7 @@ GENRE_PRESETS = {
     "afrobeats":      "afrobeats, infectious percussion, talking drum, warm bass, joyful vocal melody, West African rhythm, 100 BPM",
     "amapiano":       "amapiano, log drum bassline, jazzy piano chords, South African house rhythm, 112 BPM, smooth and deep",
     "driftphonk":     "drift phonk, aggressive 808 bass, cowbell percussion, dark Memphis rap influence, high energy drift culture, 140 BPM",
-    "brazilianphonk": "Brazilian phonk, aggressive 150 BPM funk carioca rhythm, heavy 808 bass, distorted synths, tribal percussion, baile funk influence, dark menacing atmosphere, chopped vocal samples, hard hitting trap hi-hats, Brazilian favela energy, aggressive distorted bass wobble, raw street energy, dark melodic phonk elements, heavy sub bass, relentless driving rhythm",
+    "brazilianphonk": "Brazilian phonk, heavy distorted 808 bass, funk carioca rhythm, baile funk percussion, aggressive chopped synths, dark phonk atmosphere, rapid fire hi-hats, Portuguese vocal delivery, favela funk energy, heavy wobbling sub bass, distorted melody loop, aggressive street energy, 150 BPM, raw bass-heavy production, Brazilian funk phonk fusion",
     "jerseyclub":     "Jersey Club, chopped vocal samples, rapid hi-hat patterns, 140 BPM, Newark NJ club sound, energetic dance floor energy",
     "afroswing":      "afroswing, smooth UK R&B vocals, gentle afrobeats percussion underneath, melodic guitar, 90 BPM, romantic intimate feel, British urban sound, melodic British Afro-pop vibe, laid back swing rhythm, NOT heavy afrobeats drums",
     "rastadub":       "rasta dub, heavy echo and reverb, deep rolling bassline, roots reggae rhythm, spiritual Rastafarian lyrics, slow burning groove, 70 BPM, Jamaican sound system culture, conscious message",
