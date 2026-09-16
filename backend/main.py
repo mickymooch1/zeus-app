@@ -470,21 +470,6 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("Stale plan allowance backfill failed (non-fatal)")
 
-    # TEMP FIX (2026-09-17) — remove once this has run once against production.
-    # Restores the 1 credit spent testing the (now-fixed) Cover This Song
-    # crash on the owner's own test account, from before the refund-on-failure
-    # safety net existed. Self-limiting: only fires while balance is still
-    # exactly 123, so it's a no-op on every deploy after the first.
-    try:
-        _owner = db.get_user_by_email(_db_path, "dominic.rowle@yahoo.com")
-        if _owner:
-            _owner_credits = db.get_song_credits(_db_path, _owner["id"])
-            if _owner_credits and _owner_credits.get("balance") == 123:
-                db.increment_song_credits(_db_path, _owner["id"], 1)
-                log.info("TEMP FIX: restored 1 test credit to dominic.rowle@yahoo.com")
-    except Exception:
-        log.exception("TEMP FIX credit restore failed (non-fatal)")
-
     try:
         billing.ensure_promo_codes()
     except Exception:
