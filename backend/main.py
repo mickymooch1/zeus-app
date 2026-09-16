@@ -6845,8 +6845,8 @@ async def cover_song(
         except InsufficientCreditsError:
             raise HTTPException(status_code=402, detail="Insufficient song credits")
         cur.execute(
-            "INSERT INTO lyrics (user_id, lyrics_text) VALUES (?, ?)",
-            (user_id, lyrics_text),
+            "INSERT INTO lyrics (user_id, brief, lyrics_text) VALUES (?, ?, ?)",
+            (user_id, f"Cover of song #{variant_id}", lyrics_text),
         )
         lyric_id = cur.lastrowid
         cur.execute(
