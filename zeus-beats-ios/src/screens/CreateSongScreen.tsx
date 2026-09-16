@@ -40,11 +40,11 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'electronic', label: '🎹 Electronic & Dance',  color: '#4ade80',
     genres: ['house','technhouse','deephouse','dancehouse','purebassline','synthwave','driftphonk','brazilianphonk','techno','trance','edm','electronicfunk','dubstep','jerseyclub','hyperpop','syntheticpop'] },
   { id: 'world',      label: '🌍 World & Urban',       color: '#fbbf24',
-    genres: ['afrobeats','reggae','rootsreggae','reggaeton','ragga','dancehall','corridos','salsa','bhangra','loversrock','rastadub','amapiano','latintrap'] },
+    genres: ['afrobeats','reggae','rootsreggae','reggaeton','ragga','dancehall','corridos','salsa','bhangra','loversrock','rastadub','amapiano','latintrap','brassband'] },
   { id: 'pop',        label: '🎶 Pop & Hip Hop',       color: '#f472b6',
-    genres: ['pop','patriotic','trap','eastcoasthiphop','westcoasthiphop','poprap','kpop','hiphop'] },
+    genres: ['pop','patriotic','trap','eastcoasthiphop','westcoasthiphop','poprap','kpop','hiphop','neworleansbounce'] },
   { id: 'chill',      label: '🧘 Chill & Wellness',    color: '#e2e8f0',
-    genres: ['lofi','meditation','ambient','healingfrequency','naturesounds','whalesong','cracklingfire','thunderstorm','oceanwaves','forest','nightsounds','classical','opera','acoustic','jazz','irishfolk','irishjig','christmas'] },
+    genres: ['lofi','meditation','ambient','healingfrequency','naturesounds','whalesong','cracklingfire','thunderstorm','oceanwaves','forest','nightsounds','classical','opera','acoustic','jazz','irishfolk','irishjig','christmas','dixieland','harlemstride'] },
   { id: 'instrumental_solo', label: '🎷 Instrumental & Solo', color: '#a78bfa',
     genres: ['saxophone','pianosolo','violinsolo','electricbluesguitar','psychedelicguitar','trumpet','flamencoguitar'] },
 ];
@@ -74,6 +74,7 @@ const GENRE_LABEL: Record<string, string> = {
   psychedelicguitar:'Psychedelic Guitar', saxophone:'Saxophone', pianosolo:'Piano', violinsolo:'Violin',
   electricbluesguitar:'Blues Guitar', trumpet:'Trumpet', flamencoguitar:'Flamenco Guitar',
   chicagoblues:'Chicago Blues', deltablues:'Delta Blues', swampblues:'Swamp Blues',
+  dixieland:'New Orleans Jazz', brassband:'Brass Band', harlemstride:'Harlem Stride Piano', neworleansbounce:'New Orleans Bounce',
 };
 
 function glabel(key: string): string {
