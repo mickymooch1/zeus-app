@@ -425,8 +425,11 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("startup: recent-user credit diagnostic failed (non-fatal)")
 
-    # Fix: ensure free-plan users have monthly_allowance=0 (no periodic refill)
-    # Also log bugrowle@gmail.com specifically for manual verification
+    # Fix: ensure free-plan users have monthly_allowance=0 (no periodic refill).
+    # Generic and self-limiting (the != 0 guard makes re-runs a no-op), so
+    # safe to leave running indefinitely — unlike the per-user patches this
+    # block used to sit alongside (see AGENTS.md's TEMP FIX convention and
+    # billing.reconcile_stale_credit_override for that incident).
     try:
         import sqlite3 as _sqlite3
         _fc = _sqlite3.connect(str(_db_path))
@@ -443,21 +446,6 @@ async def lifespan(app: FastAPI):
             _fc.commit()
             if _fixed_count:
                 log.info("Free-user credit fix: zeroed monthly_allowance for %d user(s)", _fixed_count)
-            # Log bugrowle@gmail.com state for manual verification
-            _brow = _fc.execute(
-                """SELECT u.email, u.subscription_status, u.subscription_plan, u.has_paid,
-                          sc.balance, sc.monthly_allowance
-                   FROM users u LEFT JOIN song_credits sc ON sc.user_id = u.id
-                   WHERE lower(u.email) = 'bugrowle@gmail.com'"""
-            ).fetchone()
-            if _brow:
-                log.info(
-                    "bugrowle@gmail.com — status=%r plan=%r has_paid=%r balance=%r monthly_allowance=%r",
-                    _brow["subscription_status"], _brow["subscription_plan"],
-                    _brow["has_paid"], _brow["balance"], _brow["monthly_allowance"],
-                )
-            else:
-                log.info("bugrowle@gmail.com — not found in DB")
         finally:
             _fc.close()
     except Exception:
