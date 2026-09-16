@@ -2781,3 +2781,25 @@ def update_announcement_active(db_path: pathlib.Path, announcement_id: int, acti
         conn.commit()
     finally:
         conn.close()
+
+
+def get_active_subscribers(db_path: pathlib.Path, plans: list[str]) -> list[dict]:
+    """Active subscribers (subscription_status='active') on any of the given
+    plans, joined with their song_credits row. Rows with no song_credits
+    record yet are excluded — nothing to top up until one exists."""
+    if not plans:
+        return []
+    conn = _conn(db_path)
+    try:
+        placeholders = ",".join("?" * len(plans))
+        rows = conn.execute(
+            f"""SELECT u.id, u.email, u.subscription_plan, sc.balance, sc.monthly_allowance
+                FROM users u
+                JOIN song_credits sc ON sc.user_id = u.id
+                WHERE u.subscription_status = 'active'
+                  AND u.subscription_plan IN ({placeholders})""",
+            plans,
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()

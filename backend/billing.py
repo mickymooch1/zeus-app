@@ -96,31 +96,54 @@ _PLAN_SONG_CREDITS = {
 }
 
 
-def reconcile_stale_credit_override(db_path, email: str, stale_allowance: int) -> bool:
-    """Correct an account still stuck at a hardcoded stale monthly_allowance
-    left over from a past manual SQL patch (see the 2026-09-16 laky120
-    incident: an unguarded startup script pinned her monthly_allowance to 25
-    on every deploy instead of her music_starter plan's real 30, silently
-    contradicting the "credits never expire" promise).
+def backfill_stale_plan_allowances(db_path) -> list[dict]:
+    """Top up any active subscriber whose stored monthly_allowance has fallen
+    behind their plan's current entitlement.
 
-    Self-limiting by construction: only touches the row if it is still at the
-    exact stale value, and derives the correction from the CURRENT plan
-    config (_PLAN_SONG_CREDITS) rather than writing a new hardcoded number --
-    so it cannot repeat the same mistake, and is a no-op (safe to leave
-    deployed) once the account is fixed. Returns True iff a correction was
-    applied.
+    _PLAN_SONG_CREDITS has been raised several times over this product's
+    history (see the 2026-09-16 incident where four unguarded per-user SQL
+    patches were found, one of which — laky120@yahoo.com — was pinning her
+    monthly_allowance to a stale 25 on every deploy instead of her
+    music_starter plan's real 30). A production sweep afterward found three
+    MORE active subscribers stuck the same way for the mundane reason that
+    nothing had ever backfilled them after past plan-allowance increases:
+    tinayarowle@icloud.com and ebrown9042@gmail.com (music_starter, stuck at
+    25) and review@zeusbeats.com (music_pro, stuck at 55).
+
+    This replaces the earlier laky120-only reconcile_stale_credit_override()
+    with a permanent, generic mechanism: it never needs a new per-user call
+    when a plan's allowance changes again.
+
+    For each affected subscriber, monthly_allowance is raised to the current
+    correct value and the SHORTFALL (not the full new allowance) is added to
+    balance — a reset would erase credits they haven't used yet, which is
+    exactly the "credits never expire" promise this incident violated.
+
+    Self-limiting: only acts on accounts strictly below their plan's current
+    allowance, so re-running this (e.g. on every deploy) is a no-op once
+    everyone is caught up, and it automatically catches the next plan
+    increase too. Returns a list of the corrections applied, for logging.
     """
-    user = db.get_user_by_email(db_path, email)
-    if not user:
-        return False
-    credits = db.get_song_credits(db_path, user["id"])
-    if not credits or credits.get("monthly_allowance") != stale_allowance:
-        return False
-    correct_allowance = _PLAN_SONG_CREDITS.get(user.get("subscription_plan"))
-    if not correct_allowance:
-        return False
-    db.upsert_song_credits(db_path, user["id"], balance=correct_allowance, monthly_allowance=correct_allowance)
-    return True
+    corrections = []
+    for row in db.get_active_subscribers(db_path, list(_PLAN_SONG_CREDITS.keys())):
+        correct_allowance = _PLAN_SONG_CREDITS.get(row["subscription_plan"])
+        if not correct_allowance:
+            continue
+        old_allowance = row["monthly_allowance"] or 0
+        if old_allowance >= correct_allowance:
+            continue
+        shortfall = correct_allowance - old_allowance
+        new_balance = (row["balance"] or 0) + shortfall
+        db.upsert_song_credits(db_path, row["id"], balance=new_balance, monthly_allowance=correct_allowance)
+        corrections.append({
+            "email": row["email"],
+            "plan": row["subscription_plan"],
+            "old_allowance": old_allowance,
+            "new_allowance": correct_allowance,
+            "credited": shortfall,
+            "new_balance": new_balance,
+        })
+    return corrections
 
 
 # Avatar videos (D-ID lip-sync) are no longer offered — no plan grants video

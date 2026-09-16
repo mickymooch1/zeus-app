@@ -451,17 +451,24 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("Free-user credit fix failed (non-fatal)")
 
-    # Corrects laky120@yahoo.com's account if it's still stuck at
-    # monthly_allowance=25 — the value a since-removed unguarded startup
-    # patch used to re-write on every deploy, contradicting the "credits
-    # never expire" promise (see billing.reconcile_stale_credit_override's
-    # docstring for the full incident). Self-limiting: a no-op once
-    # corrected, safe to leave running indefinitely.
+    # Tops up any active subscriber whose stored monthly_allowance has fallen
+    # behind their plan's current entitlement — e.g. after a plan's credit
+    # amount is raised in _PLAN_SONG_CREDITS, existing subscribers only pick
+    # up the new number at their next renewal. See
+    # billing.backfill_stale_plan_allowances' docstring for the 2026-09-16
+    # incident this replaces (laky120, tinayarowle, ebrown9042, review).
+    # Self-limiting and plan-driven: a no-op once everyone is caught up, and
+    # automatically catches the next plan increase too — safe to leave
+    # running on every deploy indefinitely.
     try:
-        if billing.reconcile_stale_credit_override(_db_path, "laky120@yahoo.com", stale_allowance=25):
-            log.info("Corrected stale credit override for laky120@yahoo.com")
+        for _c in billing.backfill_stale_plan_allowances(_db_path):
+            log.info(
+                "Backfilled stale plan allowance: %s (%s) %d -> %d (+%d credits, new balance %d)",
+                _c["email"], _c["plan"], _c["old_allowance"], _c["new_allowance"],
+                _c["credited"], _c["new_balance"],
+            )
     except Exception:
-        log.exception("laky120 credit reconciliation failed (non-fatal)")
+        log.exception("Stale plan allowance backfill failed (non-fatal)")
 
     try:
         billing.ensure_promo_codes()
