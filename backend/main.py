@@ -7422,8 +7422,18 @@ async def serve_spa(full_path: str, request: Request):
             # Fall through to generic tags if injection failed
 
         # ── Generic Zeus Beats meta tags ─────────────────────────────────────
+        # Was a narrow <title>-only swap, unlike the three branches above — so
+        # the static description/og:*/twitter:* tags that follow it in
+        # index.html survived untouched, duplicated alongside these injected
+        # ones. Same WhatsApp last-value-wins problem those branches were each
+        # fixed for (see their comments), just never applied here since this
+        # branch covers "everything else" including the homepage itself.
+        # Widened to match: replace the whole static block through the line
+        # before <link rel="canonical">, and carry og:image/twitter:* through
+        # explicitly so switching regexes doesn't drop tags that used to
+        # survive by not being touched.
         page_html = _re.sub(
-            r"<title>[^<]*</title>",
+            r'<title>[^<]*</title>.*?(?=<link rel="canonical")',
             (
                 '<title>Zeus Beats — Create AI Music in Seconds | 100+ Genres</title>\n'
                 '    <meta name="description" content="Create original AI songs in 100+ genres including Soul, Grime, Afrobeats, D&amp;B, Jazz and more. Animated cover art, YouTube upload. 3 free songs on signup. No studio needed.">\n'
@@ -7431,10 +7441,16 @@ async def serve_spa(full_path: str, request: Request):
                 '    <meta property="og:title" content="Zeus Beats — AI Music Creator">\n'
                 '    <meta property="og:description" content="Create original songs in seconds. 100+ genres. Free to start.">\n'
                 '    <meta property="og:url" content="https://zeusbeats.com">\n'
-                '    <meta property="og:type" content="website">'
+                '    <meta property="og:type" content="website">\n'
+                '    <meta property="og:image" content="https://zeusbeats.com/icons/icon-512.png">\n'
+                '    <meta name="twitter:card" content="summary_large_image">\n'
+                '    <meta name="twitter:title" content="Zeus Beats — AI Music Creator">\n'
+                '    <meta name="twitter:description" content="Create original songs in seconds. 100+ genres. Free to start.">\n'
+                '    <meta name="twitter:image" content="https://zeusbeats.com/icons/icon-512.png">\n'
             ),
             page_html,
             count=1,
+            flags=_re.DOTALL,
         )
         return HTMLResponse(page_html)
     return FileResponse(str(index_path))

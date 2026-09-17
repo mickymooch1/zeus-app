@@ -1859,7 +1859,7 @@ export default function SongsPage() {
                 ))}
               </div>
               <p style={{ fontSize: 11, color: '#7c3aed', marginTop: 12, marginBottom: 0 }}>
-                Credits never expire · Use for animated cover art or stem separation
+                Credits never expire · Use for stem separation
               </p>
             </div>
           </div>
