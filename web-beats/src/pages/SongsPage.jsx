@@ -23,6 +23,7 @@ import ComingSoonBadge      from '../components/ComingSoonBadge';
 import ComingSoonModal      from '../components/ComingSoonModal';
 import SongCard, { S, actionBtnStyle } from '../components/SongCard';
 import { GENRE_CATEGORIES, genreColor, gLabel, GENRES } from '../utils/genres';
+import { readRoastDraft, clearRoastDraft } from '../utils/roastDraft';
 
 // Set once the post-first-song name prompt has been answered OR skipped, so a
 // user who isn't interested is never asked twice.
@@ -540,6 +541,37 @@ export default function SongsPage() {
   const [roastName, setRoastName]           = useState('');
   const [roastDetails, setRoastDetails]     = useState('');
   const [roastVibe, setRoastVibe]           = useState('gentle');
+  const roastSectionRef = useRef(null);
+  // Set once by the restore effect below when there's a draft to scroll to —
+  // consumed (and cleared) the moment the roast section actually mounts, so it
+  // never fires again later if the user toggles roast mode by hand.
+  const [roastRestoreScroll, setRoastRestoreScroll] = useState(false);
+
+  // Restore a /roast landing-page draft (name + details, sessionStorage-only —
+  // see utils/roastDraft.js). Sets state directly rather than going through the
+  // toggle handler below, which resets these same fields. Missing/expired/
+  // malformed drafts are the normal case and leave the page exactly as-is.
+  useEffect(() => {
+    const draft = readRoastDraft();
+    if (!draft) {
+      // Also covers expired/malformed: readRoastDraft already refused it, but a
+      // stale key must not linger in storage just because it wasn't restorable.
+      clearRoastDraft();
+      return;
+    }
+    setIsRoastMode(true);
+    setRoastName(draft.roastName);
+    setRoastDetails(draft.roastDetails);
+    clearRoastDraft();
+    setRoastRestoreScroll(true);
+  }, []);
+
+  useEffect(() => {
+    if (roastRestoreScroll && isRoastMode && roastSectionRef.current) {
+      roastSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setRoastRestoreScroll(false);
+    }
+  }, [roastRestoreScroll, isRoastMode]);
   const [kidsSubMode, setKidsSubMode]       = useState('song'); // 'song' | 'story'
   const { storyModeEnabled } = useStoryModeEnabled();
   const [showStoryComingSoon, setShowStoryComingSoon] = useState(false);
@@ -2069,7 +2101,7 @@ export default function SongsPage() {
             </>)}
 
             {isRoastMode && (
-              <div style={{ marginBottom: 16 }}>
+              <div ref={roastSectionRef} style={{ marginBottom: 16 }}>
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>
                   🎤 Who&apos;s It About?
                 </p>

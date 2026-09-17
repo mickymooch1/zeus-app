@@ -7216,6 +7216,44 @@ async def serve_spa(full_path: str, request: Request):
                 log.exception("serve_spa: OG injection failed for /songs/share/%s — falling through", full_path)
             # Fall through to generic tags if injection failed
 
+        # ── Static SEO tags for the public Roast Mode landing page ───────────
+        # Content is fixed (no per-request DB lookup), so this applies to every
+        # request for /roast, not just social-crawler UAs — a real visitor's
+        # browser tab benefits from the accurate title too.
+        if full_path == "roast":
+            try:
+                safe_title = "Roast Your Mate with AI Song | Zeus Beats"
+                safe_desc  = "Tell us who, and what's fair game. Zeus writes the song. Free to start."
+                page_url   = "https://zeusbeats.com/roast"
+                parts = [
+                    f"<title>{safe_title}</title>",
+                    f'<meta name="description" content="{safe_desc}">',
+                    f'<meta property="og:title" content="{safe_title}">',
+                    f'<meta property="og:description" content="{safe_desc}">',
+                    f'<meta property="og:url" content="{page_url}">',
+                    f'<meta property="og:type" content="website">',
+                    f'<meta property="og:site_name" content="Zeus Beats">',
+                    f'<meta name="twitter:card" content="summary_large_image">',
+                    f'<meta name="twitter:title" content="{safe_title}">',
+                    f'<meta name="twitter:description" content="{safe_desc}">',
+                ]
+                og_block = "\n    ".join(parts)
+                # Same reason as the discover/share branches above: replace the whole
+                # static title+meta block (not just <title>) so the static index.html's
+                # own og:*/twitter:* tags can't survive alongside these and win under
+                # WhatsApp's last-value-wins duplicate-tag resolution.
+                roast_html = _re.sub(
+                    r'<title>[^<]*</title>.*?(?=<link rel="canonical")',
+                    og_block + "\n    ",
+                    page_html,
+                    count=1,
+                    flags=_re.DOTALL,
+                )
+                return HTMLResponse(roast_html)
+            except Exception:
+                log.exception("serve_spa: OG injection failed for /roast — falling through")
+            # Fall through to generic tags if injection failed
+
         # ── Generic Zeus Beats meta tags ─────────────────────────────────────
         page_html = _re.sub(
             r"<title>[^<]*</title>",

@@ -17,6 +17,7 @@ import './index.css';
 const LoginPage          = lazy(() => import('./pages/LoginPage'));
 const RegisterPage       = lazy(() => import('./pages/RegisterPage'));
 const PricingPage        = lazy(() => import('./pages/PricingPage'));
+const RoastLandingPage   = lazy(() => import('./pages/RoastLandingPage'));
 const SongsPage          = lazy(() => import('./pages/SongsPage'));
 const SongSharePage      = lazy(() => import('./pages/SongSharePage'));
 const BillingPage        = lazy(() => import('./pages/BillingPage'));
@@ -141,6 +142,7 @@ export default function App() {
             <Route path="/login" element={<LoginRedirect />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/roast" element={<RoastLandingPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/contact" element={<ContactPage />} />
