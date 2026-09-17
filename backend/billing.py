@@ -146,6 +146,32 @@ def backfill_stale_plan_allowances(db_path) -> list[dict]:
     return corrections
 
 
+def _grant_or_preserve_song_credits(db_path, user_id: str, allowance: int) -> None:
+    """Set monthly_allowance to the plan's number and raise balance to AT
+    LEAST that number — never reduce it.
+
+    PAYG top-up credits (db.increment_song_credits — additive, correct) live
+    in this same balance column as subscription credits, with no separate
+    ledger. Every call site that provisions/re-provisions a subscription
+    (renewal, new activation, an admin-triggered plan change) used to do a
+    flat `balance = allowance`, which would silently discard any unspent
+    PAYG credits sitting on top (2026-09-17 finding — PAYG must only ever
+    decrease by being spent, never by a renewal/activation/admin action).
+
+    balance = max(current_balance, allowance):
+      - current_balance <= allowance (the ordinary case, no PAYG on top):
+        identical to the old behavior — resets to the fresh allowance,
+        preserving the already-confirmed "no rollover of unused
+        subscription credits" decision.
+      - current_balance > allowance (PAYG, or any other extra grant):
+        preserved in full.
+    """
+    current = db.get_song_credits(db_path, user_id)
+    current_balance = (current.get("balance") if current else 0) or 0
+    new_balance = max(current_balance, allowance)
+    db.upsert_song_credits(db_path, user_id, balance=new_balance, monthly_allowance=allowance)
+
+
 # Avatar videos (D-ID lip-sync) are no longer offered — no plan grants video
 # credits. Left as a dict (rather than removed) so the two .get(plan, 0) call
 # sites below don't need touching and no plan can silently regain credits.
@@ -870,7 +896,7 @@ def _handle_checkout_completed(db_path, session) -> None:
     )
 
     allowance = _PLAN_SONG_CREDITS.get(plan, FREE_SONG_CREDITS)
-    db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
+    _grant_or_preserve_song_credits(db_path, user["id"], allowance)
     log.info("CREDITS GRANTED: %d song credits (%s plan) → user %s email=%s", allowance, plan, user["id"], user.get("email"))
 
     video_allowance = _PLAN_VIDEO_CREDITS.get(plan, 0)
@@ -907,7 +933,7 @@ def _handle_invoice_paid(db_path, invoice) -> None:
         log.info("invoice.paid: skipping free/unknown plan user %s (plan=%s)", user["id"], plan)
         return
     allowance = _PLAN_SONG_CREDITS[plan]
-    db.upsert_song_credits(db_path, user["id"], balance=allowance, monthly_allowance=allowance)
+    _grant_or_preserve_song_credits(db_path, user["id"], allowance)
     log.info("Monthly song credits reset for user %s: %d credits (%s plan)", user["id"], allowance, plan)
     try:
         _alerts._bump_digest_counter("renewals")

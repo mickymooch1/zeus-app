@@ -487,7 +487,7 @@ def _cmd_upgrade_user(email: str, plan: str) -> str:
         _db.update_user(db_path, uid, subscription_plan=plan, subscription_status="active", has_paid=1)
         song_credits = _billing._PLAN_SONG_CREDITS.get(plan, 0)
         if song_credits:
-            _db.upsert_song_credits(db_path, uid, balance=song_credits, monthly_allowance=song_credits)
+            _billing._grant_or_preserve_song_credits(db_path, uid, song_credits)
         premium_credits = _billing._PLAN_PREMIUM_CREDITS.get(plan, 0)
         if premium_credits:
             _db.upsert_premium_credits(db_path, uid, balance=premium_credits, monthly_allowance=premium_credits)
