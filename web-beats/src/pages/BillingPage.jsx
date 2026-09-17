@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
 import IOSWebViewBanner from '../components/IOSWebViewBanner';
+import { GENRES } from '../utils/genres';
 
 const APP_LANGUAGES = [
   { code: 'en', label: 'English',    flag: '🇬🇧' },
@@ -330,10 +331,11 @@ export default function BillingPage() {
   const isMusicPlan   = ['music_starter', 'music_pro', 'music_agency'].includes(effectivePlan);
   const canFacebook   = isAdmin || effectivePlan === 'music_agency';
 
+  const genresFeature = t('billing.plans.features.genres', { count: GENRES.length });
   const PLAN_FEATURES = {
-    music_starter: [t('billing.plans.features.songsStarter'), t('billing.plans.features.youtube'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt')],
-    music_pro:     [t('billing.plans.features.songsPro'), t('billing.plans.features.youtube'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt')],
-    music_agency:  [t('billing.plans.features.songsAgency'), t('billing.plans.features.youtube'), t('billing.plans.features.download'), t('billing.plans.features.genres'), t('billing.plans.features.coverArt'), t('billing.plans.features.facebook')],
+    music_starter: [t('billing.plans.features.songsStarter'), t('billing.plans.features.youtube'), t('billing.plans.features.download'), genresFeature, t('billing.plans.features.coverArt')],
+    music_pro:     [t('billing.plans.features.songsPro'), t('billing.plans.features.youtube'), t('billing.plans.features.download'), genresFeature, t('billing.plans.features.coverArt')],
+    music_agency:  [t('billing.plans.features.songsAgency'), t('billing.plans.features.youtube'), t('billing.plans.features.download'), genresFeature, t('billing.plans.features.coverArt'), t('billing.plans.features.facebook')],
     free:          [t('billing.plans.features.songsFree'), t('billing.plans.features.download'), t('billing.plans.features.allGenres')],
   };
   const planFeatures = (isMusicPlan && isActive)

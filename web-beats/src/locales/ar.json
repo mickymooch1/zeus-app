@@ -272,7 +272,7 @@
         "allGenres": "جميع الأنواع",
         "youtube": "رفع YouTube",
         "download": "تحميل ومشاركة الأغاني",
-        "genres": "جميع 100+ أنواع وأساليب",
+        "genres": "جميع {{count}}+ أنواع وأساليب",
         "coverArt": "غلاف AI",
         "facebook": "نشر Facebook"
       }
@@ -331,7 +331,7 @@
         "account": "مميزات الحساب"
       },
       "tags": {
-        "genres": "100+ نوعاً",
+        "genres": "{{count}}+ نوعاً",
         "customLyrics": "كلمات مخصصة",
         "aiVocals": "غناء AI",
         "instrumental": "وضع موسيقى فقط"
@@ -342,7 +342,7 @@
           "desc": "حوّل وصفاً نصياً إلى أغنية أصلية كاملة — الكلمات من Claude AI والموسيقى من Suno. كلمات وغناء كاملان في 60 ثانية."
         },
         "genres": {
-          "title": "100+ نوعاً موسيقياً",
+          "title": "{{count}}+ نوعاً موسيقياً",
           "desc": "Grime، Afrobeats، Reggaeton، Latin Trap، Bhangra، Metal، Rockney، D&B، Jungle، Drill، Amapiano، UK Garage، Lo-Fi، Reggae، Bassline و80+ نوعاً آخر."
         },
         "coverArt": {
@@ -461,9 +461,9 @@
       "skip": "تخطي",
       "next": "التالي",
       "welcomeTitle": "مرحبًا بك في Zeus Beats ⚡",
-      "welcomeText": "أنشئ أغاني أصلية بالذكاء الاصطناعي في أكثر من 100 نوع موسيقي. ثلاث خطوات وتكون أغنيتك الأولى جاهزة.",
+      "welcomeText": "أنشئ أغاني أصلية بالذكاء الاصطناعي في أكثر من {{count}} نوع موسيقي. ثلاث خطوات وتكون أغنيتك الأولى جاهزة.",
       "genreTitle": "اختر نوعًا موسيقيًا",
-      "genreText": "اختر من أكثر من 100 نوع — Soul وGrime وAfrobeats وD&B وJazz وغيرها.",
+      "genreText": "اختر من أكثر من {{count}} نوع — Soul وGrime وAfrobeats وD&B وJazz وغيرها.",
       "describeTitle": "صف أغنيتك",
       "describeText": "أخبر Zeus بما تريد — أو اترك الحقل فارغًا ودع Zeus يفاجئك.",
       "freeSongs_one": "لديك أغنية مجانية واحدة — لنستخدمها الآن!",

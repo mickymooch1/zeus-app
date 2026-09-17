@@ -268,7 +268,7 @@
         "allGenres": "ทุกแนวเพลง",
         "youtube": "อัปโหลด YouTube",
         "download": "ดาวน์โหลดและแชร์เพลง",
-        "genres": "แนวเพลงและสไตล์ 100+ แบบ",
+        "genres": "แนวเพลงและสไตล์ {{count}}+ แบบ",
         "coverArt": "ภาพปก AI",
         "facebook": "โพสต์ Facebook"
       }
@@ -327,7 +327,7 @@
         "account": "คุณสมบัติบัญชี"
       },
       "tags": {
-        "genres": "แนวเพลง 100+ แบบ",
+        "genres": "แนวเพลง {{count}}+ แบบ",
         "customLyrics": "เนื้อเพลงของคุณเอง",
         "aiVocals": "เสียงร้อง AI",
         "instrumental": "โหมดบรรเลง"
@@ -338,7 +338,7 @@
           "desc": "เปลี่ยนคำอธิบายสั้นๆ ให้เป็นเพลงต้นฉบับสมบูรณ์ — เนื้อเพลงโดย Claude AI เสียงโดย Suno ได้เนื้อเพลงและเสียงร้องครบใน 60 วินาที"
         },
         "genres": {
-          "title": "แนวเพลง 100+ แบบ",
+          "title": "แนวเพลง {{count}}+ แบบ",
           "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline และอีกกว่า 80 แนว"
         },
         "coverArt": {
@@ -457,9 +457,9 @@
       "skip": "ข้าม",
       "next": "ถัดไป →",
       "welcomeTitle": "ยินดีต้อนรับสู่ Zeus Beats ⚡",
-      "welcomeText": "สร้างเพลง AI ต้นฉบับกว่า 100 แนว เพียงสามขั้นตอนก็ได้เพลงแรกของคุณ",
+      "welcomeText": "สร้างเพลง AI ต้นฉบับกว่า {{count}} แนว เพียงสามขั้นตอนก็ได้เพลงแรกของคุณ",
       "genreTitle": "เลือกแนวเพลง",
-      "genreText": "เลือกจากแนวเพลงกว่า 100 แนว — Soul, Grime, Afrobeats, D&B, Jazz และอีกมากมาย",
+      "genreText": "เลือกจากแนวเพลงกว่า {{count}} แนว — Soul, Grime, Afrobeats, D&B, Jazz และอีกมากมาย",
       "describeTitle": "อธิบายเพลงของคุณ",
       "describeText": "บอก Zeus ว่าคุณต้องการอะไร — หรือเว้นว่างไว้แล้วให้ Zeus เซอร์ไพรส์คุณ",
       "freeSongs_other": "คุณมีเพลงฟรี {{count}} เพลง — มาใช้สักเพลงเลย!",

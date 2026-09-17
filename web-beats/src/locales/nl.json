@@ -269,7 +269,7 @@
         "allGenres": "Alle genres",
         "youtube": "YouTube-upload",
         "download": "Nummers downloaden en delen",
-        "genres": "Alle 100+ genres en stijlen",
+        "genres": "Alle {{count}}+ genres en stijlen",
         "coverArt": "AI-hoes",
         "facebook": "Facebook-plaatsing"
       }
@@ -328,7 +328,7 @@
         "account": "Accountfuncties"
       },
       "tags": {
-        "genres": "100+ genres",
+        "genres": "{{count}}+ genres",
         "customLyrics": "Eigen tekst",
         "aiVocals": "AI-zang",
         "instrumental": "Instrumentale modus"
@@ -339,7 +339,7 @@
           "desc": "Maak van een korte beschrijving een volledig origineel nummer — tekst van Claude AI, audio van Suno. Volledige tekst en zang in 60 seconden."
         },
         "genres": {
-          "title": "100+ genres",
+          "title": "{{count}}+ genres",
           "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline en nog 80+ andere."
         },
         "coverArt": {
@@ -458,9 +458,9 @@
       "skip": "Overslaan",
       "next": "Volgende →",
       "welcomeTitle": "Welkom bij Zeus Beats ⚡",
-      "welcomeText": "Maak originele AI-nummers in meer dan 100 genres. Drie stappen en je eerste staat er.",
+      "welcomeText": "Maak originele AI-nummers in meer dan {{count}} genres. Drie stappen en je eerste staat er.",
       "genreTitle": "Kies een genre",
-      "genreText": "Kies uit meer dan 100 genres — Soul, Grime, Afrobeats, D&B, Jazz en meer.",
+      "genreText": "Kies uit meer dan {{count}} genres — Soul, Grime, Afrobeats, D&B, Jazz en meer.",
       "describeTitle": "Beschrijf je nummer",
       "describeText": "Vertel Zeus wat je wilt — of laat het leeg en laat Zeus je verrassen.",
       "freeSongs_one": "Je hebt {{count}} gratis nummer — laten we het meteen gebruiken!",

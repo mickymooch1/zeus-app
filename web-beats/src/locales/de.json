@@ -266,7 +266,7 @@
         "allGenres": "Alle Genres",
         "youtube": "YouTube-Upload",
         "download": "Song-Download & Teilen",
-        "genres": "Alle 100+ Genres & Stile",
+        "genres": "Alle {{count}}+ Genres & Stile",
         "coverArt": "KI-Cover",
         "facebook": "Facebook-Veröffentlichung"
       }
@@ -328,7 +328,7 @@
         "account": "Konto-Funktionen"
       },
       "tags": {
-        "genres": "100+ Genres",
+        "genres": "{{count}}+ Genres",
         "customLyrics": "Eigener Text",
         "aiVocals": "KI-Gesang",
         "instrumental": "Instrumentalmodus"
@@ -339,7 +339,7 @@
           "desc": "Aus einem kurzen Text wird ein kompletter Originalsong — Text von Claude AI, Audio von Suno. Voller Text und Gesang in 60 Sekunden."
         },
         "genres": {
-          "title": "100+ Genres",
+          "title": "{{count}}+ Genres",
           "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline und 80+ weitere."
         },
         "coverArt": {
@@ -458,9 +458,9 @@
       "skip": "Überspringen",
       "next": "Weiter →",
       "welcomeTitle": "Willkommen bei Zeus Beats ⚡",
-      "welcomeText": "Erstelle originale KI-Songs in über 100 Genres. Drei Schritte bis zu deinem ersten.",
+      "welcomeText": "Erstelle originale KI-Songs in über {{count}} Genres. Drei Schritte bis zu deinem ersten.",
       "genreTitle": "Genre wählen",
-      "genreText": "Über 100 Genres zur Auswahl — Soul, Grime, Afrobeats, D&B, Jazz und mehr.",
+      "genreText": "Über {{count}} Genres zur Auswahl — Soul, Grime, Afrobeats, D&B, Jazz und mehr.",
       "describeTitle": "Beschreibe deinen Song",
       "describeText": "Sag Zeus, was du willst — oder lass das Feld leer und lass dich überraschen.",
       "freeSongs_one": "Du hast {{count}} Gratis-Song — nutzen wir ihn gleich!",

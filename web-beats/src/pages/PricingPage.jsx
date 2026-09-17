@@ -3,7 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BeatsNavbar } from '../components/BeatsNavbar';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
+import { GENRES } from '../utils/genres';
 
+// Brief loading-state fallback only — overwritten by /billing/plans within one
+// request (see the shallow-merge in useEffect below). Genre count still reads
+// from GENRES rather than a literal so a slow/failed fetch never shows a
+// number that's silently gone stale.
 const DEFAULT_PLANS = {
   music_starter: {
     name: 'Music Starter',
@@ -12,7 +17,7 @@ const DEFAULT_PLANS = {
       '60 song versions/month',
       'YouTube upload',
       'Song download & share',
-      'All 100+ genres & styles',
+      `All ${GENRES.length}+ genres & styles`,
       'Cinematic Motion Covers (free)',
     ],
   },
@@ -23,7 +28,7 @@ const DEFAULT_PLANS = {
       '150 song versions/month',
       'YouTube upload',
       'Song download & share',
-      'All 100+ genres & styles',
+      `All ${GENRES.length}+ genres & styles`,
       'Cinematic Motion Covers (free)',
     ],
   },
@@ -34,7 +39,7 @@ const DEFAULT_PLANS = {
       '300 song versions/month',
       'YouTube upload',
       'Song download & share',
-      'All 100+ genres & styles',
+      `All ${GENRES.length}+ genres & styles`,
       'Cinematic Motion Covers (free)',
       'Stem separation (1 premium credit)',
       'Facebook posting',

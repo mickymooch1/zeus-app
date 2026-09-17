@@ -7275,6 +7275,16 @@ async def serve_spa(full_path: str, request: Request):
     if is_beats and index_path.exists():
         page_html = index_path.read_text(encoding="utf-8")
 
+        # index.html carries the genre count as a literal {{GENRE_COUNT}}
+        # placeholder (title, both meta descriptions, JSON-LD description +
+        # featureList, and both noscript mentions) precisely so it can't go
+        # stale the way "30+" then "100+" both did — this is the ONE place
+        # that fills it in, for every branch below, from the same source of
+        # truth the frontend's GENRES list is tested against.
+        import song_genres as _song_genres
+        genre_count = len(_song_genres.GENRE_PRESETS)
+        page_html = page_html.replace("{{GENRE_COUNT}}", str(genre_count))
+
         # ── Social crawler OG injection for /discover/<id> ───────────────────
         ua = request.headers.get("user-agent", "")
         discover_match = _re.match(r"^discover/(\d+)$", full_path)
@@ -7435,17 +7445,17 @@ async def serve_spa(full_path: str, request: Request):
         page_html = _re.sub(
             r'<title>[^<]*</title>.*?(?=<link rel="canonical")',
             (
-                '<title>Zeus Beats — Create AI Music in Seconds | 100+ Genres</title>\n'
-                '    <meta name="description" content="Create original AI songs in 100+ genres including Soul, Grime, Afrobeats, D&amp;B, Jazz and more. Animated cover art, YouTube upload. 3 free songs on signup. No studio needed.">\n'
+                f'<title>Zeus Beats — Create AI Music in Seconds | {genre_count}+ Genres</title>\n'
+                f'    <meta name="description" content="Create original AI songs in {genre_count}+ genres including Soul, Grime, Afrobeats, D&amp;B, Jazz and more. Animated cover art, YouTube upload. 3 free songs on signup. No studio needed.">\n'
                 '    <meta name="keywords" content="AI music generator, create AI songs, grime AI, afrobeats generator, UK music AI, AI beats maker, zeus beats">\n'
                 '    <meta property="og:title" content="Zeus Beats — AI Music Creator">\n'
-                '    <meta property="og:description" content="Create original songs in seconds. 100+ genres. Free to start.">\n'
+                f'    <meta property="og:description" content="Create original songs in seconds. {genre_count}+ genres. Free to start.">\n'
                 '    <meta property="og:url" content="https://zeusbeats.com">\n'
                 '    <meta property="og:type" content="website">\n'
                 '    <meta property="og:image" content="https://zeusbeats.com/icons/icon-512.png">\n'
                 '    <meta name="twitter:card" content="summary_large_image">\n'
                 '    <meta name="twitter:title" content="Zeus Beats — AI Music Creator">\n'
-                '    <meta name="twitter:description" content="Create original songs in seconds. 100+ genres. Free to start.">\n'
+                f'    <meta name="twitter:description" content="Create original songs in seconds. {genre_count}+ genres. Free to start.">\n'
                 '    <meta name="twitter:image" content="https://zeusbeats.com/icons/icon-512.png">\n'
             ),
             page_html,

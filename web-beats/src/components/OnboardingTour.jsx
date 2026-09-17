@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
+import { GENRES } from '../utils/genres';
 
 const CYAN = '#00f0ff';
 const PINK = '#f472b6';
@@ -329,7 +330,9 @@ export default function OnboardingTour({ onComplete, onAutoGenerate, balance, cr
           </div>
         )}
         <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 15, lineHeight: 1.7, textAlign: 'center', marginBottom: 28 }}>
-          {t(cur.textKey)}
+          {/* count only matters to the genre-count slide's textKey; i18next
+              ignores an interpolation var a given string doesn't reference */}
+          {t(cur.textKey, { count: GENRES.length })}
         </p>
 
        </div>

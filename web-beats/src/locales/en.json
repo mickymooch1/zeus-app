@@ -269,7 +269,7 @@
         "allGenres": "All genres",
         "youtube": "YouTube upload",
         "download": "Song download & share",
-        "genres": "All 100+ genres & styles",
+        "genres": "All {{count}}+ genres & styles",
         "coverArt": "AI cover art",
         "facebook": "Facebook posting"
       }
@@ -328,7 +328,7 @@
         "account": "Account Features"
       },
       "tags": {
-        "genres": "100+ Genres",
+        "genres": "{{count}}+ Genres",
         "customLyrics": "Custom Lyrics",
         "aiVocals": "AI Vocals",
         "instrumental": "Instrumental Mode"
@@ -339,7 +339,7 @@
           "desc": "Turn a text brief into a full original song — lyrics by Claude AI, audio by Suno. Full lyrics and vocals in 60 seconds."
         },
         "genres": {
-          "title": "100+ Genres",
+          "title": "{{count}}+ Genres",
           "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline and 80+ more."
         },
         "coverArt": {
@@ -458,9 +458,9 @@
       "skip": "Skip",
       "next": "Next →",
       "welcomeTitle": "Welcome to Zeus Beats ⚡",
-      "welcomeText": "Create original AI songs in 100+ genres. Three steps and your first one is done.",
+      "welcomeText": "Create original AI songs in {{count}}+ genres. Three steps and your first one is done.",
       "genreTitle": "Pick a Genre",
-      "genreText": "Choose from 100+ genres — Soul, Grime, Afrobeats, D&B, Jazz and more.",
+      "genreText": "Choose from {{count}}+ genres — Soul, Grime, Afrobeats, D&B, Jazz and more.",
       "describeTitle": "Describe Your Song",
       "describeText": "Tell Zeus what you want — or leave it blank and let Zeus surprise you.",
       "freeSongs_one": "You have {{count}} free song — let's use it right now!",

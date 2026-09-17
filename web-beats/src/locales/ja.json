@@ -268,7 +268,7 @@
         "allGenres": "全ジャンル",
         "youtube": "YouTube アップロード",
         "download": "楽曲ダウンロード＆シェア",
-        "genres": "100以上のジャンルとスタイル",
+        "genres": "{{count}}以上のジャンルとスタイル",
         "coverArt": "AIカバーアート",
         "facebook": "Facebook投稿"
       }
@@ -327,7 +327,7 @@
         "account": "アカウント機能"
       },
       "tags": {
-        "genres": "100以上のジャンル",
+        "genres": "{{count}}以上のジャンル",
         "customLyrics": "オリジナル歌詞",
         "aiVocals": "AIボーカル",
         "instrumental": "インストゥルメンタルモード"
@@ -338,7 +338,7 @@
           "desc": "テキストで説明するだけで完全なオリジナル楽曲に。歌詞はClaude AI、音源はSuno。歌詞もボーカルも60秒で完成します。"
         },
         "genres": {
-          "title": "100以上のジャンル",
+          "title": "{{count}}以上のジャンル",
           "desc": "Grime、Afrobeats、Reggaeton、Latin Trap、Bhangra、Metal、Rockney、D&B、Jungle、Drill、Amapiano、UK Garage、Lo-Fi、Reggae、Bassline など、さらに80以上。"
         },
         "coverArt": {
@@ -457,9 +457,9 @@
       "skip": "スキップ",
       "next": "次へ →",
       "welcomeTitle": "Zeus Beats へようこそ ⚡",
-      "welcomeText": "100 以上のジャンルでオリジナルの AI 楽曲を作成。3 ステップで 1 曲目が完成します。",
+      "welcomeText": "{{count}} 以上のジャンルでオリジナルの AI 楽曲を作成。3 ステップで 1 曲目が完成します。",
       "genreTitle": "ジャンルを選ぶ",
-      "genreText": "Soul、Grime、Afrobeats、D&B、Jazz など 100 以上のジャンルから選べます。",
+      "genreText": "Soul、Grime、Afrobeats、D&B、Jazz など {{count}} 以上のジャンルから選べます。",
       "describeTitle": "曲を説明する",
       "describeText": "作りたい曲を Zeus に伝えてください。空欄のままにすれば Zeus におまかせできます。",
       "freeSongs_other": "無料楽曲が {{count}} 曲あります — 早速 1 曲作りましょう！",

@@ -268,7 +268,7 @@
         "allGenres": "모든 장르",
         "youtube": "YouTube 업로드",
         "download": "노래 다운로드 및 공유",
-        "genres": "100개 이상의 장르 및 스타일",
+        "genres": "{{count}}개 이상의 장르 및 스타일",
         "coverArt": "AI 커버 아트",
         "facebook": "Facebook 게시"
       }
@@ -327,7 +327,7 @@
         "account": "계정 기능"
       },
       "tags": {
-        "genres": "100개 이상의 장르",
+        "genres": "{{count}}개 이상의 장르",
         "customLyrics": "직접 가사 작성",
         "aiVocals": "AI 보컬",
         "instrumental": "인스트루멘탈 모드"
@@ -338,7 +338,7 @@
           "desc": "설명만 입력하면 완전한 오리지널 노래가 완성됩니다 — 가사는 Claude AI, 오디오는 Suno. 가사와 보컬까지 60초 만에."
         },
         "genres": {
-          "title": "100개 이상의 장르",
+          "title": "{{count}}개 이상의 장르",
           "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline 외 80가지 이상."
         },
         "coverArt": {
@@ -457,9 +457,9 @@
       "skip": "건너뛰기",
       "next": "다음 →",
       "welcomeTitle": "Zeus Beats에 오신 것을 환영합니다 ⚡",
-      "welcomeText": "100개가 넘는 장르로 오리지널 AI 곡을 만들어 보세요. 세 단계면 첫 곡이 완성됩니다.",
+      "welcomeText": "{{count}}개가 넘는 장르로 오리지널 AI 곡을 만들어 보세요. 세 단계면 첫 곡이 완성됩니다.",
       "genreTitle": "장르 선택",
-      "genreText": "Soul, Grime, Afrobeats, D&B, Jazz 등 100개 이상의 장르 중에서 선택하세요.",
+      "genreText": "Soul, Grime, Afrobeats, D&B, Jazz 등 {{count}}개 이상의 장르 중에서 선택하세요.",
       "describeTitle": "곡 설명하기",
       "describeText": "원하는 곡을 Zeus에게 알려주세요. 비워 두면 Zeus가 알아서 만들어 드립니다.",
       "freeSongs_other": "무료 곡이 {{count}}곡 있어요 — 지금 바로 한 곡 만들어 볼까요!",

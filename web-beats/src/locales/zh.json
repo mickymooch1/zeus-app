@@ -268,7 +268,7 @@
         "allGenres": "所有风格",
         "youtube": "YouTube上传",
         "download": "歌曲下载与分享",
-        "genres": "所有100+风格类型",
+        "genres": "所有{{count}}+风格类型",
         "coverArt": "AI封面",
         "facebook": "Facebook发布"
       }
@@ -327,7 +327,7 @@
         "account": "账户功能"
       },
       "tags": {
-        "genres": "100+种风格",
+        "genres": "{{count}}+种风格",
         "customLyrics": "自定义歌词",
         "aiVocals": "AI人声",
         "instrumental": "纯音乐模式"
@@ -338,7 +338,7 @@
           "desc": "一段文字描述，就能生成完整的原创歌曲 — 歌词由Claude AI创作，音频由Suno生成。60秒内拿到完整歌词和人声。"
         },
         "genres": {
-          "title": "100+种风格",
+          "title": "{{count}}+种风格",
           "desc": "Grime、Afrobeats、Reggaeton、Latin Trap、Bhangra、Metal、Rockney、D&B、Jungle、Drill、Amapiano、UK Garage、Lo-Fi、Reggae、Bassline，还有80多种。"
         },
         "coverArt": {
@@ -457,9 +457,9 @@
       "skip": "跳过",
       "next": "下一步 →",
       "welcomeTitle": "欢迎来到 Zeus Beats ⚡",
-      "welcomeText": "用 AI 创作 100 多种风格的原创歌曲。三步就能完成第一首。",
+      "welcomeText": "用 AI 创作 {{count}} 多种风格的原创歌曲。三步就能完成第一首。",
       "genreTitle": "选择风格",
-      "genreText": "从 100 多种风格中选择——Soul、Grime、Afrobeats、D&B、Jazz 等等。",
+      "genreText": "从 {{count}} 多种风格中选择——Soul、Grime、Afrobeats、D&B、Jazz 等等。",
       "describeTitle": "描述你的歌曲",
       "describeText": "告诉 Zeus 你想要什么，或者留空让 Zeus 给你惊喜。",
       "freeSongs_other": "你有 {{count}} 首免费歌曲——现在就用一首吧！",

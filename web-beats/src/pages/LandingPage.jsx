@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BRAND } from '../brand';
 import { LanguageSelector } from '../components/LanguageSelector';
+import { GENRES } from '../utils/genres';
 import './LandingPageBeats.css';
 
 // Icons and layout live here; every string comes from landing.features.* so the
@@ -190,12 +191,14 @@ export default function LandingPage() {
                 {group.cards.map((card) => (
                   <div key={card.id} className={card.lead ? 'feat-card feat-lead' : 'feat-card'}>
                     <span className="feat-icon">{card.icon}</span>
-                    <h3>{t(`landing.features.cards.${card.id}.title`)}</h3>
+                    {/* count only matters to the "genres" card/tag; i18next ignores
+                        an interpolation var a given string doesn't reference */}
+                    <h3>{t(`landing.features.cards.${card.id}.title`, { count: GENRES.length })}</h3>
                     <p>{t(`landing.features.cards.${card.id}.desc`)}</p>
                     {card.tags && (
                       <div className="feat-tags">
                         {card.tags.map((tag) => (
-                          <span key={tag}>{t(`landing.features.tags.${tag}`)}</span>
+                          <span key={tag}>{t(`landing.features.tags.${tag}`, { count: GENRES.length })}</span>
                         ))}
                       </div>
                     )}
@@ -478,7 +481,7 @@ export default function LandingPage() {
               <p className="plan-desc">Start creating with no commitment.</p>
               <ul className="plan-features">
                 <li>✓ 3 songs to get started</li>
-                <li>✓ All 100+ genres</li>
+                <li>✓ All {GENRES.length}+ genres</li>
                 <li>✓ Cinematic Motion Covers</li>
                 <li>✓ Discover feed access</li>
                 <li>❌ No stems</li>
@@ -497,7 +500,7 @@ export default function LandingPage() {
                 <li>✓ 60 song versions/month</li>
                 <li>✓ 3 premium credits (stem separation)</li>
                 <li>✓ YouTube upload</li>
-                <li>✓ All 100+ genres</li>
+                <li>✓ All {GENRES.length}+ genres</li>
                 <li>✓ All 27+ accents</li>
               </ul>
               <Link to="/register" className="btn-plan-ghost">Get Music Starter</Link>

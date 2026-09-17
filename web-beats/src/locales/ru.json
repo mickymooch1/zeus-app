@@ -271,7 +271,7 @@
         "allGenres": "Все жанры",
         "youtube": "Загрузка на YouTube",
         "download": "Скачивание и публикация",
-        "genres": "Все 100+ жанров и стилей",
+        "genres": "Все {{count}}+ жанров и стилей",
         "coverArt": "AI-обложка",
         "facebook": "Публикация в Facebook"
       }
@@ -330,7 +330,7 @@
         "account": "Возможности аккаунта"
       },
       "tags": {
-        "genres": "100+ жанров",
+        "genres": "{{count}}+ жанров",
         "customLyrics": "Свой текст",
         "aiVocals": "AI-вокал",
         "instrumental": "Режим инструментала"
@@ -341,7 +341,7 @@
           "desc": "Превратите короткое описание в полноценную оригинальную песню — текст от Claude AI, звук от Suno. Готовый текст и вокал за 60 секунд."
         },
         "genres": {
-          "title": "100+ жанров",
+          "title": "{{count}}+ жанров",
           "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline и ещё 80+."
         },
         "coverArt": {
@@ -460,9 +460,9 @@
       "skip": "Пропустить",
       "next": "Далее →",
       "welcomeTitle": "Добро пожаловать в Zeus Beats ⚡",
-      "welcomeText": "Создавайте оригинальные ИИ-треки более чем в 100 жанрах. Три шага — и первый готов.",
+      "welcomeText": "Создавайте оригинальные ИИ-треки более чем в {{count}} жанрах. Три шага — и первый готов.",
       "genreTitle": "Выберите жанр",
-      "genreText": "Более 100 жанров на выбор — Soul, Grime, Afrobeats, D&B, Jazz и другие.",
+      "genreText": "Более {{count}} жанров на выбор — Soul, Grime, Afrobeats, D&B, Jazz и другие.",
       "describeTitle": "Опишите свой трек",
       "describeText": "Расскажите Zeus, чего вы хотите, — или оставьте поле пустым и позвольте Zeus вас удивить.",
       "freeSongs_one": "У вас {{count}} бесплатный трек — давайте используем его прямо сейчас!",
