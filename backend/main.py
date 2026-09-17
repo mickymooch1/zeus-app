@@ -824,6 +824,11 @@ async def register(request: Request, body: RegisterRequest):
         log.exception("register: failed to get DB path")
         raise HTTPException(status_code=500, detail=f"Database unavailable: {exc}")
 
+    # Computed here (rather than right before record_registration_attempt,
+    # further down, where it used to live) because the canonical-email check
+    # immediately below needs it too, to check TEST_SIGNUP_ALLOWLIST.
+    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+
     # Hard block 2 of 3: the account already exists. Checked both exactly and
     # against the normalised form, so name+1@gmail.com / n.a.m.e@gmail.com can't
     # farm fresh credits off one real inbox.
@@ -831,11 +836,25 @@ async def register(request: Request, body: RegisterRequest):
         raise HTTPException(status_code=409, detail="An account with that email already exists")
     canonical_match = db.get_user_by_canonical_email(db_path, body.email)
     if canonical_match:
-        log.info(
-            "register: blocked alias of existing account — attempted=%s canonical=%s",
-            body.email, canonical_match.get("email_canonical"),
-        )
-        raise HTTPException(status_code=409, detail="An account with that email already exists")
+        if db.is_test_signup_ip(ip):
+            # Deliberately still an INFO line even though it's a bypass — this
+            # is expected, explicit, developer-triggered behaviour, not an
+            # anomaly worth a warning.
+            log.info(
+                "register: canonical-email match BYPASSED (TEST_SIGNUP_ALLOWLIST) — "
+                "ip=%s attempted=%s canonical=%s existing_user=%s",
+                ip, body.email, canonical_match.get("email_canonical"), canonical_match["id"],
+            )
+        else:
+            # The IP is the actionable part: a dynamic home connection means this
+            # fires from an IP that used to be allowlisted and no longer is, not
+            # necessarily a broken bypass — the fix is checking/updating the var.
+            log.info(
+                "register: blocked alias of existing account — ip=%s attempted=%s canonical=%s "
+                "— this IP is NOT on TEST_SIGNUP_ALLOWLIST; add ip=%s there to register as a new test user",
+                ip, body.email, canonical_match.get("email_canonical"), ip,
+            )
+            raise HTTPException(status_code=409, detail="An account with that email already exists")
 
     # Hard block 3 of 3: this specific email is on the abuse blocklist (see
     # db.is_email_blocklisted / abuse_blocklist table). Checked against the
@@ -850,7 +869,6 @@ async def register(request: Request, body: RegisterRequest):
             detail="This account can't be created. If you believe this is a mistake, contact support.",
         )
 
-    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
     db.record_registration_attempt(db_path, ip)
 
     # IP velocity. Deliberately NOT a per-family block — shared IPs (homes,

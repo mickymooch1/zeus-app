@@ -628,6 +628,18 @@ def is_ip_allowlisted(ip_address: str) -> bool:
     return bool(ip_address) and ip_address in allowlist
 
 
+def is_test_signup_ip(ip_address: str) -> bool:
+    """True if TEST_SIGNUP_ALLOWLIST names this IP — exempt from the canonical-
+    email duplicate-account check ONLY (see register()). Deliberately a
+    separate env var from REGISTRATION_ALLOWLIST/is_ip_allowlisted, which
+    exempts something different (the IP-velocity cap): one variable silently
+    granting two different exemptions would make it unclear, from the variable
+    name alone, what allowlisting an IP actually does."""
+    import os
+    allowlist = {ip.strip() for ip in os.environ.get("TEST_SIGNUP_ALLOWLIST", "").split(",") if ip.strip()}
+    return bool(ip_address) and ip_address in allowlist
+
+
 def is_email_blocklisted(db_path: pathlib.Path, email: str) -> str | None:
     """The block reason if this canonical email is on abuse_blocklist, else
     None. Callers pass the ALREADY-NORMALISED (signup_guard.normalize_email)
