@@ -1087,7 +1087,7 @@ export default function SongsPage() {
         // below, which would otherwise stringify the object into "[object Object]".
         const det = d.detail;
         if (r.status === 403 && det && typeof det === 'object' && det.code === 'email_unverified') {
-          setVerifyBlock({ message: det.message, email: det.email });
+          setVerifyBlock({ message: det.message, email: det.email, bounced: !!det.bounced, bounceOrigin: det.bounce_origin || null });
           return;   // `finally` clears the spinner; the form is intentionally kept
         }
         throw new Error((typeof det === 'string' ? det : det?.message) || 'Generation failed');
@@ -1717,6 +1717,8 @@ export default function SongsPage() {
         <VerificationRequiredScreen
           email={verifyBlock.email}
           message={verifyBlock.message}
+          bounced={verifyBlock.bounced}
+          bounceOrigin={verifyBlock.bounceOrigin}
           token={token}
           onClose={() => setVerifyBlock(null)}
           onVerified={async () => {
@@ -1725,6 +1727,12 @@ export default function SongsPage() {
             const fresh = await refreshUser();
             if (fresh?.email_verified) setVerifyBlock(null);
             return fresh;
+          }}
+          onEmailChanged={async (newEmail) => {
+            // AuthContext's cached user.email is stale until re-read; the screen's
+            // own display already shows the new address optimistically.
+            await refreshUser();
+            setVerifyBlock((vb) => vb && { ...vb, email: newEmail, bounced: false, bounceOrigin: null });
           }}
         />
       )}

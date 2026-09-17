@@ -160,6 +160,39 @@ def _send_via_resend(to: str, subject: str, html: str, text: str, api_key: str) 
         return False
 
 
+def _check_resend_suppression(email: str) -> str | None:
+    """Look up whether Resend has this address on its suppression list — added
+    automatically after a hard bounce or spam complaint, and mail submitted to
+    Resend for a suppressed address is accepted (200) and then silently dropped
+    before delivery, never surfacing as a send failure. Returns the suppression
+    origin ("bounce" | "complaint" | "manual") if suppressed, else None.
+
+    Best-effort only: any failure here (missing key, network error, unexpected
+    response) returns None rather than raising. A lookup failure must never
+    block or break the email_unverified gate / resend flow it augments — it can
+    only ever ADD information, never withhold access on its own account.
+    """
+    resend_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if not resend_key or not email:
+        return None
+    try:
+        resp = httpx.get(
+            f"https://api.resend.com/suppressions/{email}",
+            headers={"Authorization": f"Bearer {resend_key}"},
+            timeout=8,
+        )
+        if resp.status_code == 404:
+            return None
+        if resp.status_code == 200:
+            return resp.json().get("origin")
+        log.warning("_check_resend_suppression: unexpected status=%d email=%s body=%r",
+                    resp.status_code, email, resp.text)
+        return None
+    except Exception:
+        log.exception("_check_resend_suppression: failed for email=%s", email)
+        return None
+
+
 def _send_via_smtp(to: str, subject: str, html: str, text: str) -> bool:
     """Send via Gmail SMTP with one retry after 5 s. Returns True on success."""
     smtp_email = os.environ.get("SMTP_EMAIL", "").strip()
@@ -675,6 +708,11 @@ class ResetPasswordRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
+
+
+class ChangeEmailRequest(BaseModel):
+    new_email: str
+    app: str = "ai"
 
 
 class CheckoutRequest(BaseModel):
@@ -1486,8 +1524,20 @@ async def resend_verification(
     if current_user.get("email_verified"):
         return {"ok": True, "message": "Email is already verified."}
 
+    # A suppressed address still gets a 200 "accepted" from Resend's send API —
+    # the drop happens silently downstream, at delivery time. Checking first
+    # means the button can tell the truth instead of claiming success.
+    origin = _check_resend_suppression(current_user.get("email", ""))
+    if origin:
+        return {
+            "ok": False,
+            "bounced": True,
+            "bounce_origin": origin,
+            "message": "This email address is rejecting our messages — update it to receive a verification link.",
+        }
+
     _send_verification_email(current_user, body.app)
-    return {"ok": True, "message": "Verification email sent. Please check your inbox."}
+    return {"ok": True, "bounced": False, "message": "Verification email sent. Please check your inbox."}
 
 
 @app.post("/api/auth/change-password")
@@ -1508,6 +1558,60 @@ async def change_password(
     db.update_user(db_path, current_user["id"], password_hash=new_hash)
 
     return {"ok": True, "message": "Password changed successfully."}
+
+
+@app.post("/api/auth/change-email")
+# Deliberately narrow: this is the unverified-gate's "I mistyped it / it
+# bounced" escape hatch, not a general account-settings email change — a
+# verified user changing their address is a different, bigger feature (it
+# would need to notify/confirm via the OLD address too, to stop a stolen
+# session silently hijacking a working account). No password re-entry here:
+# the caller already holds a valid session, and the new address itself has
+# to pass its own verification before anything unlocks either way — the
+# same bar every other new signup email already has to clear.
+@limiter.limit("5/minute", key_func=_user_key)
+async def change_email(
+    request: Request,
+    body: ChangeEmailRequest,
+    current_user: dict = Depends(auth.get_current_user),
+):
+    if current_user.get("email_verified"):
+        raise HTTPException(status_code=400, detail="Your email is already verified. Contact support to change it.")
+
+    new_email = body.new_email.strip()
+    if not new_email or "@" not in new_email:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+
+    db_path = db.get_db_path()
+
+    # Same abuse checks a brand-new signup gets — an address arriving here is
+    # just as new to the system as one arriving through /auth/register.
+    if signup_guard.is_disposable_domain(new_email):
+        raise HTTPException(status_code=400, detail="Please use a real email address.")
+    existing = db.get_user_by_email(db_path, new_email) or db.get_user_by_canonical_email(db_path, new_email)
+    if existing and existing["id"] != current_user["id"]:
+        raise HTTPException(status_code=409, detail="An account with that email already exists")
+    block_reason = db.is_email_blocklisted(db_path, signup_guard.normalize_email(new_email))
+    if block_reason:
+        log.warning("change_email: blocked email — user=%s email=%s reason=%s",
+                    current_user["id"], new_email, block_reason)
+        raise HTTPException(
+            status_code=403,
+            detail="This email can't be used. If you believe this is a mistake, contact support.",
+        )
+
+    old_email = current_user.get("email", "")
+    db.update_user(
+        db_path, current_user["id"],
+        email=new_email,
+        email_canonical=signup_guard.normalize_email(new_email),
+    )
+    log.info("change_email: user=%s old=%s new=%s", current_user["id"], old_email, new_email)
+
+    updated_user = db.get_user_by_id(db_path, current_user["id"])
+    _send_verification_email(updated_user, body.app)
+
+    return {"ok": True, "email": new_email, "message": "Verification email sent to your new address."}
 
 
 @app.post("/api/account/delete-request")
@@ -2302,6 +2406,7 @@ async def songs_generate(
             log.exception("verification gate: failed to record block for user=%s", user_id)
         log.info("verification gate: blocked generation for user=%s email=%s",
                  user_id, current_user.get("email"))
+        bounce_origin = _check_resend_suppression(current_user.get("email", ""))
         raise HTTPException(
             status_code=403,
             detail={
@@ -2311,6 +2416,8 @@ async def songs_generate(
                     "We sent you a verification link when you signed up."
                 ),
                 "email": current_user.get("email", ""),
+                "bounced": bool(bounce_origin),
+                "bounce_origin": bounce_origin,
             },
         )
 
@@ -3315,6 +3422,7 @@ async def lyrics_workshop(
     # ungated workshop would be spend with no possible payoff — and this endpoint costs
     # real money per call.
     if not current_user.get("email_verified"):
+        bounce_origin = _check_resend_suppression(current_user.get("email", ""))
         raise HTTPException(
             status_code=403,
             detail={
@@ -3324,6 +3432,8 @@ async def lyrics_workshop(
                     "We sent you a verification link when you signed up."
                 ),
                 "email": current_user.get("email", ""),
+                "bounced": bool(bounce_origin),
+                "bounce_origin": bounce_origin,
             },
         )
 
