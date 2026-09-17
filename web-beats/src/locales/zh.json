@@ -339,7 +339,7 @@
         },
         "genres": {
           "title": "{{count}}+种风格",
-          "desc": "Grime、Afrobeats、Reggaeton、Latin Trap、Bhangra、Metal、Rockney、D&B、Jungle、Drill、Amapiano、UK Garage、Lo-Fi、Reggae、Bassline，还有80多种。"
+          "desc": "Grime、Afrobeats、Reggaeton、Latin Trap、Bhangra、Metal、Rockney、D&B、Jungle、Drill、Amapiano、UK Garage、Lo-Fi、Reggae、Bassline，还有{{count}}多种。"
         },
         "coverArt": {
           "title": "电影级封面",

@@ -343,7 +343,7 @@
         },
         "genres": {
           "title": "{{count}}+ نوعاً موسيقياً",
-          "desc": "Grime، Afrobeats، Reggaeton، Latin Trap، Bhangra، Metal، Rockney، D&B، Jungle، Drill، Amapiano، UK Garage، Lo-Fi، Reggae، Bassline و80+ نوعاً آخر."
+          "desc": "Grime، Afrobeats، Reggaeton، Latin Trap، Bhangra، Metal، Rockney، D&B، Jungle، Drill، Amapiano، UK Garage، Lo-Fi، Reggae، Bassline و{{count}}+ نوعاً آخر."
         },
         "coverArt": {
           "title": "غلاف سينمائي",

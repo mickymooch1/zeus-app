@@ -340,7 +340,7 @@
         },
         "genres": {
           "title": "{{count}}+ gêneros",
-          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline e mais de 80 outros."
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline e mais de {{count}} outros."
         },
         "coverArt": {
           "title": "Arte de capa cinematográfica",

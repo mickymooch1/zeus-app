@@ -339,7 +339,7 @@
         },
         "genres": {
           "title": "{{count}}以上のジャンル",
-          "desc": "Grime、Afrobeats、Reggaeton、Latin Trap、Bhangra、Metal、Rockney、D&B、Jungle、Drill、Amapiano、UK Garage、Lo-Fi、Reggae、Bassline など、さらに80以上。"
+          "desc": "Grime、Afrobeats、Reggaeton、Latin Trap、Bhangra、Metal、Rockney、D&B、Jungle、Drill、Amapiano、UK Garage、Lo-Fi、Reggae、Bassline など、さらに{{count}}以上。"
         },
         "coverArt": {
           "title": "シネマティックなカバーアート",

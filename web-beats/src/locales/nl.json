@@ -340,7 +340,7 @@
         },
         "genres": {
           "title": "{{count}}+ genres",
-          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline en nog 80+ andere."
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline en nog {{count}}+ andere."
         },
         "coverArt": {
           "title": "Filmische hoes",

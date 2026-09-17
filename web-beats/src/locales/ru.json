@@ -342,7 +342,7 @@
         },
         "genres": {
           "title": "{{count}}+ жанров",
-          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline и ещё 80+."
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline и ещё {{count}}+."
         },
         "coverArt": {
           "title": "Кинематографичные обложки",

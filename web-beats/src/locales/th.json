@@ -339,7 +339,7 @@
         },
         "genres": {
           "title": "แนวเพลง {{count}}+ แบบ",
-          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline และอีกกว่า 80 แนว"
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline และอีกกว่า {{count}} แนว"
         },
         "coverArt": {
           "title": "ภาพปกสไตล์ภาพยนตร์",

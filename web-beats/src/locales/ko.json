@@ -339,7 +339,7 @@
         },
         "genres": {
           "title": "{{count}}개 이상의 장르",
-          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline 외 80가지 이상."
+          "desc": "Grime, Afrobeats, Reggaeton, Latin Trap, Bhangra, Metal, Rockney, D&B, Jungle, Drill, Amapiano, UK Garage, Lo-Fi, Reggae, Bassline 외 {{count}}가지 이상."
         },
         "coverArt": {
           "title": "시네마틱 커버 아트",

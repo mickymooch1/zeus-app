@@ -192,9 +192,10 @@ export default function LandingPage() {
                   <div key={card.id} className={card.lead ? 'feat-card feat-lead' : 'feat-card'}>
                     <span className="feat-icon">{card.icon}</span>
                     {/* count only matters to the "genres" card/tag; i18next ignores
-                        an interpolation var a given string doesn't reference */}
+                        an interpolation var a given string doesn't reference. desc's
+                        remainder is against the 15 genres it names literally. */}
                     <h3>{t(`landing.features.cards.${card.id}.title`, { count: GENRES.length })}</h3>
-                    <p>{t(`landing.features.cards.${card.id}.desc`)}</p>
+                    <p>{t(`landing.features.cards.${card.id}.desc`, { count: GENRES.length - 15 })}</p>
                     {card.tags && (
                       <div className="feat-tags">
                         {card.tags.map((tag) => (
