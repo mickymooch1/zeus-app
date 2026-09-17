@@ -284,7 +284,7 @@ STORAGE_PATH = os.environ["SONG_STORAGE_PATH"]
 PUBLIC_BASE_URL = os.environ["SONG_PUBLIC_BASE_URL"]
 DB_PATH = os.environ.get("DB_PATH", "/data/zeus.db")
 FAL_API_KEY = os.environ.get("FAL_API_KEY", "")
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
+WEBHOOK_URL = os.environ.get("SONG_WEBHOOK_URL", "").strip().rstrip("/")
 APIFRAME_BASE = "https://api.apiframe.ai"
 
 

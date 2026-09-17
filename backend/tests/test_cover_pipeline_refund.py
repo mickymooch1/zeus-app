@@ -125,6 +125,32 @@ def test_cover_action_payload_matches_the_documented_shape(temp_db):
     assert str(variant_id) in payload["webhookUrl"]
 
 
+def test_webhook_url_reads_from_song_webhook_url_not_a_different_name(temp_db):
+    """Found live 2026-09-17: webhooks.py's WEBHOOK_URL constant read from
+    os.environ.get("WEBHOOK_URL", "") -- a variable that has never existed
+    in Railway (only SONG_WEBHOOK_URL does, which songs.py correctly reads).
+    Always resolved to "", so every cover request's webhookUrl was just
+    "?variant_id=N" -- confirmed live, Apiframe rejected it: "Invalid URL...
+    must use https". Pin the constant to the source of truth directly."""
+    assert _webhooks_mod.WEBHOOK_URL == os.environ["SONG_WEBHOOK_URL"].strip().rstrip("/")
+    assert _webhooks_mod.WEBHOOK_URL.startswith("https://")
+
+
+def test_cover_action_sends_a_real_https_webhook_url(temp_db):
+    user, variant_id = _make_cover_variant(temp_db)
+
+    with patch.object(_webhooks_mod, "DB_PATH", str(temp_db)), \
+         patch.object(_webhooks_mod.requests, "post", return_value=_mock_action_ok()) as mock_post:
+        _webhooks_mod._cover_pipeline(
+            variant_id, parent_job_id="orig-job-abc", track_index=1,
+            style="pop", lyrics_text="[Verse 1]\nEdited lyrics",
+        )
+
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["webhookUrl"].startswith("https://")
+    assert payload["webhookUrl"] == f"{os.environ['SONG_WEBHOOK_URL'].strip().rstrip('/')}?variant_id={variant_id}"
+
+
 def test_pipeline_failure_refunds_the_credit(temp_db):
     user, variant_id = _make_cover_variant(temp_db, balance_after_charge=4)
 
