@@ -522,6 +522,7 @@ export default function SongsPage() {
   const [coverModal, setCoverModal] = useState(null);
   const [upgradeFeature, setUpgradeFeature] = useState(null);
   const [coverLyrics, setCoverLyrics] = useState('');
+  const [coverLyricsLoading, setCoverLyricsLoading] = useState(false);
   const [coverLoading, setCoverLoading] = useState(false);
   const [coverError, setCoverError] = useState('');
   const [coverToast, setCoverToast] = useState(false);
@@ -1389,6 +1390,34 @@ export default function SongsPage() {
       setCoverLoading(false);
     }
   };
+
+  // Pre-fill the Edit Lyrics & Remake textarea with the song's real lyrics
+  // (same endpoint LyricsModal already uses) so the customer edits rather
+  // than starts from a blank box. Falls back to an empty, still-editable
+  // box on any failure — never blocks the feature.
+  useEffect(() => {
+    if (!coverModal) return;
+    if (coverModal.lyricId == null) return;
+    let cancelled = false;
+    setCoverLyricsLoading(true);
+    (async () => {
+      try {
+        const r = await fetch(`${BACKEND_URL}/api/lyrics/${coverModal.lyricId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok) throw new Error(`status ${r.status}`);
+        const data = await r.json();
+        const text = data.lyrics_text ?? '';
+        if (!cancelled && text && text !== '[Instrumental]') setCoverLyrics(text);
+      } catch {
+        // Leave the box empty — the customer can still write lyrics from scratch.
+      } finally {
+        if (!cancelled) setCoverLyricsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coverModal]);
 
   const handleYouTubeUpload = async () => {
     if (!ytModal) return;
@@ -3252,7 +3281,7 @@ export default function SongsPage() {
                         stemsData={stemsData[v.variant_id]}
                         onGetStems={handleGetStems}
                         onUpgrade={setUpgradeFeature}
-                        onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
+                        onOpenCover={(variantId, title, lyricId) => { setCoverModal({ variantId, sourceTitle: title, lyricId }); setCoverLyrics(''); setCoverError(''); }}
                         soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                         onLockSound={handleLockSound}
                         onMarkQrGenerated={handleMarkQrGenerated}
@@ -3425,7 +3454,7 @@ export default function SongsPage() {
                       stemsData={stemsData[v.variant_id]}
                       onGetStems={handleGetStems}
                       onUpgrade={setUpgradeFeature}
-                      onOpenCover={(variantId, title) => { setCoverModal({ variantId, sourceTitle: title }); setCoverLyrics(''); setCoverError(''); }}
+                      onOpenCover={(variantId, title, lyricId) => { setCoverModal({ variantId, sourceTitle: title, lyricId }); setCoverLyrics(''); setCoverError(''); }}
                       soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                       onLockSound={handleLockSound}
                       onMarkQrGenerated={handleMarkQrGenerated}
@@ -3667,7 +3696,7 @@ export default function SongsPage() {
         </div>
       )}
 
-      {/* Cover This Song modal */}
+      {/* Edit Lyrics & Remake modal (backend still calls this the "cover" action) */}
       {coverModal && (
         <div
           onClick={() => setCoverModal(null)}
@@ -3679,22 +3708,23 @@ export default function SongsPage() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, background: 'linear-gradient(90deg,#00f0ff,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                🎤 Cover This Song
+                ✏️ Edit Lyrics &amp; Remake
               </h2>
               <button onClick={() => setCoverModal(null)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#cccccc', fontSize: 13, cursor: 'pointer', padding: '4px 9px' }}>✕</button>
             </div>
 
             <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#cccccc', lineHeight: 1.5 }}>
-              Zeus will create a <strong style={{ color: '#e2e8f0' }}>new song</strong> in the same style as this one but with your lyrics. It won't be an exact overlay on the original beat — think of it like a <strong style={{ color: '#e2e8f0' }}>cover version</strong> inspired by this track.
+              Edit the lyrics below, then hit remake. We'll keep the <strong style={{ color: '#e2e8f0' }}>same style and music direction</strong>, but this creates a <strong style={{ color: '#e2e8f0' }}>new recording</strong> — it may not sound 100% identical to the original.
             </div>
 
             <textarea
               value={coverLyrics}
               onChange={e => setCoverLyrics(e.target.value)}
-              placeholder={"[Verse 1]\nWrite your lyrics here...\n\n[Chorus]\nYour chorus here..."}
+              placeholder={coverLyricsLoading ? 'Loading original lyrics…' : "[Verse 1]\nWrite your lyrics here...\n\n[Chorus]\nYour chorus here..."}
+              disabled={coverLyricsLoading}
               rows={8}
               maxLength={3000}
-              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e2e8f0', fontSize: 13, padding: '10px 12px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8 }}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e2e8f0', fontSize: 13, padding: '10px 12px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8, opacity: coverLyricsLoading ? 0.6 : 1 }}
             />
             <div style={{ fontSize: 11, color: '#cccccc', textAlign: 'right', marginBottom: 12 }}>{coverLyrics.length}/3000 · costs 1 song credit</div>
 
@@ -3702,10 +3732,10 @@ export default function SongsPage() {
 
             <button
               onClick={handleCoverSubmit}
-              disabled={coverLoading || !coverLyrics.trim()}
-              style={{ width: '100%', padding: '11px 0', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 700, fontSize: 14, cursor: coverLoading || !coverLyrics.trim() ? 'not-allowed' : 'pointer', opacity: coverLoading || !coverLyrics.trim() ? 0.55 : 1, transition: 'opacity 0.2s' }}
+              disabled={coverLoading || coverLyricsLoading || !coverLyrics.trim()}
+              style={{ width: '100%', padding: '11px 0', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 700, fontSize: 14, cursor: coverLoading || coverLyricsLoading || !coverLyrics.trim() ? 'not-allowed' : 'pointer', opacity: coverLoading || coverLyricsLoading || !coverLyrics.trim() ? 0.55 : 1, transition: 'opacity 0.2s' }}
             >
-              {coverLoading ? '🎵 Submitting…' : '🎤 Generate Cover'}
+              {coverLoading ? '🎵 Submitting…' : '✏️ Remake Song'}
             </button>
           </div>
         </div>
@@ -3792,10 +3822,10 @@ export default function SongsPage() {
         </div>
       )}
 
-      {/* Cover success toast */}
+      {/* Remake success toast */}
       {coverToast && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.4)', borderRadius: 10, padding: '12px 24px', color: '#00f0ff', fontWeight: 600, fontSize: 14, zIndex: 2000, whiteSpace: 'nowrap' }}>
-          🎤 Your cover is generating! Check your library soon.
+          ✏️ Your remake is generating! Check your library soon.
         </div>
       )}
       {lockToast && (

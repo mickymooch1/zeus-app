@@ -722,6 +722,22 @@ const SongCard = memo(function SongCard({
                 {regenLoading ? '…' : t('songs.buttons.regenerate')}
               </button>
             </div>
+            {/* Edit Lyrics & Remake — visible on any completed song, not gated
+                behind stems being generated/paid for (that was a discoverability
+                bug: this used to live inside the Stems panel). */}
+            {variant.mp3_url && (
+              <div style={{ marginTop: 8 }}>
+                <button
+                  onClick={() => onOpenCover(variant.variant_id, title, effectiveLyricId)}
+                  style={{ ...actionBtnStyle, width: '100%', color: '#00f0ff', borderColor: 'rgba(0,240,255,0.4)' }}
+                >
+                  ✏️ Edit Lyrics & Remake
+                </button>
+                <p style={{ fontSize: 10, color: '#666', margin: '4px 2px 0', lineHeight: 1.4 }}>
+                  Same style, new recording — may not sound 100% identical to the original.
+                </p>
+              </div>
+            )}
             {/* Stems panel */}
             {variant.mp3_url && (() => {
               const st = stemsProp?.stems_status;
@@ -754,14 +770,6 @@ const SongCard = memo(function SongCard({
                             )}
                           </div>
                         ))}
-                        <div style={{ padding: '10px 12px' }}>
-                          <button
-                            onClick={() => onOpenCover(variant.variant_id, title)}
-                            style={{ width: '100%', padding: '9px 0', borderRadius: 7, border: '1px solid rgba(0,240,255,0.4)', background: 'rgba(0,240,255,0.06)', color: '#00f0ff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                          >
-                            🎤 Cover This Song
-                          </button>
-                        </div>
                       </div>
                     )}
                   </div>

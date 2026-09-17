@@ -13,12 +13,12 @@ const SECTIONS = [
     ],
   },
   {
-    icon: '🎭',
-    title: 'Cover This Song',
+    icon: '✏️',
+    title: 'Edit Lyrics & Remake',
     steps: [
-      'Click "Cover This Song" on any of your tracks',
-      'Enter your own lyrics',
-      'Zeus creates a new version in the same style with your words',
+      'Click "Edit Lyrics & Remake" on any finished track',
+      'Edit the pre-filled lyrics — a line, a verse, or the whole thing',
+      'Zeus remakes it in the same style — a new recording, not a precise edit',
     ],
   },
   {
