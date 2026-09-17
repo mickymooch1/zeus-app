@@ -1,21 +1,24 @@
-"""Cover pipeline must refund the song credit on failure (2026-09-17).
+"""Cover pipeline: uses Apiframe's documented Suno Cover action, and refunds
+the song credit on failure (2026-09-17).
 
-Live production testing (post the lyrics.brief fix, see test_cover_song.py)
-found the Apiframe upload step Cover relies on is dead:
+Apiframe's own docs (apiframe.ai/docs/actions/suno/cover, verified live)
+describe a single-call action:
 
-    Cover upload: status=404 body='{"message":"Route POST:/v2/music/upload
-    not found", ...}'
+    POST https://api.apiframe.ai/v2/music/suno/action
+    {"parentJobId": <original suno job id>, "action": "cover",
+     "index": <1 or 2>, "prompt": <lyrics>, "style": <style tags>,
+     "webhookUrl": ..., "webhookEvents": [...]}
 
-Before the brief fix, that whole request rolled back atomically so nobody
-was charged. Now that the DB writes commit successfully before the
-background pipeline runs, a pipeline failure left the customer's credit
-spent with nothing to show for it -- confirmed live, balance dropped 124
--> 123 on a single failed attempt.
+parentJobId is "ID of the completed suno job to act on" -- exactly what we
+already store as song_variants.provider_job_id, with take_number matching
+"index". This replaces the old approach (download the source mp3, POST it to
+/v2/music/upload, then /v2/music/extend) which relied on an upload endpoint
+that no longer exists (404, confirmed live 2026-09-16) -- there was never a
+need to re-upload audio Apiframe already has a job id for.
 
-This is a safety net independent of whatever happens with the Apiframe
-endpoint: any failure in _cover_pipeline must refund the 1 credit it took,
-using the same _refund_song_credit() helper every other generation pipeline
-in this file already relies on for the same purpose.
+Credit-refund-on-failure (added 2026-09-16, when the crash this replaced a
+different failure) must keep working regardless of which Apiframe call is
+being made.
 """
 import os
 import pathlib
@@ -67,28 +70,70 @@ def _make_cover_variant(temp_db, balance_after_charge=4):
         conn.close()
 
 
-def _mock_download_ok():
+def _mock_action_ok():
     resp = MagicMock()
+    resp.status_code = 200
+    resp.text = '{"jobId": "new-job-123"}'
     resp.raise_for_status.return_value = None
-    resp.content = b"fake mp3 bytes"
     return resp
 
 
-def _mock_upload_404():
+def _mock_action_failed(status_code=404, body='{"message":"Route POST:/v2/music/suno/action not found"}'):
     resp = MagicMock()
-    resp.status_code = 404
-    resp.text = '{"message":"Route POST:/v2/music/upload not found"}'
-    resp.raise_for_status.side_effect = requests.HTTPError("404 Client Error: Not Found")
+    resp.status_code = status_code
+    resp.text = body
+    resp.raise_for_status.side_effect = requests.HTTPError(f"{status_code} Client Error")
     return resp
+
+
+def test_calls_the_documented_cover_action_endpoint_with_no_source_download(temp_db):
+    """No requests.get at all -- the whole point of switching to this action
+    is that Apiframe already has the source job, so nothing needs uploading."""
+    user, variant_id = _make_cover_variant(temp_db)
+
+    with patch.object(_webhooks_mod, "DB_PATH", str(temp_db)), \
+         patch.object(_webhooks_mod.requests, "get") as mock_get, \
+         patch.object(_webhooks_mod.requests, "post", return_value=_mock_action_ok()) as mock_post:
+        _webhooks_mod._cover_pipeline(
+            variant_id, parent_job_id="orig-job-abc", track_index=2,
+            style="acoustic folk", lyrics_text="[Verse 1]\nEdited lyrics",
+        )
+
+    mock_get.assert_not_called()
+    mock_post.assert_called_once()
+    call_url = mock_post.call_args[0][0] if mock_post.call_args[0] else mock_post.call_args.kwargs.get("url")
+    assert call_url == "https://api.apiframe.ai/v2/music/suno/action"
+
+
+def test_cover_action_payload_matches_the_documented_shape(temp_db):
+    user, variant_id = _make_cover_variant(temp_db)
+
+    with patch.object(_webhooks_mod, "DB_PATH", str(temp_db)), \
+         patch.object(_webhooks_mod.requests, "post", return_value=_mock_action_ok()) as mock_post:
+        _webhooks_mod._cover_pipeline(
+            variant_id, parent_job_id="orig-job-abc", track_index=2,
+            style="acoustic folk", lyrics_text="[Verse 1]\nEdited lyrics",
+        )
+
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["parentJobId"] == "orig-job-abc"
+    assert payload["action"] == "cover"
+    assert payload["index"] == 2
+    assert payload["prompt"] == "[Verse 1]\nEdited lyrics"
+    assert payload["style"] == "acoustic folk"
+    assert payload["webhookEvents"] == ["completed", "failed"]
+    assert str(variant_id) in payload["webhookUrl"]
 
 
 def test_pipeline_failure_refunds_the_credit(temp_db):
     user, variant_id = _make_cover_variant(temp_db, balance_after_charge=4)
 
     with patch.object(_webhooks_mod, "DB_PATH", str(temp_db)), \
-         patch.object(_webhooks_mod.requests, "get", return_value=_mock_download_ok()), \
-         patch.object(_webhooks_mod.requests, "post", return_value=_mock_upload_404()):
-        _webhooks_mod._cover_pipeline(variant_id, "https://example.com/source.mp3", "[Verse 1]\nEdited lyrics")
+         patch.object(_webhooks_mod.requests, "post", return_value=_mock_action_failed()):
+        _webhooks_mod._cover_pipeline(
+            variant_id, parent_job_id="orig-job-abc", track_index=1,
+            style="some style", lyrics_text="[Verse 1]\nEdited lyrics",
+        )
 
     credits = db.get_song_credits(temp_db, user["id"])
     assert credits["balance"] == 5  # refunded back to the pre-charge amount
@@ -98,30 +143,27 @@ def test_pipeline_failure_still_marks_the_variant_failed(temp_db):
     user, variant_id = _make_cover_variant(temp_db, balance_after_charge=4)
 
     with patch.object(_webhooks_mod, "DB_PATH", str(temp_db)), \
-         patch.object(_webhooks_mod.requests, "get", return_value=_mock_download_ok()), \
-         patch.object(_webhooks_mod.requests, "post", return_value=_mock_upload_404()):
-        _webhooks_mod._cover_pipeline(variant_id, "https://example.com/source.mp3", "[Verse 1]\nEdited lyrics")
+         patch.object(_webhooks_mod.requests, "post", return_value=_mock_action_failed()):
+        _webhooks_mod._cover_pipeline(
+            variant_id, parent_job_id="orig-job-abc", track_index=1,
+            style="some style", lyrics_text="[Verse 1]\nEdited lyrics",
+        )
 
     variant = db.get_song_variant_by_id(temp_db, variant_id)
     assert variant["status"] == "failed"
 
 
 def test_pipeline_success_does_not_refund(temp_db):
-    """A successful submission (upload + extend both accepted) must not
-    also refund -- the customer is meant to be charged for a real attempt."""
+    """A successful submission must not also refund -- the customer is
+    meant to be charged for a real attempt."""
     user, variant_id = _make_cover_variant(temp_db, balance_after_charge=4)
-    upload_ok = MagicMock()
-    upload_ok.raise_for_status.return_value = None
-    upload_ok.json.return_value = {"task_id": "task_123"}
-    extend_ok = MagicMock()
-    extend_ok.raise_for_status.return_value = None
-    extend_ok.text = "{}"
-    extend_ok.status_code = 200
 
     with patch.object(_webhooks_mod, "DB_PATH", str(temp_db)), \
-         patch.object(_webhooks_mod.requests, "get", return_value=_mock_download_ok()), \
-         patch.object(_webhooks_mod.requests, "post", side_effect=[upload_ok, extend_ok]):
-        _webhooks_mod._cover_pipeline(variant_id, "https://example.com/source.mp3", "[Verse 1]\nEdited lyrics")
+         patch.object(_webhooks_mod.requests, "post", return_value=_mock_action_ok()):
+        _webhooks_mod._cover_pipeline(
+            variant_id, parent_job_id="orig-job-abc", track_index=1,
+            style="some style", lyrics_text="[Verse 1]\nEdited lyrics",
+        )
 
     credits = db.get_song_credits(temp_db, user["id"])
     assert credits["balance"] == 4  # unchanged -- charge already happened at request time

@@ -371,54 +371,41 @@ def _stem_pipeline(variant_id: int, user_id: str, mp3_url: str) -> None:
         _db.increment_premium_credits(db_path, user_id, 1)  # refund
 
 
-def _cover_pipeline(variant_id: int, source_mp3_url: str, lyrics_text: str) -> None:
-    """Background thread: upload source song to Apiframe, EXTEND with user lyrics."""
-    import time as _time
-    logger.info("Cover pipeline START: variant_id=%d source=%s lyrics_len=%d", variant_id, source_mp3_url, len(lyrics_text))
-    db_path = pathlib.Path(DB_PATH)
-    apiframe_headers_json = {"X-API-Key": APIFRAME_API_KEY, "Content-Type": "application/json"}
+def _cover_pipeline(variant_id: int, parent_job_id: str, track_index: int, style: str, lyrics_text: str) -> None:
+    """Background thread: Apiframe's documented Suno Cover action
+    (apiframe.ai/docs/actions/suno/cover, verified 2026-09-17).
+
+    parentJobId is "ID of the completed suno job to act on" -- exactly what
+    we already store as song_variants.provider_job_id, with take_number
+    matching "index" (which of the parent's 2 tracks to cover). No source
+    audio download/upload needed: Apiframe already has the job. This
+    replaces the old download-mp3 + POST /v2/music/upload + /v2/music/extend
+    approach, whose upload endpoint no longer exists (404, confirmed live
+    2026-09-16 -- that route doesn't exist on api.apiframe.ai)."""
+    logger.info(
+        "Cover pipeline START: variant_id=%d parent_job_id=%s index=%d lyrics_len=%d",
+        variant_id, parent_job_id, track_index, len(lyrics_text),
+    )
     webhook_url = f"{WEBHOOK_URL}?variant_id={variant_id}"
     try:
-        # Step 1: Download source mp3
-        audio_resp = requests.get(source_mp3_url, timeout=30)
-        audio_resp.raise_for_status()
-        audio_data = audio_resp.content
-        logger.info("Cover pipeline: downloaded %d bytes for variant_id=%d", len(audio_data), variant_id)
-
-        # Step 2: Upload to Apiframe
-        # TODO: Cover This Song extend is broken — uses same /v2/music/upload path that 502s
-        # Fix: update to api.apiframe.pro/suno-upload + /suno-extend once working endpoint confirmed with Apiframe support
-        # Tracked: same fix needed as auto-extend (shelved pending Apiframe endpoint verification)
-        # Do not attempt until working URL confirmed — will 502 same as auto-extend
-        upload_resp = requests.post(
-            f"{APIFRAME_BASE}/v2/music/upload",
-            headers={"X-API-Key": APIFRAME_API_KEY},
-            files={"audio": ("source.mp3", audio_data, "audio/mpeg")},
-            timeout=60,
-        )
-        logger.info("Cover upload: variant_id=%d status=%d body=%r", variant_id, upload_resp.status_code, upload_resp.text[:300])
-        upload_resp.raise_for_status()
-        parent_task_id = upload_resp.json().get("task_id")
-        if not parent_task_id:
-            raise RuntimeError(f"Cover upload: no task_id in response: {upload_resp.json()!r}")
-
-        # Step 3: Extend with user lyrics
-        extend_payload = {
-            "parent_task_id": parent_task_id,
-            "lyrics": lyrics_text,
-            "continue_at": 0,
+        payload = {
+            "parentJobId": parent_job_id,
+            "action": "cover",
+            "index": track_index,
+            "prompt": lyrics_text,
+            "style": style,
             "webhookUrl": webhook_url,
             "webhookEvents": ["completed", "failed"],
         }
-        extend_resp = requests.post(
-            f"{APIFRAME_BASE}/v2/music/extend",
-            headers=apiframe_headers_json,
-            json=extend_payload,
+        action_resp = requests.post(
+            f"{APIFRAME_BASE}/v2/music/suno/action",
+            headers={"X-API-Key": APIFRAME_API_KEY, "Content-Type": "application/json"},
+            json=payload,
             timeout=30,
         )
-        logger.info("Cover extend: variant_id=%d status=%d body=%r", variant_id, extend_resp.status_code, extend_resp.text[:300])
-        extend_resp.raise_for_status()
-        logger.info("Cover pipeline: EXTEND submitted for variant_id=%d — awaiting webhook", variant_id)
+        logger.info("Cover action: variant_id=%d status=%d body=%r", variant_id, action_resp.status_code, action_resp.text[:300])
+        action_resp.raise_for_status()
+        logger.info("Cover pipeline: action submitted for variant_id=%d — awaiting webhook", variant_id)
 
     except Exception as exc:
         logger.exception("Cover pipeline FAILED: variant_id=%d error=%s", variant_id, exc)

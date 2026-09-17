@@ -6834,6 +6834,8 @@ async def cover_song(
         raise HTTPException(status_code=404, detail="Variant not found")
     if not source.get("mp3_url"):
         raise HTTPException(status_code=400, detail="Source song not ready")
+    if not source.get("provider_job_id"):
+        raise HTTPException(status_code=400, detail="This song can't be covered")
     user_id = current_user["id"]
     lyrics_text = body.lyrics.strip()
     conn = sqlite3.connect(str(db_path))
@@ -6860,7 +6862,13 @@ async def cover_song(
         conn.close()
     threading.Thread(
         target=_webhooks_mod._cover_pipeline,
-        args=(new_variant_id, source["mp3_url"], lyrics_text),
+        kwargs=dict(
+            variant_id=new_variant_id,
+            parent_job_id=source["provider_job_id"],
+            track_index=source.get("take_number") or 1,
+            style=source.get("style_prompt", ""),
+            lyrics_text=lyrics_text,
+        ),
         daemon=True,
     ).start()
     log.info("Cover song submitted: source_variant=%d new_variant=%d user=%s", variant_id, new_variant_id, user_id)

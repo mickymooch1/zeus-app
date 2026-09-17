@@ -49,7 +49,8 @@ def _make_user_with_credits(temp_db, balance=5):
     return user
 
 
-def _make_source_variant(temp_db, user_id, style_prompt="Chicago electric blues", genre_tag="chicagoblues"):
+def _make_source_variant(temp_db, user_id, style_prompt="Chicago electric blues", genre_tag="chicagoblues",
+                          provider_job_id="orig-job-abc", take_number=1):
     conn = db._conn(temp_db)
     try:
         cur = conn.execute(
@@ -58,9 +59,10 @@ def _make_source_variant(temp_db, user_id, style_prompt="Chicago electric blues"
         )
         lyric_id = cur.lastrowid
         cur = conn.execute(
-            """INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status, mp3_url)
-               VALUES (?, ?, ?, ?, 'complete', 'https://example.com/files/songs/1.mp3')""",
-            (lyric_id, user_id, style_prompt, genre_tag),
+            """INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status, mp3_url,
+                                           provider_job_id, take_number)
+               VALUES (?, ?, ?, ?, 'complete', 'https://example.com/files/songs/1.mp3', ?, ?)""",
+            (lyric_id, user_id, style_prompt, genre_tag, provider_job_id, take_number),
         )
         conn.commit()
         return cur.lastrowid
@@ -146,6 +148,47 @@ def test_cover_deducts_exactly_one_song_credit(mock_pipeline, temp_db, app_clien
 
     credits = db.get_song_credits(temp_db, user["id"])
     assert credits["balance"] == 4
+
+
+@patch("main._webhooks_mod._cover_pipeline")
+def test_cover_submits_the_pipeline_with_the_sources_original_job_and_track(mock_pipeline, temp_db, app_client):
+    """The pipeline no longer needs the source mp3 -- it needs the ORIGINAL
+    Apiframe job id and which of its two tracks to cover, per Apiframe's
+    documented Suno Cover action."""
+    user = _make_user_with_credits(temp_db)
+    source_id = _make_source_variant(
+        temp_db, user["id"], style_prompt="Delta acoustic blues",
+        provider_job_id="orig-job-xyz", take_number=2,
+    )
+
+    app_client.post(
+        f"/api/songs/variants/{source_id}/cover",
+        json={"lyrics": "[Verse 1]\nMy edited lyrics"},
+        headers=_auth_headers(user),
+    )
+
+    mock_pipeline.assert_called_once()
+    _, kwargs = mock_pipeline.call_args
+    assert kwargs["parent_job_id"] == "orig-job-xyz"
+    assert kwargs["track_index"] == 2
+    assert kwargs["style"] == "Delta acoustic blues"
+    assert kwargs["lyrics_text"] == "[Verse 1]\nMy edited lyrics"
+
+
+def test_cover_rejects_a_source_song_with_no_original_job_id(temp_db, app_client):
+    """A song with no provider_job_id on file (e.g. predates this column,
+    or never actually completed a real generation) can't be covered via
+    Apiframe's job-based Cover action."""
+    user = _make_user_with_credits(temp_db)
+    source_id = _make_source_variant(temp_db, user["id"], provider_job_id=None)
+
+    resp = app_client.post(
+        f"/api/songs/variants/{source_id}/cover",
+        json={"lyrics": "[Verse 1]\nMy edited lyrics"},
+        headers=_auth_headers(user),
+    )
+
+    assert resp.status_code == 400
 
 
 def test_cover_rejects_a_source_song_that_isnt_ready(temp_db, app_client):
