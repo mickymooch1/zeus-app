@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
-import { saveRoastDraft } from '../utils/roastDraft';
+import { saveRoastDraft, clearRoastDraft } from '../utils/roastDraft';
 
 const EXAMPLES = ["Dominic's Always Late", 'Lazy Husband', 'Terrible Driver'];
 
@@ -16,7 +16,7 @@ const VIBES = [
 ];
 
 export default function RoastLandingPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [roastName, setRoastName] = useState('');
   const [roastDetails, setRoastDetails] = useState('');
@@ -34,12 +34,36 @@ export default function RoastLandingPage() {
     navigate(user ? '/songs' : '/register');
   };
 
+  // "Log in" is always clickable (unlike the disabled submit button), but only
+  // worth saving a draft for if there's actually something typed — otherwise
+  // a stranger who clicks straight through would land on /songs with Roast
+  // Mode switched on over nothing.
+  const handleLoginClick = () => {
+    if (canSubmit) saveRoastDraft(roastName.trim(), roastDetails.trim(), roastVibe);
+  };
+
+  // Logging out must not hand the roast draft to whoever uses this browser next.
+  const handleLogout = () => {
+    clearRoastDraft();
+    logout();
+  };
+
   return (
     <div className="auth-page roast-page">
       <div className="auth-card auth-card--wide">
-        <div className="auth-logo">
-          <span className="auth-logo-icon">⚡</span>
-          <span className="auth-logo-text">{BRAND.name}</span>
+        <div className="roast-header-row">
+          <div className="auth-logo">
+            <span className="auth-logo-icon">⚡</span>
+            <span className="auth-logo-text">{BRAND.name}</span>
+          </div>
+          {user && (
+            <div className="roast-account-chip">
+              <span className="roast-account-name">{user.name?.trim() || user.email}</span>
+              <button type="button" className="auth-link roast-logout-link" onClick={handleLogout}>
+                Log out
+              </button>
+            </div>
+          )}
         </div>
 
         <h1 className="auth-title roast-title">Roast your mate with AI</h1>
@@ -96,6 +120,13 @@ export default function RoastLandingPage() {
           </button>
         </form>
 
+        {!user && (
+          <p className="roast-login-hint">
+            Already have an account?{' '}
+            <Link to="/login" className="auth-link" onClick={handleLoginClick}>Log in</Link>
+          </p>
+        )}
+
         <div className="roast-examples">
           <p className="roast-examples-label">Some roasts people have made</p>
           <div className="roast-examples-list">
@@ -108,6 +139,49 @@ export default function RoastLandingPage() {
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600&display=swap');
+
+        .roast-page .roast-header-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 8px 16px;
+          margin-bottom: 24px;
+        }
+        .roast-page .roast-header-row .auth-logo {
+          margin-bottom: 0;
+        }
+        .roast-page .roast-account-chip {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+        .roast-page .roast-account-name {
+          font-family: 'Rajdhani', sans-serif;
+          font-size: 12px;
+          color: var(--text-dim);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 160px;
+        }
+        .roast-page .roast-logout-link {
+          font-family: 'Rajdhani', sans-serif;
+          font-size: 12px;
+          background: none;
+          border: none;
+          padding: 0;
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+        .roast-page .roast-login-hint {
+          font-family: 'Rajdhani', sans-serif;
+          font-size: 13px;
+          color: var(--text-dim);
+          text-align: center;
+          margin-top: 12px;
+        }
 
         .roast-page .roast-title {
           font-family: 'Orbitron', sans-serif;
