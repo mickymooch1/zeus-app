@@ -23,7 +23,10 @@ import ComingSoonBadge      from '../components/ComingSoonBadge';
 import ComingSoonModal      from '../components/ComingSoonModal';
 import SongCard, { S, actionBtnStyle } from '../components/SongCard';
 import { GENRE_CATEGORIES, genreColor, gLabel, GENRES } from '../utils/genres';
-import { readRoastDraft, clearRoastDraft } from '../utils/roastDraft';
+import {
+  readRoastDraft, clearRoastDraft,
+  savePostVerifyDraft, readPostVerifyDraft, clearPostVerifyDraft,
+} from '../utils/roastDraft';
 
 // Set once the post-first-song name prompt has been answered OR skipped, so a
 // user who isn't interested is never asked twice.
@@ -547,24 +550,45 @@ export default function SongsPage() {
   // never fires again later if the user toggles roast mode by hand.
   const [roastRestoreScroll, setRoastRestoreScroll] = useState(false);
 
-  // Restore a /roast landing-page draft (name + details + vibe, sessionStorage-
-  // only — see utils/roastDraft.js). Sets state directly rather than going
-  // through the toggle handler below, which resets these same fields (roastVibe
-  // included, back to its own 'gentle' default). Missing/expired/malformed
-  // drafts are the normal case and leave the page exactly as-is.
+  // Restore a roast draft on mount. Two sources, checked in order:
+  //   1. sessionStorage (see utils/roastDraft.js) — the /roast landing page's
+  //      own handoff, direct within one continuous tab session (signup or
+  //      login, no detour).
+  //   2. localStorage, checked only if (1) had nothing — written by THIS page
+  //      itself when a generate attempt 403s as email_unverified. The
+  //      verification link opens in a NEW tab, where sessionStorage's draft
+  //      is already gone; localStorage survives that hop. Includes the
+  //      selected genre(s), which the sessionStorage draft never carries
+  //      (the landing page has no genre picker).
+  // Sets state directly rather than going through the toggle handler below,
+  // which resets these same fields. Missing/expired/malformed drafts in
+  // either source are the normal case and leave the page exactly as-is.
   useEffect(() => {
-    const draft = readRoastDraft();
-    if (!draft) {
-      // Also covers expired/malformed: readRoastDraft already refused it, but a
-      // stale key must not linger in storage just because it wasn't restorable.
+    const sessionDraft = readRoastDraft();
+    if (sessionDraft) {
+      setIsRoastMode(true);
+      setRoastName(sessionDraft.roastName);
+      setRoastDetails(sessionDraft.roastDetails);
+      setRoastVibe(sessionDraft.roastVibe);
       clearRoastDraft();
+      setRoastRestoreScroll(true);
+      return;
+    }
+    // Also covers expired/malformed: readRoastDraft already refused it, but a
+    // stale key must not linger in storage just because it wasn't restorable.
+    clearRoastDraft();
+
+    const postVerifyDraft = readPostVerifyDraft();
+    if (!postVerifyDraft) {
+      clearPostVerifyDraft();
       return;
     }
     setIsRoastMode(true);
-    setRoastName(draft.roastName);
-    setRoastDetails(draft.roastDetails);
-    setRoastVibe(draft.roastVibe);
-    clearRoastDraft();
+    setRoastName(postVerifyDraft.roastName);
+    setRoastDetails(postVerifyDraft.roastDetails);
+    setRoastVibe(postVerifyDraft.roastVibe);
+    if (postVerifyDraft.genres.length > 0) setSelGenres(new Set(postVerifyDraft.genres));
+    clearPostVerifyDraft();
     setRoastRestoreScroll(true);
   }, []);
 
@@ -1087,7 +1111,14 @@ export default function SongsPage() {
         // below, which would otherwise stringify the object into "[object Object]".
         const det = d.detail;
         if (r.status === 403 && det && typeof det === 'object' && det.code === 'email_unverified') {
-          setVerifyBlock({ message: det.message, email: det.email, bounced: !!det.bounced, bounceOrigin: det.bounce_origin || null });
+          // The verification link opens in a NEW tab — sessionStorage's roast
+          // draft (if this generate attempt even came from one) is already
+          // gone there. localStorage survives that hop; only worth writing
+          // when there's actually a roast in progress to save.
+          if (isRoastMode) {
+            savePostVerifyDraft(roastName, roastDetails, roastVibe, Array.from(selGenres));
+          }
+          setVerifyBlock({ message: det.message, email: det.email, bounced: !!det.bounced, bounceOrigin: det.bounce_origin || null, roastSaved: isRoastMode });
           return;   // `finally` clears the spinner; the form is intentionally kept
         }
         throw new Error((typeof det === 'string' ? det : det?.message) || 'Generation failed');
@@ -1719,6 +1750,7 @@ export default function SongsPage() {
           message={verifyBlock.message}
           bounced={verifyBlock.bounced}
           bounceOrigin={verifyBlock.bounceOrigin}
+          roastSaved={verifyBlock.roastSaved}
           token={token}
           onClose={() => setVerifyBlock(null)}
           onVerified={async () => {

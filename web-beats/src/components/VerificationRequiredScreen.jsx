@@ -13,7 +13,7 @@ const RED = '#f87171';
  * who are already able to generate. This one cannot be dismissed into a working
  * app — the only ways out are verifying, or backing out to look around.
  *
- * Three things carry the weight here, all learned the hard way:
+ * Four things carry the weight here, all learned the hard way:
  *   * The spam-folder line is the FIRST thing after the headline, not a footnote.
  *     Deliverability is the single biggest reason a gated user gets stuck, so the
  *     answer has to arrive before they start hunting.
@@ -24,9 +24,14 @@ const RED = '#f87171';
  *     spam" and "resend" both look like they worked while doing nothing. When
  *     the backend reports that, this screen says so plainly and offers the one
  *     thing that can actually fix it: a different address.
+ *   * The verification link opens in a NEW tab/session — a roast in progress
+ *     when this gate fired has already been saved (see SongsPage's use of
+ *     utils/roastDraft.js savePostVerifyDraft), but nothing about that is
+ *     visible here unless this screen says so. Without the reassurance below,
+ *     a locked-out user has no way to know their roast wasn't just lost.
  */
 export default function VerificationRequiredScreen({
-  email, message, token, bounced, bounceOrigin, onClose, onVerified, onEmailChanged,
+  email, message, token, bounced, bounceOrigin, roastSaved, onClose, onVerified, onEmailChanged,
 }) {
   const [resend, setResend] = useState('idle');   // idle | loading | sent | ratelimited | error
   const [checking, setChecking] = useState(false);
@@ -199,8 +204,15 @@ export default function VerificationRequiredScreen({
           )}
 
           {!isBounced && (
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, lineHeight: 1.55, textAlign: 'center', marginBottom: 18 }}>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, lineHeight: 1.55, textAlign: 'center', marginBottom: roastSaved ? 8 : 18 }}>
               Open the link in the email, then come back and tap “I’ve verified”.
+            </p>
+          )}
+
+          {roastSaved && (
+            <p style={{ color: '#34d399', fontSize: 13, lineHeight: 1.55, textAlign: 'center', marginBottom: 18 }}>
+              🎤 Your roast is saved — it&apos;ll be waiting for you once you verify,
+              even if the link opens in a different tab.
             </p>
           )}
 
