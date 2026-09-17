@@ -470,6 +470,45 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.exception("Stale plan allowance backfill failed (non-fatal)")
 
+    # TEMP FIX (2026-09-17) — remove once the log line below confirms the
+    # result. One-shot live verification of billing._grant_or_preserve_song_
+    # credits (the PAYG-preservation fix) against the REAL deployed code and
+    # REAL production DB. Uses a fully disposable row created and deleted
+    # within this same run — no real customer or lasting data is touched.
+    try:
+        _test_id = f"payg-verify-{uuid.uuid4().hex[:8]}"
+        _now = datetime.now(timezone.utc).isoformat()
+        _conn = sqlite3.connect(str(_db_path))
+        try:
+            _conn.execute(
+                "INSERT INTO users (id, email, password_hash, name, subscription_status, created_at, updated_at) "
+                "VALUES (?, ?, 'x', 'PAYG Verify (disposable)', 'free', ?, ?)",
+                (_test_id, f"{_test_id}@internal.test", _now, _now),
+            )
+            _conn.commit()
+        finally:
+            _conn.close()
+        # Simulate: subscribed to music_starter (allowance 30) with 45 on
+        # balance -- i.e. 30 subscription + 15 unspent PAYG on top.
+        db.upsert_song_credits(_db_path, _test_id, balance=45, monthly_allowance=30)
+        billing._grant_or_preserve_song_credits(_db_path, _test_id, 30)
+        _after = db.get_song_credits(_db_path, _test_id)
+        log.info(
+            "TEMP FIX PAYG live verify: before balance=45 allowance=30 -> "
+            "after balance=%s monthly_allowance=%s (expect 45 / 30)",
+            _after["balance"], _after["monthly_allowance"],
+        )
+        _conn = sqlite3.connect(str(_db_path))
+        try:
+            _conn.execute("DELETE FROM song_credits WHERE user_id = ?", (_test_id,))
+            _conn.execute("DELETE FROM users WHERE id = ?", (_test_id,))
+            _conn.commit()
+        finally:
+            _conn.close()
+        log.info("TEMP FIX PAYG live verify: disposable test row cleaned up")
+    except Exception:
+        log.exception("TEMP FIX PAYG live verify failed (non-fatal)")
+
     try:
         billing.ensure_promo_codes()
     except Exception:
