@@ -547,10 +547,11 @@ export default function SongsPage() {
   // never fires again later if the user toggles roast mode by hand.
   const [roastRestoreScroll, setRoastRestoreScroll] = useState(false);
 
-  // Restore a /roast landing-page draft (name + details, sessionStorage-only —
-  // see utils/roastDraft.js). Sets state directly rather than going through the
-  // toggle handler below, which resets these same fields. Missing/expired/
-  // malformed drafts are the normal case and leave the page exactly as-is.
+  // Restore a /roast landing-page draft (name + details + vibe, sessionStorage-
+  // only — see utils/roastDraft.js). Sets state directly rather than going
+  // through the toggle handler below, which resets these same fields (roastVibe
+  // included, back to its own 'gentle' default). Missing/expired/malformed
+  // drafts are the normal case and leave the page exactly as-is.
   useEffect(() => {
     const draft = readRoastDraft();
     if (!draft) {
@@ -562,6 +563,7 @@ export default function SongsPage() {
     setIsRoastMode(true);
     setRoastName(draft.roastName);
     setRoastDetails(draft.roastDetails);
+    setRoastVibe(draft.roastVibe);
     clearRoastDraft();
     setRoastRestoreScroll(true);
   }, []);

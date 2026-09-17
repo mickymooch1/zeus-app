@@ -5,12 +5,16 @@ const ROAST_DRAFT_KEY = 'zeus_roast_draft';
 const MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 const MAX_NAME_LEN = 80;
 const MAX_DETAILS_LEN = 500;
+// Must match the vibe picker's values on both SongsPage and RoastLandingPage.
+export const ROAST_VIBES = ['gentle', 'roast', 'birthday', 'staghen'];
+const DEFAULT_VIBE = 'gentle';
 
-export function saveRoastDraft(roastName, roastDetails) {
+export function saveRoastDraft(roastName, roastDetails, roastVibe) {
   try {
     sessionStorage.setItem(ROAST_DRAFT_KEY, JSON.stringify({
       roastName: (roastName || '').slice(0, MAX_NAME_LEN),
       roastDetails: (roastDetails || '').slice(0, MAX_DETAILS_LEN),
+      roastVibe: ROAST_VIBES.includes(roastVibe) ? roastVibe : DEFAULT_VIBE,
       ts: Date.now(),
     }));
   } catch {
@@ -19,9 +23,9 @@ export function saveRoastDraft(roastName, roastDetails) {
   }
 }
 
-// Returns { roastName, roastDetails } or null. Null covers every "nothing to
-// restore" case alike (missing, expired, malformed) — the caller's job is only
-// ever "prefill if present", never to distinguish why it wasn't.
+// Returns { roastName, roastDetails, roastVibe } or null. Null covers every
+// "nothing to restore" case alike (missing, expired, malformed) — the caller's
+// job is only ever "prefill if present", never to distinguish why it wasn't.
 export function readRoastDraft() {
   try {
     const raw = sessionStorage.getItem(ROAST_DRAFT_KEY);
@@ -33,6 +37,7 @@ export function readRoastDraft() {
     return {
       roastName: data.roastName.slice(0, MAX_NAME_LEN),
       roastDetails: data.roastDetails.slice(0, MAX_DETAILS_LEN),
+      roastVibe: ROAST_VIBES.includes(data.roastVibe) ? data.roastVibe : DEFAULT_VIBE,
     };
   } catch {
     return null;

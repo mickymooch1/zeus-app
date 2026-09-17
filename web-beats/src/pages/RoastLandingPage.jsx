@@ -6,18 +6,31 @@ import { saveRoastDraft } from '../utils/roastDraft';
 
 const EXAMPLES = ["Dominic's Always Late", 'Lazy Husband', 'Terrible Driver'];
 
+// Same four values/labels/emoji as SongsPage's roast vibe picker — kept in sync
+// by hand since the two pickers live in unrelated component trees.
+const VIBES = [
+  ['gentle', '😄', 'Gentle Banter', 'Warm & affectionate'],
+  ['roast', '🔥', 'Proper Roast', 'Cheeky, going for it'],
+  ['birthday', '🎂', 'Birthday Piss-take', 'Happy birthday 😬'],
+  ['staghen', '🍺', 'Stag / Hen Do', 'Raucous send-off'],
+];
+
 export default function RoastLandingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [roastName, setRoastName] = useState('');
   const [roastDetails, setRoastDetails] = useState('');
+  // Defaults to 'roast' here (not 'gentle', SongsPage's default) — this page's
+  // traffic comes from roast Shorts, so Proper Roast matches what they clicked
+  // through for. SongsPage's own default is unrelated and stays as-is.
+  const [roastVibe, setRoastVibe] = useState('roast');
 
   const canSubmit = roastName.trim().length > 0;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!canSubmit) return;
-    saveRoastDraft(roastName.trim(), roastDetails.trim());
+    saveRoastDraft(roastName.trim(), roastDetails.trim(), roastVibe);
     navigate(user ? '/songs' : '/register');
   };
 
@@ -58,6 +71,24 @@ export default function RoastLandingPage() {
               maxLength={500}
               style={{ resize: 'vertical', fontFamily: 'inherit' }}
             />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Pick the vibe</label>
+            <div className="roast-vibe-grid">
+              {VIBES.map(([val, emoji, label, desc]) => (
+                <button
+                  key={val}
+                  type="button"
+                  className={`roast-vibe-btn${roastVibe === val ? ' roast-vibe-btn--selected' : ''}`}
+                  onClick={() => setRoastVibe(val)}
+                >
+                  <span className="roast-vibe-emoji">{emoji}</span>
+                  <span className="roast-vibe-name">{label}</span>
+                  <span className="roast-vibe-desc">{desc}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <button type="submit" className="btn btn-primary btn-lg btn-full roast-cta" disabled={!canSubmit}>
@@ -130,6 +161,53 @@ export default function RoastLandingPage() {
           border: 1px solid rgba(248,113,113,0.25);
           border-radius: 999px;
           padding: 6px 12px;
+        }
+        .roast-page .roast-vibe-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+        }
+        .roast-page .roast-vibe-btn {
+          font-family: 'Rajdhani', sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 2px;
+          padding: 10px 12px;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.15s;
+          text-align: left;
+          border: 2px solid rgba(248,113,113,0.25);
+          background: rgba(248,113,113,0.04);
+        }
+        .roast-page .roast-vibe-btn--selected {
+          border-color: #f87171;
+          background: rgba(248,113,113,0.15);
+          box-shadow: 0 0 14px rgba(248,113,113,0.25);
+        }
+        .roast-page .roast-vibe-emoji {
+          font-size: 18px;
+          line-height: 1;
+          margin-bottom: 2px;
+        }
+        .roast-page .roast-vibe-name {
+          font-size: 12px;
+          font-weight: 700;
+          color: rgba(248,113,113,0.7);
+        }
+        .roast-page .roast-vibe-btn--selected .roast-vibe-name {
+          color: #f87171;
+        }
+        .roast-page .roast-vibe-desc {
+          font-size: 10px;
+          color: rgba(248,113,113,0.5);
+          line-height: 1.3;
+        }
+        @media (max-width: 420px) {
+          .roast-page .roast-vibe-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>
