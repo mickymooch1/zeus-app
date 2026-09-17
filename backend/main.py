@@ -1560,6 +1560,15 @@ async def change_password(
     return {"ok": True, "message": "Password changed successfully."}
 
 
+# Lifetime cap on successful changes per account. The 5/minute limit below only
+# bounds SPEED — nothing capped total VOLUME, and each call can target a
+# different arbitrary address, so one account could otherwise drive an
+# unbounded number of verification emails outward indefinitely. That's a real
+# reputation risk: it's the same sending domain that already has real
+# suppressions on it. Reject outright once hit; no more sends past this point.
+EMAIL_CHANGE_LIFETIME_CAP = 5
+
+
 @app.post("/api/auth/change-email")
 # Deliberately narrow: this is the unverified-gate's "I mistyped it / it
 # bounced" escape hatch, not a general account-settings email change — a
@@ -1577,6 +1586,20 @@ async def change_email(
 ):
     if current_user.get("email_verified"):
         raise HTTPException(status_code=400, detail="Your email is already verified. Contact support to change it.")
+
+    # Lifetime cap, checked before touching new_email at all — a maxed-out
+    # account gets the same fast, uniform rejection no matter what it submits.
+    if current_user.get("email_change_count", 0) >= EMAIL_CHANGE_LIFETIME_CAP:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "email_change_limit",
+                "message": (
+                    "You've changed your email address too many times. "
+                    "Please contact hello@zeusbeats.com for help."
+                ),
+            },
+        )
 
     new_email = body.new_email.strip()
     if not new_email or "@" not in new_email:
@@ -1600,12 +1623,28 @@ async def change_email(
             detail="This email can't be used. If you believe this is a mistake, contact support.",
         )
 
+    # IP-side half of the ceiling, checked right before the write goes through —
+    # same placement as register()'s own IP-velocity check — so a fresh account
+    # from the same IP can't just buy 5 more changes for free. Same thresholds
+    # register() already uses, not new ones to separately tune.
+    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    db.record_email_change_attempt(db_path, ip)
+    ip_recent = db.count_email_change_attempts_from_ip(db_path, ip, signup_guard.IP_BLOCK_WINDOW_HOURS)
+    if ip_recent > signup_guard.IP_BLOCK_COUNT and not db.is_ip_allowlisted(ip):
+        log.warning("change_email: IP cap hit — ip=%s count=%d/%dh user=%s",
+                    ip, ip_recent, signup_guard.IP_BLOCK_WINDOW_HOURS, current_user["id"])
+        raise HTTPException(
+            status_code=429,
+            detail="Too many email changes from this network just now. Please try again later.",
+        )
+
     old_email = current_user.get("email", "")
     db.update_user(
         db_path, current_user["id"],
         email=new_email,
         email_canonical=signup_guard.normalize_email(new_email),
     )
+    db.increment_email_change_count(db_path, current_user["id"])
     log.info("change_email: user=%s old=%s new=%s", current_user["id"], old_email, new_email)
 
     updated_user = db.get_user_by_id(db_path, current_user["id"])

@@ -40,7 +40,7 @@ export default function VerificationRequiredScreen({
   const [origin, setOrigin] = useState(() => bounceOrigin || null);
 
   const [newEmail, setNewEmail] = useState('');
-  const [changeStatus, setChangeStatus] = useState('idle');   // idle | loading | error | sent
+  const [changeStatus, setChangeStatus] = useState('idle');   // idle | loading | error | sent | limit_reached
   const [changeError, setChangeError] = useState('');
 
   async function handleResend() {
@@ -97,6 +97,13 @@ export default function VerificationRequiredScreen({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        // A lifetime-cap rejection is not retryable — submitting again just
+        // 403s again, so it gets its own terminal state instead of sitting
+        // under a form that looks like trying once more might work.
+        if (data.detail && typeof data.detail === 'object' && data.detail.code === 'email_change_limit') {
+          setChangeStatus('limit_reached');
+          return;
+        }
         setChangeStatus('error');
         setChangeError((typeof data.detail === 'string' ? data.detail : data.detail?.message) || 'Could not update your email.');
         return;
@@ -226,7 +233,25 @@ export default function VerificationRequiredScreen({
             </>
           )}
 
-          {isBounced ? (
+          {isBounced && changeStatus === 'limit_reached' ? (
+            // Terminal state, deliberately no input/button here — retrying
+            // just 403s again. hello@zeusbeats.com, not the /contact form:
+            // it's a real Google Workspace inbox (confirmed via MX lookup),
+            // independent of anything in this app that could itself be broken.
+            <div style={{
+              background: 'rgba(248,113,113,0.08)', border: `1px solid ${RED}40`,
+              borderRadius: 12, padding: '14px 16px', marginBottom: 10, textAlign: 'center',
+            }}>
+              <p style={{ margin: 0, color: 'rgba(255,255,255,0.75)', fontSize: 14, lineHeight: 1.55 }}>
+                You&apos;ve changed your email address too many times on this account.
+                {' '}Please email{' '}
+                <a href="mailto:hello@zeusbeats.com" style={{ color: RED, fontWeight: 700 }}>
+                  hello@zeusbeats.com
+                </a>{' '}
+                for help.
+              </p>
+            </div>
+          ) : isBounced ? (
             <form onSubmit={handleChangeEmail} style={{ marginBottom: 10 }}>
               <input
                 type="email"

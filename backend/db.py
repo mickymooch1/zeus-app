@@ -513,6 +513,19 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 active     INTEGER NOT NULL DEFAULT 1
             )""",
             "ALTER TABLE users ADD COLUMN last_seen_announcement_id INTEGER NOT NULL DEFAULT 0",
+            # Lifetime cap on /api/auth/change-email (see main.py) — a per-minute
+            # rate limit alone bounds speed, not total volume, and each call can
+            # target a different arbitrary address. Counts successful changes only.
+            "ALTER TABLE users ADD COLUMN email_change_count INTEGER NOT NULL DEFAULT 0",
+            # IP-side half of that same cap, so creating a fresh account doesn't
+            # reset it. Same shape as registration_attempts, for the same reason.
+            """CREATE TABLE IF NOT EXISTS email_change_attempts (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                ip_address   TEXT NOT NULL,
+                attempted_at TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_email_change_attempts_ip "
+            "ON email_change_attempts (ip_address, attempted_at)",
         ]:
             try:
                 conn.execute(_migration)
@@ -570,6 +583,37 @@ def count_registrations_from_ip(db_path: pathlib.Path, ip_address: str, hours: i
     try:
         row = conn.execute(
             "SELECT COUNT(*) FROM registration_attempts WHERE ip_address = ? AND attempted_at > ?",
+            (ip_address, cutoff),
+        ).fetchone()
+        return int(row[0]) if row else 0
+    finally:
+        conn.close()
+
+
+def record_email_change_attempt(db_path: pathlib.Path, ip_address: str) -> None:
+    """Log a /api/auth/change-email attempt against an IP. Always succeeds,
+    never blocks. Mirrors record_registration_attempt — same reason: a fresh
+    account must not reset the IP-side half of the abuse ceiling."""
+    from datetime import datetime, timezone
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "INSERT INTO email_change_attempts (ip_address, attempted_at) VALUES (?, ?)",
+            (ip_address, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def count_email_change_attempts_from_ip(db_path: pathlib.Path, ip_address: str, hours: int) -> int:
+    """How many email-change attempts this IP has made in the last `hours` hours."""
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM email_change_attempts WHERE ip_address = ? AND attempted_at > ?",
             (ip_address, cutoff),
         ).fetchone()
         return int(row[0]) if row else 0
@@ -1005,6 +1049,22 @@ def record_verification_gate_block(db_path: pathlib.Path, user_id: str) -> None:
                       gate_last_blocked_at  = ?
                 WHERE id = ?""",
             (now, now, user_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def increment_email_change_count(db_path: pathlib.Path, user_id: str) -> None:
+    """Atomically bump how many times this account has changed its email while
+    unverified (see /api/auth/change-email's lifetime cap). A plain SQL-level
+    increment, not read-then-write, so concurrent requests can't race past the
+    cap the same way a Python-side read-modify-write could."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE users SET email_change_count = email_change_count + 1 WHERE id = ?",
+            (user_id,),
         )
         conn.commit()
     finally:
