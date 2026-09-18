@@ -6940,6 +6940,7 @@ def _get_public_song_for_share_og(identifier: str):
 
 class _CoverSongRequest(BaseModel):
     lyrics: str = Field(min_length=1, max_length=3000)
+    title: str | None = Field(default=None, max_length=100)  # optional; blank falls back to an AI-generated title
 
 
 @app.post("/api/songs/variants/{variant_id}/stems", status_code=202)
@@ -7005,6 +7006,13 @@ async def cover_song(
         raise HTTPException(status_code=400, detail="This song can't be covered")
     user_id = current_user["id"]
     lyrics_text = body.lyrics.strip()
+    custom_title = (body.title or "").strip()
+    if not custom_title:
+        import lyrics as _lyrics_mod
+        custom_title = _lyrics_mod.generate_song_title(
+            lyrics_text, genres=[source.get("genre_tag")] if source.get("genre_tag") else None,
+            fallback=f"Cover of song #{variant_id}",
+        )
     conn = sqlite3.connect(str(db_path))
     try:
         cur = conn.cursor()
@@ -7014,8 +7022,8 @@ async def cover_song(
         except InsufficientCreditsError:
             raise HTTPException(status_code=402, detail="Insufficient song credits")
         cur.execute(
-            "INSERT INTO lyrics (user_id, brief, lyrics_text) VALUES (?, ?, ?)",
-            (user_id, f"Cover of song #{variant_id}", lyrics_text),
+            "INSERT INTO lyrics (user_id, brief, lyrics_text, title) VALUES (?, ?, ?, ?)",
+            (user_id, f"Cover of song #{variant_id}", lyrics_text, custom_title),
         )
         lyric_id = cur.lastrowid
         cur.execute(
@@ -7038,8 +7046,8 @@ async def cover_song(
         ),
         daemon=True,
     ).start()
-    log.info("Cover song submitted: source_variant=%d new_variant=%d user=%s", variant_id, new_variant_id, user_id)
-    return {"variant_id": new_variant_id, "status": "pending"}
+    log.info("Cover song submitted: source_variant=%d new_variant=%d title=%r user=%s", variant_id, new_variant_id, custom_title, user_id)
+    return {"variant_id": new_variant_id, "status": "pending", "title": custom_title}
 
 
 # ── Playlists ─────────────────────────────────────────────────────────────────

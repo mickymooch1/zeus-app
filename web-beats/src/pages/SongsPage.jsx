@@ -526,6 +526,7 @@ export default function SongsPage() {
   const [coverModal, setCoverModal] = useState(null);
   const [upgradeFeature, setUpgradeFeature] = useState(null);
   const [coverLyrics, setCoverLyrics] = useState('');
+  const [coverTitle, setCoverTitle] = useState('');
   const [coverLyricsLoading, setCoverLyricsLoading] = useState(false);
   const [coverLoading, setCoverLoading] = useState(false);
   const [coverError, setCoverError] = useState('');
@@ -1441,12 +1442,13 @@ export default function SongsPage() {
       const r = await fetch(`${BACKEND_URL}/api/songs/variants/${coverModal.variantId}/cover`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lyrics: coverLyrics.trim() }),
+        body: JSON.stringify({ lyrics: coverLyrics.trim(), title: coverTitle.trim() || undefined }),
       });
       const data = await r.json();
       if (!r.ok) { setCoverError(data.detail || 'Something went wrong'); return; }
       setCoverModal(null);
       setCoverLyrics('');
+      setCoverTitle('');
       setCoverToast(true);
       setTimeout(() => setCoverToast(false), 4000);
     } catch {
@@ -3355,7 +3357,7 @@ export default function SongsPage() {
                         stemsData={stemsData[v.variant_id]}
                         onGetStems={handleGetStems}
                         onUpgrade={setUpgradeFeature}
-                        onOpenCover={(variantId, title, lyricId) => { setCoverModal({ variantId, sourceTitle: title, lyricId }); setCoverLyrics(''); setCoverError(''); }}
+                        onOpenCover={(variantId, title, lyricId) => { setCoverModal({ variantId, sourceTitle: title, lyricId }); setCoverLyrics(''); setCoverTitle(title || ''); setCoverError(''); }}
                         soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                         onLockSound={handleLockSound}
                         onMarkQrGenerated={handleMarkQrGenerated}
@@ -3528,7 +3530,7 @@ export default function SongsPage() {
                       stemsData={stemsData[v.variant_id]}
                       onGetStems={handleGetStems}
                       onUpgrade={setUpgradeFeature}
-                      onOpenCover={(variantId, title, lyricId) => { setCoverModal({ variantId, sourceTitle: title, lyricId }); setCoverLyrics(''); setCoverError(''); }}
+                      onOpenCover={(variantId, title, lyricId) => { setCoverModal({ variantId, sourceTitle: title, lyricId }); setCoverLyrics(''); setCoverTitle(title || ''); setCoverError(''); }}
                       soundPersonaVariantId={soundPersona?.sound_persona_variant_id ?? null}
                       onLockSound={handleLockSound}
                       onMarkQrGenerated={handleMarkQrGenerated}
@@ -3773,7 +3775,7 @@ export default function SongsPage() {
       {/* Edit Lyrics & Remake modal (backend still calls this the "cover" action) */}
       {coverModal && (
         <div
-          onClick={() => setCoverModal(null)}
+          onClick={() => { setCoverModal(null); setCoverTitle(''); }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
         >
           <div
@@ -3784,12 +3786,24 @@ export default function SongsPage() {
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, background: 'linear-gradient(90deg,#00f0ff,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 ✏️ Edit Lyrics &amp; Remake
               </h2>
-              <button onClick={() => setCoverModal(null)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#cccccc', fontSize: 13, cursor: 'pointer', padding: '4px 9px' }}>✕</button>
+              <button onClick={() => { setCoverModal(null); setCoverTitle(''); }} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#cccccc', fontSize: 13, cursor: 'pointer', padding: '4px 9px' }}>✕</button>
             </div>
 
             <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#cccccc', lineHeight: 1.5 }}>
               Edit the lyrics below, then hit remake. We'll keep the <strong style={{ color: '#e2e8f0' }}>same style and music direction</strong>, but this creates a <strong style={{ color: '#e2e8f0' }}>new recording</strong> — it may not sound 100% identical to the original.
             </div>
+
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>
+              Title
+            </label>
+            <input
+              type="text"
+              value={coverTitle}
+              onChange={e => setCoverTitle(e.target.value)}
+              placeholder="Name your remake"
+              maxLength={100}
+              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e2e8f0', fontSize: 13, padding: '10px 12px', outline: 'none', fontFamily: 'inherit', marginBottom: 16 }}
+            />
 
             <textarea
               value={coverLyrics}
