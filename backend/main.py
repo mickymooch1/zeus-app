@@ -7264,28 +7264,8 @@ async def serve_assetlinks():
 # .git in the image — but a 200 reads as a hit to scanners and to anyone skimming
 # logs). SPA routes are arbitrary, so this is a BLOCKLIST; a whitelist would
 # break every new client route.
-_SCANNER_SEGMENTS = frozenset({
-    "wp-admin", "wp-login.php", "wp-content", "wp-includes", "wp-json", "wordpress",
-    "xmlrpc.php", "phpmyadmin", "pma", "cgi-bin", "server-status", "actuator",
-    "hnap1", "boaform",
-})
-_SCANNER_SUFFIXES = (
-    ".php", ".phtml", ".asp", ".aspx", ".jsp", ".jspx", ".cgi", ".sql", ".bak", ".old", ".swp",
-)
-
-
-def _is_scanner_path(full_path: str) -> bool:
-    """True for paths only a vulnerability scanner asks for.
-
-    Any dot-segment is scanner traffic (.git, .env, .svn, .aws, .DS_Store, and
-    `..` traversal attempts) — the one legitimate dot-path, .well-known, is
-    served by its own route/mount before this catch-all is reached.
-    """
-    segments = [s for s in full_path.lower().split("/") if s]
-    for seg in segments:
-        if seg in _SCANNER_SEGMENTS or (seg.startswith(".") and seg != ".well-known"):
-            return True
-    return bool(segments) and segments[-1].endswith(_SCANNER_SUFFIXES)
+# The rules live in scanner_paths.py so the bot-guard middleware shares them.
+from scanner_paths import is_scanner_path as _is_scanner_path
 
 
 def _resolve_dist_file(dist: pathlib.Path, full_path: str) -> pathlib.Path | None:
