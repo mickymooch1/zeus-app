@@ -32,7 +32,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'uk_street',  label: '🎤 UK Street & Hip Hop', color: '#00f0ff',
     genres: ['grime','ukdrill','afroswing','bassline','ukgarage','niche','drumandbass','jungle','deeprotbassline','ukstreetsoul','triphop'] },
   { id: 'soul',       label: '🎵 Soul & Blues',        color: '#fb923c',
-    genres: ['soul','bluessoul','southemsoul','soulrnb','orchestralsoul','classicfunk','gospel','hymns','trapsoul','vocaljazz','scat','swing','rnb','blues','deepsoulblues','chicagoblues','deltablues','swampblues'] },
+    genres: ['soul','bluessoul','southemsoul','soulrnb','orchestralsoul','motown','classicfunk','synthfunk','boogie','gospel','hymns','trapsoul','vocaljazz','scat','swing','rnb','blues','deepsoulblues','chicagoblues','deltablues','swampblues'] },
   { id: 'rock',       label: '🎸 Rock & Metal',        color: '#f87171',
     genres: ['rock','hardrock','metal','punkrock','rocknroll','traditionalpop','bluesrock','indie','britpop','indierock','rockney'] },
   { id: 'country_folk', label: '🤠 Country & Folk',    color: '#d97706',
@@ -75,6 +75,7 @@ const GENRE_LABEL: Record<string, string> = {
   electricbluesguitar:'Blues Guitar', trumpet:'Trumpet', flamencoguitar:'Flamenco Guitar',
   chicagoblues:'Chicago Blues', deltablues:'Delta Blues', swampblues:'Swamp Blues',
   dixieland:'New Orleans Jazz', brassband:'Brass Band', harlemstride:'Harlem Stride Piano', neworleansbounce:'New Orleans Bounce',
+  synthfunk:'Synth Funk', boogie:'Boogie', motown:'Motown',
 };
 
 function glabel(key: string): string {

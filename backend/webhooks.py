@@ -156,6 +156,9 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "futurebass":       "cinematic album cover, young producer silhouetted against a wall of light in foreground, iridescent holographic gradients and prismatic light shards behind, soft pastel pink blue and violet glow, floating geometric shapes, dreamy euphoric atmosphere, ultra detailed professional music artwork",
     "gogo":             "cinematic album cover, Black percussionists and live band mid-performance in foreground, congas and timbales, outdoor Washington DC street party behind them, crowd dancing in an urban neighbourhood block-party setting, brass horns and warm golden-hour light, vibrant energetic atmosphere, raw live party energy, ultra detailed professional music artwork, Black musicians, NOT white, correct ethnicity",
     "gqom":             "cinematic album cover, Black dancers caught mid-movement in foreground, raw concrete warehouse space with harsh strobe lighting behind, heavy shadow and stark contrast, dust suspended in the air, towering industrial speaker stacks, gritty underground energy, ultra detailed professional music artwork, Black musicians, NOT white, correct ethnicity",
+    "synthfunk":        "1980s electronic music aesthetic, neon synthesizers, drum machines, retro tech equipment, vibrant neon colours, sleek futuristic 80s feel, professional music cover art",
+    "boogie":           "1980s dance party, disco ball, people dancing, colourful fashion, joyful celebration, early 80s Black music culture, vibrant and energetic atmosphere",
+    "motown":           "1960s Motown aesthetic, glamorous soul singers, vintage microphones, elegant performance attire, warm golden tones, classic American soul era, professional music cover art",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"
