@@ -280,7 +280,7 @@ function StyleResult({ data, query, onUse }) {
             whiteSpace: 'nowrap',
           }}
         >
-          Generate a song like this →
+          Use as inspiration →
         </button>
       </div>
 
@@ -440,7 +440,7 @@ function LyricsResult({ data, query, onUse }) {
             whiteSpace: 'nowrap',
           }}
         >
-          Write me something similar →
+          Use as inspiration →
         </button>
       </div>
 

@@ -37,6 +37,91 @@ _THEMES = [
     "identity", "home", "money", "loyalty", "family", "the come up",
 ]
 
+# Mood inferred from a Search-Inspiration theme (2026-09-21).
+#
+# A reference theme used to fix only the SUBJECT of the lyrics while the mood was still
+# random.choice(_MOODS), so a song about a destructive relationship could be written
+# "euphoric" (seen in production logs). When a theme is present the mood now follows it.
+#
+# Each bucket is (name, stem regexes, moods). Stems match at a word START (\b), so
+# "belonging" does not trip "longing" and "harmony" does not trip "harmful"; write
+# r"win\b"-style endings for short words. Every mood MUST be a member of _MOODS (a test
+# enforces it) because the result is dropped into the prompt beside the random ones.
+# Listed in priority order: on an exact tie the earlier bucket wins.
+_MOOD_LEXICON: list[tuple[str, tuple[str, ...], tuple[str, ...]]] = [
+    ("dark", (
+        r"destruct", r"toxic", r"abus", r"violen", r"addict", r"betray", r"despair", r"trapped",
+        r"cruel", r"hatred", r"obsess", r"manipulat", r"predator", r"crime", r"gang", r"danger",
+        r"haunt", r"demon", r"dark", r"sinister", r"corrupt", r"vengeance", r"revenge",
+        r"harmful", r"harming", r"suffocat", r"self-destruct", r"co-?dependen",
+    ), ("dark and gritty", "raw and emotional", "melancholic and reflective")),
+    ("sad", (
+        r"lonel", r"alone\b", r"solitude", r"heartbr", r"griev", r"mourn", r"loss\b", r"lost\b",
+        r"longing", r"yearn", r"sorrow", r"regret", r"missing", r"abandon", r"tears", r"crying",
+        r"depress", r"hurt", r"pain", r"empty", r"farewell", r"goodbye", r"breakup", r"broken",
+        r"uncertain", r"upheaval", r"heartache", r"bereave", r"isolat",
+        r"ruin", r"begging", r"guilt", r"shame", r"apolog", r"sorry", r"humiliat", r"wounded",
+    ), ("melancholic", "melancholic and reflective", "bittersweet", "raw and emotional")),
+    ("angry", (
+        r"anger", r"angry", r"rage\b", r"fury", r"furious", r"defian", r"rebel", r"resist",
+        r"fight", r"revolt", r"refus", r"stand up", r"rising up", r"rise up", r"break free",
+        r"fierce", r"protest", r"unapologetic",
+    ), ("defiant", "aggressive and intense", "raw and emotional", "aggressive")),
+    ("nostalgic", (
+        r"nostalg", r"childhood", r"memor", r"remember", r"reminisc", r"growing up", r"old days",
+        r"good old", r"yesterday", r"the past\b", r"youth", r"old friends?", r"hometown",
+    ), ("nostalgic", "bittersweet")),
+    ("romantic", (
+        r"love\b", r"loving", r"romanc", r"romantic", r"passion", r"desire", r"devotion",
+        r"intimate", r"sensual", r"attract", r"kiss", r"embrace", r"adore", r"seduc",
+        r"infatuat", r"crush\b", r"tender",
+    ), ("romantic", "smooth and sensual")),
+    ("hopeful", (
+        r"hope", r"heal", r"recover", r"resilien", r"perseveran", r"new beginning", r"fresh start",
+        r"redemption", r"redeem", r"forgiv", r"rebuild", r"renew", r"brighter", r"grateful",
+        r"gratitude", r"faith", r"second chance",
+    ), ("uplifting", "calm and introspective", "bittersweet")),
+    ("reflective", (
+        r"reflect", r"contemplat", r"introspect", r"peace", r"calm", r"serene", r"quiet",
+        r"meditat", r"stillness", r"wonder", r"ponder", r"question", r"wrestl", r"meaning",
+    ), ("calm and introspective", "melancholic and reflective")),
+    ("joyful", (
+        r"celebrat", r"joy", r"party", r"danc", r"triumph", r"victor", r"success", r"summer",
+        r"happy", r"happiness", r"excite", r"festiv", r"laugh", r"fun\b", r"freedom", r"glory",
+        r"thrill", r"win\b", r"winning", r"champion", r"carefree",
+    ), ("euphoric and uplifting", "uplifting", "energetic and hype", "euphoric")),
+    ("playful", (
+        r"playful", r"humor", r"funny", r"silly", r"cheeky", r"quirky", r"whimsic", r"mischie",
+        r"goofy", r"banter", r"teas(?:e|ing)", r"flirt",
+    ), ("playful", "energetic and hype")),
+]
+_MOOD_RX = [(name, [re.compile(r"\b(?:" + s + r")") for s in stems], moods)
+            for name, stems, moods in _MOOD_LEXICON]
+_NEGATIVE_BUCKETS = {"dark", "sad", "angry"}
+_POSITIVE_BUCKETS = {"hopeful", "joyful", "playful"}
+
+
+def infer_mood_from_theme(theme: str | None) -> str | None:
+    """A mood that fits `theme`'s emotional register, or None if it shows no signal.
+
+    Deterministic bucket choice (most distinct keyword hits wins; ties go to the earlier
+    bucket in _MOOD_LEXICON), then a random pick INSIDE that bucket so songs still vary.
+    An exact tie between a negative and a positive bucket (joy AND grief) is "bittersweet".
+    Returning None tells the caller to keep its random mood.
+    """
+    text = (theme or "").lower()
+    if not text.strip():
+        return None
+    scores = {name: sum(1 for rx in rxs if rx.search(text)) for name, rxs, _ in _MOOD_RX}
+    best = max(scores.values())
+    if best == 0:
+        return None
+    tied = [name for name, _, _ in _MOOD_RX if scores[name] == best]
+    if _NEGATIVE_BUCKETS & set(tied) and _POSITIVE_BUCKETS & set(tied):
+        return "bittersweet"
+    winner = tied[0]
+    return random.choice(next(moods for name, _, moods in _MOOD_RX if name == winner))
+
 # Genre-specific mood/theme directives appended to the user prompt — overrides the random mood
 # for genres where the required emotional register is non-negotiable.
 GENRE_MOOD_DIRECTIVES: dict[str, str] = {
@@ -915,7 +1000,10 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
         }
 
     structure = random.choice(_SONG_STRUCTURES)
-    mood = random.choice(_MOODS)
+    # An "Inspired By" / Search-Inspiration theme carries an emotional register as well as
+    # a subject, so the mood follows it (dark theme -> dark mood, not a random "euphoric").
+    # No theme, or one with no emotional signal, keeps the random pick.
+    mood = infer_mood_from_theme(inspired_by_theme) or random.choice(_MOODS)
     # When the user picked an "Inspired By" reference, the song must be ABOUT the
     # same kind of subject as that reference. Previously the reference only shaped
     # the Suno style string and the lyrics got a random theme from _THEMES, so an
