@@ -7257,6 +7257,56 @@ async def serve_assetlinks():
     )
 
 
+# ── serve_spa hardening (2026-09-21) ─────────────────────────────────────────
+# serve_spa answers every unknown GET with the SPA shell (200) — right for
+# client-side routes like /roast, wrong for bot probes: /.git/config, /.env and
+# /wp-admin all "succeeded" with 200 (only index.html came back — there is no
+# .git in the image — but a 200 reads as a hit to scanners and to anyone skimming
+# logs). SPA routes are arbitrary, so this is a BLOCKLIST; a whitelist would
+# break every new client route.
+_SCANNER_SEGMENTS = frozenset({
+    "wp-admin", "wp-login.php", "wp-content", "wp-includes", "wp-json", "wordpress",
+    "xmlrpc.php", "phpmyadmin", "pma", "cgi-bin", "server-status", "actuator",
+    "hnap1", "boaform",
+})
+_SCANNER_SUFFIXES = (
+    ".php", ".phtml", ".asp", ".aspx", ".jsp", ".jspx", ".cgi", ".sql", ".bak", ".old", ".swp",
+)
+
+
+def _is_scanner_path(full_path: str) -> bool:
+    """True for paths only a vulnerability scanner asks for.
+
+    Any dot-segment is scanner traffic (.git, .env, .svn, .aws, .DS_Store, and
+    `..` traversal attempts) — the one legitimate dot-path, .well-known, is
+    served by its own route/mount before this catch-all is reached.
+    """
+    segments = [s for s in full_path.lower().split("/") if s]
+    for seg in segments:
+        if seg in _SCANNER_SEGMENTS or (seg.startswith(".") and seg != ".well-known"):
+            return True
+    return bool(segments) and segments[-1].endswith(_SCANNER_SUFFIXES)
+
+
+def _resolve_dist_file(dist: pathlib.Path, full_path: str) -> pathlib.Path | None:
+    """The real file inside `dist` that `full_path` names, or None.
+
+    The old `dist / full_path` had no containment check: pathlib does not
+    collapse `..`, and an absolute `full_path` (from `//etc/passwd`) REPLACES
+    `dist` outright, so `/../app/requirements.txt` returned files from outside
+    the build directory. Resolve first, then require the result to sit under
+    the resolved `dist` root.
+    """
+    try:
+        root = dist.resolve()
+        candidate = (dist / full_path).resolve()
+    except (ValueError, OSError):  # NUL byte, over-long path
+        return None
+    if candidate.is_relative_to(root) and candidate.is_file():
+        return candidate
+    return None
+
+
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str, request: Request):
     import re as _re
@@ -7268,6 +7318,9 @@ async def serve_spa(full_path: str, request: Request):
     if any(full_path.startswith(p) for p in _API_PREFIXES):
         return JSONResponse({"detail": "Not Found"}, status_code=404)
 
+    if _is_scanner_path(full_path):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+
     host = request.headers.get("host", "")
     is_beats = "zeusbeats" in host
 
@@ -7275,8 +7328,8 @@ async def serve_spa(full_path: str, request: Request):
     if not dist.exists():
         return HTMLResponse("<h1>Not found</h1>", status_code=404)
 
-    candidate = dist / full_path
-    if candidate.exists() and candidate.is_file():
+    candidate = _resolve_dist_file(dist, full_path)
+    if candidate is not None:
         return FileResponse(str(candidate))
 
     index_path = dist / "index.html"
