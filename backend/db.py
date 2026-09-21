@@ -526,6 +526,41 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             )""",
             "CREATE INDEX IF NOT EXISTS idx_email_change_attempts_ip "
             "ON email_change_attempts (ip_address, attempted_at)",
+            # Security monitor (2026-09-21) — see security_store.py and
+            # docs/superpowers/specs/2026-09-21-security-monitor-design.md.
+            # blocked_ips is NOT abuse_blocklist: that one hard-blocks emails and only
+            # soft-flags IPs; this hard-blocks scanner IPs at the middleware.
+            # Timestamps are 'YYYY-MM-DD HH:MM:SS' UTC so they compare as strings.
+            """CREATE TABLE IF NOT EXISTS blocked_ips (
+                ip                TEXT PRIMARY KEY,
+                reason            TEXT NOT NULL,
+                source            TEXT NOT NULL DEFAULT 'auto',
+                blocked_at        TEXT NOT NULL,
+                expires_at        TEXT,
+                unblocked_at      TEXT,
+                denied_requests   INTEGER NOT NULL DEFAULT 0
+            )""",
+            """CREATE TABLE IF NOT EXISTS security_events (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts      TEXT NOT NULL,
+                ip      TEXT NOT NULL,
+                kind    TEXT NOT NULL,
+                path    TEXT,
+                status  INTEGER,
+                ua      TEXT
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_security_events_kind_ts ON security_events (kind, ts)",
+            "CREATE INDEX IF NOT EXISTS idx_security_events_ts ON security_events (ts)",
+            """CREATE TABLE IF NOT EXISTS security_scans (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts       TEXT NOT NULL,
+                kind     TEXT NOT NULL,
+                trigger  TEXT NOT NULL,
+                status   TEXT NOT NULL,
+                summary  TEXT,
+                details  TEXT
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_security_scans_kind_ts ON security_scans (kind, ts)",
         ]:
             try:
                 conn.execute(_migration)
