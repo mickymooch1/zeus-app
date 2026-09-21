@@ -66,6 +66,10 @@ Just talk to me naturally, mate! Examples:
 <code>make school EMAIL</code> — set account_type='school' for testing
 <code>incidents</code> — list open incidents (severity, count, age)
 <code>history CATEGORY</code> — last 5 resolved incidents for a category
+<code>security status</code> — last scan result, active blocks, enforcement mode
+<code>blocked ips</code> — every blocked IP with reason, expiry and denied requests
+<code>unblock IP</code> — unblock an IP that was caught wrongly
+<code>security scan</code> — run a security scan right now
 <code>yes</code> / <code>no</code> — reply to a pending fix-it offer (30 min window)
 <code>help</code>"""
 
@@ -1741,6 +1745,100 @@ def _cmd_history(category: str) -> str:
     return "\n".join(lines)
 
 
+# ── Security monitor commands (2026-09-21) ───────────────────────────────────
+# Design: docs/superpowers/specs/2026-09-21-security-monitor-design.md. All four
+# are exact-match commands (see parse_and_run) — never routed through the AI.
+
+def _security_mode_line() -> str:
+    import bot_guard
+    return ("🔒 ENFORCING — blocked IPs get 403" if bot_guard.enforce_enabled()
+            else "👀 Shadow mode — flagging only, NOT blocking")
+
+
+def _cmd_security_status() -> str:
+    """Last scan result, active blocks and the current mode. No AI call."""
+    import db as _db
+    import security_store as _ss
+
+    try:
+        p = _db.get_db_path()
+        last = _ss.last_scan(p, "scan")
+        weekly = _ss.last_scan(p, "weekly")
+        blocks = _ss.active_blocked(p)
+    except Exception as exc:
+        return f"❌ Security status failed: {_esc(exc)}"
+    lines = ["🛡️ <b>Security status</b>", _security_mode_line()]
+    if last:
+        icon = "✅" if last["status"] == "clean" else "⚠️"
+        lines.append(f"Last scan: {icon} {_esc(last['status'])} — {_esc(last['ts'])} UTC ({_esc(last['trigger'])})")
+        for f in last["details"].get("findings", [])[:5]:
+            lines.append(f"  • {_esc(f.get('text'))}")
+    else:
+        lines.append("Last scan: never")
+    lines.append(f"Last weekly summary: {_esc(weekly['ts'])} UTC ({_esc(weekly['status'])})"
+                 if weekly else "Last weekly summary: never")
+    lines.append(f"Active blocks: <b>{len(blocks)}</b>")
+    for b in blocks[:5]:
+        lines.append(f"  • <code>{_esc(b['ip'])}</code> — {_esc(b['reason'])}")
+    if len(blocks) > 5:
+        lines.append(f"  …and {len(blocks) - 5} more — send <code>blocked ips</code>")
+    return "\n".join(lines)
+
+
+def _cmd_blocked_ips() -> str:
+    """Every currently active block with reason, source, expiry and denied-request count."""
+    import bot_guard
+    import db as _db
+    import security_store as _ss
+
+    try:
+        blocks = _ss.active_blocked(_db.get_db_path())
+    except Exception as exc:
+        return f"❌ Could not list blocked IPs: {_esc(exc)}"
+    if not blocks:
+        return "✅ No IPs are currently flagged or blocked."
+    lines = [f"🚫 <b>Blocked IPs ({len(blocks)})</b>"]
+    if not bot_guard.enforce_enabled():
+        lines.append("⚠️ Shadow mode — these IPs are flagged but NOT being blocked.")
+    for b in blocks[:40]:
+        expiry = "permanent" if not b["expires_at"] else f"expires {b['expires_at'][:10]}"
+        lines.append(f"• <code>{_esc(b['ip'])}</code> — {_esc(b['reason'])}\n"
+                     f"   {_esc(b['source'])} · {expiry} · {b['denied_requests']} denied")
+    if len(blocks) > 40:
+        lines.append(f"…and {len(blocks) - 40} more")
+    return "\n".join(lines)
+
+
+def _cmd_unblock_ip(ip: str) -> str:
+    """Manually unblock a wrongly caught IP (clears the DB row AND the live cache)."""
+    import ipaddress
+    import bot_guard
+
+    try:
+        addr = ipaddress.ip_address(ip.strip())
+    except ValueError:
+        return f"❌ '{_esc(ip[:60])}' is not a valid IP address."
+    try:
+        changed = bot_guard.guard.unblock(str(addr))
+    except Exception as exc:
+        return f"❌ Unblock failed: {_esc(exc)}"
+    if changed:
+        return (f"✅ Unblocked <code>{addr}</code>. It can reach the site again "
+                f"(it will be re-flagged if it misbehaves).")
+    return f"ℹ️ <code>{addr}</code> is not currently blocked."
+
+
+def _cmd_security_scan() -> str:
+    """Run a scan right now (manual: does not reset the 3-day scheduled clock)."""
+    import security_scan
+
+    try:
+        return security_scan.format_scan(security_scan.run_scan(trigger="manual"))
+    except Exception as exc:
+        log.exception("security scan (manual) failed")
+        return f"❌ Security scan failed: {_esc(exc)}"
+
+
 def _cmd_check_deploy_status() -> str:
     """Porick chat-mode tool: the real current commit on master, not a
     guess -- via the same GitHub API access incidents.py's diagnosis
@@ -2577,6 +2675,21 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
     m = re.match(r'^(?:porick\s+)?history\s+(\S+)$', t, re.IGNORECASE)
     if m:
         return _cmd_history(m.group(1).strip())
+
+    # Security monitor — exact match, never AI: a misread "unblock" must not be
+    # left to a language model.
+    if re.match(r'^(?:porick\s+)?security\s+status$', t, re.IGNORECASE):
+        return _cmd_security_status()
+    if re.match(r'^(?:porick\s+)?security\s+scan$', t, re.IGNORECASE):
+        return _cmd_security_scan()
+    if re.match(r'^(?:porick\s+)?blocked\s+ips?$', t, re.IGNORECASE):
+        return _cmd_blocked_ips()
+    m = re.match(r'^(?:porick\s+)?unblock\s+(?:ip\s+)?(\S+)$', t, re.IGNORECASE)
+    if m:
+        result = _cmd_unblock_ip(m.group(1))
+        if chat_id and result.startswith("✅"):
+            _db_log_action(chat_id, "unblock_ip", f"Unblocked IP {m.group(1)}")
+        return result
 
     # yes / no — reply to a pending incident-action offer (see
     # incident_actions.py). Exact match, checked before anything else so a

@@ -104,8 +104,30 @@ def init_scheduler(history_store) -> None:
         replace_existing=True,
         misfire_grace_time=600,
     )
+    # Security monitor (2026-09-21). The flush persists the bot guard's buffered events
+    # and blocks and sends the alert-overflow summary. The scan job fires DAILY but
+    # run_if_due() only actually runs it every 3 days — deliberately not a 3-day
+    # interval, because an in-memory interval timer resets on every deploy (which
+    # happens several times a day) and would never fire.
+    import bot_guard as _bot_guard
+    import security_scan as _security_scan
+
+    _scheduler.add_job(
+        _bot_guard.flush,
+        trigger=IntervalTrigger(seconds=30),
+        id="__security_flush__",
+        replace_existing=True,
+        misfire_grace_time=60,
+    )
+    _scheduler.add_job(
+        _security_scan.run_if_due,
+        trigger=_CronTrigger(hour=9, minute=30, timezone="UTC"),
+        id="__security_scan__",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
     log.info("Scheduler: health check, daily report, evening check-in, PH monitor, "
-             "Discover monitor, stuck-song sweep registered")
+             "Discover monitor, stuck-song sweep, security flush + scan registered")
 
 
 def shutdown_scheduler() -> None:

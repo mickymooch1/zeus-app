@@ -153,6 +153,12 @@ def ops_db(tmp_path, monkeypatch):
     p = tmp_path / "ops.db"
     db.init_user_tables(p)
     monkeypatch.setenv("DB_PATH", str(p))
+    # daily_report() ends by calling _send_security_weekly(), which on a Monday sends a
+    # second Telegram message and records a row via db.get_db_path() — i.e. the REAL
+    # dev DB, not this fixture's temp one. Stub it: these tests are about the daily
+    # digest, and the weekly hook has its own tests (test_security_commands.py).
+    import zeus_ops_agent
+    monkeypatch.setattr(zeus_ops_agent, "_send_security_weekly", lambda: None)
     return db, p
 
 

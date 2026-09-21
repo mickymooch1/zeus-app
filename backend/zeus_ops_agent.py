@@ -348,6 +348,20 @@ def daily_report() -> None:
     except Exception:
         log.exception("ops_agent: daily_report raised")
 
+    # After (and independent of) the main report, so neither can break the other.
+    _send_security_weekly()
+
+
+def _send_security_weekly() -> None:
+    """Monday-only security summary, riding on the daily report's 09:00 UTC slot
+    (same piggyback precedent as the alert digest). send_weekly_if_due() itself
+    checks the weekday and is idempotent, so a redeploy-triggered rerun is harmless."""
+    try:
+        import security_scan
+        security_scan.send_weekly_if_due()
+    except Exception:
+        log.exception("ops_agent: weekly security summary failed")
+
 
 # ── Evening check-in ──────────────────────────────────────────────────────────
 
