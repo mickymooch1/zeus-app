@@ -159,6 +159,7 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "synthfunk":        "1980s electronic music aesthetic, neon synthesizers, drum machines, retro tech equipment, vibrant neon colours, sleek futuristic 80s feel, professional music cover art",
     "boogie":           "1980s dance party, disco ball, people dancing, colourful fashion, joyful celebration, early 80s Black music culture, vibrant and energetic atmosphere",
     "motown":           "1960s Motown aesthetic, glamorous soul singers, vintage microphones, elegant performance attire, warm golden tones, classic American soul era, professional music cover art, Black musicians, NOT white, correct ethnicity",
+    "classicsoul":      "1960s soul singer performing on stage, vintage microphone, dramatic lighting, passionate performance, warm golden tones, classic American soul era, Black musician correct ethnicity NOT white, professional music cover art",
 }
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"
