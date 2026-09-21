@@ -76,7 +76,7 @@ const GENRE_LABEL: Record<string, string> = {
   chicagoblues:'Chicago Blues', deltablues:'Delta Blues', swampblues:'Swamp Blues',
   dixieland:'New Orleans Jazz', brassband:'Brass Band', harlemstride:'Harlem Stride Piano', neworleansbounce:'New Orleans Bounce',
   synthfunk:'Synth Funk', boogie:'Boogie', motown:'Motown',
-  disco:'Disco', nudisco:'Nu Disco', bollywood:'Bollywood', boombap:'Boom Bap', citypop:'City Pop', futurebass:'Future Bass', gqom:'Gqom', gogo:'Go-Go',
+  disco:'Disco', nudisco:'Nu Disco', bollywood:'Bollywood', boombap:'Boom Bap', citypop:'City Pop', futurebass:'Future Bass', gqom:'Gqom', gogo:'Go-Go', traditionalcountry:'Traditional Country',
 };
 
 function glabel(key: string): string {
