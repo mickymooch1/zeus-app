@@ -213,6 +213,23 @@ def record_scan(db_path: pathlib.Path, kind: str, trigger: str, status: str, sum
         conn.close()
 
 
+def scans_since(db_path: pathlib.Path, kind: str, since: datetime) -> list[dict]:
+    """A kind's scan rows at/after `since`, oldest first, with details parsed."""
+    conn = db._conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT ts, kind, trigger, status, summary, details FROM security_scans "
+            "WHERE kind = ? AND ts >= ? ORDER BY ts, id", (kind, _ts(since))).fetchall()
+    finally:
+        conn.close()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["details"] = json.loads(d["details"]) if d["details"] else {}
+        out.append(d)
+    return out
+
+
 def last_scan(db_path: pathlib.Path, kind: str, trigger: str | None = None) -> dict | None:
     conn = db._conn(db_path)
     try:

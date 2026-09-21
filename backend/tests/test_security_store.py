@@ -164,6 +164,16 @@ def test_insert_events_truncates_long_fields(path):
 
 # ── security_scans ───────────────────────────────────────────────────────────
 
+def test_scans_since_returns_a_kinds_rows_in_the_window_oldest_first(path):
+    store.record_scan(path, "scan", "scheduled", "clean", "old", {"n": 0}, now=NOW - timedelta(days=9))
+    store.record_scan(path, "scan", "scheduled", "review", "a", {"n": 1}, now=NOW - timedelta(days=3))
+    store.record_scan(path, "scan", "manual", "clean", "b", {"n": 2}, now=NOW - timedelta(days=1))
+    store.record_scan(path, "weekly", "scheduled", "clean", "w", {}, now=NOW - timedelta(days=1))
+    rows = store.scans_since(path, "scan", NOW - timedelta(days=7))
+    assert [(r["summary"], r["status"], r["details"]) for r in rows] == [
+        ("a", "review", {"n": 1}), ("b", "clean", {"n": 2})]
+
+
 def test_last_scan_returns_the_newest_row_with_parsed_details(path):
     store.record_scan(path, "scan", "scheduled", "clean", "all good", {"n": 1}, now=NOW - timedelta(days=4))
     store.record_scan(path, "scan", "manual", "review", "hmm", {"n": 2}, now=NOW - timedelta(days=2))
