@@ -381,6 +381,14 @@ async def lifespan(app: FastAPI):
         log.exception("FATAL: user table init failed")
         raise
 
+    # Load the bot guard's blocked-IP cache. Non-fatal: the guard also lazy-loads on
+    # its first request and fails open if the DB is unavailable.
+    try:
+        import bot_guard
+        bot_guard.init(_db_path)
+    except Exception:
+        log.exception("bot_guard: startup load failed (non-fatal)")
+
     # Ensure persistent storage directories exist for avatars and D-ID videos
     for _d in ("/data/avatars", "/data/videos", "/data/images"):
         pathlib.Path(_d).mkdir(parents=True, exist_ok=True)
@@ -628,6 +636,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Bot guard (2026-09-21): added AFTER CORS so it is the OUTERMOST layer — a blocked
+# IP is refused before any other processing. Ships in shadow mode: it detects,
+# records and alerts, but only returns 403 once SECURITY_ENFORCE=1. Fails open.
+# Design: docs/superpowers/specs/2026-09-21-security-monitor-design.md
+from bot_guard import BotGuardMiddleware as _BotGuardMiddleware
+app.add_middleware(_BotGuardMiddleware)
 
 
 def _safe_user(user: dict) -> dict:
@@ -7311,6 +7326,11 @@ async def serve_spa(full_path: str, request: Request):
     candidate = _resolve_dist_file(dist, full_path)
     if candidate is not None:
         return FileResponse(str(candidate))
+
+    # Everything below serves the SPA shell for a path that is not a real file.
+    # Tell the bot guard, so paths a flagged scanner touched can be reported as
+    # blocklist candidates (SPA routes are arbitrary; this is the only signal).
+    request.state.spa_fallback = True
 
     index_path = dist / "index.html"
     if is_beats and index_path.exists():
