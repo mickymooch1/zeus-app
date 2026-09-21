@@ -103,6 +103,18 @@ def add_denied(db_path: pathlib.Path, counts: dict[str, int]) -> None:
         conn.close()
 
 
+def blocked_row(db_path: pathlib.Path, ip: str) -> dict | None:
+    """The blocked_ips row for `ip` in ANY state (active, expired or unblocked), or None."""
+    conn = db._conn(db_path)
+    try:
+        row = conn.execute(
+            """SELECT ip, reason, source, blocked_at, expires_at, unblocked_at, denied_requests
+               FROM blocked_ips WHERE ip = ?""", (ip,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
 def blocked_since(db_path: pathlib.Path, since: datetime) -> list[dict]:
     """Every block created at/after `since`, in any state (for the weekly summary)."""
     conn = db._conn(db_path)
@@ -184,6 +196,38 @@ def top_paths(db_path: pathlib.Path, kinds, since: datetime, limit: int = 10) ->
             f"WHERE kind IN ({marks}) AND ts >= ? AND path IS NOT NULL "
             f"GROUP BY path ORDER BY n DESC, path LIMIT ?", args + [_ts(since), limit]).fetchall()
         return [(r["path"], r["n"]) for r in rows]
+    finally:
+        conn.close()
+
+
+def ip_summary(db_path: pathlib.Path, ip: str, since: datetime | None = None,
+               top: int = 15, uas: int = 3) -> dict:
+    """What one IP did, from the recorded (capped) events: totals, per-kind counts, the
+    time span, its most-requested paths as (path, count, statuses) and its user agents."""
+    where, args = "ip = ?", [ip]
+    if since is not None:
+        where += " AND ts >= ?"
+        args.append(_ts(since))
+    conn = db._conn(db_path)
+    try:
+        total, first, last, distinct = conn.execute(
+            f"SELECT COUNT(*), MIN(ts), MAX(ts), COUNT(DISTINCT path) FROM security_events WHERE {where}",
+            args).fetchone()
+        by_kind = {r["kind"]: r["n"] for r in conn.execute(
+            f"SELECT kind, COUNT(*) AS n FROM security_events WHERE {where} GROUP BY kind ORDER BY n DESC",
+            args)}
+        paths = []
+        for r in conn.execute(
+                f"""SELECT path, COUNT(*) AS n, GROUP_CONCAT(DISTINCT status) AS st
+                    FROM security_events WHERE {where} AND path IS NOT NULL
+                    GROUP BY path ORDER BY n DESC, path LIMIT ?""", args + [top]):
+            statuses = "/".join(sorted({s for s in (r["st"] or "").split(",") if s}))
+            paths.append((r["path"], r["n"], statuses))
+        agents = [(r["ua"], r["n"]) for r in conn.execute(
+            f"""SELECT ua, COUNT(*) AS n FROM security_events WHERE {where} AND ua IS NOT NULL
+                GROUP BY ua ORDER BY n DESC LIMIT ?""", args + [uas])]
+        return {"total": total, "first_ts": first, "last_ts": last, "distinct_paths": distinct,
+                "by_kind": by_kind, "top_paths": paths, "user_agents": agents}
     finally:
         conn.close()
 

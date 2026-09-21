@@ -162,6 +162,55 @@ def test_insert_events_truncates_long_fields(path):
     assert len(row["path"]) <= 300 and len(row["ua"]) <= 200
 
 
+# ── per-IP lookups (the `security events <ip>` command) ──────────────────────
+
+SCANNER = "35.244.66.87"
+
+
+def _scanner_events(path):
+    store.insert_events(path, [
+        (_ts(hours_ago=3), SCANNER, "blocked_path", "/azure/.env", 404, "Chrome/131"),
+        (_ts(hours_ago=3), SCANNER, "blocked_path", "/gcp/.env", 404, "Chrome/131"),
+        (_ts(hours_ago=3), SCANNER, "blocked_path", "/azure/.env", 404, "Chrome/131"),
+        (_ts(hours_ago=2), SCANNER, "blocked_path_200", "/phpinfo.php~", 200, "Chrome/125"),
+        (_ts(hours_ago=2), SCANNER, "assoc_path", "/info", 200, None),
+        (_ts(hours_ago=1), "8.8.8.8", "blocked_path", "/wp-admin", 404, "other"),
+    ])
+
+
+def test_ip_summary_totals_kinds_span_paths_and_user_agents(path):
+    _scanner_events(path)
+    s = store.ip_summary(path, SCANNER)
+    assert s["total"] == 5
+    assert s["by_kind"] == {"blocked_path": 3, "blocked_path_200": 1, "assoc_path": 1}
+    assert (s["first_ts"], s["last_ts"]) == (_ts(hours_ago=3), _ts(hours_ago=2))
+    assert s["top_paths"][0] == ("/azure/.env", 2, "404")          # (path, count, statuses)
+    assert ("/phpinfo.php~", 1, "200") in s["top_paths"]
+    assert dict(s["user_agents"]) == {"Chrome/131": 3, "Chrome/125": 1}
+    assert "/wp-admin" not in [p for p, _, _ in s["top_paths"]]    # other IPs excluded
+
+
+def test_ip_summary_respects_the_top_limit_and_orders_by_count(path):
+    _scanner_events(path)
+    s = store.ip_summary(path, SCANNER, top=2)
+    assert len(s["top_paths"]) == 2 and s["top_paths"][0][1] >= s["top_paths"][1][1]
+
+
+def test_ip_summary_of_an_unknown_ip_is_empty_not_an_error(path):
+    s = store.ip_summary(path, "1.2.3.4")
+    assert s["total"] == 0 and s["by_kind"] == {} and s["top_paths"] == [] and s["user_agents"] == []
+    assert s["first_ts"] is None and s["last_ts"] is None
+
+
+def test_blocked_row_returns_the_row_in_any_state_or_none(path):
+    assert store.blocked_row(path, SCANNER) is None
+    store.add_blocked_ip(path, SCANNER, "5 probe attempts", now=NOW)
+    row = store.blocked_row(path, SCANNER)
+    assert row["reason"] == "5 probe attempts" and row["unblocked_at"] is None
+    store.unblock_ip(path, SCANNER, now=NOW)
+    assert store.blocked_row(path, SCANNER)["unblocked_at"] is not None
+
+
 # ── security_scans ───────────────────────────────────────────────────────────
 
 def test_scans_since_returns_a_kinds_rows_in_the_window_oldest_first(path):

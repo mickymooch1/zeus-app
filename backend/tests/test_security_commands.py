@@ -168,6 +168,88 @@ def test_unblock_through_parse_and_run_logs_the_action_without_raising(T, store)
     assert T.parse_and_run("unblock 45.13.7.2", chat_id="c1").startswith("✅")
 
 
+# ── security events <ip> ─────────────────────────────────────────────────────
+
+SCAN_IP = "35.244.66.87"
+
+
+def _seed_scanner(store):
+    now = datetime.now(timezone.utc)
+    ts = (now - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+    store.insert_events(dbp(), [
+        (ts, SCAN_IP, "blocked_path", "/azure/.env", 404, "Mozilla/5.0 Chrome/131"),
+        (ts, SCAN_IP, "blocked_path", "/gcp/.env", 404, "Mozilla/5.0 Chrome/131"),
+        (ts, SCAN_IP, "blocked_path", "/azure/.env", 404, "Mozilla/5.0 Chrome/131"),
+        (ts, SCAN_IP, "blocked_path_200", "/phpinfo.php~", 200, "Mozilla/5.0 Chrome/125"),
+    ])
+    store.add_blocked_ip(dbp(), SCAN_IP, "5 probe attempts")
+
+
+@pytest.mark.parametrize("text,arg", [
+    (f"security events {SCAN_IP}", SCAN_IP),
+    (f"Porick security events {SCAN_IP}", SCAN_IP),
+    ("SECURITY  EVENTS 2001:4860:4860::8888", "2001:4860:4860::8888"),
+])
+def test_security_events_is_exact_match_and_bypasses_the_ai(T, monkeypatch, text, arg):
+    no_ai(monkeypatch, T)
+    calls = []
+    monkeypatch.setattr(T, "_cmd_security_events", lambda *a: calls.append(a) or "OK")
+    assert T.parse_and_run(text, chat_id="c1") == "OK"
+    assert calls == [(arg,)]
+
+
+def test_bare_security_events_explains_the_usage_instead_of_asking_the_ai(T, monkeypatch):
+    no_ai(monkeypatch, T)
+    assert "security events" in T.parse_and_run("security events", chat_id="c1").lower()
+    assert "<ip>" in T.parse_and_run("security events", chat_id="c1") or "IP" in T.parse_and_run("security events", chat_id="c1")
+
+
+def test_events_report_shows_the_verdict_counts_paths_and_user_agents(T, store):
+    _seed_scanner(store)
+    text = T._cmd_security_events(SCAN_IP)
+    assert SCAN_IP in text and "5 probe attempts" in text
+    assert "blocked_path" in text and "3" in text
+    assert "/azure/.env" in text and "/gcp/.env" in text and "/phpinfo.php~" in text
+    assert "Chrome/131" in text and "Chrome/125" in text
+
+
+def test_events_report_states_whether_the_ip_is_really_blocked(T, store, monkeypatch):
+    _seed_scanner(store)
+    assert "NOT" in T._cmd_security_events(SCAN_IP)          # shadow mode: flagged only
+    monkeypatch.setenv("SECURITY_ENFORCE", "1")
+    assert "NOT" not in T._cmd_security_events(SCAN_IP)
+
+
+def test_events_report_escapes_html_from_attacker_controlled_text(T, store):
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    store.insert_events(dbp(), [(ts, SCAN_IP, "blocked_path", HOSTILE, 404, HOSTILE)])
+    text = T._cmd_security_events(SCAN_IP)
+    assert "<script>" not in text and "&lt;script&gt;" in text
+
+
+def test_events_for_an_ip_with_no_history_says_so(T):
+    text = T._cmd_security_events("1.2.3.4")
+    assert "No recorded events" in text and "1.2.3.4" in text
+
+
+@pytest.mark.parametrize("bad", ["not-an-ip", "999.1.1.1", "'; DROP TABLE users;--"])
+def test_events_rejects_anything_that_is_not_an_ip(T, bad):
+    assert T._cmd_security_events(bad).startswith("❌")
+
+
+def test_events_report_stays_inside_telegrams_message_limit(T, store):
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    store.insert_events(dbp(), [(ts, SCAN_IP, "blocked_path", f"/p{i}/{'x' * 250}.env", 404, "u" * 300)
+                                for i in range(120)])
+    text = T._cmd_security_events(SCAN_IP)
+    assert len(text) < 3800
+    assert "more" in text.lower()          # says there were more paths than shown
+
+
+def test_help_documents_security_events(T):
+    assert "security events" in T.HELP_TEXT
+
+
 # ── security scan ────────────────────────────────────────────────────────────
 
 def test_manual_scan_returns_the_report_and_records_a_manual_scan_row(T, store, monkeypatch):

@@ -7527,6 +7527,22 @@ async def serve_spa(full_path: str, request: Request):
     return FileResponse(str(index_path))
 
 
+# HEAD support (2026-09-21). FastAPI's @app.get registers GET only, so every GET route —
+# `/`, `/health`, even the static `/robots.txt` — answered HEAD with 405, which uptime
+# monitors, link-preview tools and crawlers read as "broken". HEAD is defined as GET
+# without the body: uvicorn drops the body for HEAD itself, so the handlers need no
+# change. Run once ALL routes are registered (this module's last route is the SPA
+# catch-all above); routes that are not GET keep answering HEAD with 405.
+def _add_head_to_get_routes(application) -> None:
+    for route in application.router.routes:
+        methods = getattr(route, "methods", None)
+        if methods and "GET" in methods and "HEAD" not in methods:
+            methods.add("HEAD")
+
+
+_add_head_to_get_routes(app)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)

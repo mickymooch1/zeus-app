@@ -68,6 +68,7 @@ Just talk to me naturally, mate! Examples:
 <code>history CATEGORY</code> — last 5 resolved incidents for a category
 <code>security status</code> — last scan result, active blocks, enforcement mode
 <code>blocked ips</code> — every blocked IP with reason, expiry and denied requests
+<code>security events IP</code> — what a flagged IP was hitting: paths, user agents, status
 <code>unblock IP</code> — unblock an IP that was caught wrongly
 <code>security scan</code> — run a security scan right now
 <code>yes</code> / <code>no</code> — reply to a pending fix-it offer (30 min window)
@@ -1828,6 +1829,65 @@ def _cmd_unblock_ip(ip: str) -> str:
     return f"ℹ️ <code>{addr}</code> is not currently blocked."
 
 
+def _cmd_security_events(ip: str) -> str:
+    """What one flagged IP was doing — replaces hand-written SQL against security_events.
+
+    Reads only what the bot guard RECORDED (flagged requests, capped per IP per hour, kept
+    30 days). Everything attacker-controlled (paths, user agents) is HTML-escaped, and the
+    reply is bounded so it stays inside Telegram's 4096-character message limit."""
+    import ipaddress
+    import bot_guard
+    import db as _db
+    import security_store as _ss
+    from datetime import datetime, timezone
+
+    try:
+        addr = ipaddress.ip_address(ip.strip())
+    except ValueError:
+        return f"❌ '{_esc(ip[:60])}' is not a valid IP address."
+    ip_s = str(addr)
+    try:
+        p = _db.get_db_path()
+        row = _ss.blocked_row(p, ip_s)
+        s = _ss.ip_summary(p, ip_s, top=15, uas=3)
+    except Exception as exc:
+        return f"❌ Could not look up {_esc(ip_s)}: {_esc(exc)}"
+    if not row and not s["total"]:
+        return (f"ℹ️ No recorded events for <code>{_esc(ip_s)}</code>. Only flagged requests are "
+                f"recorded, and they are kept for 30 days.")
+
+    lines = [f"🔎 <b>Security events</b> — <code>{_esc(ip_s)}</code>"]
+    if row:
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        if row["unblocked_at"]:
+            status = f"✅ unblocked {_esc(row['unblocked_at'][:16])} UTC"
+        elif row["expires_at"] and row["expires_at"] <= now:
+            status = "⌛ flag expired"
+        elif bot_guard.enforce_enabled():
+            status = "🚫 blocked — every request gets 403"
+        else:
+            status = "🚩 flagged, NOT being blocked (shadow mode)"
+        expiry = "permanent" if not row["expires_at"] else f"expires {_esc(row['expires_at'][:10])}"
+        lines.append(f"Status: {status}")
+        lines.append(f"Reason: {_esc(row['reason'])} · {_esc(row['source'])} · flagged "
+                     f"{_esc(row['blocked_at'][:16])} UTC · {expiry} · {row['denied_requests']} denied")
+    else:
+        lines.append("Status: not flagged")
+    if s["total"]:
+        lines.append(f"Recorded: {s['total']} event(s), {_esc(s['first_ts'][:16])} → {_esc(s['last_ts'][:16])} UTC")
+        lines.append("Kinds: " + ", ".join(f"{_esc(k)} ×{n}" for k, n in s["by_kind"].items()))
+        lines += ["", "<b>Paths</b>"]
+        for path, n, statuses in s["top_paths"]:
+            lines.append(f"  • {_esc(path[:80])} ×{n}" + (f" ({_esc(statuses)})" if statuses else ""))
+        if s["distinct_paths"] > len(s["top_paths"]):
+            lines.append(f"  …and {s['distinct_paths'] - len(s['top_paths'])} more paths")
+        if s["user_agents"]:
+            lines += ["", "<b>User agents</b>"]
+            lines += [f"  • {_esc(ua[:100])} ×{n}" for ua, n in s["user_agents"]]
+        lines += ["", "Recording is capped per IP per hour, so a big scan shows a sample."]
+    return "\n".join(lines)
+
+
 def _cmd_security_scan() -> str:
     """Run a scan right now (manual: does not reset the 3-day scheduled clock)."""
     import security_scan
@@ -2684,6 +2744,12 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
         return _cmd_security_scan()
     if re.match(r'^(?:porick\s+)?blocked\s+ips?$', t, re.IGNORECASE):
         return _cmd_blocked_ips()
+    m = re.match(r'^(?:porick\s+)?security\s+events\s+(\S+)$', t, re.IGNORECASE)
+    if m:
+        return _cmd_security_events(m.group(1))
+    if re.match(r'^(?:porick\s+)?security\s+events$', t, re.IGNORECASE):
+        return ("Usage: <code>security events 1.2.3.4</code> — shows what that IP was requesting "
+                "(paths, user agents, whether it is flagged). IP address required.")
     m = re.match(r'^(?:porick\s+)?unblock\s+(?:ip\s+)?(\S+)$', t, re.IGNORECASE)
     if m:
         result = _cmd_unblock_ip(m.group(1))

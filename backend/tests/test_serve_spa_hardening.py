@@ -134,6 +134,9 @@ def test_nul_byte_in_path_does_not_500(site):
     "wp-includes/x.js", "wp-json/wp/v2/users", "xmlrpc.php", "wordpress/wp-admin",
     "phpmyadmin/index.php", "pma/", "cgi-bin/luci", "server-status", "actuator/env",
     "shell.php", "SHELL.PHP", "a/b/c.asp", "x.aspx", "x.jsp", "backup.sql", "db.bak",
+    # 2026-09-21: probes from a GCP scanner that used to get the SPA shell's 200
+    "phpinfo", "info", "_profiler/phpinfo", "_environment", "webroot/index.php/_environment",
+    "phpinfo.php~", "phpinfo.php.save", "phpinfo.php.bak",
 ])
 def test_scanner_probes_get_404_not_the_spa_shell(site, probe):
     for host in ("zeusbeats.com", "zeusaidesign.com"):
