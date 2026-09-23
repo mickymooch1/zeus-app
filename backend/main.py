@@ -6732,10 +6732,39 @@ async def voice_preview(body: _VoicePreviewRequest):
 # The /api/files/* authenticated endpoint below will replace these once the
 # frontend is updated to send auth tokens with media requests.
 from fastapi.staticfiles import StaticFiles as _StaticFiles
+from fastapi.staticfiles import StaticFiles
+
+
+class _LongCacheStaticFiles(StaticFiles):
+    """StaticFiles that adds a Cache-Control header. Default is long-lived + immutable —
+    only safe for a mount whose filenames never get overwritten with different content
+    once served, e.g. hashed build assets, or /files/clips' randomised upload names.
+
+    Pass cache_control= to override for a mount that doesn't meet that bar. /files/songs
+    is the example: {variant_id}.mp3 is NOT a hash, and IS rewritten in place by
+    webhooks.py's AUTO_EXTEND path (apiframe_extend_webhook swaps the short take for a
+    longer one under the same filename — currently disabled via _AUTO_EXTEND_ENABLED =
+    False, "shelved pending Apiframe verification", but dormant, not impossible). It uses
+    `public, max-age=86400` (no immutable) so an in-place rewrite self-heals within a day
+    instead of staying stale for up to a year."""
+    def __init__(self, *args, cache_control: str = "public, max-age=31536000, immutable", **kwargs):
+        super().__init__(*args, **kwargs)
+        self._cache_control = cache_control.encode()
+
+    async def __call__(self, scope, receive, send):
+        async def send_with_cache(message):
+            if message["type"] == "http.response.start":
+                headers = dict(message.get("headers", []))
+                headers[b"cache-control"] = self._cache_control
+                message = {**message, "headers": list(headers.items())}
+            await send(message)
+        await super().__call__(scope, receive, send_with_cache)
+
 
 _song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
 _song_storage.mkdir(parents=True, exist_ok=True)
-app.mount("/files/songs", _StaticFiles(directory=str(_song_storage)), name="songs")
+app.mount("/files/songs", _LongCacheStaticFiles(directory=str(_song_storage), cache_control="public, max-age=86400"),
+          name="songs")
 
 _avatar_storage = pathlib.Path("/data/avatars")
 _avatar_storage.mkdir(parents=True, exist_ok=True)
@@ -6828,21 +6857,8 @@ async def serve_file(
 # Zeus AI:    /web/dist         — zeusaidesign.com  (assets at /assets)
 # Zeus Beats: /web-beats-dist   — zeusbeats.com     (assets at /assets-beats)
 # The catch-all route inspects the Host header to pick the right index.html.
-from fastapi.staticfiles import StaticFiles
+# _LongCacheStaticFiles is defined earlier in this file, alongside the /files/songs mount.
 from fastapi.responses import FileResponse
-
-
-class _LongCacheStaticFiles(StaticFiles):
-    """StaticFiles that adds immutable Cache-Control headers for hashed assets."""
-    async def __call__(self, scope, receive, send):
-        async def send_with_cache(message):
-            if message["type"] == "http.response.start":
-                headers = dict(message.get("headers", []))
-                headers[b"cache-control"] = b"public, max-age=31536000, immutable"
-                message = {**message, "headers": list(headers.items())}
-            await send(message)
-        await super().__call__(scope, receive, send_with_cache)
-
 
 _dist       = pathlib.Path(__file__).parent.parent / "web" / "dist"
 _beats_dist = pathlib.Path(__file__).parent.parent / "web-beats-dist"

@@ -541,13 +541,15 @@ def test_a_failed_apiframe_submission_refunds_the_credit_and_does_not_leave_a_da
 # ── static media serving (point 2 of the approved additions) ────────────────
 
 def test_uploaded_clip_media_is_served_with_cache_control_and_supports_range(app_client, tmp_path):
+    """Unlike /files/songs (see test_song_file_cache_control.py), clip upload filenames
+    are random and never rewritten, so these stay long/immutable."""
     client, *_ = app_client
     clip_dir = pathlib.Path(os.environ["CLIP_STORAGE_PATH"])
     clip_dir.mkdir(parents=True, exist_ok=True)
     (clip_dir / "abc123.jpg").write_bytes(_real_jpeg())
     r = client.get("/files/clips/abc123.jpg")
     assert r.status_code == 200
-    assert "cache-control" in {k.lower() for k in r.headers}
+    assert r.headers.get("cache-control", "") == "public, max-age=31536000, immutable"
     r2 = client.get("/files/clips/abc123.jpg", headers={"Range": "bytes=0-3"})
     assert r2.status_code == 206
     assert r2.headers.get("content-range", "").startswith("bytes 0-3/")
