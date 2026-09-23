@@ -354,6 +354,106 @@ def test_hide_and_restore_a_clip(path):
     assert clips.get_clip(path, clip_id)["status"] == "published"
 
 
+# ── hidden_reason: disambiguates admin moderation from a block auto-hide ────
+
+def test_hiding_with_a_reason_stores_it(path):
+    add_user(path, "u1", "a@example.com")
+    add_song(path, 1, "u1")
+    clip_id = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    clips.set_clip_status(path, clip_id, "hidden", reason="admin_moderation")
+    conn = sqlite3.connect(path)
+    row = conn.execute("SELECT hidden_reason FROM clips WHERE id = ?", (clip_id,)).fetchone()
+    conn.close()
+    assert row[0] == "admin_moderation"
+
+
+def test_restoring_clears_the_hidden_reason(path):
+    add_user(path, "u1", "a@example.com")
+    add_song(path, 1, "u1")
+    clip_id = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    clips.set_clip_status(path, clip_id, "hidden", reason="admin_moderation")
+    clips.set_clip_status(path, clip_id, "published")
+    conn = sqlite3.connect(path)
+    row = conn.execute("SELECT hidden_reason FROM clips WHERE id = ?", (clip_id,)).fetchone()
+    conn.close()
+    assert row[0] is None
+
+
+# ── hide_clips_for_blocked_user / restore_clips_hidden_for_reason ──────────
+
+def test_hide_clips_for_blocked_user_hides_only_that_users_published_clips(path):
+    add_user(path, "u1", "a@example.com"); add_user(path, "u2", "b@example.com")
+    add_song(path, 1, "u1"); add_song(path, 2, "u2")
+    c1 = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    c2 = clips.create_clip(path, "u2", 2, "", "cover", None, 0, 15)
+
+    hidden = clips.hide_clips_for_blocked_user(path, "u1")
+
+    assert hidden == 1
+    assert clips.get_clip(path, c1) is None            # u1's clip hidden
+    assert clips.get_clip(path, c2) is not None         # u2's clip untouched
+
+
+def test_hide_clips_for_blocked_user_does_not_overwrite_admin_moderated_ones(path):
+    """A clip an admin already hid for its own reason must not have that
+    reason silently replaced by the block sweep — composes with restore below."""
+    add_user(path, "u1", "a@example.com")
+    add_song(path, 1, "u1"); add_song(path, 2, "u1")
+    c1 = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    c2 = clips.create_clip(path, "u1", 2, "", "cover", None, 0, 15)
+    clips.set_clip_status(path, c1, "hidden", reason="admin_moderation")
+
+    hidden = clips.hide_clips_for_blocked_user(path, "u1")
+
+    assert hidden == 1  # only c2 (c1 was already hidden, not 'published')
+    conn = sqlite3.connect(path)
+    reasons = dict(conn.execute("SELECT id, hidden_reason FROM clips WHERE user_id = 'u1'").fetchall())
+    conn.close()
+    assert reasons[c1] == "admin_moderation"
+    assert reasons[c2] == "blocked_user"
+
+
+def test_hide_clips_for_blocked_user_is_idempotent(path):
+    add_user(path, "u1", "a@example.com")
+    add_song(path, 1, "u1")
+    clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    clips.hide_clips_for_blocked_user(path, "u1")
+    assert clips.hide_clips_for_blocked_user(path, "u1") == 0  # already hidden — nothing left to do
+
+
+def test_restore_clips_hidden_for_reason_restores_only_matching_reason(path):
+    add_user(path, "u1", "a@example.com")
+    add_song(path, 1, "u1"); add_song(path, 2, "u1")
+    c1 = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    c2 = clips.create_clip(path, "u1", 2, "", "cover", None, 0, 15)
+    clips.set_clip_status(path, c1, "hidden", reason="admin_moderation")
+    clips.set_clip_status(path, c2, "hidden", reason="blocked_user")
+
+    restored = clips.restore_clips_hidden_for_reason(path, "u1", "blocked_user")
+
+    assert restored == 1
+    assert clips.get_clip(path, c1) is None            # admin-moderated clip stays hidden
+    assert clips.get_clip(path, c2) is not None         # block-hidden clip restored
+
+
+def test_unblock_after_admin_hid_a_clip_leaves_it_hidden(path):
+    """The exact scenario the split reason exists for: block (auto-hide both),
+    admin separately confirms one is genuinely bad (re-hides with its own
+    reason), unblock must restore only the other one."""
+    add_user(path, "u1", "a@example.com")
+    add_song(path, 1, "u1"); add_song(path, 2, "u1")
+    c1 = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    c2 = clips.create_clip(path, "u1", 2, "", "cover", None, 0, 15)
+    clips.hide_clips_for_blocked_user(path, "u1")  # both hidden, reason='blocked_user'
+    clips.set_clip_status(path, c1, "hidden", reason="admin_moderation")  # admin overrides c1
+
+    restored = clips.restore_clips_hidden_for_reason(path, "u1", "blocked_user")
+
+    assert restored == 1
+    assert clips.get_clip(path, c1) is None
+    assert clips.get_clip(path, c2) is not None
+
+
 def test_hidden_and_deleted_clips_are_excluded_from_feeds_and_trending(path):
     add_user(path, "u1", "a@example.com")
     add_song(path, 1, "u1"); add_song(path, 2, "u1"); add_song(path, 3, "u1")

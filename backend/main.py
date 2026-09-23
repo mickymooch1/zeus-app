@@ -2183,14 +2183,19 @@ async def admin_list_reported_clips(current_user: dict = Depends(auth.get_curren
 async def admin_hide_clip(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
     """Moderation action: pull a clip from the public feed/detail (soft —
     status='hidden', distinct from the owner's own 'deleted', so moderation
-    history stays visible). Reversible via admin_restore_clip below."""
+    history stays visible). Reversible via admin_restore_clip below.
+
+    hidden_reason='admin_moderation' — distinct from the automatic
+    'blocked_user' reason a block sets (see clips.hide_clips_for_blocked_user)
+    — so unblocking that user later does NOT silently un-hide a clip an admin
+    separately confirmed was genuinely bad."""
     if not current_user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Admin access required")
     import clips as _clips_mod
     db_path = db.get_db_path()
     if not _clips_mod.get_clip(db_path, clip_id, include_hidden=True):
         raise HTTPException(status_code=404, detail="Clip not found")
-    _clips_mod.set_clip_status(db_path, clip_id, "hidden")
+    _clips_mod.set_clip_status(db_path, clip_id, "hidden", reason="admin_moderation")
     log.info("admin_hide_clip: clip_id=%s admin=%s", clip_id, current_user["id"])
     return {"ok": True}
 
@@ -7249,6 +7254,21 @@ async def _optional_current_user(authorization: str = Header(None)) -> dict | No
     return db.get_user_by_id(db_path, payload.get("sub"))
 
 
+def _reject_if_blocked(current_user: dict, db_path: pathlib.Path) -> None:
+    """Server-side re-check on every clip-mutating action (publish, upload,
+    like, report, remix) — a Porick `block EMAIL` must stop an EXISTING
+    account, not just prevent future registration. Checked fresh per request
+    (never cached on the JWT/current_user), since a block can land at any
+    point after the caller's token was already issued — there is no "reload
+    your session" step for this to work."""
+    reason = db.is_email_blocklisted(db_path, signup_guard.normalize_email(current_user.get("email", "")))
+    if reason:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account has been restricted. Contact support if you believe this is a mistake.",
+        )
+
+
 def _clip_out(row: dict) -> dict:
     """Shapes a clips.get_clip()/list_feed() row for the API — folds in the sanitized
     remix-prefill fields (never the source song's raw lyrics) so the clip detail page and
@@ -7295,6 +7315,8 @@ async def upload_clip_media(
     which rejects on Content-Length before Starlette starts parsing the body."""
     import clip_uploads
 
+    _reject_if_blocked(current_user, db.get_db_path())
+
     if not (billing.get_subscription_status(current_user)["is_active"] or current_user.get("is_admin")):
         raise HTTPException(
             status_code=403,
@@ -7337,12 +7359,14 @@ async def upload_clip_media(
 async def publish_clip(body: ClipCreateRequest, current_user: dict = Depends(auth.get_current_user)):
     import clips as _clips_mod
 
+    db_path = db.get_db_path()
+    _reject_if_blocked(current_user, db_path)
+
     if body.media_type in ("image", "video") and not body.media_url:
         raise HTTPException(status_code=400, detail=f"media_type={body.media_type!r} requires a prior upload")
     if body.media_type == "cover" and body.media_url:
         raise HTTPException(status_code=400, detail="media_url must not be set for media_type='cover'")
 
-    db_path = db.get_db_path()
     source = db.get_song_variant_by_id(db_path, body.song_id)
     if not source or source["user_id"] != current_user["id"]:
         raise HTTPException(status_code=404, detail="Song not found")
@@ -7414,6 +7438,7 @@ async def like_clip_endpoint(clip_id: int, body: ClipLikeRequest | None = None,
                              current_user: dict = Depends(auth.get_current_user)):
     import clips as _clips_mod
     db_path = db.get_db_path()
+    _reject_if_blocked(current_user, db_path)
     like_count = _clips_mod.like_clip(db_path, clip_id, current_user["id"])
     row = _clips_mod.get_clip(db_path, clip_id, include_hidden=True)
     if row:
@@ -7459,6 +7484,7 @@ async def report_clip_endpoint(clip_id: int, body: ClipReportRequest, current_us
     import clips as _clips_mod
 
     db_path = db.get_db_path()
+    _reject_if_blocked(current_user, db_path)
     if not _clips_mod.get_clip(db_path, clip_id):
         raise HTTPException(status_code=404, detail="Clip not found")
     try:
@@ -7494,6 +7520,7 @@ async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | No
 
     db_path = db.get_db_path()
     user_id = current_user["id"]
+    _reject_if_blocked(current_user, db_path)
 
     # Same hard gate /api/songs/generate applies — a remix is a real generation.
     if not current_user.get("email_verified"):

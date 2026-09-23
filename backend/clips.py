@@ -109,13 +109,58 @@ def get_clip(db_path: pathlib.Path, clip_id: int, include_hidden: bool = False) 
         conn.close()
 
 
-def set_clip_status(db_path: pathlib.Path, clip_id: int, status: str) -> None:
+def set_clip_status(db_path: pathlib.Path, clip_id: int, status: str, reason: str | None = None) -> None:
+    """reason is only meaningful (and only stored) when status='hidden' — e.g.
+    'admin_moderation' (moderation UI) vs 'blocked_user' (account block
+    auto-hide) — see hide_clips_for_blocked_user. Any other status transition
+    clears it, since a published or owner-deleted clip has no hidden reason."""
     if status not in VALID_STATUSES:
         raise ValueError(f"status must be one of {VALID_STATUSES}, got {status!r}")
     conn = db._conn(db_path)
     try:
-        conn.execute("UPDATE clips SET status = ? WHERE id = ?", (status, clip_id))
+        conn.execute(
+            "UPDATE clips SET status = ?, hidden_reason = ? WHERE id = ?",
+            (status, reason if status == "hidden" else None, clip_id),
+        )
         conn.commit()
+    finally:
+        conn.close()
+
+
+def hide_clips_for_blocked_user(db_path: pathlib.Path, user_id: str) -> int:
+    """Auto-hides every currently-published clip owned by this user — called
+    when their account is blocked (see telegram_admin.py's _cmd_block_email).
+    Only touches 'published' clips (never an already-hidden or owner-deleted
+    one, and never overwrites an existing hidden_reason), so it composes
+    correctly with a clip an admin separately moderated. Idempotent to re-run.
+    Returns the count hidden."""
+    conn = db._conn(db_path)
+    try:
+        cur = conn.execute(
+            "UPDATE clips SET status = 'hidden', hidden_reason = 'blocked_user' "
+            "WHERE user_id = ? AND status = 'published'",
+            (user_id,),
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def restore_clips_hidden_for_reason(db_path: pathlib.Path, user_id: str, reason: str) -> int:
+    """Reverses hide_clips_for_blocked_user — restores only clips hidden for
+    the GIVEN reason, leaving one an admin separately hid (a different
+    hidden_reason) untouched even if this same account is now unblocked.
+    Returns the count restored."""
+    conn = db._conn(db_path)
+    try:
+        cur = conn.execute(
+            "UPDATE clips SET status = 'published', hidden_reason = NULL "
+            "WHERE user_id = ? AND status = 'hidden' AND hidden_reason = ?",
+            (user_id, reason),
+        )
+        conn.commit()
+        return cur.rowcount
     finally:
         conn.close()
 

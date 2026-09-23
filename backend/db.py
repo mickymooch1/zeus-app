@@ -672,6 +672,13 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE users ADD COLUMN utm_source TEXT",
             "ALTER TABLE users ADD COLUMN utm_medium TEXT",
             "ALTER TABLE users ADD COLUMN utm_campaign TEXT",
+            # Block-user hardening (2026-09-23): distinguishes a clip auto-hidden
+            # because its owner's account was blocked ('blocked_user') from one an
+            # admin hid for its own reason ('admin_moderation', via the moderation
+            # UI). Unblocking an account must restore ONLY the former — a clip an
+            # admin separately moderated must stay hidden even if that same user
+            # later gets unblocked. NULL for a published (or owner-deleted) clip.
+            "ALTER TABLE clips ADD COLUMN hidden_reason TEXT",
         ]:
             try:
                 conn.execute(_migration)
@@ -853,6 +860,22 @@ def add_to_blocklist(db_path: pathlib.Path, signal_type: str, signal_value: str,
             """INSERT OR IGNORE INTO abuse_blocklist (signal_type, signal_value, reason, created_at)
                VALUES (?, ?, ?, ?)""",
             (signal_type, signal_value, reason, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def remove_from_blocklist(db_path: pathlib.Path, signal_type: str, signal_value: str) -> bool:
+    """Reverses add_to_blocklist. Returns True if a row was actually removed,
+    False if this (type, value) pair wasn't listed — lets a caller distinguish
+    "unblocked" from "wasn't blocked" without a separate lookup."""
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            "DELETE FROM abuse_blocklist WHERE signal_type = ? AND signal_value = ?",
+            (signal_type, signal_value),
         )
         conn.commit()
         return cur.rowcount > 0
