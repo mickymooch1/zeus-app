@@ -54,6 +54,7 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
 
   const OVERFLOW_LINKS = [
     { to: '/discover',  label: '🔍 Discover' },
+    { to: '/clips',     label: '🎬 Clips' },
     { to: '/playlists', label: '🎵 Playlists' },
     { to: '/mixer',     label: `🎛️ ${t('nav.mixer')}` },
     { to: '/billing',   label: `💳 ${t('nav.billing')}` },

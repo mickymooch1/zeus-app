@@ -702,6 +702,31 @@ const SongCard = memo(function SongCard({
                 </p>
               )}
             </div>
+            {/* Row 2.7: Create Clip (Zeus Clips, Phase 2) — only once the song has
+                actually finished rendering; variant + title carried via router
+                state so ClipCreatorPage never needs a second fetch to show them. */}
+            {variant.mp3_url && (
+              <div style={{ marginTop: 8 }}>
+                <Link
+                  to={`/clips/new?song=${variant.variant_id}`}
+                  state={{ song: { ...variant, title } }}
+                  style={{
+                    ...actionBtnStyle,
+                    width: '100%',
+                    minHeight: 44,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    textDecoration: 'none',
+                    background: 'linear-gradient(90deg, #00f0ff, #7c3aed)',
+                    color: '#000',
+                    border: 'none',
+                    fontWeight: 700,
+                    boxShadow: '0 0 14px rgba(124,58,237,0.45)',
+                  }}
+                >
+                  🎬 Create Clip
+                </Link>
+              </div>
+            )}
             {/* Row 3: YouTube */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               {ytBtn}

@@ -24,6 +24,11 @@ export default function RegisterPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const referral = searchParams.get('ref') || null;
+  // Zeus Clips remix hand-off — the ?remix= query param survives THIS same-tab
+  // redirect on its own; see utils/remixIntent.js for the localStorage fallback
+  // that covers the (separate) email-verification-in-a-new-tab case.
+  const remixId = searchParams.get('remix') || null;
+  const loginHref = remixId ? `/login?remix=${remixId}` : '/login';
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -74,7 +79,10 @@ export default function RegisterPage() {
       // skip it get asked again after their first song.
       await register(email, password, name.trim(), tcAccepted, 'beats', referral, fingerprint);
       // Land straight in the app to make a song — no verification wall, no pricing detour.
-      navigate('/songs', { replace: true });
+      // A remix in progress takes over that landing spot instead (SongsPage reads
+      // ?remix= itself and redirects on to the actual remix flow — see its own
+      // remix-intent effect for why the redirect happens there, not here).
+      navigate(remixId ? `/songs?remix=${remixId}` : '/songs', { replace: true });
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -205,7 +213,7 @@ export default function RegisterPage() {
 
         <p className="auth-footer-text">
           {t('auth.register.haveAccount')}{' '}
-          <Link to="/login" className="auth-link">{t('auth.register.signIn')}</Link>
+          <Link to={loginHref} className="auth-link">{t('auth.register.signIn')}</Link>
         </p>
       </div>
     </div>

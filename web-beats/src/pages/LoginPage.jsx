@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
@@ -9,7 +9,14 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const from = location.state?.from?.pathname || '/songs';
+  const [searchParams] = useSearchParams();
+  // Zeus Clips remix hand-off — same-tab survival of the ?remix= query param;
+  // see RegisterPage.jsx and utils/remixIntent.js for the fuller picture. Takes
+  // priority over ProtectedRoute's own `from` state, since that state only ever
+  // carries a bare pathname (no query string) — see ProtectedRoute.jsx.
+  const remixId = searchParams.get('remix') || null;
+  const registerHref = remixId ? `/register?remix=${remixId}` : '/register';
+  const from = remixId ? `/songs?remix=${remixId}` : (location.state?.from?.pathname || '/songs');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -107,7 +114,7 @@ export default function LoginPage() {
         </p>
         <p className="auth-footer-text">
           {t('auth.login.noAccount')}{' '}
-          <Link to="/register" className="auth-link">{t('auth.login.createOne')}</Link>
+          <Link to={registerHref} className="auth-link">{t('auth.login.createOne')}</Link>
         </p>
       </div>
     </div>

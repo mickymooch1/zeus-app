@@ -49,6 +49,12 @@ const MemorialsLandingPage   = lazy(() => import('./pages/MemorialsLandingPage')
 const MemorialWizardPage     = lazy(() => import('./pages/MemorialWizardPage'));
 const MemorialPage           = lazy(() => import('./pages/MemorialPage'));
 
+// ── Zeus Clips (Phase 2) ─────────────────────────────────────────────────
+const ClipsFeedPage          = lazy(() => import('./pages/ClipsFeedPage'));
+const ClipPage                = lazy(() => import('./pages/ClipPage'));
+const ClipCreatorPage         = lazy(() => import('./pages/ClipCreatorPage'));
+const ClipRemixPage           = lazy(() => import('./pages/ClipRemixPage'));
+
 function RootRedirect() {
   const { user, loading } = useAuth();
   if (loading) return <div className="spinner-page"><div className="spinner" /></div>;
@@ -173,6 +179,29 @@ export default function App() {
             />
             <Route path="/discover" element={<DiscoverPage />} />
             <Route path="/discover/:variantId" element={<DiscoverSongPage />} />
+
+            {/* ── Zeus Clips (Phase 2) ──────────────────────────────
+                Feed + detail are public, matching /discover. Creating a clip
+                and confirming a remix both require an account — same
+                SchoolSafeRoute gate as /songs. */}
+            <Route path="/clips" element={<ClipsFeedPage />} />
+            <Route path="/clips/:clipId" element={<ClipPage />} />
+            <Route
+              path="/clips/new"
+              element={
+                <SchoolSafeRoute>
+                  <ClipCreatorPage />
+                </SchoolSafeRoute>
+              }
+            />
+            <Route
+              path="/clips/:clipId/remix"
+              element={
+                <SchoolSafeRoute>
+                  <ClipRemixPage />
+                </SchoolSafeRoute>
+              }
+            />
             <Route
               path="/billing"
               element={
