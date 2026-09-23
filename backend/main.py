@@ -2168,6 +2168,47 @@ async def admin_set_enterprise(
     return {"ok": True, "email": body.email, "plan": "enterprise", "status": "active"}
 
 
+@app.get("/admin/clips/reported")
+async def admin_list_reported_clips(current_user: dict = Depends(auth.get_current_user)):
+    """Zeus Clips Phase 3 moderation queue — every open report, newest first.
+    See clips.list_reported_clips; no new DB-layer logic here, just the
+    admin-gated HTTP surface the brief's review-queue UI calls."""
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    import clips as _clips_mod
+    return {"reports": _clips_mod.list_reported_clips(db.get_db_path())}
+
+
+@app.post("/admin/clips/{clip_id}/hide")
+async def admin_hide_clip(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+    """Moderation action: pull a clip from the public feed/detail (soft —
+    status='hidden', distinct from the owner's own 'deleted', so moderation
+    history stays visible). Reversible via admin_restore_clip below."""
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    import clips as _clips_mod
+    db_path = db.get_db_path()
+    if not _clips_mod.get_clip(db_path, clip_id, include_hidden=True):
+        raise HTTPException(status_code=404, detail="Clip not found")
+    _clips_mod.set_clip_status(db_path, clip_id, "hidden")
+    log.info("admin_hide_clip: clip_id=%s admin=%s", clip_id, current_user["id"])
+    return {"ok": True}
+
+
+@app.post("/admin/clips/{clip_id}/restore")
+async def admin_restore_clip(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+    """Reverses admin_hide_clip — back to 'published'."""
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    import clips as _clips_mod
+    db_path = db.get_db_path()
+    if not _clips_mod.get_clip(db_path, clip_id, include_hidden=True):
+        raise HTTPException(status_code=404, detail="Clip not found")
+    _clips_mod.set_clip_status(db_path, clip_id, "published")
+    log.info("admin_restore_clip: clip_id=%s admin=%s", clip_id, current_user["id"])
+    return {"ok": True}
+
+
 @app.get("/admin/users")
 async def admin_list_users(current_user: dict = Depends(auth.get_current_user)):
     if not current_user.get("is_admin"):
@@ -7425,6 +7466,11 @@ async def report_clip_endpoint(clip_id: int, body: ClipReportRequest, current_us
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     log.info("report_clip: clip_id=%s reporter=%s reason=%s", clip_id, current_user["id"], body.reason)
+    try:
+        import alerts as _alerts
+        _alerts.alert_clip_reported(clip_id, current_user["id"], body.reason)
+    except Exception:
+        log.exception("report_clip: alert_clip_reported failed (non-fatal) clip_id=%s", clip_id)
     return {"ok": True}
 
 

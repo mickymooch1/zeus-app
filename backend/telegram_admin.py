@@ -71,6 +71,7 @@ Just talk to me naturally, mate! Examples:
 <code>security events IP</code> — what a flagged IP was hitting: paths, user agents, status
 <code>unblock IP</code> — unblock an IP that was caught wrongly
 <code>security scan</code> — run a security scan right now
+<code>block EMAIL</code> — hard-block an email from registering (Zeus Clips abuse/reports)
 <code>yes</code> / <code>no</code> — reply to a pending fix-it offer (30 min window)
 <code>help</code>"""
 
@@ -1829,6 +1830,30 @@ def _cmd_unblock_ip(ip: str) -> str:
     return f"ℹ️ <code>{addr}</code> is not currently blocked."
 
 
+def _cmd_block_email(email: str) -> str:
+    """Zeus Clips Phase 3 — "Block user v1": hard-blocks an email from ever
+    registering. Writes to the EXISTING abuse_blocklist table via
+    db.add_to_blocklist — the same table/mechanism a prior abuse case
+    (paulgb189@gmail.com, see db.py's own migration) already uses. Admin-only
+    (this command), no web UI, exactly as scoped.
+
+    Deliberately does NOT touch an already-registered account's ability to
+    generate — abuse_blocklist has only ever gated registration (see
+    db.is_email_blocklisted's three call sites: register, school register,
+    change-email). Matches that existing behaviour rather than inventing a
+    new enforcement point."""
+    import db as _db
+    import signup_guard
+
+    canonical = signup_guard.normalize_email(email)
+    added = _db.add_to_blocklist(_db.get_db_path(), "email", canonical,
+                                 "Blocked via Porick (clip report / abuse)")
+    if not added:
+        return f"ℹ️ <code>{_esc(canonical)}</code> is already blocked."
+    return (f"✅ Blocked <code>{_esc(canonical)}</code> — it can no longer register. "
+            f"(An already-registered account under this address is untouched.)")
+
+
 def _cmd_security_events(ip: str) -> str:
     """What one flagged IP was doing — replaces hand-written SQL against security_events.
 
@@ -2755,6 +2780,16 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
         result = _cmd_unblock_ip(m.group(1))
         if chat_id and result.startswith("✅"):
             _db_log_action(chat_id, "unblock_ip", f"Unblocked IP {m.group(1)}")
+        return result
+
+    # Zeus Clips Phase 3 — "Block user v1": block EMAIL. Anchored (^block, not
+    # a bare substring) so it can never fire on "unblock ...". Exact match,
+    # same as every other precision command here — never AI-routed.
+    m = re.match(r'^(?:porick\s+)?block\s+(\S+@\S+)$', t, re.IGNORECASE)
+    if m:
+        result = _cmd_block_email(m.group(1))
+        if chat_id and result.startswith("✅"):
+            _db_log_action(chat_id, "block_email", f"Blocked email {m.group(1)}")
         return result
 
     # yes / no — reply to a pending incident-action offer (see
