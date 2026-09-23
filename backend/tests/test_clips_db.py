@@ -159,6 +159,120 @@ def test_get_clip_joins_song_and_author_display_fields(path):
     assert row["mp3_url"] == "/files/songs/x.mp3"
 
 
+# ── public profile (Zeus Clips restyle, 2026-09-24) ──────────────────────────
+# Reuses the SAME @handle every clip already derives client-side (artist_name,
+# or the account name as fallback, lowercased with whitespace stripped — see
+# _clip_out's artist_name fallback) rather than inventing a real username
+# system, which is out of this visual-only restyle's scope. Handles are
+# therefore NOT guaranteed unique; a collision deterministically picks the
+# user with the most recently created matching clip.
+
+def test_profile_returns_none_for_a_handle_with_no_published_clips(path):
+    add_user(path, "u1", "a@example.com")  # never publishes anything
+    assert clips.get_user_public_profile(path, "nobody") is None
+
+
+def test_profile_aggregates_clip_count_and_total_likes(path):
+    add_user(path, "u1", "a@example.com")
+    conn = sqlite3.connect(path)
+    conn.execute("UPDATE users SET artist_name = 'Nyxra' WHERE id = 'u1'")
+    conn.commit(); conn.close()
+    add_song(path, 1, "u1")
+    add_song(path, 2, "u1")
+    c1 = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    c2 = clips.create_clip(path, "u1", 2, "", "cover", None, 0, 15)
+    clips.like_clip(path, c1, "someone")
+    clips.like_clip(path, c2, "someone")
+    clips.like_clip(path, c2, "someone-else")
+
+    profile = clips.get_user_public_profile(path, "nyxra")
+    assert profile["display_name"] == "Nyxra"
+    assert profile["clip_count"] == 2
+    assert profile["total_likes"] == 3
+    assert {c["id"] for c in profile["clips"]} == {c1, c2}
+
+
+def test_profile_handle_lookup_is_case_insensitive(path):
+    add_user(path, "u1", "a@example.com")
+    conn = sqlite3.connect(path)
+    conn.execute("UPDATE users SET artist_name = 'Nyxra' WHERE id = 'u1'")
+    conn.commit(); conn.close()
+    add_song(path, 1, "u1")
+    clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    assert clips.get_user_public_profile(path, "NYXRA") is not None
+    assert clips.get_user_public_profile(path, "NyXrA") is not None
+
+
+def test_profile_falls_back_to_account_name_when_artist_name_is_unset(path):
+    add_user(path, "u1", "a@example.com")  # add_user sets no artist_name — a bare account
+    conn = sqlite3.connect(path)
+    conn.execute("UPDATE users SET name = 'Jo Smith' WHERE id = 'u1'")
+    conn.commit(); conn.close()
+    add_song(path, 1, "u1")
+    clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    profile = clips.get_user_public_profile(path, "josmith")
+    assert profile is not None
+    assert profile["display_name"] == "Jo Smith"
+
+
+def test_profile_excludes_hidden_and_deleted_clips(path):
+    add_user(path, "u1", "a@example.com")
+    conn = sqlite3.connect(path)
+    conn.execute("UPDATE users SET artist_name = 'Nyxra' WHERE id = 'u1'")
+    conn.commit(); conn.close()
+    add_song(path, 1, "u1"); add_song(path, 2, "u1"); add_song(path, 3, "u1")
+    published = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    hidden = clips.create_clip(path, "u1", 2, "", "cover", None, 0, 15)
+    deleted = clips.create_clip(path, "u1", 3, "", "cover", None, 0, 15)
+    clips.set_clip_status(path, hidden, "hidden")
+    clips.set_clip_status(path, deleted, "deleted")
+
+    profile = clips.get_user_public_profile(path, "nyxra")
+    assert profile["clip_count"] == 1
+    assert [c["id"] for c in profile["clips"]] == [published]
+
+
+def test_profile_never_mixes_two_different_users_clips(path):
+    """A handle collision (same derived @handle, two different accounts) must
+    resolve to exactly ONE user's clips, never a merged/mixed set."""
+    add_user(path, "u1", "a@example.com")
+    add_user(path, "u2", "b@example.com")
+    conn = sqlite3.connect(path)
+    conn.execute("UPDATE users SET artist_name = 'Nyxra' WHERE id IN ('u1', 'u2')")
+    conn.commit(); conn.close()
+    add_song(path, 1, "u1"); add_song(path, 2, "u2")
+    c1 = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    c2 = clips.create_clip(path, "u2", 2, "", "cover", None, 0, 15)
+
+    profile = clips.get_user_public_profile(path, "nyxra")
+    ids = {c["id"] for c in profile["clips"]}
+    assert ids == {c1} or ids == {c2}, "must resolve to one user's clips, not a mix of both"
+
+
+def test_profile_avatar_prefers_a_cover_type_clips_song_image(path):
+    add_user(path, "u1", "a@example.com")
+    conn = sqlite3.connect(path)
+    conn.execute("UPDATE users SET artist_name = 'Nyxra' WHERE id = 'u1'")
+    conn.execute("INSERT INTO lyrics (id, user_id, brief, lyrics_text, title) VALUES (1, 'u1', 'b', 'la', 't')")
+    conn.execute("INSERT INTO song_variants (id, lyric_id, user_id, style_prompt, status, mp3_url, image_url, is_public, created_at) "
+                 "VALUES (1, 1, 'u1', 'p', 'complete', '/files/songs/x.mp3', '/files/songs/x.jpg', 1, ?)", (NOW.isoformat(),))
+    conn.commit(); conn.close()
+    clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    profile = clips.get_user_public_profile(path, "nyxra")
+    assert profile["avatar_url"] == "/files/songs/x.jpg"
+
+
+def test_profile_avatar_is_none_when_no_clip_has_a_usable_image(path):
+    add_user(path, "u1", "a@example.com")
+    conn = sqlite3.connect(path)
+    conn.execute("UPDATE users SET artist_name = 'Nyxra' WHERE id = 'u1'")
+    conn.commit(); conn.close()
+    add_song(path, 1, "u1")  # add_song never sets image_url
+    clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    profile = clips.get_user_public_profile(path, "nyxra")
+    assert profile["avatar_url"] is None
+
+
 # ── likes ────────────────────────────────────────────────────────────────────
 
 def test_like_is_idempotent_and_updates_the_counter(path):

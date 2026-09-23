@@ -6,9 +6,12 @@ import { clipSeekTarget, clipInitialTime } from '../utils/clipPlayback';
 import { getClipAnonId } from '../utils/clipAnonId';
 import { saveRemixIntent } from '../utils/remixIntent';
 import { readUtmAttribution } from '../utils/utmAttribution';
+import { deriveClipHandle } from '../utils/clipHandle';
 import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
+import ClipActionBtn from '../components/ClipActionBtn';
+import { ZeusClipsWordmark, ClipsAiBadge, ClipsPillTab } from '../components/ClipsBranding';
 
 /* ── Zeus Beats' own electric-blue → purple palette (App.jsx logo, NowPlayingBar,
  * PlaylistPage all use this pair already — not a new colour introduced here). ── */
@@ -21,11 +24,12 @@ const BG     = '#000';
  * SOURCE SONG's mp3 clamped to clip_start_time..+clip_duration as the audio —
  * two separate media elements kept in sync. */
 const ClipSlide = memo(function ClipSlide({
-  clip, idx, isLiked, likeCount, isCopied, token,
-  onLike, onShare, onRemix, onRequireAuth, onSlideRef, onVideoRef, onAudioRef,
+  clip, idx, isLiked, likeCount, isCopied, token, isPlaying,
+  onLike, onShare, onRemix, onRequireAuth, onSlideRef, onVideoRef, onAudioRef, onProgressRef,
 }) {
   const { media_type, media_url, song_cover_url, song_title, artist_name, genre_tag,
           caption, clip_start_time, clip_duration, mp3_url, remix_count } = clip;
+  const handle = deriveClipHandle(artist_name);
 
   const visualUrl = media_type === 'cover'
     ? song_cover_url
@@ -92,9 +96,9 @@ const ClipSlide = memo(function ClipSlide({
         pointerEvents: 'none',
       }} />
 
-      {/* Right-side action column — like, share, report (⋯) */}
+      {/* Right-side action column — like, remix count, share, report (⋯) */}
       <div style={{
-        position: 'absolute', bottom: 210, right: 14, zIndex: 10,
+        position: 'absolute', bottom: 232, right: 14, zIndex: 10,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
       }}>
         <ClipActionBtn onClick={onLike} icon="❤️" label={String(likeCount)} active={isLiked} activeColor={PURPLE} />
@@ -103,8 +107,8 @@ const ClipSlide = memo(function ClipSlide({
         <ClipMoreMenu clipId={clip.id} token={token} onRequireAuth={onRequireAuth} />
       </div>
 
-      {/* Info — bottom left: @username + caption */}
-      <div style={{ position: 'absolute', bottom: 210, left: 16, right: 76, zIndex: 10 }}>
+      {/* Info — bottom left: @username (links to their profile) + caption */}
+      <div style={{ position: 'absolute', bottom: 232, left: 16, right: 76, zIndex: 10 }}>
         {genre_tag && (
           <span style={{
             display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 11,
@@ -115,9 +119,15 @@ const ClipSlide = memo(function ClipSlide({
             {genre_tag}
           </span>
         )}
-        <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
-          @{(artist_name || 'zeusbeats').replace(/\s+/g, '').toLowerCase()}
-        </p>
+        <Link
+          to={`/clips/u/${handle}`}
+          style={{
+            display: 'block', margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: '#fff',
+            textShadow: '0 2px 8px rgba(0,0,0,0.8)', textDecoration: 'none',
+          }}
+        >
+          @{handle}
+        </Link>
         {caption && (
           <p style={{
             margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.4,
@@ -129,57 +139,29 @@ const ClipSlide = memo(function ClipSlide({
         )}
       </div>
 
-      {/* Song bar — cover art + title */}
-      <div style={{ position: 'absolute', bottom: 158, left: 16, zIndex: 10 }}>
-        <ClipSongBar coverUrl={song_cover_url} title={song_title} />
+      {/* ── "⚡ Remix This Sound" — the most prominent button on the page ── */}
+      <div style={{ position: 'absolute', bottom: 96, left: 16, right: 16, zIndex: 10 }}>
+        <RemixButton onClick={onRemix} />
       </div>
 
-      {/* ── "⚡ Remix This Sound" — the most prominent button on the page ── */}
-      <div style={{ position: 'absolute', bottom: 24, left: 16, right: 16, zIndex: 10 }}>
-        <RemixButton onClick={onRemix} />
+      {/* Song bar — pinned at the very bottom, full width, with its progress strip */}
+      <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16, zIndex: 10 }}>
+        <ClipSongBar
+          coverUrl={song_cover_url}
+          title={song_title}
+          artistName={artist_name}
+          spinning={isPlaying}
+          onUseSound={onRemix}
+          progressBarRef={el => { if (el) onProgressRef(el); }}
+        />
       </div>
     </div>
   );
 });
 
-// onClick omitted renders a plain (non-interactive) stat — used for the remix
-// count, which has nothing to do when tapped here (remixing lives on its own
-// big button below, not in this column).
-function ClipActionBtn({ onClick, icon, label, active, activeColor }) {
-  const Tag = onClick ? 'button' : 'div';
-  return (
-    <Tag
-      onClick={onClick}
-      style={{
-        background: 'none', border: 'none', cursor: onClick ? 'pointer' : 'default',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: 0,
-      }}
-    >
-      <div style={{
-        width: 44, height: 44, borderRadius: '50%',
-        background: active ? `${activeColor}28` : 'rgba(10,10,20,0.55)',
-        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-        border: `1.5px solid ${active ? activeColor : 'rgba(255,255,255,0.22)'}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-        boxShadow: active ? `0 0 20px ${activeColor}66` : 'none',
-      }}>
-        {icon}
-      </div>
-      {label && (
-        <span style={{
-          color: active ? activeColor : 'rgba(255,255,255,0.92)', fontSize: 11, fontWeight: 700,
-          textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 1px 5px rgba(0,0,0,0.8)',
-        }}>
-          {label}
-        </span>
-      )}
-    </Tag>
-  );
-}
-
 /* ── Main page ──────────────────────────────────────────────────────────── */
 export default function ClipsFeedPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
   const [clips, setClips]     = useState([]);
   const [muted, setMuted]     = useState(true);
@@ -189,6 +171,9 @@ export default function ClipsFeedPage() {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [sort, setSort]       = useState('new'); // 'new' | 'trending'
+  const [activeIdx, setActiveIdx] = useState(null); // which slide is current — drives the song-bar disc spin
+
+  const myHandle = user ? deriveClipHandle(user.artist_name || user.name) : null;
 
   const pageRef            = useRef(0);
   const loadingRef         = useRef(false);
@@ -199,6 +184,7 @@ export default function ClipsFeedPage() {
   const slideRefs          = useRef({});
   const videoRefs          = useRef({});
   const audioRefs          = useRef({});
+  const progressRefs       = useRef({});
   const scrollContainerRef = useRef(null);
 
   const fetchPage = useCallback(async (targetSort, reset) => {
@@ -259,6 +245,7 @@ export default function ClipsFeedPage() {
             if (pa) pa.pause();
           }
           activeRef.current = idx;
+          setActiveIdx(idx);
 
           if (vid) { vid.muted = true; vid.play().catch(() => {}); }
           if (aud) {
@@ -294,18 +281,26 @@ export default function ClipsFeedPage() {
     return () => obs.disconnect();
   }, [clips, sort, fetchPage, token]);
 
-  /* ── Clamp each active audio element to its clip window ─────────────────────
+  /* ── Clamp each active audio element to its clip window, and drive its
+   * song-bar progress strip ────────────────────────────────────────────────
    * Attaches the timeupdate/ended clamp once per element, reading clip_start/
-   * clip_duration from its own data attributes (set on the <audio> above) so
-   * this effect doesn't need to separately track which slide index owns which
-   * element. */
+   * clip_duration from its own data attributes (set on the <audio> above).
+   * The progress bar width is set IMPERATIVELY here (ref.style.width), never
+   * via React state, so a ~4x/second timeupdate never triggers a re-render —
+   * same reasoning as the clamp itself being imperative. */
   useEffect(() => {
-    const cleanups = Object.values(audioRefs.current).filter(Boolean).map(aud => {
+    const cleanups = Object.entries(audioRefs.current).filter(([, aud]) => aud).map(([idxStr, aud]) => {
+      const idx = Number(idxStr);
       const start = Number(aud.dataset.clipStart) || 0;
       const duration = Number(aud.dataset.clipDuration) || 0;
       const onTime = () => {
         const target = clipSeekTarget(aud.currentTime, start, duration);
         if (target !== null) aud.currentTime = target;
+        const bar = progressRefs.current[idx];
+        if (bar && duration > 0) {
+          const pct = Math.min(100, Math.max(0, ((aud.currentTime - start) / duration) * 100));
+          bar.style.width = `${pct}%`;
+        }
       };
       const onEnded = () => { aud.currentTime = start; aud.play().catch(() => {}); };
       aud.addEventListener('timeupdate', onTime);
@@ -375,53 +370,52 @@ export default function ClipsFeedPage() {
 
   return (
     <div style={{ background: BG, height: '100svh', width: '100vw', overflow: 'hidden', position: 'relative' }}>
-      {/* Fixed header */}
+      {/* Fixed header — wordmark centered with the mute toggle at the edge,
+          then "My clips" (logged-in only) and the AI badge on their own row */}
       <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, padding: '12px 20px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, padding: '14px 18px 10px',
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%)',
         pointerEvents: 'none',
       }}>
-        <Link to="/" style={{ color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800, pointerEvents: 'auto', textShadow: `0 1px 4px rgba(0,0,0,0.9), 0 0 16px ${CYAN}88` }}>
-          ⚡ Zeus Beats
-        </Link>
-        <button
-          onClick={toggleMute}
-          style={{
-            background: muted ? 'rgba(255,255,255,0.08)' : `${CYAN}22`,
-            border: `1px solid ${muted ? 'rgba(255,255,255,0.2)' : CYAN}`,
-            borderRadius: 20, padding: '5px 14px', color: muted ? 'rgba(255,255,255,0.7)' : CYAN,
-            cursor: 'pointer', fontSize: 13, fontWeight: 600, pointerEvents: 'auto',
-          }}
-        >
-          {muted ? '🔇 Tap to hear' : '🔊 On'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ width: 60, pointerEvents: 'auto' }}>
+            {myHandle && (
+              <Link to={`/clips/u/${myHandle}`} style={{
+                color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: 700, textDecoration: 'none',
+                textShadow: '0 1px 3px rgba(0,0,0,0.85)',
+              }}>
+                My clips
+              </Link>
+            )}
+          </div>
+          <div style={{ pointerEvents: 'auto' }}>
+            <ZeusClipsWordmark />
+          </div>
+          <button
+            onClick={toggleMute}
+            style={{
+              background: muted ? 'rgba(255,255,255,0.08)' : `${CYAN}22`,
+              border: `1px solid ${muted ? 'rgba(255,255,255,0.2)' : CYAN}`,
+              borderRadius: 20, padding: '5px 10px', color: muted ? 'rgba(255,255,255,0.7)' : CYAN,
+              cursor: 'pointer', fontSize: 15, pointerEvents: 'auto',
+            }}
+            aria-label={muted ? 'Tap to hear' : 'Sound on'}
+          >
+            {muted ? '🔇' : '🔊'}
+          </button>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, pointerEvents: 'auto' }}>
+          <ClipsAiBadge />
+        </div>
       </div>
 
       {/* Pill-style New / Trending tabs */}
       <div style={{
-        position: 'fixed', top: 56, left: 0, right: 0, zIndex: 199,
-        display: 'flex', justifyContent: 'center', gap: 8, pointerEvents: 'auto',
+        position: 'fixed', top: 98, left: 0, right: 0, zIndex: 199,
+        display: 'flex', justifyContent: 'center', gap: 10, pointerEvents: 'auto',
       }}>
-        {[['new', 'New'], ['trending', 'Trending']].map(([s, label]) => (
-          <button
-            key={s}
-            onClick={() => handleSortChange(s)}
-            style={{
-              padding: '7px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              border: `1px solid ${sort === s ? 'transparent' : 'rgba(255,255,255,0.18)'}`,
-              background: sort === s
-                ? `linear-gradient(90deg, ${CYAN}, ${PURPLE})`
-                : 'rgba(10,10,20,0.55)',
-              color: sort === s ? '#000' : 'rgba(255,255,255,0.65)',
-              textShadow: sort === s ? 'none' : '0 1px 3px rgba(0,0,0,0.8)',
-              backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-              boxShadow: sort === s ? `0 0 18px ${CYAN}55` : 'none',
-            }}
-          >
-            {label}
-          </button>
-        ))}
+        <ClipsPillTab active={sort === 'new'} onClick={() => handleSortChange('new')}>New</ClipsPillTab>
+        <ClipsPillTab active={sort === 'trending'} onClick={() => handleSortChange('trending')}>Trending</ClipsPillTab>
       </div>
 
       <div
@@ -437,6 +431,7 @@ export default function ClipsFeedPage() {
             isLiked={liked.has(clip.id)}
             likeCount={counts[clip.id] || 0}
             isCopied={copied === clip.id}
+            isPlaying={activeIdx === idx && !muted}
             onLike={() => handleLike(clip.id)}
             onShare={() => handleShare(clip.id)}
             onRemix={() => handleRemix(clip.id)}
@@ -444,6 +439,7 @@ export default function ClipsFeedPage() {
             onSlideRef={el => { slideRefs.current[idx] = el; }}
             onVideoRef={el => { videoRefs.current[idx] = el; }}
             onAudioRef={el => { audioRefs.current[idx] = el; }}
+            onProgressRef={el => { progressRefs.current[idx] = el; }}
           />
         ))}
 

@@ -7443,6 +7443,23 @@ async def clips_feed(sort: str = "new", page: int = 0):
     return {"clips": [_clip_out(r) for r in rows], "page": page, "sort": sort}
 
 
+@app.get("/api/clips/u/{handle}")
+async def get_clip_user_profile(handle: str):
+    """Public, no auth required — /clips/u/:handle (Zeus Clips restyle,
+    2026-09-24). Two path segments, so it can never collide with the
+    single-segment, int-typed /api/clips/{clip_id} regardless of registration
+    order (unlike /api/clips/config, which needed to be registered first).
+    See clips.get_user_public_profile for what "handle" means here — not a
+    real per-account username, just the same display handle every clip
+    already derives."""
+    import clips as _clips_mod
+
+    profile = _clips_mod.get_user_public_profile(db.get_db_path(), handle)
+    if not profile:
+        raise HTTPException(status_code=404, detail="No such Clips profile")
+    return profile
+
+
 @app.get("/api/clips/{clip_id}")
 async def get_clip_detail(clip_id: int):
     import clips as _clips_mod

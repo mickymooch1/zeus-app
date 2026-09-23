@@ -56,6 +56,7 @@ const ClipsFeedPage          = lazy(() => import('./pages/ClipsFeedPage'));
 const ClipPage                = lazy(() => import('./pages/ClipPage'));
 const ClipCreatorPage         = lazy(() => import('./pages/ClipCreatorPage'));
 const ClipRemixPage           = lazy(() => import('./pages/ClipRemixPage'));
+const ClipUserProfilePage     = lazy(() => import('./pages/ClipUserProfilePage'));
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -194,6 +195,7 @@ export default function App() {
                 and confirming a remix both require an account — same
                 SchoolSafeRoute gate as /songs. */}
             <Route path="/clips" element={<ClipsFeedPage />} />
+            <Route path="/clips/u/:username" element={<ClipUserProfilePage />} />
             <Route path="/clips/:clipId" element={<ClipPage />} />
             <Route
               path="/clips/new"

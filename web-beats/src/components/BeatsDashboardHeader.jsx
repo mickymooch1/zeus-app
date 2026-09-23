@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
 import { LanguageSelector } from './LanguageSelector';
 import { useDiscoverBadge } from '../hooks/useDiscoverBadge';
+import { useClipsEnabled } from '../hooks/useClipsEnabled';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
 
 function isActive(pathname, to) {
@@ -29,6 +30,7 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
   const [overflowOpen, setOverflowOpen] = useState(false);
   const menuRef = useRef(null);
   const newOnDiscover = useDiscoverBadge(user);
+  const clipsVisible = useClipsEnabled(user);
 
   useEffect(() => {
     if (!overflowOpen) return;
@@ -54,10 +56,11 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
 
   const OVERFLOW_LINKS = [
     { to: '/discover',  label: '🔍 Discover' },
-    // /clips is deliberately NOT linked here — Zeus Clips is still the build
-    // brief's "cheap experiment", reached only via a clip's own share link,
-    // remix hand-off, or SongCard's "Create Clip" button, not full nav-level
-    // traffic. Re-add when the experiment is validated and promoted.
+    // Gated on CLIPS_ENABLED (admins always see it regardless — same
+    // useClipsEnabled hook SongCard's "Create Clip" button and the creator
+    // page use) rather than linked unconditionally, per the 2026-09-24
+    // restyle brief: hidden from the main menu until the flag is on.
+    ...(clipsVisible ? [{ to: '/clips', label: '🎬 Clips' }] : []),
     { to: '/playlists', label: '🎵 Playlists' },
     { to: '/mixer',     label: `🎛️ ${t('nav.mixer')}` },
     { to: '/billing',   label: `💳 ${t('nav.billing')}` },
