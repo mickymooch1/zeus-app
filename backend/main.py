@@ -6861,6 +6861,17 @@ if _beats_dist.exists():
     if _well_known_dir.exists():
         app.mount("/.well-known", StaticFiles(directory=str(_well_known_dir)), name="well-known")
 
+# Zeus Clips uploaded media (images/video) — served static (not the authenticated /api/files
+# path: clips are public content, no ownership check needed to view one) with the same
+# immutable Cache-Control as hashed build assets. Safe here for the same reason it's safe
+# there: clip_uploads.random_filename() means a given filename's content never changes —
+# an edit/re-upload always gets a new random name, never overwrites one already cached.
+# StaticFiles/FileResponse (both used here) support HTTP Range natively (206 Partial
+# Content) — verified against the existing /files/songs mount in production.
+_clip_storage = pathlib.Path(os.environ.get("CLIP_STORAGE_PATH", "/data/clips"))
+_clip_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/clips", _LongCacheStaticFiles(directory=str(_clip_storage)), name="clips")
+
 
 _OG_GENRE_LABELS = {
     "hiphop": "Hip-Hop", "rnb": "R&B", "soul": "Soul", "pop": "Pop",
@@ -7063,6 +7074,272 @@ async def cover_song(
     ).start()
     log.info("Cover song submitted: source_variant=%d new_variant=%d title=%r user=%s", variant_id, new_variant_id, custom_title, user_id)
     return {"variant_id": new_variant_id, "status": "pending", "title": custom_title}
+
+
+# ── Zeus Clips (2026-09-23) — Phase 1: data + API ──────────────────────────────
+# Design: docs/superpowers/specs/2026-09-23-zeus-clips-mvp-design.md. No server-side video
+# rendering — a clip is a song reference + a time window + a visual; the browser plays the
+# song's own mp3 over it. DB layer + trending/remix logic in clips.py; upload validation in
+# clip_uploads.py. Phase 3 (moderation admin UI, block-user, Porick alerts) is NOT built yet.
+
+class ClipCreateRequest(BaseModel):
+    song_id: int
+    caption: str = Field(default="", max_length=150)
+    media_type: str  # 'cover' | 'image' | 'video'
+    media_url: str | None = None  # required for image/video; ignored (must be None) for cover
+    clip_start_time: float = Field(ge=0)
+    clip_duration: int  # 15 or 30
+    make_song_public: bool = False
+
+
+class ClipViewRequest(BaseModel):
+    anon_id: str | None = None  # used only when the caller is logged out
+
+
+class ClipReportRequest(BaseModel):
+    reason: str  # spam | inappropriate | copyright | other
+
+
+async def _optional_current_user(authorization: str = Header(None)) -> dict | None:
+    """Like auth.get_current_user, but returns None instead of 401ing — clip views
+    and the public clip-detail page must work for a logged-out visitor."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    payload = auth.verify_token(authorization[7:].strip())
+    if not payload:
+        return None
+    db_path = db.get_db_path()
+    return db.get_user_by_id(db_path, payload.get("sub"))
+
+
+def _clip_out(row: dict) -> dict:
+    """Shapes a clips.get_clip()/list_feed() row for the API — folds in the sanitized
+    remix-prefill fields (never the source song's raw lyrics) so the clip detail page and
+    the eventual Remix button both read from one response, no second round trip."""
+    import clips as _clips_mod
+    prefill = _clips_mod.get_remix_prefill(db.get_db_path(), row["id"])
+    return {
+        "id": row["id"], "user_id": row["user_id"], "song_id": row["song_id"],
+        "caption": row["caption"], "media_type": row["media_type"], "media_url": row["media_url"],
+        "clip_start_time": row["clip_start_time"], "clip_duration": row["clip_duration"],
+        "status": row["status"], "view_count": row["view_count"], "like_count": row["like_count"],
+        "remix_count": row["remix_count"], "created_at": row["created_at"],
+        "song_title": row["song_title"], "genre_tag": row["genre_tag"], "mp3_url": row["mp3_url"],
+        "song_cover_url": row["song_cover_url"],
+        "artist_name": row.get("artist_name") or row.get("user_name"),
+        "remix_style_descriptors": prefill.get("style_descriptors", ""),
+        "remix_theme": prefill.get("theme", ""),
+    }
+
+
+@app.post("/api/clips/upload-media", status_code=200)
+@limiter.limit("20/minute", key_func=_user_key)
+async def upload_clip_media(
+    request: Request,
+    file: UploadFile = File(...),
+    media_type: str = Form(...),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Validates the ACTUAL file content (never the filename/Content-Type — see
+    clip_uploads.py) and stores it under a randomised name. Returns a media_url the
+    client then passes to POST /api/clips to publish. Registered BEFORE
+    /api/clips/{clip_id} — see the routing-order note on that route."""
+    import clip_uploads
+
+    if media_type not in ("image", "video"):
+        raise HTTPException(status_code=400, detail="media_type must be 'image' or 'video'")
+    data = await file.read()
+    try:
+        if media_type == "image":
+            kind = clip_uploads.validate_image(data)
+        else:
+            kind = clip_uploads.validate_video(data)
+    except clip_uploads.InvalidUploadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    clip_storage = pathlib.Path(os.environ.get("CLIP_STORAGE_PATH", "/data/clips"))
+    clip_storage.mkdir(parents=True, exist_ok=True)
+    filename = clip_uploads.random_filename(kind)
+    (clip_storage / filename).write_bytes(data)
+    log.info("upload_clip_media: user=%s media_type=%s kind=%s bytes=%d -> %s",
+             current_user["id"], media_type, kind, len(data), filename)
+    return {"media_url": f"/files/clips/{filename}", "media_type": media_type}
+
+
+@app.post("/api/clips", status_code=201)
+async def publish_clip(body: ClipCreateRequest, current_user: dict = Depends(auth.get_current_user)):
+    import clips as _clips_mod
+
+    if body.media_type in ("image", "video") and not body.media_url:
+        raise HTTPException(status_code=400, detail=f"media_type={body.media_type!r} requires a prior upload")
+    if body.media_type == "cover" and body.media_url:
+        raise HTTPException(status_code=400, detail="media_url must not be set for media_type='cover'")
+
+    db_path = db.get_db_path()
+    source = db.get_song_variant_by_id(db_path, body.song_id)
+    if not source or source["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    try:
+        clip_id = _clips_mod.create_clip(
+            db_path, user_id=current_user["id"], song_id=body.song_id, caption=body.caption,
+            media_type=body.media_type, media_url=body.media_url, clip_start_time=body.clip_start_time,
+            clip_duration=body.clip_duration, make_song_public=body.make_song_public,
+        )
+    except _clips_mod.SourceNotPublicError:
+        raise HTTPException(
+            status_code=400,
+            detail="This song must be public to become a clip. Turn on 'Make song public' to publish.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    _clips_mod.log_event(db_path, "clip_published", user_id=current_user["id"], clip_id=clip_id, song_id=body.song_id)
+    log.info("publish_clip: clip_id=%s user=%s song_id=%s media_type=%s", clip_id, current_user["id"], body.song_id, body.media_type)
+    return _clip_out(_clips_mod.get_clip(db_path, clip_id))
+
+
+@app.get("/api/clips")
+async def clips_feed(sort: str = "new", page: int = 0):
+    import clips as _clips_mod
+
+    if sort not in ("new", "trending"):
+        raise HTTPException(status_code=400, detail="sort must be 'new' or 'trending'")
+    rows = _clips_mod.list_feed(db.get_db_path(), sort=sort, page=page)
+    return {"clips": [_clip_out(r) for r in rows], "page": page, "sort": sort}
+
+
+@app.get("/api/clips/{clip_id}")
+async def get_clip_detail(clip_id: int):
+    import clips as _clips_mod
+
+    row = _clips_mod.get_clip(db.get_db_path(), clip_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    return _clip_out(row)
+
+
+@app.delete("/api/clips/{clip_id}")
+async def delete_clip(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+    import clips as _clips_mod
+
+    db_path = db.get_db_path()
+    row = _clips_mod.get_clip(db_path, clip_id, include_hidden=True)
+    if not row:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    if row["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not your clip")
+    _clips_mod.set_clip_status(db_path, clip_id, "deleted")
+    return {"ok": True}
+
+
+@app.post("/api/clips/{clip_id}/like")
+async def like_clip_endpoint(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+    import clips as _clips_mod
+    return {"like_count": _clips_mod.like_clip(db.get_db_path(), clip_id, current_user["id"])}
+
+
+@app.delete("/api/clips/{clip_id}/like")
+async def unlike_clip_endpoint(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+    import clips as _clips_mod
+    return {"like_count": _clips_mod.unlike_clip(db.get_db_path(), clip_id, current_user["id"])}
+
+
+@app.post("/api/clips/{clip_id}/view")
+async def view_clip_endpoint(clip_id: int, body: ClipViewRequest | None = None, current_user: dict | None = Depends(_optional_current_user)):
+    import clips as _clips_mod
+
+    anon_id = body.anon_id if body else None
+    user_id = current_user["id"] if current_user else None
+    if not user_id and not anon_id:
+        raise HTTPException(status_code=400, detail="anon_id required when logged out")
+    db_path = db.get_db_path()
+    try:
+        counted = _clips_mod.record_view(db_path, clip_id, user_id=user_id, anon_id=anon_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    row = _clips_mod.get_clip(db_path, clip_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    if counted:
+        _clips_mod.log_event(db_path, "clip_viewed", user_id=user_id, anon_id=anon_id, clip_id=clip_id, song_id=row["song_id"])
+    return {"counted": counted, "view_count": row["view_count"]}
+
+
+@app.post("/api/clips/{clip_id}/report")
+async def report_clip_endpoint(clip_id: int, body: ClipReportRequest, current_user: dict = Depends(auth.get_current_user)):
+    import clips as _clips_mod
+
+    db_path = db.get_db_path()
+    if not _clips_mod.get_clip(db_path, clip_id):
+        raise HTTPException(status_code=404, detail="Clip not found")
+    try:
+        _clips_mod.report_clip(db_path, clip_id, reporter_id=current_user["id"], reason=body.reason)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    log.info("report_clip: clip_id=%s reporter=%s reason=%s", clip_id, current_user["id"], body.reason)
+    return {"ok": True}
+
+
+@app.post("/api/clips/{clip_id}/remix", status_code=202)
+@limiter.limit("10/minute", key_func=_user_key)
+async def remix_clip(request: Request, clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+    """Reuses the exact same generation pipeline /api/songs/generate calls (lyrics first,
+    then Apiframe submission) — never a separate/parallel path — so remix picks up every
+    existing safety check (email verification, credit deduction/refund-on-failure) for
+    free. The style descriptors and theme are ALWAYS re-derived server-side from the
+    source clip (clips.get_remix_prefill, which sanitizes and never touches lyrics_text)
+    — a client can never smuggle the original lyrics through this endpoint's body,
+    because this endpoint's body has no field that could carry them; only clip_id."""
+    import lyrics as _lyrics_mod
+    import songs as _songs_mod
+    import clips as _clips_mod
+    from songs import InsufficientCreditsError
+
+    db_path = db.get_db_path()
+    user_id = current_user["id"]
+
+    # Same hard gate /api/songs/generate applies — a remix is a real generation.
+    if not current_user.get("email_verified"):
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "email_unverified",
+                    "message": "Please verify your email address before remixing songs."},
+        )
+
+    clip = _clips_mod.get_clip(db_path, clip_id)
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    prefill = _clips_mod.get_remix_prefill(db_path, clip_id)
+    genre = prefill.get("genre_tag")
+    if not genre:
+        raise HTTPException(status_code=400, detail="This clip's song has no genre to remix from")
+
+    lyric_result = _lyrics_mod.generate_lyrics(
+        user_id=user_id, brief="", db_path=db_path, genres=[genre],
+        inspired_by_theme=prefill.get("theme") or None,
+    )
+    lyric_id = lyric_result["lyric_id"]
+
+    try:
+        variant_result = _songs_mod.generate_multiple_variants(
+            user_id=user_id, lyric_id=lyric_id, genres=[genre], db_path=str(db_path),
+            inspired_by_descriptors=prefill.get("style_descriptors") or None,
+            platform=_detect_platform(request, None),
+        )
+    except InsufficientCreditsError:
+        raise HTTPException(status_code=402, detail="Insufficient song credits")
+    except Exception as exc:
+        log.exception("remix_clip: generation submission failed clip_id=%s user=%s", clip_id, user_id)
+        raise HTTPException(status_code=502, detail=f"Remix generation failed: {exc}")
+
+    remix_id = _clips_mod.start_remix(db_path, original_clip_id=clip_id, original_song_id=clip["song_id"],
+                                      user_id=user_id, lyric_id=lyric_id)
+    _clips_mod.log_event(db_path, "remix_started", user_id=user_id, clip_id=clip_id, song_id=clip["song_id"])
+    variant_id = variant_result["variants"][0]["variant_id"] if variant_result.get("variants") else None
+    log.info("remix_clip: remix_id=%s clip_id=%s user=%s lyric_id=%s variant_id=%s",
+             remix_id, clip_id, user_id, lyric_id, variant_id)
+    return {"remix_id": remix_id, "lyric_id": lyric_id, "variant_id": variant_id}
 
 
 # ── Playlists ─────────────────────────────────────────────────────────────────
