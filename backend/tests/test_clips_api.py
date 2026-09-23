@@ -212,6 +212,47 @@ def test_upload_media_rejects_an_oversized_file(app_client):
     assert r.status_code == 400
 
 
+def test_upload_media_enforces_20_uploads_per_24h_per_user(app_client):
+    """Hardening review item 2: a per-user cap, independent of the existing
+    20/minute burst rate limiter (which the test fixture disables entirely —
+    see app_client). Seeds 20 prior uploads directly rather than POSTing 20 real
+    ones — this is a limit test, not a re-test of the upload path itself."""
+    client, db_mod, _clips_unused, db_path, *_ = app_client
+    paid_user, paid_token = _make_paid_user(db_mod, db_path)
+    import clip_uploads
+    for i in range(clip_uploads.UPLOAD_RATE_LIMIT):
+        clip_uploads.record_upload(db_path, paid_user["id"], f"seed{i}.jpg", "image", 1024)
+    r = client.post("/api/clips/upload-media", files={"file": ("photo.jpg", _real_jpeg(), "image/jpeg")},
+                    data={"media_type": "image"}, headers=auth_hdr(paid_token))
+    assert r.status_code == 429, r.text
+
+
+def test_upload_media_rate_limit_is_scoped_per_user(app_client):
+    client, db_mod, _clips_unused, db_path, *_ = app_client
+    limited_user, _ = _make_paid_user(db_mod, db_path, email="limited@example.com")
+    other_user, other_token = _make_paid_user(db_mod, db_path, email="other@example.com")
+    import clip_uploads
+    for i in range(clip_uploads.UPLOAD_RATE_LIMIT):
+        clip_uploads.record_upload(db_path, limited_user["id"], f"seed{i}.jpg", "image", 1024)
+    r = client.post("/api/clips/upload-media", files={"file": ("photo.jpg", _real_jpeg(), "image/jpeg")},
+                    data={"media_type": "image"}, headers=auth_hdr(other_token))
+    assert r.status_code == 200, r.text
+
+
+def test_upload_media_rejects_a_body_over_50mb_via_content_length_before_parsing(app_client):
+    """Hardening review item 1: a >50MB body sent directly to the API (not just
+    an in-process oversized-file check) must be rejected. This one is caught by
+    _MaxUploadSizeMiddleware's Content-Length pre-check — 413, not 400 — which
+    fires before Starlette even starts parsing the multipart body, so the
+    validators in clip_uploads.py never run at all for this request."""
+    client, db_mod, _clips_unused, db_path, *_ = app_client
+    _, paid_token = _make_paid_user(db_mod, db_path)
+    way_too_big = b"\x00" * (55 * 1024 * 1024)  # over both the 50MB video cap and the 52MB middleware ceiling
+    r = client.post("/api/clips/upload-media", files={"file": ("video.mp4", way_too_big, "video/mp4")},
+                    data={"media_type": "video"}, headers=auth_hdr(paid_token))
+    assert r.status_code == 413, r.text
+
+
 def test_upload_media_requires_auth(app_client):
     client, *_ = app_client
     r = client.post("/api/clips/upload-media", files={"file": ("photo.jpg", _real_jpeg(), "image/jpeg")},
@@ -233,6 +274,23 @@ def test_uploaded_image_can_then_be_used_to_publish_a_clip(app_client):
     r = _publish(client, owner_token, media_type="image", media_url=url)
     assert r.status_code == 201, r.text
     assert r.json()["media_url"] == url
+
+
+def test_publishing_an_uploaded_clip_marks_the_upload_attached(app_client):
+    """Hardening review item 3: publishing must take the upload out of
+    sweep_orphaned_uploads' candidate set — see clip_uploads.mark_upload_attached."""
+    client, db_mod, _clips_unused, db_path, owner, viewer, owner_token, viewer_token = app_client
+    paid_user, paid_token = _make_paid_user(db_mod, db_path)
+    up = client.post("/api/clips/upload-media", files={"file": ("photo.jpg", _real_jpeg(), "image/jpeg")},
+                     data={"media_type": "image"}, headers=auth_hdr(paid_token))
+    url = up.json()["media_url"]
+    filename = url.rsplit("/", 1)[-1]
+    r = _publish(client, owner_token, media_type="image", media_url=url)
+    assert r.status_code == 201, r.text
+    conn = sqlite3.connect(db_path)
+    row = conn.execute("SELECT attached_clip_id FROM clip_media_uploads WHERE filename = ?", (filename,)).fetchone()
+    conn.close()
+    assert row is not None and row[0] == r.json()["id"]
 
 
 def test_publishing_an_image_clip_without_a_prior_upload_url_is_rejected(app_client):

@@ -18,10 +18,24 @@ server-side rather than skipped in v1.
 """
 from __future__ import annotations
 
+import pathlib
 import secrets
+from datetime import datetime, timedelta, timezone
 
 IMAGE_MAX_BYTES = 10 * 1024 * 1024
 VIDEO_MAX_BYTES = 50 * 1024 * 1024
+
+# Hardening review (2026-09-23): a per-user cap on upload-media calls, and how
+# long an accepted-but-never-published upload is kept before the sweep deletes
+# it. Both fixed at the brief's literal numbers rather than exposed as tunables
+# nothing else needs yet.
+UPLOAD_RATE_LIMIT = 20
+UPLOAD_RATE_WINDOW = timedelta(hours=24)
+ORPHAN_MAX_AGE = timedelta(hours=24)
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
 
 _IMAGE_KINDS = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}  # PIL format name -> stored extension
 
@@ -77,8 +91,118 @@ def validate_video(data: bytes) -> str:
     raise InvalidUploadError("Not a valid video file — use MP4, WebM, or MOV")
 
 
+_READ_CHUNK_BYTES = 1024 * 1024  # 1MB
+
+
+async def read_upload_capped(file, max_bytes: int) -> bytes:
+    """Reads an UploadFile-like object (anything with an async .read(size)) in
+    chunks, raising InvalidUploadError the moment the running total exceeds
+    max_bytes — never buffers more than one chunk past the cap in memory.
+
+    Replaces a bare `await file.read()`, which reads the ENTIRE body regardless
+    of size before validate_image/validate_video ever get a chance to check it —
+    a multi-GB request would be fully buffered (in memory or Starlette's own
+    spooled temp file) before rejection. This is the server-side half of the
+    hardening; see main.py's upload_clip_media for the companion Content-Length
+    pre-check, which rejects an HONEST oversized request before Starlette even
+    starts parsing the multipart body at all."""
+    total = 0
+    chunks = []
+    while True:
+        chunk = await file.read(_READ_CHUNK_BYTES)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise InvalidUploadError(f"Upload exceeds the {max_bytes // (1024 * 1024)}MB limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def random_filename(extension: str) -> str:
     """A stored filename that never echoes anything from the upload (name or
     extension GUESS) — only the extension this module itself determined, matching
     the existing upload_song_photo convention (uuid4-based)."""
     return f"{secrets.token_hex(16)}.{extension}"
+
+
+# ── upload tracking: rate limit + orphan cleanup (hardening review, 2026-09-23) ──
+# A row here is written for EVERY accepted upload-media call, not just ones that
+# end up published — count_recent_uploads needs that to actually rate-limit, and
+# sweep_orphaned_uploads needs it to find files nobody ever finished publishing.
+
+def record_upload(db_path: pathlib.Path, user_id: str, filename: str, media_type: str,
+                  num_bytes: int, now: datetime | None = None) -> None:
+    import db
+    conn = db._conn(db_path)
+    try:
+        conn.execute(
+            "INSERT INTO clip_media_uploads (user_id, filename, media_type, bytes, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (user_id, filename, media_type, num_bytes, (now or _now()).isoformat()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def count_recent_uploads(db_path: pathlib.Path, user_id: str, now: datetime | None = None) -> int:
+    """How many uploads this user has made in the last UPLOAD_RATE_WINDOW —
+    call BEFORE accepting a new one and compare against UPLOAD_RATE_LIMIT."""
+    import db
+    now = now or _now()
+    cutoff = (now - UPLOAD_RATE_WINDOW).isoformat()
+    conn = db._conn(db_path)
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM clip_media_uploads WHERE user_id = ? AND created_at > ?",
+            (user_id, cutoff),
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def mark_upload_attached(db_path: pathlib.Path, filename: str, clip_id: int) -> None:
+    """Called once POST /api/clips actually publishes a clip using this upload's
+    media_url — removes it from sweep_orphaned_uploads' candidate set."""
+    import db
+    conn = db._conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE clip_media_uploads SET attached_clip_id = ? WHERE filename = ?",
+            (clip_id, filename),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def sweep_orphaned_uploads(db_path: pathlib.Path, storage_dir: pathlib.Path,
+                           now: datetime | None = None) -> int:
+    """Deletes uploaded files (and their tracking rows) that are older than
+    ORPHAN_MAX_AGE and were never attached to a published clip. Registered as an
+    hourly job in scheduler.py. Best-effort per row: a single file's delete
+    failing (already gone, permissions) never aborts the rest of the sweep, and
+    the row is still cleaned up either way so it can't be swept forever."""
+    import db
+    now = now or _now()
+    cutoff = (now - ORPHAN_MAX_AGE).isoformat()
+    storage_dir = pathlib.Path(storage_dir)
+    conn = db._conn(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT id, filename FROM clip_media_uploads WHERE attached_clip_id IS NULL AND created_at < ?",
+            (cutoff,),
+        ).fetchall()
+        deleted = 0
+        for row_id, filename in rows:
+            try:
+                (storage_dir / filename).unlink(missing_ok=True)
+            except OSError:
+                pass  # non-fatal — the row is still cleaned up below
+            conn.execute("DELETE FROM clip_media_uploads WHERE id = ?", (row_id,))
+            deleted += 1
+        conn.commit()
+        return deleted
+    finally:
+        conn.close()

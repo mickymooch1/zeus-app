@@ -126,8 +126,35 @@ def init_scheduler(history_store) -> None:
         replace_existing=True,
         misfire_grace_time=3600,
     )
+
+    # Zeus Clips upload hardening (2026-09-23): a clip-media upload that never
+    # gets attached to a published clip within 24h is deleted — see
+    # clip_uploads.sweep_orphaned_uploads. Hourly is frequent enough that an
+    # abandoned upload doesn't sit around for long past its 24h grace period,
+    # without being so frequent it's doing real work on every tick.
+    import clip_uploads as _clip_uploads
+
+    def _clip_upload_sweep() -> None:
+        import os as _os
+        import pathlib as _pathlib
+        import db as _db
+        deleted = _clip_uploads.sweep_orphaned_uploads(
+            _db.get_db_path(),
+            _pathlib.Path(_os.environ.get("CLIP_STORAGE_PATH", "/data/clips")),
+        )
+        if deleted:
+            log.info("clip upload sweep: deleted %d orphaned upload(s)", deleted)
+
+    _scheduler.add_job(
+        _clip_upload_sweep,
+        trigger=IntervalTrigger(hours=1),
+        id="__clip_upload_sweep__",
+        replace_existing=True,
+        misfire_grace_time=1800,
+    )
     log.info("Scheduler: health check, daily report, evening check-in, PH monitor, "
-             "Discover monitor, stuck-song sweep, security flush + scan registered")
+             "Discover monitor, stuck-song sweep, security flush + scan, "
+             "clip upload sweep registered")
 
 
 def shutdown_scheduler() -> None:

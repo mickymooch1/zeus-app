@@ -12,7 +12,9 @@ every browser's own sniffer uses for these formats).
 import io
 import os
 import pathlib
+import sqlite3
 import sys
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from PIL import Image
@@ -25,7 +27,27 @@ os.environ.setdefault("SONG_PUBLIC_BASE_URL", "https://example.com/files/songs")
 os.environ.setdefault("SONG_WEBHOOK_URL", "https://zeusaidesign.com/webhooks/apiframe")
 os.environ.setdefault("JWT_SECRET", "test-secret-for-clip-upload-tests")
 
+import db
 import clip_uploads
+
+NOW = datetime(2026, 9, 23, 12, 0, 0, tzinfo=timezone.utc)
+
+
+@pytest.fixture
+def path(tmp_path):
+    p = tmp_path / "test.db"
+    db.init_user_tables(p)
+    return p
+
+
+def add_user(path_, uid, email):
+    conn = sqlite3.connect(path_)
+    conn.execute(
+        "INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, 'x', ?, ?)",
+        (uid, email, NOW.isoformat(), NOW.isoformat()),
+    )
+    conn.commit()
+    conn.close()
 
 
 def _real_image_bytes(fmt):
@@ -129,3 +151,179 @@ def test_stored_filename_never_echoes_the_original_name_or_extension_guess():
     assert name1 != name2
     assert name1.endswith(".jpg")
     assert "/" not in name1 and ".." not in name1
+
+
+# ── streaming size cap (hardening review, 2026-09-23) ────────────────────────
+# A bare `await file.read()` reads the WHOLE body into memory before anything can
+# check its size — a multi-GB request would be fully buffered before rejection.
+# read_upload_capped reads in chunks and aborts the moment the running total would
+# exceed the limit, so it never buffers more than ~one chunk past the cap.
+
+class _BytesUploadFile:
+    """Minimal async-.read() stand-in for FastAPI's UploadFile, backed by a real
+    (small) bytes buffer — for exact-content round-trip checks."""
+    def __init__(self, data: bytes):
+        self._data = data
+        self._pos = 0
+
+    async def read(self, size=-1):
+        if size is None or size < 0:
+            size = len(self._data) - self._pos
+        chunk = self._data[self._pos:self._pos + size]
+        self._pos += len(chunk)
+        return chunk
+
+
+class _FillerUploadFile:
+    """Emits chunk_size bytes of filler per .read() call, up to total_available —
+    simulates an upload far larger than any cap WITHOUT allocating that much
+    memory up front. Tracks how many bytes were actually pulled, so a test can
+    assert the reader stopped early rather than draining the whole thing."""
+    def __init__(self, chunk_size=65536, total_available=2 * 1024 * 1024 * 1024):
+        self.chunk_size = chunk_size
+        self.total_available = total_available
+        self.total_read = 0
+
+    async def read(self, size=-1):
+        want = self.chunk_size if size is None or size < 0 else min(size, self.chunk_size)
+        remaining = self.total_available - self.total_read
+        if remaining <= 0:
+            return b""
+        n = min(want, remaining)
+        self.total_read += n
+        return b"\x00" * n
+
+
+@pytest.mark.asyncio
+async def test_read_upload_capped_returns_exact_bytes_when_under_the_limit():
+    data = b"hello world" * 1000
+    result = await clip_uploads.read_upload_capped(_BytesUploadFile(data), max_bytes=1024 * 1024)
+    assert result == data
+
+
+@pytest.mark.asyncio
+async def test_read_upload_capped_aborts_during_the_stream_not_after_buffering_it_all():
+    # A simulated ~2GB upload against a 50MB cap — if this ever buffered the whole
+    # thing before checking, the test would be slow/memory-heavy; instead it must
+    # raise almost immediately, having pulled only a small multiple of the cap.
+    upload = _FillerUploadFile(chunk_size=1024 * 1024, total_available=2 * 1024 * 1024 * 1024)
+    max_bytes = 50 * 1024 * 1024
+    with pytest.raises(clip_uploads.InvalidUploadError):
+        await clip_uploads.read_upload_capped(upload, max_bytes=max_bytes)
+    assert upload.total_read < max_bytes * 2, (
+        "must abort within a small margin of the cap, not drain the simulated 2GB stream"
+    )
+
+
+@pytest.mark.asyncio
+async def test_read_upload_capped_accepts_exactly_the_limit():
+    data = b"x" * (10 * 1024 * 1024)
+    result = await clip_uploads.read_upload_capped(_BytesUploadFile(data), max_bytes=10 * 1024 * 1024)
+    assert len(result) == 10 * 1024 * 1024
+
+
+@pytest.mark.asyncio
+async def test_read_upload_capped_rejects_one_byte_over_the_limit():
+    data = b"x" * (10 * 1024 * 1024 + 1)
+    with pytest.raises(clip_uploads.InvalidUploadError):
+        await clip_uploads.read_upload_capped(_BytesUploadFile(data), max_bytes=10 * 1024 * 1024)
+
+
+# ── per-user rate limit: max 20 uploads / 24h (hardening review, 2026-09-23) ──
+
+def test_count_recent_uploads_finds_a_just_recorded_upload(path):
+    add_user(path, "u1", "a@example.com")
+    clip_uploads.record_upload(path, "u1", "abc.jpg", "image", 1024, now=NOW)
+    assert clip_uploads.count_recent_uploads(path, "u1", now=NOW) == 1
+
+
+def test_count_recent_uploads_only_counts_the_last_24h(path):
+    add_user(path, "u1", "a@example.com")
+    clip_uploads.record_upload(path, "u1", "old.jpg", "image", 1024, now=NOW - timedelta(hours=25))
+    clip_uploads.record_upload(path, "u1", "fresh.jpg", "image", 1024, now=NOW - timedelta(hours=1))
+    assert clip_uploads.count_recent_uploads(path, "u1", now=NOW) == 1
+
+
+def test_count_recent_uploads_is_scoped_per_user(path):
+    add_user(path, "u1", "a@example.com")
+    add_user(path, "u2", "b@example.com")
+    clip_uploads.record_upload(path, "u1", "a.jpg", "image", 1024, now=NOW)
+    assert clip_uploads.count_recent_uploads(path, "u2", now=NOW) == 0
+
+
+def test_twenty_recent_uploads_hit_the_limit_the_twenty_first_would_exceed(path):
+    add_user(path, "u1", "a@example.com")
+    for i in range(20):
+        clip_uploads.record_upload(path, "u1", f"f{i}.jpg", "image", 1024, now=NOW)
+    assert clip_uploads.count_recent_uploads(path, "u1", now=NOW) == 20
+
+
+# ── orphan cleanup: unattached uploads older than 24h are deleted ────────────
+
+def test_mark_upload_attached_records_the_clip_id(path):
+    add_user(path, "u1", "a@example.com")
+    clip_uploads.record_upload(path, "u1", "abc.jpg", "image", 1024, now=NOW)
+    clip_uploads.mark_upload_attached(path, "abc.jpg", clip_id=7)
+    conn = sqlite3.connect(path)
+    row = conn.execute("SELECT attached_clip_id FROM clip_media_uploads WHERE filename = ?", ("abc.jpg",)).fetchone()
+    conn.close()
+    assert row[0] == 7
+
+
+def test_sweep_deletes_an_unattached_upload_older_than_24h(path, tmp_path):
+    storage = tmp_path / "clips"
+    storage.mkdir()
+    (storage / "orphan.jpg").write_bytes(b"data")
+    add_user(path, "u1", "a@example.com")
+    clip_uploads.record_upload(path, "u1", "orphan.jpg", "image", 4, now=NOW - timedelta(hours=25))
+
+    deleted = clip_uploads.sweep_orphaned_uploads(path, storage, now=NOW)
+
+    assert deleted == 1
+    assert not (storage / "orphan.jpg").exists()
+    conn = sqlite3.connect(path)
+    row = conn.execute("SELECT 1 FROM clip_media_uploads WHERE filename = ?", ("orphan.jpg",)).fetchone()
+    conn.close()
+    assert row is None, "the tracking row must be cleaned up too, not just the file"
+
+
+def test_sweep_leaves_an_attached_upload_alone_even_if_old(path, tmp_path):
+    storage = tmp_path / "clips"
+    storage.mkdir()
+    (storage / "published.jpg").write_bytes(b"data")
+    add_user(path, "u1", "a@example.com")
+    clip_uploads.record_upload(path, "u1", "published.jpg", "image", 4, now=NOW - timedelta(hours=25))
+    clip_uploads.mark_upload_attached(path, "published.jpg", clip_id=1)
+
+    deleted = clip_uploads.sweep_orphaned_uploads(path, storage, now=NOW)
+
+    assert deleted == 0
+    assert (storage / "published.jpg").exists()
+
+
+def test_sweep_leaves_a_recent_unattached_upload_alone(path, tmp_path):
+    storage = tmp_path / "clips"
+    storage.mkdir()
+    (storage / "just_uploaded.jpg").write_bytes(b"data")
+    add_user(path, "u1", "a@example.com")
+    clip_uploads.record_upload(path, "u1", "just_uploaded.jpg", "image", 4, now=NOW - timedelta(hours=1))
+
+    deleted = clip_uploads.sweep_orphaned_uploads(path, storage, now=NOW)
+
+    assert deleted == 0
+    assert (storage / "just_uploaded.jpg").exists()
+
+
+def test_sweep_is_safe_when_the_file_is_already_missing(path, tmp_path):
+    storage = tmp_path / "clips"
+    storage.mkdir()
+    add_user(path, "u1", "a@example.com")
+    clip_uploads.record_upload(path, "u1", "already_gone.jpg", "image", 4, now=NOW - timedelta(hours=25))
+
+    deleted = clip_uploads.sweep_orphaned_uploads(path, storage, now=NOW)  # must not raise
+
+    assert deleted == 1
+    conn = sqlite3.connect(path)
+    row = conn.execute("SELECT 1 FROM clip_media_uploads WHERE filename = ?", ("already_gone.jpg",)).fetchone()
+    conn.close()
+    assert row is None

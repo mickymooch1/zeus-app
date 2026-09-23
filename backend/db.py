@@ -642,6 +642,25 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 created_at TEXT NOT NULL
             )""",
             "CREATE INDEX IF NOT EXISTS idx_clip_views_dedup ON clip_views (clip_id, user_id, anon_id, created_at)",
+            # Upload hardening review (2026-09-23) — see clip_uploads.py's
+            # record_upload/count_recent_uploads/mark_upload_attached/
+            # sweep_orphaned_uploads. Tracks every accepted upload-media call (not
+            # just ones that end up published) so a per-user rate limit (20/24h)
+            # can be enforced, and so an hourly sweep can delete files that were
+            # uploaded but never attached to a published clip within 24h.
+            # attached_clip_id stays NULL until POST /api/clips actually publishes
+            # a clip using that upload's media_url.
+            """CREATE TABLE IF NOT EXISTS clip_media_uploads (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id           TEXT NOT NULL,
+                filename          TEXT NOT NULL,
+                media_type        TEXT NOT NULL,
+                bytes             INTEGER NOT NULL,
+                created_at        TEXT NOT NULL,
+                attached_clip_id  INTEGER
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clip_media_uploads_user_created ON clip_media_uploads (user_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_clip_media_uploads_filename ON clip_media_uploads (filename)",
         ]:
             try:
                 conn.execute(_migration)

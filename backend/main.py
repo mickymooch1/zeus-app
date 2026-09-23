@@ -637,9 +637,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Bot guard (2026-09-21): added AFTER CORS so it is the OUTERMOST layer — a blocked
-# IP is refused before any other processing. Ships in shadow mode: it detects,
-# records and alerts, but only returns 403 once SECURITY_ENFORCE=1. Fails open.
+
+class _MaxUploadSizeMiddleware:
+    """Zeus Clips upload hardening (2026-09-23). Rejects a request to a capped
+    path via its Content-Length header BEFORE Starlette reads any of the body —
+    the only point at which "before consuming the upload" is actually true,
+    since a File()/UploadFile parameter's body is fully parsed by Starlette
+    (via python-multipart) before the endpoint function runs at all, regardless
+    of how the endpoint itself then reads it.
+
+    Only catches an HONEST declared size — a client that omits Content-Length or
+    lies about it isn't caught here. clip_uploads.read_upload_capped is the
+    companion that bounds memory for that case, by aborting mid-chunked-read
+    instead of trusting a bare `await file.read()` to stop on its own.
+
+    Scoped to a single path (upload-media is the only multipart endpoint with a
+    file this large; everything else already has its own tighter limits — see
+    e.g. _PHOTO_MAX_BYTES) rather than applied globally, so it can't surprise an
+    unrelated route with a size assumption that was never true for it.
+
+    Registered BEFORE bot guard below, so bot guard stays the OUTERMOST layer —
+    see test_bot_guard_wiring.py's own "must wrap CORS and everything else"
+    assertion, which this order satisfies."""
+    def __init__(self, app, path: str, max_bytes: int):
+        self.app = app
+        self.path = path
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope.get("path") == self.path:
+            headers = dict(scope.get("headers") or [])
+            content_length = headers.get(b"content-length")
+            if content_length is not None:
+                try:
+                    declared = int(content_length)
+                except ValueError:
+                    declared = None
+                if declared is not None and declared > self.max_bytes:
+                    response = JSONResponse(
+                        {"detail": f"Upload exceeds the {self.max_bytes // (1024 * 1024)}MB limit"},
+                        status_code=413,
+                    )
+                    await response(scope, receive, send)
+                    return
+        await self.app(scope, receive, send)
+
+
+# 52MB ceiling: the larger of the two per-type limits (video, 50MB) plus a small
+# margin for multipart boundaries/headers/the media_type form field — the exact
+# 10MB-image-vs-50MB-video split is enforced afterward by read_upload_capped,
+# which knows which type was requested; this middleware only sees raw bytes.
+app.add_middleware(_MaxUploadSizeMiddleware, path="/api/clips/upload-media", max_bytes=52 * 1024 * 1024)
+
+# Bot guard (2026-09-21): added AFTER CORS (and the upload-size check above) so it
+# is the OUTERMOST layer — a blocked IP is refused before any other processing.
+# Ships in shadow mode: it detects, records and alerts, but only returns 403 once
+# SECURITY_ENFORCE=1. Fails open.
 # Design: docs/superpowers/specs/2026-09-21-security-monitor-design.md
 from bot_guard import BotGuardMiddleware as _BotGuardMiddleware
 app.add_middleware(_BotGuardMiddleware)
@@ -7163,7 +7216,15 @@ async def upload_clip_media(
 
     Gated to paying plans (storage cost) — same billing.get_subscription_status().is_active
     check used elsewhere for plan-gated features (scheduled tasks, websites). Free users can
-    still publish a 'cover' clip, which never calls this endpoint at all."""
+    still publish a 'cover' clip, which never calls this endpoint at all.
+
+    Hardening review (2026-09-23): a per-user rate limit (20/24h, separate from
+    the existing 20/minute burst limiter above) and a size cap enforced while
+    reading the body — see clip_uploads.read_upload_capped — rather than after a
+    bare `await file.read()` has already buffered the whole thing. An HONEST
+    oversized request never even reaches this function at all: see
+    _MaxUploadSizeMiddleware, registered near the other app.add_middleware calls,
+    which rejects on Content-Length before Starlette starts parsing the body."""
     import clip_uploads
 
     if not (billing.get_subscription_status(current_user)["is_active"] or current_user.get("is_admin")):
@@ -7175,8 +7236,18 @@ async def upload_clip_media(
 
     if media_type not in ("image", "video"):
         raise HTTPException(status_code=400, detail="media_type must be 'image' or 'video'")
-    data = await file.read()
+
+    db_path = db.get_db_path()
+    if clip_uploads.count_recent_uploads(db_path, current_user["id"]) >= clip_uploads.UPLOAD_RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"You've uploaded {clip_uploads.UPLOAD_RATE_LIMIT} clip photos/videos in the "
+                   "last 24 hours — please try again later.",
+        )
+
+    max_bytes = clip_uploads.IMAGE_MAX_BYTES if media_type == "image" else clip_uploads.VIDEO_MAX_BYTES
     try:
+        data = await clip_uploads.read_upload_capped(file, max_bytes)
         if media_type == "image":
             kind = clip_uploads.validate_image(data)
         else:
@@ -7188,6 +7259,7 @@ async def upload_clip_media(
     clip_storage.mkdir(parents=True, exist_ok=True)
     filename = clip_uploads.random_filename(kind)
     (clip_storage / filename).write_bytes(data)
+    clip_uploads.record_upload(db_path, current_user["id"], filename, media_type, len(data))
     log.info("upload_clip_media: user=%s media_type=%s kind=%s bytes=%d -> %s",
              current_user["id"], media_type, kind, len(data), filename)
     return {"media_url": f"/files/clips/{filename}", "media_type": media_type}
@@ -7220,6 +7292,14 @@ async def publish_clip(body: ClipCreateRequest, current_user: dict = Depends(aut
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+    if body.media_url:
+        # Takes this upload out of sweep_orphaned_uploads' candidate set — see
+        # clip_uploads.py. Best-effort: an upload record that predates this
+        # tracking table, or one made under a different flow, simply has no
+        # matching row, which is a silent no-op (UPDATE ... WHERE matches nothing).
+        import clip_uploads as _clip_uploads_mod
+        _clip_uploads_mod.mark_upload_attached(db_path, pathlib.Path(body.media_url).name, clip_id)
 
     _clips_mod.log_event(db_path, "clip_published", user_id=current_user["id"], clip_id=clip_id, song_id=body.song_id)
     log.info("publish_clip: clip_id=%s user=%s song_id=%s media_type=%s", clip_id, current_user["id"], body.song_id, body.media_type)
