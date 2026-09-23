@@ -7143,8 +7143,19 @@ async def upload_clip_media(
     """Validates the ACTUAL file content (never the filename/Content-Type — see
     clip_uploads.py) and stores it under a randomised name. Returns a media_url the
     client then passes to POST /api/clips to publish. Registered BEFORE
-    /api/clips/{clip_id} — see the routing-order note on that route."""
+    /api/clips/{clip_id} — see the routing-order note on that route.
+
+    Gated to paying plans (storage cost) — same billing.get_subscription_status().is_active
+    check used elsewhere for plan-gated features (scheduled tasks, websites). Free users can
+    still publish a 'cover' clip, which never calls this endpoint at all."""
     import clip_uploads
+
+    if not (billing.get_subscription_status(current_user)["is_active"] or current_user.get("is_admin")):
+        raise HTTPException(
+            status_code=403,
+            detail="Uploading photos and videos to clips requires a paid plan. "
+                   "You can still publish a clip using your song's own cover art for free.",
+        )
 
     if media_type not in ("image", "video"):
         raise HTTPException(status_code=400, detail="media_type must be 'image' or 'video'")
@@ -7236,7 +7247,12 @@ async def delete_clip(clip_id: int, current_user: dict = Depends(auth.get_curren
 @app.post("/api/clips/{clip_id}/like")
 async def like_clip_endpoint(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
     import clips as _clips_mod
-    return {"like_count": _clips_mod.like_clip(db.get_db_path(), clip_id, current_user["id"])}
+    db_path = db.get_db_path()
+    like_count = _clips_mod.like_clip(db_path, clip_id, current_user["id"])
+    row = _clips_mod.get_clip(db_path, clip_id, include_hidden=True)
+    if row:
+        _clips_mod.log_event(db_path, "clip_liked", user_id=current_user["id"], clip_id=clip_id, song_id=row["song_id"])
+    return {"like_count": like_count}
 
 
 @app.delete("/api/clips/{clip_id}/like")

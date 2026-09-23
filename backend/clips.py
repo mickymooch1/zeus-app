@@ -222,20 +222,27 @@ def complete_remix_for_lyric(db_path: pathlib.Path, lyric_id: int, variant_id: i
     it finds no still-open row, since the first call already filled it in. Defensively
     re-checks variant_id's own status is 'complete' rather than trusting the caller, so a
     webhook bug that calls this on a failed/pending variant can't wrongly link or count it.
-    Returns True only if this call was the one that did the linking."""
+    Logs a single 'remix_completed' clip_events row in the same transaction (never once per
+    variant, matching remix_count). Returns True only if this call was the one that did the
+    linking."""
     conn = db._conn(db_path)
     try:
         variant = conn.execute("SELECT status FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
         if not variant or variant["status"] != "complete":
             return False
         row = conn.execute(
-            "SELECT id, original_clip_id FROM clip_remixes WHERE lyric_id = ? AND remix_song_id IS NULL",
+            "SELECT id, original_clip_id, user_id FROM clip_remixes WHERE lyric_id = ? AND remix_song_id IS NULL",
             (lyric_id,),
         ).fetchone()
         if not row:
             return False
         conn.execute("UPDATE clip_remixes SET remix_song_id = ? WHERE id = ?", (variant_id, row["id"]))
         conn.execute("UPDATE clips SET remix_count = remix_count + 1 WHERE id = ?", (row["original_clip_id"],))
+        conn.execute(
+            "INSERT INTO clip_events (event_name, user_id, anon_id, clip_id, song_id, created_at) "
+            "VALUES ('remix_completed', ?, NULL, ?, ?, ?)",
+            (row["user_id"], row["original_clip_id"], variant_id, _now().isoformat()),
+        )
         conn.commit()
         return True
     finally:

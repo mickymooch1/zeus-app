@@ -71,6 +71,23 @@ def app_client(tmp_path, monkeypatch):
         yield client, _db, _clips, db_path, owner, viewer, owner_token, viewer_token
 
 
+def _make_paid_user(db_mod, db_path, email="paid@example.com"):
+    """Creates a paying, email-verified user ad-hoc within a test — mirrors the existing
+    `broke` user pattern (test_remix_with_zero_song_credits_is_refused...) rather than
+    growing the shared app_client tuple, so existing positional-unpack call sites can't
+    silently bind the wrong variable when a new fixture user is added."""
+    user = db_mod.create_user(db_path, email, "x", "Paid", "now")
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "UPDATE users SET email_verified = 1, subscription_status = 'active', subscription_plan = 'music_starter' "
+        "WHERE id = ?",
+        (user["id"],),
+    )
+    conn.commit()
+    conn.close()
+    return user, auth.create_token(user["id"], user["email"])
+
+
 def auth_hdr(token):
     return {"Authorization": f"Bearer {token}"}
 
@@ -80,6 +97,17 @@ def _publish(client, token, song_id=1, **overrides):
             "clip_start_time": 2.0, "clip_duration": 15}
     body.update(overrides)
     return client.post("/api/clips", json=body, headers=auth_hdr(token))
+
+
+def _event_names(db_path, clip_id):
+    """All clip_events.event_name rows logged for a given clip_id, in insertion order —
+    used to confirm the server actually writes analytics rows, not just returns 200s."""
+    conn = sqlite3.connect(db_path)
+    rows = conn.execute(
+        "SELECT event_name FROM clip_events WHERE clip_id = ? ORDER BY id", (clip_id,)
+    ).fetchall()
+    conn.close()
+    return [r[0] for r in rows]
 
 
 # ── create ───────────────────────────────────────────────────────────────────
@@ -144,9 +172,10 @@ def _real_jpeg():
 
 
 def test_upload_media_accepts_a_real_image_and_returns_a_usable_url(app_client):
-    client, *_ , owner_token, _ = app_client
+    client, db_mod, _clips_unused, db_path, *_ = app_client
+    _, paid_token = _make_paid_user(db_mod, db_path)
     r = client.post("/api/clips/upload-media", files={"file": ("photo.jpg", _real_jpeg(), "image/jpeg")},
-                    data={"media_type": "image"}, headers=auth_hdr(owner_token))
+                    data={"media_type": "image"}, headers=auth_hdr(paid_token))
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["media_type"] == "image"
@@ -154,19 +183,32 @@ def test_upload_media_accepts_a_real_image_and_returns_a_usable_url(app_client):
     assert body["media_url"].endswith(".jpg")
 
 
+def test_upload_media_rejects_non_paying_users(app_client):
+    """Item 4 of the pre-Phase-2 review: upload-media (custom image/video) is a
+    storage-cost feature gated to paying plans, same as scheduled tasks/websites
+    elsewhere in this file — free users can still publish a 'cover' clip (no upload
+    involved at all), just not upload a custom image or video."""
+    client, *_ , owner_token, _ = app_client  # owner is free-tier by construction
+    r = client.post("/api/clips/upload-media", files={"file": ("photo.jpg", _real_jpeg(), "image/jpeg")},
+                    data={"media_type": "image"}, headers=auth_hdr(owner_token))
+    assert r.status_code == 403
+
+
 def test_upload_media_rejects_a_renamed_exe(app_client):
-    client, *_ , owner_token, _ = app_client
+    client, db_mod, _clips_unused, db_path, *_ = app_client
+    _, paid_token = _make_paid_user(db_mod, db_path)
     fake = b"MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xff" + b"\x00" * 200
     r = client.post("/api/clips/upload-media", files={"file": ("photo.jpg", fake, "image/jpeg")},
-                    data={"media_type": "image"}, headers=auth_hdr(owner_token))
+                    data={"media_type": "image"}, headers=auth_hdr(paid_token))
     assert r.status_code == 400
 
 
 def test_upload_media_rejects_an_oversized_file(app_client):
-    client, *_ , owner_token, _ = app_client
+    client, db_mod, _clips_unused, db_path, *_ = app_client
+    _, paid_token = _make_paid_user(db_mod, db_path)
     huge = _real_jpeg() + b"\x00" * (11 * 1024 * 1024)
     r = client.post("/api/clips/upload-media", files={"file": ("photo.jpg", huge, "image/jpeg")},
-                    data={"media_type": "image"}, headers=auth_hdr(owner_token))
+                    data={"media_type": "image"}, headers=auth_hdr(paid_token))
     assert r.status_code == 400
 
 
@@ -178,10 +220,16 @@ def test_upload_media_requires_auth(app_client):
 
 
 def test_uploaded_image_can_then_be_used_to_publish_a_clip(app_client):
-    client, *_ , owner_token, _ = app_client
+    client, db_mod, _clips_unused, db_path, owner, viewer, owner_token, viewer_token = app_client
+    paid_user, paid_token = _make_paid_user(db_mod, db_path)
     up = client.post("/api/clips/upload-media", files={"file": ("photo.jpg", _real_jpeg(), "image/jpeg")},
-                     data={"media_type": "image"}, headers=auth_hdr(owner_token))
+                     data={"media_type": "image"}, headers=auth_hdr(paid_token))
     url = up.json()["media_url"]
+    # publishing itself isn't plan-gated — only the upload step was — so this can publish
+    # against the paid user's own song... but there's no song owned by paid_user in the
+    # fixture, so publish as the owner using a URL the paid user's upload produced (the
+    # media_url itself carries no per-uploader restriction, matching how media_url is
+    # just an opaque path once it exists).
     r = _publish(client, owner_token, media_type="image", media_url=url)
     assert r.status_code == 201, r.text
     assert r.json()["media_url"] == url
@@ -221,6 +269,13 @@ def test_get_clip_404s_for_a_hidden_clip(app_client):
     assert client.get(f"/api/clips/{clip_id}").status_code == 404
 
 
+def test_get_clip_404s_for_a_deleted_clip(app_client):
+    client, db_mod, clips_mod, db_path, *_ , owner_token, _ = app_client
+    clip_id = _publish(client, owner_token).json()["id"]
+    clips_mod.set_clip_status(db_path, clip_id, "deleted")
+    assert client.get(f"/api/clips/{clip_id}").status_code == 404
+
+
 def test_feed_lists_only_published_clips_new_first(app_client):
     client, *_ , owner_token, _ = app_client
     a = _publish(client, owner_token).json()["id"]
@@ -229,6 +284,18 @@ def test_feed_lists_only_published_clips_new_first(app_client):
     assert r.status_code == 200
     ids = [c["id"] for c in r.json()["clips"]]
     assert ids[:2] == [b, a]
+
+
+def test_feed_and_trending_exclude_hidden_and_deleted_clips(app_client):
+    client, db_mod, clips_mod, db_path, *_ , owner_token, _ = app_client
+    visible = _publish(client, owner_token).json()["id"]
+    hidden = _publish(client, owner_token, song_id=1).json()["id"]
+    deleted = _publish(client, owner_token, song_id=1).json()["id"]
+    clips_mod.set_clip_status(db_path, hidden, "hidden")
+    clips_mod.set_clip_status(db_path, deleted, "deleted")
+    for sort in ("new", "trending"):
+        ids = [c["id"] for c in client.get(f"/api/clips?sort={sort}").json()["clips"]]
+        assert ids == [visible], f"sort={sort} must only list the published clip"
 
 
 def test_feed_trending_sort_is_accepted(app_client):
@@ -257,6 +324,13 @@ def test_like_requires_auth(app_client):
     client, *_ , owner_token, _ = app_client
     clip_id = _publish(client, owner_token).json()["id"]
     assert client.post(f"/api/clips/{clip_id}/like").status_code == 401
+
+
+def test_liking_a_clip_logs_a_clip_liked_event(app_client):
+    client, db_mod, clips_mod, db_path, *_ , owner_token, viewer_token = app_client
+    clip_id = _publish(client, owner_token).json()["id"]
+    client.post(f"/api/clips/{clip_id}/like", headers=auth_hdr(viewer_token))
+    assert "clip_liked" in _event_names(db_path, clip_id)
 
 
 # ── views (auth optional; anon_id fallback) ──────────────────────────────────
@@ -325,6 +399,24 @@ def test_non_owner_cannot_delete_a_clip(app_client):
     assert client.get(f"/api/clips/{clip_id}").status_code == 200
 
 
+def test_deleting_a_clip_is_a_soft_delete_and_does_not_touch_the_songs_is_public(app_client):
+    """Approved decision: DELETE is a SOFT delete (status='deleted') — the row is kept
+    for analytics/remix links, and the source song's is_public is left exactly as it was."""
+    client, db_mod, clips_mod, db_path, *_ , owner_token, _ = app_client
+    r = _publish(client, owner_token, make_song_public=True)  # song 1 starts public anyway
+    clip_id = r.json()["id"]
+    conn = sqlite3.connect(db_path)
+    before = conn.execute("SELECT is_public FROM song_variants WHERE id = 1").fetchone()[0]
+    conn.close()
+    client.delete(f"/api/clips/{clip_id}", headers=auth_hdr(owner_token))
+    conn = sqlite3.connect(db_path)
+    after = conn.execute("SELECT is_public FROM song_variants WHERE id = 1").fetchone()[0]
+    row_still_exists = conn.execute("SELECT status FROM clips WHERE id = ?", (clip_id,)).fetchone()
+    conn.close()
+    assert after == before
+    assert row_still_exists is not None and row_still_exists[0] == "deleted"
+
+
 # ── remix ────────────────────────────────────────────────────────────────────
 
 def test_remix_requires_auth(app_client):
@@ -379,6 +471,18 @@ def test_starting_a_remix_creates_a_pending_row_and_does_not_yet_increment_remix
     assert client.get(f"/api/clips/{clip_id}").json()["remix_count"] == 0
     remix = clips_mod.get_remix(db_path, body["remix_id"])
     assert remix["lyric_id"] == 555 and remix["remix_song_id"] is None
+    assert "remix_started" in _event_names(db_path, clip_id)
+
+
+def test_publishing_and_viewing_a_clip_log_their_own_events(app_client):
+    """Confirms item 4's clip_published / clip_viewed rows land server-side — the
+    endpoints that already call clips.log_event, checked at the DB row level rather
+    than just trusting the 200."""
+    client, db_mod, clips_mod, db_path, *_ , owner_token, viewer_token = app_client
+    clip_id = _publish(client, owner_token).json()["id"]
+    assert _event_names(db_path, clip_id) == ["clip_published"]
+    client.post(f"/api/clips/{clip_id}/view", headers=auth_hdr(viewer_token))
+    assert _event_names(db_path, clip_id) == ["clip_published", "clip_viewed"]
 
 
 def test_remixing_sends_the_theme_and_style_but_never_the_source_songs_raw_lyrics(app_client):
@@ -451,6 +555,36 @@ def test_uploaded_clip_media_is_served_with_cache_control_and_supports_range(app
 
 # ── webhook completion hook (source-inspection — see test_clips_db.py for the
 # actual linking logic; this only pins that all three provider webhooks call it) ──
+
+def test_maybe_complete_remix_two_variants_one_lyric_increments_remix_count_once(app_client):
+    """Exercises webhooks._maybe_complete_remix itself (the actual function every provider
+    webhook calls), not just clips.complete_remix_for_lyric in isolation — confirms the
+    DB_PATH lookup + clip_remixes linking wiring works end to end, and that calling it for
+    BOTH variants of a standard 2-variant generation only counts the remix once and logs
+    remix_completed exactly once (never per-variant)."""
+    client, db_mod, clips_mod, db_path, owner, viewer, owner_token, viewer_token = app_client
+    clip_id = _publish(client, owner_token).json()["id"]
+
+    import webhooks
+    with patch.object(webhooks, "DB_PATH", str(db_path)):
+        conn = sqlite3.connect(db_path)
+        conn.execute("INSERT INTO lyrics (id, user_id, brief, lyrics_text, title) VALUES "
+                     "(777, ?, '', 'x', 'Remix')", (viewer["id"],))
+        conn.execute("INSERT INTO song_variants (id, lyric_id, user_id, style_prompt, status, take_number) "
+                     "VALUES (301, 777, ?, 's', 'complete', 1)", (viewer["id"],))
+        conn.execute("INSERT INTO song_variants (id, lyric_id, user_id, style_prompt, status, take_number) "
+                     "VALUES (302, 777, ?, 's', 'complete', 2)", (viewer["id"],))
+        conn.commit(); conn.close()
+        remix_id = clips_mod.start_remix(db_path, original_clip_id=clip_id, original_song_id=1,
+                                         user_id=viewer["id"], lyric_id=777)
+
+        webhooks._maybe_complete_remix(301)
+        webhooks._maybe_complete_remix(302)  # second variant of the same generation — must be a no-op
+
+    assert clips_mod.get_remix(db_path, remix_id)["remix_song_id"] == 301
+    assert client.get(f"/api/clips/{clip_id}").json()["remix_count"] == 1
+    assert _event_names(db_path, clip_id).count("remix_completed") == 1
+
 
 def test_every_provider_webhook_completion_site_hooks_the_remix_completer():
     import inspect

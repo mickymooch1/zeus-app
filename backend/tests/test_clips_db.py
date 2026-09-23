@@ -247,6 +247,31 @@ def test_completing_a_remix_links_the_first_finished_variant_and_increments_remi
     assert clips.get_clip(path, clip_id)["remix_count"] == 1
 
 
+def test_completing_a_remix_logs_a_remix_completed_event_exactly_once(path):
+    """Pre-Phase-2 review item 4: clip_events must gain a remix_completed row when a remix
+    actually links — and, matching remix_count, exactly once per remix even though the
+    same lyric_id's second variant also reaches complete."""
+    add_user(path, "u1", "a@example.com"); add_user(path, "u2", "b@example.com")
+    add_song(path, 1, "u1")
+    clip_id = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    clips.start_remix(path, clip_id, 1, "u2", lyric_id=99)
+    conn = sqlite3.connect(path)
+    conn.execute("INSERT INTO song_variants (id, lyric_id, user_id, style_prompt, status, take_number) "
+                 "VALUES (201, 99, 'u2', 's', 'complete', 1)")
+    conn.execute("INSERT INTO song_variants (id, lyric_id, user_id, style_prompt, status, take_number) "
+                 "VALUES (202, 99, 'u2', 's', 'complete', 2)")
+    conn.commit(); conn.close()
+    clips.complete_remix_for_lyric(path, lyric_id=99, variant_id=201)
+    clips.complete_remix_for_lyric(path, lyric_id=99, variant_id=202)
+    conn = sqlite3.connect(path)
+    rows = conn.execute(
+        "SELECT user_id, clip_id, song_id FROM clip_events WHERE event_name = 'remix_completed'"
+    ).fetchall()
+    conn.close()
+    assert len(rows) == 1, "must log once per remix, not once per completed variant"
+    assert rows[0] == ("u2", clip_id, 201), "logs the remixer, the ORIGINAL clip, and the new song that resulted"
+
+
 def test_a_not_yet_complete_variant_is_rejected_even_if_it_is_the_only_candidate(path):
     add_user(path, "u1", "a@example.com"); add_user(path, "u2", "b@example.com")
     add_song(path, 1, "u1")
