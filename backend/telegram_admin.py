@@ -73,6 +73,9 @@ Just talk to me naturally, mate! Examples:
 <code>security scan</code> — run a security scan right now
 <code>block EMAIL</code> — hard-block an email: can't register, publish, upload, like, report or remix; existing clips auto-hidden
 <code>unblock EMAIL</code> — reverse a block, restore the clips it auto-hid
+<code>delete_user EMAIL</code> — dry run: lists every row that would be deleted, per table
+<code>delete_user EMAIL confirm</code> — actually deletes the account and every referencing row, in one transaction; refuses on any admin account
+<code>reset_clip_remixes CLIP_ID</code> — recounts remix_count from the real clip_remixes rows (not just zeroing it)
 <code>yes</code> / <code>no</code> — reply to a pending fix-it offer (30 min window)
 <code>help</code>"""
 
@@ -1882,6 +1885,104 @@ def _cmd_unblock_email(email: str) -> str:
     return f"✅ Unblocked <code>{_esc(canonical)}</code>. It can register/act normally again.{extra}"
 
 
+def _fmt_row_group(table: str, rows: list, max_rows_shown: int = 3) -> str:
+    """One line ('table: N row(s)') plus up to max_rows_shown short previews
+    (a row's first few fields only) — keeps the reply well under Telegram's
+    4096-char message limit even for a user with hundreds of rows in one
+    table. Used by both the dry-run preview and the post-delete report."""
+    lines = [f"• <b>{_esc(table)}</b>: {len(rows)} row(s)"]
+    for r in rows[:max_rows_shown]:
+        preview = {k: r[k] for k in list(r.keys())[:4]}
+        lines.append(f"   {_esc(str(preview))[:150]}")
+    if len(rows) > max_rows_shown:
+        lines.append(f"   … and {len(rows) - max_rows_shown} more")
+    return "\n".join(lines)
+
+
+def _cmd_preview_delete_user(email: str) -> str:
+    """delete_user EMAIL (no 'confirm') — dry run only, changes nothing.
+    Lists every row across every table db.discover_user_reference_tables
+    finds (plus the orphaned-child-table cascade), grouped and counted, so
+    an admin can see exactly what 'confirm' would remove before running it."""
+    import db as _db
+
+    db_path = _db.get_db_path()
+    try:
+        preview = _db.preview_user_deletion(db_path, email)
+    except _db.AdminAccountProtectedError as exc:
+        return f"❌ {_esc(str(exc))}"
+
+    if not preview["user"]:
+        return f"❓ No user found for <code>{_esc(email)}</code>"
+
+    u = preview["user"]
+    lines = [
+        "🔎 <b>DRY RUN</b> — nothing deleted yet.",
+        f"User: <code>{_esc(u['email'])}</code> (id <code>{_esc(u['id'])}</code>)",
+        "",
+    ]
+    all_tables = {**preview["rows"], **preview["orphans"]}
+    if not all_tables:
+        lines.append("No rows found in any referencing table — only the users row itself would be deleted.")
+    else:
+        for t in sorted(all_tables):
+            lines.append(_fmt_row_group(t, all_tables[t]))
+    lines.append("")
+    lines.append(f"To actually delete: <code>delete_user {_esc(u['email'])} confirm</code>")
+    return "\n".join(lines)[:3900]
+
+
+def _cmd_confirm_delete_user(email: str) -> str:
+    """delete_user EMAIL confirm — actually deletes, in one transaction (see
+    db.delete_user_account). Refuses outright for an is_admin account, or if
+    no such user exists — either way, no changes are made."""
+    import db as _db
+
+    db_path = _db.get_db_path()
+    try:
+        result = _db.delete_user_account(db_path, email)
+    except _db.AdminAccountProtectedError as exc:
+        return f"❌ {_esc(str(exc))}"
+    except ValueError as exc:
+        return f"❓ {_esc(str(exc))}"
+    except RuntimeError as exc:
+        log.error("delete_user confirm: %s", exc)
+        return f"❌ Cleanup did not verify as clean — rolled back, nothing was deleted. {_esc(str(exc))}"
+
+    log.info("delete_user confirm: deleted user_id=%s email=%s tables=%s",
+              result["user_id"], result["email"], result["deleted"])
+    lines = [f"✅ Deleted <code>{_esc(result['email'])}</code> (id <code>{_esc(result['user_id'])}</code>)"]
+    for t in sorted(result["deleted"]):
+        if t == "users":
+            continue
+        lines.append(f"• {_esc(t)}: {result['deleted'][t]} row(s)")
+    lines.append("• users: 1 row")
+    return "\n".join(lines)[:3900]
+
+
+def _cmd_recount_clip_remixes(clip_id_str: str) -> str:
+    """reset_clip_remixes CLIP_ID — recounts remix_count from the actual
+    clip_remixes rows (clips.recount_clip_remix_count), rather than just
+    zeroing it, so it's correct regardless of how many real remixes the clip
+    has ever had."""
+    import clips as _clips_mod
+    import db as _db
+
+    try:
+        clip_id = int(str(clip_id_str).strip())
+    except (TypeError, ValueError):
+        return f"❌ '{_esc(str(clip_id_str)[:60])}' is not a valid clip id"
+
+    try:
+        result = _clips_mod.recount_clip_remix_count(_db.get_db_path(), clip_id)
+    except ValueError as exc:
+        return f"❓ {_esc(str(exc))}"
+
+    if result["old_count"] == result["new_count"]:
+        return f"ℹ️ clip {clip_id}.remix_count was already correct: {result['new_count']}"
+    return f"✅ clip {clip_id}.remix_count: {result['old_count']} → {result['new_count']}"
+
+
 def _cmd_security_events(ip: str) -> str:
     """What one flagged IP was doing — replaces hand-written SQL against security_events.
 
@@ -2829,6 +2930,42 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
         result = _cmd_unblock_ip(m.group(1))
         if chat_id and result.startswith("✅"):
             _db_log_action(chat_id, "unblock_ip", f"Unblocked IP {m.group(1)}")
+        return result
+
+    # delete_user EMAIL [confirm] — account-deletion cleanup tool (built
+    # 2026-09-23 for the Zeus Clips remix QA test cleanup, made reusable).
+    # The "confirm" variant is checked first, but order doesn't actually
+    # matter: the bare variant's regex is anchored with $ right after the
+    # email, so "... confirm" can never match it (same reasoning as
+    # block/unblock EMAIL vs IP above). Unlike block/unblock, EVERY run is
+    # logged here — including a refused/failed confirm — since an audit
+    # trail of blocked destructive attempts matters as much as successes do.
+    m = re.match(r'^(?:porick\s+)?delete_user\s+(\S+@\S+)\s+confirm$', t, re.IGNORECASE)
+    if m:
+        email = m.group(1)
+        result = _cmd_confirm_delete_user(email)
+        outcome = "succeeded" if result.startswith("✅") else "refused/failed"
+        if chat_id:
+            _db_log_action(chat_id, "delete_user", f"delete_user {email} confirm — {outcome}: {result[:200]}")
+        return result
+
+    m = re.match(r'^(?:porick\s+)?delete_user\s+(\S+@\S+)$', t, re.IGNORECASE)
+    if m:
+        email = m.group(1)
+        result = _cmd_preview_delete_user(email)
+        if chat_id:
+            _db_log_action(chat_id, "delete_user_preview", f"Dry-run preview for {email}")
+        return result
+
+    # reset_clip_remixes CLIP_ID — recounts remix_count from the real
+    # clip_remixes rows (never just zeroes it). Same precision-command
+    # convention as everything else in this block.
+    m = re.match(r'^(?:porick\s+)?reset_clip_remixes\s+(\S+)$', t, re.IGNORECASE)
+    if m:
+        clip_id_str = m.group(1)
+        result = _cmd_recount_clip_remixes(clip_id_str)
+        if chat_id and result.startswith("✅"):
+            _db_log_action(chat_id, "reset_clip_remixes", f"Recounted clip {clip_id_str} remix_count")
         return result
 
     # yes / no — reply to a pending incident-action offer (see

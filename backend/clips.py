@@ -294,6 +294,32 @@ def complete_remix_for_lyric(db_path: pathlib.Path, lyric_id: int, variant_id: i
         conn.close()
 
 
+def recount_clip_remix_count(db_path: pathlib.Path, clip_id: int) -> dict:
+    """Porick's 'reset_clip_remixes CLIP_ID' — RECOUNTS remix_count from the
+    actual clip_remixes rows rather than just zeroing it, so it's correct
+    regardless of how many real remixes the clip has ever had. Uses the same
+    condition complete_remix_for_lyric itself checks before incrementing
+    (remix_song_id IS NOT NULL, i.e. genuinely completed) — a merely-started/
+    still-pending remix is never counted, matching normal behaviour exactly.
+    Returns {"clip_id", "old_count", "new_count"}. Raises ValueError if no
+    such clip."""
+    conn = db._conn(db_path)
+    try:
+        row = conn.execute("SELECT remix_count FROM clips WHERE id = ?", (clip_id,)).fetchone()
+        if row is None:
+            raise ValueError(f"no clip {clip_id}")
+        old_count = row["remix_count"]
+        real_count = conn.execute(
+            "SELECT COUNT(*) FROM clip_remixes WHERE original_clip_id = ? AND remix_song_id IS NOT NULL",
+            (clip_id,),
+        ).fetchone()[0]
+        conn.execute("UPDATE clips SET remix_count = ? WHERE id = ?", (real_count, clip_id))
+        conn.commit()
+        return {"clip_id": clip_id, "old_count": old_count, "new_count": real_count}
+    finally:
+        conn.close()
+
+
 def get_remix_prefill(db_path: pathlib.Path, clip_id: int) -> dict:
     """What the prefilled create-flow needs to remix this clip: SANITIZED style descriptors
     and a short theme — never the source song's lyrics_text (see the build brief's explicit
