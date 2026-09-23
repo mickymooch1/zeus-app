@@ -196,10 +196,22 @@ export default function ClipPage() {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 100%)' }} />
       )}
 
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.3) 50%, transparent 75%)', pointerEvents: 'none' }} />
+      {/* Scrims (2026-09-23 readability fix): dim only the header strip and the
+          caption/stats/Remix-button strip, leaving the middle of the image
+          untouched — see ClipsFeedPage.jsx's ClipSlide for the same pattern. */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: '20%',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '45%',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
 
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20 }}>
-        <Link to="/" style={{ color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800, textShadow: `0 0 16px ${CYAN}88` }}>⚡ Zeus Beats</Link>
+        <Link to="/" style={{ color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800, textShadow: `0 1px 4px rgba(0,0,0,0.9), 0 0 16px ${CYAN}88` }}>⚡ Zeus Beats</Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link to="/clips" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>← All clips</Link>
           <ClipMoreMenu clipId={clipId} token={token} onRequireAuth={() => navigate('/register')} />
@@ -223,7 +235,7 @@ export default function ClipPage() {
           @{(clip.artist_name || 'zeusbeats').replace(/\s+/g, '').toLowerCase()}
         </p>
         {clip.caption && (
-          <p style={{ margin: '0 0 14px', fontSize: 14, color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>{clip.caption}</p>
+          <p style={{ margin: '0 0 14px', fontSize: 14, color: 'rgba(255,255,255,0.8)', lineHeight: 1.5, textShadow: '0 1px 4px rgba(0,0,0,0.85)' }}>{clip.caption}</p>
         )}
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18 }}>

@@ -76,9 +76,19 @@ const ClipSlide = memo(function ClipSlide({
         style={{ display: 'none' }}
       />
 
+      {/* Scrims (2026-09-23 readability fix): the image plays at full brightness
+          (see above) — these dim only the header/tabs strip and the caption/
+          stats/Remix-button strip that sit on top of it, leaving the middle of
+          the frame untouched. Two separate gradients rather than one long one,
+          so neither reaches into the middle. */}
       <div style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.3) 45%, transparent 70%)',
+        position: 'absolute', top: 0, left: 0, right: 0, height: '20%',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '45%',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)',
         pointerEvents: 'none',
       }} />
 
@@ -112,6 +122,7 @@ const ClipSlide = memo(function ClipSlide({
           <p style={{
             margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.4,
             WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            textShadow: '0 1px 4px rgba(0,0,0,0.85)',
           }}>
             {caption}
           </p>
@@ -154,7 +165,14 @@ function ClipActionBtn({ onClick, icon, label, active, activeColor }) {
       }}>
         {icon}
       </div>
-      {label && <span style={{ color: active ? activeColor : 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600 }}>{label}</span>}
+      {label && (
+        <span style={{
+          color: active ? activeColor : 'rgba(255,255,255,0.92)', fontSize: 11, fontWeight: 700,
+          textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 1px 5px rgba(0,0,0,0.8)',
+        }}>
+          {label}
+        </span>
+      )}
     </Tag>
   );
 }
@@ -364,7 +382,7 @@ export default function ClipsFeedPage() {
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%)',
         pointerEvents: 'none',
       }}>
-        <Link to="/" style={{ color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800, pointerEvents: 'auto', textShadow: `0 0 16px ${CYAN}88` }}>
+        <Link to="/" style={{ color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800, pointerEvents: 'auto', textShadow: `0 1px 4px rgba(0,0,0,0.9), 0 0 16px ${CYAN}88` }}>
           ⚡ Zeus Beats
         </Link>
         <button
@@ -396,6 +414,7 @@ export default function ClipsFeedPage() {
                 ? `linear-gradient(90deg, ${CYAN}, ${PURPLE})`
                 : 'rgba(10,10,20,0.55)',
               color: sort === s ? '#000' : 'rgba(255,255,255,0.65)',
+              textShadow: sort === s ? 'none' : '0 1px 3px rgba(0,0,0,0.8)',
               backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
               boxShadow: sort === s ? `0 0 18px ${CYAN}55` : 'none',
             }}

@@ -246,7 +246,18 @@ export default function ClipCreatorPage() {
               </div>
             )}
 
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 35%)', pointerEvents: 'none' }} />
+            {/* Scrims matching the real feed/clip page treatment (ClipsFeedPage.jsx's
+                ClipSlide) — top strip and bottom strip only, middle untouched. */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, height: '20%',
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)',
+              pointerEvents: 'none',
+            }} />
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0, height: '45%',
+              background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)',
+              pointerEvents: 'none',
+            }} />
 
             <button
               onClick={previewPlaying ? pausePreview : playPreview}
