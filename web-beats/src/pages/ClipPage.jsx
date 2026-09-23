@@ -177,25 +177,26 @@ export default function ClipPage() {
     <div style={{ background: '#000', height: '100svh', width: '100vw', overflow: 'hidden', position: 'relative' }}>
       <audio ref={audioRef} src={clip.mp3_url} onEnded={() => setPlaying(false)} />
 
+      {/* The clip's own media fills the frame at full brightness, per the
+          approved mockups — only the bottom gradient below dims for text. */}
       {clip.media_type === 'video' ? (
         <video
           src={visualUrl}
           autoPlay muted loop playsInline
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.5)' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />
       ) : visualUrl ? (
         <img
           src={visualUrl}
           alt={clip.song_title}
           className="cover-ken-burns"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.4)' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />
       ) : (
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 100%)' }} />
       )}
 
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.5) 100%)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 3, background: `linear-gradient(to bottom, transparent, ${CYAN}, transparent)`, opacity: 0.7, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.3) 50%, transparent 75%)', pointerEvents: 'none' }} />
 
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20 }}>
         <Link to="/" style={{ color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800, textShadow: `0 0 16px ${CYAN}88` }}>⚡ Zeus Beats</Link>
@@ -246,6 +247,13 @@ export default function ClipPage() {
           >
             ❤️ {likeCount > 0 ? likeCount : 'Like'}
           </button>
+          <div style={{
+            padding: '13px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.2)',
+            background: 'rgba(10,10,20,0.55)', color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: 700,
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', flexShrink: 0,
+          }}>
+            🔁 {clip.remix_count}
+          </div>
           <button
             onClick={handleCopy}
             style={{
@@ -260,7 +268,7 @@ export default function ClipPage() {
 
         {/* ── "⚡ Remix This Sound" — the most prominent button on the page, same
              pill/waveform style as the feed (RemixButton.jsx) ── */}
-        <RemixButton onClick={handleRemix} count={clip.remix_count} />
+        <RemixButton onClick={handleRemix} />
       </div>
     </div>
   );

@@ -41,21 +41,25 @@ const ClipSlide = memo(function ClipSlide({
         scrollSnapAlign: 'start', overflow: 'hidden', background: '#0a0a14', flexShrink: 0,
       }}
     >
-      {/* Visual background */}
+      {/* Visual background — the clip's own media (or the song's cover) fills the
+          frame at full brightness, per the approved mockups; only the bottom
+          gradient below dims for text legibility. The flat gradient is a
+          genuine fallback (no image/video at all), never a stand-in for a
+          slow-loading one. */}
       {media_type === 'video' ? (
         <video
           ref={onVideoRef}
           src={visualUrl}
           autoPlay muted loop playsInline
           className="clip-video"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.55)' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />
       ) : visualUrl ? (
         <img
           src={visualUrl}
           alt=""
           className="cover-ken-burns"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.45)' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />
       ) : (
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 100%)' }} />
@@ -77,18 +81,14 @@ const ClipSlide = memo(function ClipSlide({
         background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.3) 45%, transparent 70%)',
         pointerEvents: 'none',
       }} />
-      <div style={{
-        position: 'absolute', top: 0, bottom: 0, left: 0, width: 3,
-        background: `linear-gradient(to bottom, transparent, ${CYAN}, transparent)`,
-        opacity: 0.6, pointerEvents: 'none',
-      }} />
 
       {/* Right-side action column — like, share, report (⋯) */}
       <div style={{
         position: 'absolute', bottom: 210, right: 14, zIndex: 10,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
       }}>
-        <ClipActionBtn onClick={onLike} icon="❤️" label={likeCount > 0 ? String(likeCount) : ''} active={isLiked} activeColor={PURPLE} />
+        <ClipActionBtn onClick={onLike} icon="❤️" label={String(likeCount)} active={isLiked} activeColor={PURPLE} />
+        <ClipActionBtn icon="🔁" label={String(remix_count)} />
         <ClipActionBtn onClick={onShare} icon={isCopied ? '✓' : '🔗'} label={isCopied ? 'Copied' : 'Share'} active={isCopied} activeColor={CYAN} />
         <ClipMoreMenu clipId={clip.id} token={token} onRequireAuth={onRequireAuth} />
       </div>
@@ -125,18 +125,22 @@ const ClipSlide = memo(function ClipSlide({
 
       {/* ── "⚡ Remix This Sound" — the most prominent button on the page ── */}
       <div style={{ position: 'absolute', bottom: 24, left: 16, right: 16, zIndex: 10 }}>
-        <RemixButton onClick={onRemix} count={remix_count} />
+        <RemixButton onClick={onRemix} />
       </div>
     </div>
   );
 });
 
+// onClick omitted renders a plain (non-interactive) stat — used for the remix
+// count, which has nothing to do when tapped here (remixing lives on its own
+// big button below, not in this column).
 function ClipActionBtn({ onClick, icon, label, active, activeColor }) {
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <button
+    <Tag
       onClick={onClick}
       style={{
-        background: 'none', border: 'none', cursor: 'pointer',
+        background: 'none', border: 'none', cursor: onClick ? 'pointer' : 'default',
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: 0,
       }}
     >
@@ -151,7 +155,7 @@ function ClipActionBtn({ onClick, icon, label, active, activeColor }) {
         {icon}
       </div>
       {label && <span style={{ color: active ? activeColor : 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600 }}>{label}</span>}
-    </button>
+    </Tag>
   );
 }
 

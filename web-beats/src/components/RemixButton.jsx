@@ -24,7 +24,11 @@ function WaveformIcon({ size = 16 }) {
   );
 }
 
-export default function RemixButton({ onClick, count, size = 'large', label, disabled, style }) {
+// Deliberately never carries a count in its own label — the remix count is its
+// own dedicated stat next to like/share (feed: the right-side action column;
+// clip page: the pill row above this button), so this stays a clean, constant
+// call to action.
+export default function RemixButton({ onClick, size = 'large', label, disabled, style }) {
   const large = size === 'large';
   return (
     <button
@@ -49,7 +53,7 @@ export default function RemixButton({ onClick, count, size = 'large', label, dis
       }}
     >
       <WaveformIcon size={large ? 16 : 13} />
-      <span>{label || `⚡ Remix This Sound${count > 0 ? ` · ${count}` : ''}`}</span>
+      <span>{label || '⚡ Remix This Sound'}</span>
     </button>
   );
 }

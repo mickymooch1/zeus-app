@@ -1,12 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 import { readUtmAttribution } from '../utils/utmAttribution';
+import { clipSeekTarget, clipInitialTime } from '../utils/clipPlayback';
 
 const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
 const DURATIONS = [15, 30];
+const FALLBACK_SONG_LENGTH = 240; // used only if duration_seconds is somehow missing
+
+function formatTime(seconds) {
+  const s = Math.max(0, Math.round(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
 
 /**
  * Publish a clip from one of the user's own finished songs (build brief Phase 2).
@@ -36,6 +43,9 @@ export default function ClipCreatorPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]           = useState('');
 
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+  const audioRef = useRef(null);
+
   // Fallback: state is missing (e.g. a refresh) — re-find the song from the
   // library rather than inventing a new single-song endpoint for this one case.
   useEffect(() => {
@@ -51,7 +61,44 @@ export default function ClipCreatorPage() {
       .finally(() => setLoadingSong(false));
   }, [song, songId, token]);
 
-  const maxStart = song?.duration_seconds ? Math.max(0, song.duration_seconds - duration) : null;
+  const songLength = song?.duration_seconds || FALLBACK_SONG_LENGTH;
+  const maxStart = Math.max(0, songLength - duration);
+
+  // A duration change (15s <-> 30s) can push the current window past the end
+  // of the song — pull it back in rather than letting it silently overflow.
+  useEffect(() => {
+    setStartTime(s => Math.min(s, maxStart));
+  }, [maxStart]);
+
+  // Clamp playback to the selected window — the SAME clamp used on every clip
+  // playback surface (feed, clip page), so "what you preview here" and "what
+  // plays once published" can never drift apart.
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return undefined;
+    const onTime = () => {
+      const target = clipSeekTarget(a.currentTime, startTime, duration);
+      if (target !== null) a.currentTime = target;
+    };
+    const onEnded = () => { a.currentTime = startTime; a.play().catch(() => {}); };
+    a.addEventListener('timeupdate', onTime);
+    a.addEventListener('ended', onEnded);
+    return () => {
+      a.removeEventListener('timeupdate', onTime);
+      a.removeEventListener('ended', onEnded);
+    };
+  }, [startTime, duration]);
+
+  const playPreview = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    a.currentTime = clipInitialTime(startTime, duration);
+    a.play().then(() => setPreviewPlaying(true)).catch(() => {});
+  };
+  const pausePreview = () => {
+    audioRef.current?.pause();
+    setPreviewPlaying(false);
+  };
 
   const handleFileChange = async (e) => {
     const f = e.target.files?.[0];
@@ -143,6 +190,10 @@ export default function ClipCreatorPage() {
     color: active ? '#000' : 'rgba(255,255,255,0.65)',
   });
 
+  const previewVisualUrl = mediaType === 'cover' ? song.image_url : uploadedUrl;
+  const windowPct = (maxStart > 0 ? startTime / maxStart : 0) * 100;
+  const windowWidthPct = Math.min(100, (duration / songLength) * 100);
+
   return (
     <div style={{ background: '#0a0a14', minHeight: '100svh', color: '#fff', padding: '32px 20px 60px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <Link to="/songs" style={{ color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800, marginBottom: 24, textShadow: `0 0 16px ${CYAN}88` }}>
@@ -158,22 +209,75 @@ export default function ClipCreatorPage() {
         <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 19, fontWeight: 800, margin: '0 0 4px' }}>
           🎬 Create a clip
         </h1>
-        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: '0 0 22px' }}>
+        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: '0 0 20px' }}>
           from &ldquo;{song.title || 'Untitled'}&rdquo;
         </p>
+
+        <audio ref={audioRef} src={song.mp3_url} onEnded={() => setPreviewPlaying(false)} />
+
+        {/* ── Live preview — the chosen visual in a vertical (9:16) frame, with a
+             play button that plays the currently selected segment. ── */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
+          <div style={{
+            position: 'relative', width: 168, aspectRatio: '9 / 16', borderRadius: 16,
+            overflow: 'hidden', background: '#000', border: `1px solid ${CYAN}44`,
+            boxShadow: `0 0 20px ${CYAN}22`, flexShrink: 0,
+          }}>
+            {mediaType === 'video' && previewVisualUrl ? (
+              <video
+                src={`${BACKEND_URL}${previewVisualUrl}`}
+                muted loop playsInline autoPlay
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : previewVisualUrl ? (
+              <img
+                src={mediaType === 'cover' ? previewVisualUrl : `${BACKEND_URL}${previewVisualUrl}`}
+                alt=""
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <div style={{
+                position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                textAlign: 'center', padding: 16, background: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 100%)',
+              }}>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, lineHeight: 1.5 }}>
+                  Upload a {mediaType} to preview it here
+                </span>
+              </div>
+            )}
+
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 35%)', pointerEvents: 'none' }} />
+
+            <button
+              onClick={previewPlaying ? pausePreview : playPreview}
+              aria-label={previewPlaying ? 'Pause preview' : 'Play preview'}
+              style={{
+                position: 'absolute', bottom: 10, right: 10, width: 40, height: 40, borderRadius: '50%',
+                background: previewPlaying ? `${CYAN}33` : 'rgba(0,0,0,0.6)', border: `1.5px solid ${CYAN}`,
+                color: CYAN, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: `0 0 14px ${CYAN}55`,
+              }}
+            >
+              {previewPlaying ? '⏸' : '▶'}
+            </button>
+          </div>
+        </div>
 
         {/* Media type */}
         <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 8px' }}>
           Visual
         </p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          {[['cover', '🖼️ Song cover'], ['image', '📷 Upload photo'], ['video', '🎥 Upload video']].map(([v, label]) => (
+          {[['cover', '🖼️', 'Cover'], ['image', '📷', 'Photo'], ['video', '🎥', 'Video']].map(([v, icon, label]) => (
             <button
               key={v}
               onClick={() => { setMediaType(v); setUploadedUrl(null); setUploadError(''); }}
-              style={{ ...pill(mediaType === v), flex: 1, fontSize: 12, padding: '9px 8px' }}
+              style={{
+                ...pill(mediaType === v), flex: 1, fontSize: 13, padding: '10px 4px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, whiteSpace: 'nowrap',
+              }}
             >
-              {label}
+              <span style={{ fontSize: 14 }}>{icon}</span>{label}
             </button>
           ))}
         </div>
@@ -202,22 +306,41 @@ export default function ClipCreatorPage() {
           ))}
         </div>
 
-        {/* Start time */}
-        <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 8px' }}>
-          Starts at (seconds into the song)
-        </p>
-        <input
-          type="number"
-          min={0}
-          max={maxStart ?? undefined}
-          value={startTime}
-          onChange={e => setStartTime(Math.max(0, Number(e.target.value) || 0))}
-          style={{
-            width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 10,
-            border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)',
-            color: '#fff', fontSize: 14, marginBottom: 18,
-          }}
-        />
+        {/* Start time — a scrubber across the whole song, not a raw number.
+            Releasing it plays the newly selected segment. */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
+            Starts at
+          </p>
+          <p style={{ fontSize: 12, color: CYAN, fontWeight: 700, margin: 0, fontFamily: 'monospace' }}>
+            {formatTime(startTime)}–{formatTime(startTime + duration)} <span style={{ color: 'rgba(255,255,255,0.35)' }}>of {formatTime(songLength)}</span>
+          </p>
+        </div>
+        <div style={{ position: 'relative', height: 28, marginBottom: 18, display: 'flex', alignItems: 'center' }}>
+          {/* Track + selected-window highlight, drawn behind the native range thumb */}
+          <div style={{ position: 'absolute', left: 0, right: 0, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.12)' }} />
+          <div style={{
+            position: 'absolute', height: 4, borderRadius: 2,
+            background: `linear-gradient(90deg, ${CYAN}, ${PURPLE})`,
+            left: `${windowPct}%`, width: `${windowWidthPct}%`,
+          }} />
+          <input
+            type="range"
+            min={0}
+            max={maxStart}
+            step={1}
+            value={startTime}
+            onChange={e => setStartTime(Number(e.target.value))}
+            onMouseUp={playPreview}
+            onTouchEnd={playPreview}
+            onKeyUp={playPreview}
+            aria-label="Clip start time"
+            style={{
+              position: 'relative', width: '100%', margin: 0, accentColor: CYAN, cursor: 'pointer',
+              background: 'transparent',
+            }}
+          />
+        </div>
 
         {/* Caption */}
         <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 8px' }}>
