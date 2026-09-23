@@ -561,6 +561,124 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 details  TEXT
             )""",
             "CREATE INDEX IF NOT EXISTS idx_security_scans_kind_ts ON security_scans (kind, ts)",
+            # Zeus Clips MVP (2026-09-23) — see clips.py and
+            # docs/superpowers/specs/2026-09-23-zeus-clips-mvp-design.md. A clip is a
+            # song reference + a time window + a visual; no server-side video
+            # rendering. media_url is NULL for media_type='cover' (uses the source
+            # song's own cover). status follows the same published/hidden/deleted
+            # convention as song_variants' is_public, kept as a 3-state column rather
+            # than a bool so "hidden by report" and "deleted by owner" stay distinct
+            # for moderation history.
+            """CREATE TABLE IF NOT EXISTS clips (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id          TEXT NOT NULL,
+                song_id          INTEGER NOT NULL,
+                caption          TEXT NOT NULL DEFAULT '',
+                media_type       TEXT NOT NULL,
+                media_url        TEXT,
+                clip_start_time  REAL NOT NULL,
+                clip_duration    INTEGER NOT NULL,
+                status           TEXT NOT NULL DEFAULT 'published',
+                view_count       INTEGER NOT NULL DEFAULT 0,
+                like_count       INTEGER NOT NULL DEFAULT 0,
+                remix_count      INTEGER NOT NULL DEFAULT 0,
+                created_at       TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (song_id) REFERENCES song_variants(id)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clips_status_created ON clips (status, created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_clips_user ON clips (user_id)",
+            """CREATE TABLE IF NOT EXISTS clip_likes (
+                clip_id    INTEGER NOT NULL,
+                user_id    TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (clip_id, user_id)
+            )""",
+            # original_song_id is denormalised from clips.song_id (rather than joined every read)
+            # because a remix analytics query outlives the clip if the clip is later deleted.
+            # lyric_id is the shared lyric row the standard 2-variant generation produces under
+            # (see songs_generate) — completion looks up "the first variant under this lyric_id
+            # to finish", never a variant id chosen at start time, since neither of the two exists yet.
+            """CREATE TABLE IF NOT EXISTS clip_remixes (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                original_clip_id  INTEGER NOT NULL,
+                original_song_id  INTEGER NOT NULL,
+                lyric_id          INTEGER,
+                remix_song_id     INTEGER,
+                user_id           TEXT NOT NULL,
+                created_at        TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clip_remixes_lyric ON clip_remixes (lyric_id)",
+            "CREATE INDEX IF NOT EXISTS idx_clip_remixes_clip ON clip_remixes (original_clip_id)",
+            """CREATE TABLE IF NOT EXISTS clip_reports (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                clip_id     INTEGER NOT NULL,
+                reporter_id TEXT NOT NULL,
+                reason      TEXT NOT NULL,
+                created_at  TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clip_reports_clip ON clip_reports (clip_id)",
+            # No existing generic analytics/event table in this codebase (song_play_events is
+            # play-specific) — this is the new one Phase 4's admin queries read from.
+            """CREATE TABLE IF NOT EXISTS clip_events (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_name TEXT NOT NULL,
+                user_id    TEXT,
+                anon_id    TEXT,
+                clip_id    INTEGER,
+                song_id    INTEGER,
+                created_at TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clip_events_name_created ON clip_events (event_name, created_at)",
+            # Views: once per user (or anon session) per clip per 24h (approved decision #5).
+            # A separate log table, not a UNIQUE constraint on clip_events, since the same
+            # (clip,user) pair legitimately re-views after the 24h window — the dedup key here is
+            # "most recent view", which a straight UNIQUE would prevent ever updating.
+            """CREATE TABLE IF NOT EXISTS clip_views (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                clip_id    INTEGER NOT NULL,
+                user_id    TEXT,
+                anon_id    TEXT,
+                created_at TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clip_views_dedup ON clip_views (clip_id, user_id, anon_id, created_at)",
+            # Upload hardening review (2026-09-23) — see clip_uploads.py's
+            # record_upload/count_recent_uploads/mark_upload_attached/
+            # sweep_orphaned_uploads. Tracks every accepted upload-media call (not
+            # just ones that end up published) so a per-user rate limit (20/24h)
+            # can be enforced, and so an hourly sweep can delete files that were
+            # uploaded but never attached to a published clip within 24h.
+            # attached_clip_id stays NULL until POST /api/clips actually publishes
+            # a clip using that upload's media_url.
+            """CREATE TABLE IF NOT EXISTS clip_media_uploads (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id           TEXT NOT NULL,
+                filename          TEXT NOT NULL,
+                media_type        TEXT NOT NULL,
+                bytes             INTEGER NOT NULL,
+                created_at        TEXT NOT NULL,
+                attached_clip_id  INTEGER
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clip_media_uploads_user_created ON clip_media_uploads (user_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_clip_media_uploads_filename ON clip_media_uploads (filename)",
+            # UTM attribution (2026-09-23). First-touch: utils/utmAttribution.js on the
+            # frontend captures utm_source/medium/campaign from the URL on first landing
+            # and never overwrites an existing capture, so whatever reaches here — a
+            # clip_events row (per-event, may be anonymous) or a users row (once, at
+            # signup) — is genuinely the visitor's FIRST touch, not their latest one.
+            "ALTER TABLE clip_events ADD COLUMN utm_source TEXT",
+            "ALTER TABLE clip_events ADD COLUMN utm_medium TEXT",
+            "ALTER TABLE clip_events ADD COLUMN utm_campaign TEXT",
+            "ALTER TABLE users ADD COLUMN utm_source TEXT",
+            "ALTER TABLE users ADD COLUMN utm_medium TEXT",
+            "ALTER TABLE users ADD COLUMN utm_campaign TEXT",
+            # Block-user hardening (2026-09-23): distinguishes a clip auto-hidden
+            # because its owner's account was blocked ('blocked_user') from one an
+            # admin hid for its own reason ('admin_moderation', via the moderation
+            # UI). Unblocking an account must restore ONLY the former — a clip an
+            # admin separately moderated must stay hidden even if that same user
+            # later gets unblocked. NULL for a published (or owner-deleted) clip.
+            "ALTER TABLE clips ADD COLUMN hidden_reason TEXT",
         ]:
             try:
                 conn.execute(_migration)
@@ -749,6 +867,22 @@ def add_to_blocklist(db_path: pathlib.Path, signal_type: str, signal_value: str,
         conn.close()
 
 
+def remove_from_blocklist(db_path: pathlib.Path, signal_type: str, signal_value: str) -> bool:
+    """Reverses add_to_blocklist. Returns True if a row was actually removed,
+    False if this (type, value) pair wasn't listed — lets a caller distinguish
+    "unblocked" from "wasn't blocked" without a separate lookup."""
+    conn = _conn(db_path)
+    try:
+        cur = conn.execute(
+            "DELETE FROM abuse_blocklist WHERE signal_type = ? AND signal_value = ?",
+            (signal_type, signal_value),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def count_device_signups(db_path: pathlib.Path, fp_hash: str) -> int:
     """How many accounts have been created from this device fingerprint.
 
@@ -849,8 +983,16 @@ def create_user(
     password_hash: str,
     name: str,
     tc_accepted_at: str,
+    utm_source: str | None = None,
+    utm_medium: str | None = None,
+    utm_campaign: str | None = None,
 ) -> dict:
-    """Insert a new user and return the user dict."""
+    """Insert a new user and return the user dict.
+
+    utm_* (2026-09-23): the frontend's first-touch attribution — see
+    utils/utmAttribution.js — written once here, at signup, and never touched
+    again. Optional/keyword-only so every existing call site keeps working
+    unchanged."""
     import signup_guard
     now = datetime.now(timezone.utc).isoformat()
     user_id = str(uuid.uuid4())
@@ -864,11 +1006,12 @@ def create_user(
             """
             INSERT INTO users (id, email, email_canonical, password_hash, name,
                                subscription_status, tc_accepted_at, created_at, updated_at,
-                               last_seen_announcement_id)
-            VALUES (?, ?, ?, ?, ?, 'free', ?, ?, ?, ?)
+                               last_seen_announcement_id, utm_source, utm_medium, utm_campaign)
+            VALUES (?, ?, ?, ?, ?, 'free', ?, ?, ?, ?, ?, ?, ?)
             """,
             (user_id, email.lower().strip(), signup_guard.normalize_email(email),
-             password_hash, name, tc_accepted_at, now, now, last_seen_announcement_id),
+             password_hash, name, tc_accepted_at, now, now, last_seen_announcement_id,
+             utm_source, utm_medium, utm_campaign),
         )
         conn.commit()
         return get_user_by_id(db_path, user_id)

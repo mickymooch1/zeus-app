@@ -1,5 +1,5 @@
 ﻿import { memo, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
@@ -27,6 +27,7 @@ import {
   readRoastDraft, clearRoastDraft,
   savePostVerifyDraft, readPostVerifyDraft, clearPostVerifyDraft,
 } from '../utils/roastDraft';
+import { readRemixIntent } from '../utils/remixIntent';
 
 // Set once the post-first-song name prompt has been answered OR skipped, so a
 // user who isn't interested is never asked twice.
@@ -386,6 +387,7 @@ export default function SongsPage() {
   const { playOne } = useNowPlaying();
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const topupSuccess = new URLSearchParams(location.search).get('topup') === 'success';
 
   const [credits, setCredits]           = useState({ balance: 0, monthly_allowance: 0, is_admin: false, plan: null, has_paid: false, youtube_connected: false, video_credits: 0, video_monthly_allowance: 0, artist_name: '', premium_credits: 0, premium_monthly_allowance: 0 });
@@ -592,6 +594,20 @@ export default function SongsPage() {
     clearPostVerifyDraft();
     setRoastRestoreScroll(true);
   }, []);
+
+  // Zeus Clips remix hand-off (2026-09-23): a "⚡ Remix This Sound" click while
+  // logged out saves the clip id two ways — see utils/remixIntent.js for why both
+  // are needed. `?remix=` on THIS page's own URL covers a same-tab register/login
+  // redirect; the localStorage fallback covers email verification, which opens a
+  // brand new tab with no query param of ours on it. Whichever is present, this
+  // is a plain redirect to the actual remix flow — no clip logic belongs on
+  // SongsPage itself, so the intent is left in localStorage for
+  // ClipRemixPage to clear once it has the id from the URL.
+  useEffect(() => {
+    const fromUrl = Number(new URLSearchParams(location.search).get('remix'));
+    const clipId = fromUrl > 0 ? fromUrl : readRemixIntent()?.clipId;
+    if (clipId) navigate(`/clips/${clipId}/remix`, { replace: true });
+  }, [location.search, navigate]);
 
   useEffect(() => {
     if (roastRestoreScroll && isRoastMode && roastSectionRef.current) {

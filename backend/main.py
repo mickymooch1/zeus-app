@@ -637,9 +637,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Bot guard (2026-09-21): added AFTER CORS so it is the OUTERMOST layer — a blocked
-# IP is refused before any other processing. Ships in shadow mode: it detects,
-# records and alerts, but only returns 403 once SECURITY_ENFORCE=1. Fails open.
+
+class _MaxUploadSizeMiddleware:
+    """Zeus Clips upload hardening (2026-09-23). Rejects a request to a capped
+    path via its Content-Length header BEFORE Starlette reads any of the body —
+    the only point at which "before consuming the upload" is actually true,
+    since a File()/UploadFile parameter's body is fully parsed by Starlette
+    (via python-multipart) before the endpoint function runs at all, regardless
+    of how the endpoint itself then reads it.
+
+    Only catches an HONEST declared size — a client that omits Content-Length or
+    lies about it isn't caught here. clip_uploads.read_upload_capped is the
+    companion that bounds memory for that case, by aborting mid-chunked-read
+    instead of trusting a bare `await file.read()` to stop on its own.
+
+    Scoped to a single path (upload-media is the only multipart endpoint with a
+    file this large; everything else already has its own tighter limits — see
+    e.g. _PHOTO_MAX_BYTES) rather than applied globally, so it can't surprise an
+    unrelated route with a size assumption that was never true for it.
+
+    Registered BEFORE bot guard below, so bot guard stays the OUTERMOST layer —
+    see test_bot_guard_wiring.py's own "must wrap CORS and everything else"
+    assertion, which this order satisfies."""
+    def __init__(self, app, path: str, max_bytes: int):
+        self.app = app
+        self.path = path
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope.get("path") == self.path:
+            headers = dict(scope.get("headers") or [])
+            content_length = headers.get(b"content-length")
+            if content_length is not None:
+                try:
+                    declared = int(content_length)
+                except ValueError:
+                    declared = None
+                if declared is not None and declared > self.max_bytes:
+                    response = JSONResponse(
+                        {"detail": f"Upload exceeds the {self.max_bytes // (1024 * 1024)}MB limit"},
+                        status_code=413,
+                    )
+                    await response(scope, receive, send)
+                    return
+        await self.app(scope, receive, send)
+
+
+# 52MB ceiling: the larger of the two per-type limits (video, 50MB) plus a small
+# margin for multipart boundaries/headers/the media_type form field — the exact
+# 10MB-image-vs-50MB-video split is enforced afterward by read_upload_capped,
+# which knows which type was requested; this middleware only sees raw bytes.
+app.add_middleware(_MaxUploadSizeMiddleware, path="/api/clips/upload-media", max_bytes=52 * 1024 * 1024)
+
+# Bot guard (2026-09-21): added AFTER CORS (and the upload-size check above) so it
+# is the OUTERMOST layer — a blocked IP is refused before any other processing.
+# Ships in shadow mode: it detects, records and alerts, but only returns 403 once
+# SECURITY_ENFORCE=1. Fails open.
 # Design: docs/superpowers/specs/2026-09-21-security-monitor-design.md
 from bot_guard import BotGuardMiddleware as _BotGuardMiddleware
 app.add_middleware(_BotGuardMiddleware)
@@ -678,6 +731,11 @@ class RegisterRequest(BaseModel):
     app: str = "ai"
     referral: str | None = None
     fingerprint: str | None = None
+    # First-touch attribution captured client-side — see utils/utmAttribution.js.
+    # Free-text marketing tags, not validated against any known list.
+    utm_source: str | None = Field(default=None, max_length=200)
+    utm_medium: str | None = Field(default=None, max_length=200)
+    utm_campaign: str | None = Field(default=None, max_length=200)
 
 
 class SchoolRegisterRequest(BaseModel):
@@ -933,6 +991,9 @@ async def register(request: Request, body: RegisterRequest):
             password_hash=password_hash,
             name=body.name.strip(),
             tc_accepted_at=tc_accepted_at,
+            utm_source=body.utm_source,
+            utm_medium=body.utm_medium,
+            utm_campaign=body.utm_campaign,
         )
     except Exception as exc:
         log.exception("register: create_user failed")
@@ -2105,6 +2166,52 @@ async def admin_set_enterprise(
     )
     log.info("admin_set_enterprise: set %s to enterprise", body.email)
     return {"ok": True, "email": body.email, "plan": "enterprise", "status": "active"}
+
+
+@app.get("/admin/clips/reported")
+async def admin_list_reported_clips(current_user: dict = Depends(auth.get_current_user)):
+    """Zeus Clips Phase 3 moderation queue — every open report, newest first.
+    See clips.list_reported_clips; no new DB-layer logic here, just the
+    admin-gated HTTP surface the brief's review-queue UI calls."""
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    import clips as _clips_mod
+    return {"reports": _clips_mod.list_reported_clips(db.get_db_path())}
+
+
+@app.post("/admin/clips/{clip_id}/hide")
+async def admin_hide_clip(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+    """Moderation action: pull a clip from the public feed/detail (soft —
+    status='hidden', distinct from the owner's own 'deleted', so moderation
+    history stays visible). Reversible via admin_restore_clip below.
+
+    hidden_reason='admin_moderation' — distinct from the automatic
+    'blocked_user' reason a block sets (see clips.hide_clips_for_blocked_user)
+    — so unblocking that user later does NOT silently un-hide a clip an admin
+    separately confirmed was genuinely bad."""
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    import clips as _clips_mod
+    db_path = db.get_db_path()
+    if not _clips_mod.get_clip(db_path, clip_id, include_hidden=True):
+        raise HTTPException(status_code=404, detail="Clip not found")
+    _clips_mod.set_clip_status(db_path, clip_id, "hidden", reason="admin_moderation")
+    log.info("admin_hide_clip: clip_id=%s admin=%s", clip_id, current_user["id"])
+    return {"ok": True}
+
+
+@app.post("/admin/clips/{clip_id}/restore")
+async def admin_restore_clip(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+    """Reverses admin_hide_clip — back to 'published'."""
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    import clips as _clips_mod
+    db_path = db.get_db_path()
+    if not _clips_mod.get_clip(db_path, clip_id, include_hidden=True):
+        raise HTTPException(status_code=404, detail="Clip not found")
+    _clips_mod.set_clip_status(db_path, clip_id, "published")
+    log.info("admin_restore_clip: clip_id=%s admin=%s", clip_id, current_user["id"])
+    return {"ok": True}
 
 
 @app.get("/admin/users")
@@ -6732,10 +6839,39 @@ async def voice_preview(body: _VoicePreviewRequest):
 # The /api/files/* authenticated endpoint below will replace these once the
 # frontend is updated to send auth tokens with media requests.
 from fastapi.staticfiles import StaticFiles as _StaticFiles
+from fastapi.staticfiles import StaticFiles
+
+
+class _LongCacheStaticFiles(StaticFiles):
+    """StaticFiles that adds a Cache-Control header. Default is long-lived + immutable —
+    only safe for a mount whose filenames never get overwritten with different content
+    once served, e.g. hashed build assets, or /files/clips' randomised upload names.
+
+    Pass cache_control= to override for a mount that doesn't meet that bar. /files/songs
+    is the example: {variant_id}.mp3 is NOT a hash, and IS rewritten in place by
+    webhooks.py's AUTO_EXTEND path (apiframe_extend_webhook swaps the short take for a
+    longer one under the same filename — currently disabled via _AUTO_EXTEND_ENABLED =
+    False, "shelved pending Apiframe verification", but dormant, not impossible). It uses
+    `public, max-age=86400` (no immutable) so an in-place rewrite self-heals within a day
+    instead of staying stale for up to a year."""
+    def __init__(self, *args, cache_control: str = "public, max-age=31536000, immutable", **kwargs):
+        super().__init__(*args, **kwargs)
+        self._cache_control = cache_control.encode()
+
+    async def __call__(self, scope, receive, send):
+        async def send_with_cache(message):
+            if message["type"] == "http.response.start":
+                headers = dict(message.get("headers", []))
+                headers[b"cache-control"] = self._cache_control
+                message = {**message, "headers": list(headers.items())}
+            await send(message)
+        await super().__call__(scope, receive, send_with_cache)
+
 
 _song_storage = pathlib.Path(os.environ.get("SONG_STORAGE_PATH", "/data/songs"))
 _song_storage.mkdir(parents=True, exist_ok=True)
-app.mount("/files/songs", _StaticFiles(directory=str(_song_storage)), name="songs")
+app.mount("/files/songs", _LongCacheStaticFiles(directory=str(_song_storage), cache_control="public, max-age=86400"),
+          name="songs")
 
 _avatar_storage = pathlib.Path("/data/avatars")
 _avatar_storage.mkdir(parents=True, exist_ok=True)
@@ -6828,21 +6964,8 @@ async def serve_file(
 # Zeus AI:    /web/dist         — zeusaidesign.com  (assets at /assets)
 # Zeus Beats: /web-beats-dist   — zeusbeats.com     (assets at /assets-beats)
 # The catch-all route inspects the Host header to pick the right index.html.
-from fastapi.staticfiles import StaticFiles
+# _LongCacheStaticFiles is defined earlier in this file, alongside the /files/songs mount.
 from fastapi.responses import FileResponse
-
-
-class _LongCacheStaticFiles(StaticFiles):
-    """StaticFiles that adds immutable Cache-Control headers for hashed assets."""
-    async def __call__(self, scope, receive, send):
-        async def send_with_cache(message):
-            if message["type"] == "http.response.start":
-                headers = dict(message.get("headers", []))
-                headers[b"cache-control"] = b"public, max-age=31536000, immutable"
-                message = {**message, "headers": list(headers.items())}
-            await send(message)
-        await super().__call__(scope, receive, send_with_cache)
-
 
 _dist       = pathlib.Path(__file__).parent.parent / "web" / "dist"
 _beats_dist = pathlib.Path(__file__).parent.parent / "web-beats-dist"
@@ -6860,6 +6983,17 @@ if _beats_dist.exists():
     _well_known_dir = _beats_dist / ".well-known"
     if _well_known_dir.exists():
         app.mount("/.well-known", StaticFiles(directory=str(_well_known_dir)), name="well-known")
+
+# Zeus Clips uploaded media (images/video) — served static (not the authenticated /api/files
+# path: clips are public content, no ownership check needed to view one) with the same
+# immutable Cache-Control as hashed build assets. Safe here for the same reason it's safe
+# there: clip_uploads.random_filename() means a given filename's content never changes —
+# an edit/re-upload always gets a new random name, never overwrites one already cached.
+# StaticFiles/FileResponse (both used here) support HTTP Range natively (206 Partial
+# Content) — verified against the existing /files/songs mount in production.
+_clip_storage = pathlib.Path(os.environ.get("CLIP_STORAGE_PATH", "/data/clips"))
+_clip_storage.mkdir(parents=True, exist_ok=True)
+app.mount("/files/clips", _LongCacheStaticFiles(directory=str(_clip_storage)), name="clips")
 
 
 _OG_GENRE_LABELS = {
@@ -7063,6 +7197,409 @@ async def cover_song(
     ).start()
     log.info("Cover song submitted: source_variant=%d new_variant=%d title=%r user=%s", variant_id, new_variant_id, custom_title, user_id)
     return {"variant_id": new_variant_id, "status": "pending", "title": custom_title}
+
+
+# ── Zeus Clips (2026-09-23) — Phase 1: data + API ──────────────────────────────
+# Design: docs/superpowers/specs/2026-09-23-zeus-clips-mvp-design.md. No server-side video
+# rendering — a clip is a song reference + a time window + a visual; the browser plays the
+# song's own mp3 over it. DB layer + trending/remix logic in clips.py; upload validation in
+# clip_uploads.py. Phase 3 (moderation admin UI, block-user, Porick alerts) is NOT built yet.
+
+# UTM attribution (2026-09-23) — the frontend's first-touch capture, threaded
+# through to clips.log_event so a clip_events row can carry it. Every clip
+# endpoint that logs an event mixes this in; remix_completed (the one event with
+# no request to draw attribution from — it fires from a webhook) is the only
+# exception, and stays NULL there.
+class _UtmMixin(BaseModel):
+    utm_source: str | None = Field(default=None, max_length=200)
+    utm_medium: str | None = Field(default=None, max_length=200)
+    utm_campaign: str | None = Field(default=None, max_length=200)
+
+
+class ClipCreateRequest(_UtmMixin):
+    song_id: int
+    caption: str = Field(default="", max_length=150)
+    media_type: str  # 'cover' | 'image' | 'video'
+    media_url: str | None = None  # required for image/video; ignored (must be None) for cover
+    clip_start_time: float = Field(ge=0)
+    clip_duration: int  # 15 or 30
+    make_song_public: bool = False
+
+
+class ClipViewRequest(_UtmMixin):
+    anon_id: str | None = None  # used only when the caller is logged out
+
+
+class ClipLikeRequest(_UtmMixin):
+    pass
+
+
+class ClipRemixRequest(_UtmMixin):
+    pass
+
+
+class ClipReportRequest(BaseModel):
+    reason: str  # spam | inappropriate | copyright | other
+
+
+async def _optional_current_user(authorization: str = Header(None)) -> dict | None:
+    """Like auth.get_current_user, but returns None instead of 401ing — clip views
+    and the public clip-detail page must work for a logged-out visitor."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    payload = auth.verify_token(authorization[7:].strip())
+    if not payload:
+        return None
+    db_path = db.get_db_path()
+    return db.get_user_by_id(db_path, payload.get("sub"))
+
+
+def _reject_if_blocked(current_user: dict, db_path: pathlib.Path) -> None:
+    """Server-side re-check on every clip-mutating action (publish, upload,
+    like, report, remix) — a Porick `block EMAIL` must stop an EXISTING
+    account, not just prevent future registration. Checked fresh per request
+    (never cached on the JWT/current_user), since a block can land at any
+    point after the caller's token was already issued — there is no "reload
+    your session" step for this to work."""
+    reason = db.is_email_blocklisted(db_path, signup_guard.normalize_email(current_user.get("email", "")))
+    if reason:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account has been restricted. Contact support if you believe this is a mistake.",
+        )
+
+
+def _clips_enabled_env() -> bool:
+    """The raw CLIPS_ENABLED env var — default OFF. This is the value GET
+    /api/clips/config reports; it is deliberately NOT admin-aware, since the
+    frontend already knows the current user's own is_admin and combines the
+    two itself (see useClipsEnabled.js)."""
+    return os.environ.get("CLIPS_ENABLED", "").strip().lower() in ("1", "true", "yes")
+
+
+def _clips_feature_enabled(current_user: dict | None) -> bool:
+    """Gate for clip CREATION only (publish_clip, upload_clip_media) — never
+    for reading a clip (feed/detail, reachable by anyone with a link) or for
+    acting on one that already exists (like, remix, report). While
+    CLIPS_ENABLED is off, creation is admin-only so admins can dog-food the
+    feature before it's promoted to everyone; once the env var is set, it
+    opens to everyone regardless of is_admin."""
+    return _clips_enabled_env() or bool(current_user and current_user.get("is_admin"))
+
+
+def _clip_out(row: dict) -> dict:
+    """Shapes a clips.get_clip()/list_feed() row for the API — folds in the sanitized
+    remix-prefill fields (never the source song's raw lyrics) so the clip detail page and
+    the eventual Remix button both read from one response, no second round trip."""
+    import clips as _clips_mod
+    prefill = _clips_mod.get_remix_prefill(db.get_db_path(), row["id"])
+    return {
+        "id": row["id"], "user_id": row["user_id"], "song_id": row["song_id"],
+        "caption": row["caption"], "media_type": row["media_type"], "media_url": row["media_url"],
+        "clip_start_time": row["clip_start_time"], "clip_duration": row["clip_duration"],
+        "status": row["status"], "view_count": row["view_count"], "like_count": row["like_count"],
+        "remix_count": row["remix_count"], "created_at": row["created_at"],
+        "song_title": row["song_title"], "genre_tag": row["genre_tag"], "mp3_url": row["mp3_url"],
+        "song_cover_url": row["song_cover_url"],
+        "artist_name": row.get("artist_name") or row.get("user_name"),
+        "remix_style_descriptors": prefill.get("style_descriptors", ""),
+        "remix_theme": prefill.get("theme", ""),
+    }
+
+
+@app.post("/api/clips/upload-media", status_code=200)
+@limiter.limit("20/minute", key_func=_user_key)
+async def upload_clip_media(
+    request: Request,
+    file: UploadFile = File(...),
+    media_type: str = Form(...),
+    current_user: dict = Depends(auth.get_current_user),
+):
+    """Validates the ACTUAL file content (never the filename/Content-Type — see
+    clip_uploads.py) and stores it under a randomised name. Returns a media_url the
+    client then passes to POST /api/clips to publish. Registered BEFORE
+    /api/clips/{clip_id} — see the routing-order note on that route.
+
+    Gated to paying plans (storage cost) — same billing.get_subscription_status().is_active
+    check used elsewhere for plan-gated features (scheduled tasks, websites). Free users can
+    still publish a 'cover' clip, which never calls this endpoint at all.
+
+    Hardening review (2026-09-23): a per-user rate limit (20/24h, separate from
+    the existing 20/minute burst limiter above) and a size cap enforced while
+    reading the body — see clip_uploads.read_upload_capped — rather than after a
+    bare `await file.read()` has already buffered the whole thing. An HONEST
+    oversized request never even reaches this function at all: see
+    _MaxUploadSizeMiddleware, registered near the other app.add_middleware calls,
+    which rejects on Content-Length before Starlette starts parsing the body."""
+    import clip_uploads
+
+    _reject_if_blocked(current_user, db.get_db_path())
+
+    if not _clips_feature_enabled(current_user):
+        raise HTTPException(status_code=403, detail="Zeus Clips is not open to everyone yet.")
+
+    if not (billing.get_subscription_status(current_user)["is_active"] or current_user.get("is_admin")):
+        raise HTTPException(
+            status_code=403,
+            detail="Uploading photos and videos to clips requires a paid plan. "
+                   "You can still publish a clip using your song's own cover art for free.",
+        )
+
+    if media_type not in ("image", "video"):
+        raise HTTPException(status_code=400, detail="media_type must be 'image' or 'video'")
+
+    db_path = db.get_db_path()
+    if clip_uploads.count_recent_uploads(db_path, current_user["id"]) >= clip_uploads.UPLOAD_RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"You've uploaded {clip_uploads.UPLOAD_RATE_LIMIT} clip photos/videos in the "
+                   "last 24 hours — please try again later.",
+        )
+
+    max_bytes = clip_uploads.IMAGE_MAX_BYTES if media_type == "image" else clip_uploads.VIDEO_MAX_BYTES
+    try:
+        data = await clip_uploads.read_upload_capped(file, max_bytes)
+        if media_type == "image":
+            kind = clip_uploads.validate_image(data)
+        else:
+            kind = clip_uploads.validate_video(data)
+    except clip_uploads.InvalidUploadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    clip_storage = pathlib.Path(os.environ.get("CLIP_STORAGE_PATH", "/data/clips"))
+    clip_storage.mkdir(parents=True, exist_ok=True)
+    filename = clip_uploads.random_filename(kind)
+    (clip_storage / filename).write_bytes(data)
+    clip_uploads.record_upload(db_path, current_user["id"], filename, media_type, len(data))
+    log.info("upload_clip_media: user=%s media_type=%s kind=%s bytes=%d -> %s",
+             current_user["id"], media_type, kind, len(data), filename)
+    return {"media_url": f"/files/clips/{filename}", "media_type": media_type}
+
+
+@app.post("/api/clips", status_code=201)
+async def publish_clip(body: ClipCreateRequest, current_user: dict = Depends(auth.get_current_user)):
+    import clips as _clips_mod
+
+    db_path = db.get_db_path()
+    _reject_if_blocked(current_user, db_path)
+
+    if not _clips_feature_enabled(current_user):
+        raise HTTPException(status_code=403, detail="Zeus Clips is not open to everyone yet.")
+
+    if body.media_type in ("image", "video") and not body.media_url:
+        raise HTTPException(status_code=400, detail=f"media_type={body.media_type!r} requires a prior upload")
+    if body.media_type == "cover" and body.media_url:
+        raise HTTPException(status_code=400, detail="media_url must not be set for media_type='cover'")
+
+    source = db.get_song_variant_by_id(db_path, body.song_id)
+    if not source or source["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    try:
+        clip_id = _clips_mod.create_clip(
+            db_path, user_id=current_user["id"], song_id=body.song_id, caption=body.caption,
+            media_type=body.media_type, media_url=body.media_url, clip_start_time=body.clip_start_time,
+            clip_duration=body.clip_duration, make_song_public=body.make_song_public,
+        )
+    except _clips_mod.SourceNotPublicError:
+        raise HTTPException(
+            status_code=400,
+            detail="This song must be public to become a clip. Turn on 'Make song public' to publish.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    if body.media_url:
+        # Takes this upload out of sweep_orphaned_uploads' candidate set — see
+        # clip_uploads.py. Best-effort: an upload record that predates this
+        # tracking table, or one made under a different flow, simply has no
+        # matching row, which is a silent no-op (UPDATE ... WHERE matches nothing).
+        import clip_uploads as _clip_uploads_mod
+        _clip_uploads_mod.mark_upload_attached(db_path, pathlib.Path(body.media_url).name, clip_id)
+
+    _clips_mod.log_event(db_path, "clip_published", user_id=current_user["id"], clip_id=clip_id, song_id=body.song_id,
+                         utm_source=body.utm_source, utm_medium=body.utm_medium, utm_campaign=body.utm_campaign)
+    log.info("publish_clip: clip_id=%s user=%s song_id=%s media_type=%s", clip_id, current_user["id"], body.song_id, body.media_type)
+    return _clip_out(_clips_mod.get_clip(db_path, clip_id))
+
+
+@app.get("/api/clips/config")
+async def clips_config():
+    """Public, no auth required — the flag itself is not sensitive, and the
+    frontend needs it before it knows whether a user is even logged in.
+    Registered BEFORE /api/clips/{clip_id} so 'config' is never swallowed as
+    a clip_id path param (same ordering reason upload-media is registered
+    ahead of that route)."""
+    return {"enabled": _clips_enabled_env()}
+
+
+@app.get("/api/clips")
+async def clips_feed(sort: str = "new", page: int = 0):
+    import clips as _clips_mod
+
+    if sort not in ("new", "trending"):
+        raise HTTPException(status_code=400, detail="sort must be 'new' or 'trending'")
+    rows = _clips_mod.list_feed(db.get_db_path(), sort=sort, page=page)
+    return {"clips": [_clip_out(r) for r in rows], "page": page, "sort": sort}
+
+
+@app.get("/api/clips/{clip_id}")
+async def get_clip_detail(clip_id: int):
+    import clips as _clips_mod
+
+    row = _clips_mod.get_clip(db.get_db_path(), clip_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    return _clip_out(row)
+
+
+@app.delete("/api/clips/{clip_id}")
+async def delete_clip(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+    import clips as _clips_mod
+
+    db_path = db.get_db_path()
+    row = _clips_mod.get_clip(db_path, clip_id, include_hidden=True)
+    if not row:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    if row["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not your clip")
+    _clips_mod.set_clip_status(db_path, clip_id, "deleted")
+    return {"ok": True}
+
+
+@app.post("/api/clips/{clip_id}/like")
+async def like_clip_endpoint(clip_id: int, body: ClipLikeRequest | None = None,
+                             current_user: dict = Depends(auth.get_current_user)):
+    import clips as _clips_mod
+    db_path = db.get_db_path()
+    _reject_if_blocked(current_user, db_path)
+    like_count = _clips_mod.like_clip(db_path, clip_id, current_user["id"])
+    row = _clips_mod.get_clip(db_path, clip_id, include_hidden=True)
+    if row:
+        _clips_mod.log_event(db_path, "clip_liked", user_id=current_user["id"], clip_id=clip_id, song_id=row["song_id"],
+                             utm_source=body.utm_source if body else None,
+                             utm_medium=body.utm_medium if body else None,
+                             utm_campaign=body.utm_campaign if body else None)
+    return {"like_count": like_count}
+
+
+@app.delete("/api/clips/{clip_id}/like")
+async def unlike_clip_endpoint(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+    import clips as _clips_mod
+    return {"like_count": _clips_mod.unlike_clip(db.get_db_path(), clip_id, current_user["id"])}
+
+
+@app.post("/api/clips/{clip_id}/view")
+async def view_clip_endpoint(clip_id: int, body: ClipViewRequest | None = None, current_user: dict | None = Depends(_optional_current_user)):
+    import clips as _clips_mod
+
+    anon_id = body.anon_id if body else None
+    user_id = current_user["id"] if current_user else None
+    if not user_id and not anon_id:
+        raise HTTPException(status_code=400, detail="anon_id required when logged out")
+    db_path = db.get_db_path()
+    try:
+        counted = _clips_mod.record_view(db_path, clip_id, user_id=user_id, anon_id=anon_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    row = _clips_mod.get_clip(db_path, clip_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    if counted:
+        _clips_mod.log_event(db_path, "clip_viewed", user_id=user_id, anon_id=anon_id, clip_id=clip_id, song_id=row["song_id"],
+                             utm_source=body.utm_source if body else None,
+                             utm_medium=body.utm_medium if body else None,
+                             utm_campaign=body.utm_campaign if body else None)
+    return {"counted": counted, "view_count": row["view_count"]}
+
+
+@app.post("/api/clips/{clip_id}/report")
+async def report_clip_endpoint(clip_id: int, body: ClipReportRequest, current_user: dict = Depends(auth.get_current_user)):
+    import clips as _clips_mod
+
+    db_path = db.get_db_path()
+    _reject_if_blocked(current_user, db_path)
+    if not _clips_mod.get_clip(db_path, clip_id):
+        raise HTTPException(status_code=404, detail="Clip not found")
+    try:
+        _clips_mod.report_clip(db_path, clip_id, reporter_id=current_user["id"], reason=body.reason)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    log.info("report_clip: clip_id=%s reporter=%s reason=%s", clip_id, current_user["id"], body.reason)
+    try:
+        import alerts as _alerts
+        _alerts.alert_clip_reported(clip_id, current_user["id"], body.reason)
+    except Exception:
+        log.exception("report_clip: alert_clip_reported failed (non-fatal) clip_id=%s", clip_id)
+    return {"ok": True}
+
+
+@app.post("/api/clips/{clip_id}/remix", status_code=202)
+@limiter.limit("10/minute", key_func=_user_key)
+async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | None = None,
+                     current_user: dict = Depends(auth.get_current_user)):
+    """Reuses the exact same generation pipeline /api/songs/generate calls (lyrics first,
+    then Apiframe submission) — never a separate/parallel path — so remix picks up every
+    existing safety check (email verification, credit deduction/refund-on-failure) for
+    free. The style descriptors and theme are ALWAYS re-derived server-side from the
+    source clip (clips.get_remix_prefill, which sanitizes and never touches lyrics_text)
+    — a client can never smuggle the original lyrics through this endpoint's body,
+    because the only fields this body accepts are UTM attribution tags (see
+    utils/utmAttribution.js); nothing that could carry lyrics or override the
+    server-derived style/theme."""
+    import lyrics as _lyrics_mod
+    import songs as _songs_mod
+    import clips as _clips_mod
+    from songs import InsufficientCreditsError
+
+    db_path = db.get_db_path()
+    user_id = current_user["id"]
+    _reject_if_blocked(current_user, db_path)
+
+    # Same hard gate /api/songs/generate applies — a remix is a real generation.
+    if not current_user.get("email_verified"):
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "email_unverified",
+                    "message": "Please verify your email address before remixing songs."},
+        )
+
+    clip = _clips_mod.get_clip(db_path, clip_id)
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    prefill = _clips_mod.get_remix_prefill(db_path, clip_id)
+    genre = prefill.get("genre_tag")
+    if not genre:
+        raise HTTPException(status_code=400, detail="This clip's song has no genre to remix from")
+
+    lyric_result = _lyrics_mod.generate_lyrics(
+        user_id=user_id, brief="", db_path=db_path, genres=[genre],
+        inspired_by_theme=prefill.get("theme") or None,
+    )
+    lyric_id = lyric_result["lyric_id"]
+
+    try:
+        variant_result = _songs_mod.generate_multiple_variants(
+            user_id=user_id, lyric_id=lyric_id, genres=[genre], db_path=str(db_path),
+            inspired_by_descriptors=prefill.get("style_descriptors") or None,
+            platform=_detect_platform(request, None),
+        )
+    except InsufficientCreditsError:
+        raise HTTPException(status_code=402, detail="Insufficient song credits")
+    except Exception as exc:
+        log.exception("remix_clip: generation submission failed clip_id=%s user=%s", clip_id, user_id)
+        raise HTTPException(status_code=502, detail=f"Remix generation failed: {exc}")
+
+    remix_id = _clips_mod.start_remix(db_path, original_clip_id=clip_id, original_song_id=clip["song_id"],
+                                      user_id=user_id, lyric_id=lyric_id)
+    _clips_mod.log_event(db_path, "remix_started", user_id=user_id, clip_id=clip_id, song_id=clip["song_id"],
+                         utm_source=body.utm_source if body else None,
+                         utm_medium=body.utm_medium if body else None,
+                         utm_campaign=body.utm_campaign if body else None)
+    variant_id = variant_result["variants"][0]["variant_id"] if variant_result.get("variants") else None
+    log.info("remix_clip: remix_id=%s clip_id=%s user=%s lyric_id=%s variant_id=%s",
+             remix_id, clip_id, user_id, lyric_id, variant_id)
+    return {"remix_id": remix_id, "lyric_id": lyric_id, "variant_id": variant_id}
 
 
 # ── Playlists ─────────────────────────────────────────────────────────────────

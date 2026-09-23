@@ -654,6 +654,29 @@ def _apply_fade_out(mp3_path: str, variant_id, fallback_duration: int | None = N
                 pass
 
 
+def _maybe_complete_remix(variant_id: int) -> None:
+    """Zeus Clips (2026-09-23): called after EVERY provider webhook marks a variant
+    status='complete' (Apiframe/CometAPI/GoAPI — a remix's generation can land on any of
+    them, same as normal generation can). A no-op for every variant that isn't the first
+    completion under an open clip_remixes.lyric_id — see clips.complete_remix_for_lyric,
+    which re-checks the variant's own status itself rather than trusting this call site.
+    Never allowed to break the webhook it's called from: any failure here is logged and
+    swallowed, exactly like the animated-cover step above it does."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            row = conn.execute("SELECT lyric_id FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
+        finally:
+            conn.close()
+        if not row or row[0] is None:
+            return
+        import clips as _clips_mod
+        if _clips_mod.complete_remix_for_lyric(pathlib.Path(DB_PATH), lyric_id=row[0], variant_id=variant_id):
+            logger.info("_maybe_complete_remix: linked variant_id=%d to its remix", variant_id)
+    except Exception:
+        logger.exception("_maybe_complete_remix: failed for variant_id=%d (non-fatal)", variant_id)
+
+
 @router.post("/webhooks/apiframe")
 async def apiframe_webhook(request: Request):
     # Log BEFORE reading body so this fires even if body parsing fails
@@ -972,6 +995,7 @@ async def apiframe_webhook(request: Request):
     finally:
         conn.close()
     logger.info("Apiframe webhook take 1 complete: variant_id=%d url=%s", variant_id, permanent_url1)
+    _maybe_complete_remix(variant_id)
 
     # Auto-extend short intermittent/instrumental songs to full length. Best-effort:
     # the short take is already delivered above; the extend result is applied by the
@@ -1430,6 +1454,7 @@ async def cometapi_webhook(request: Request):
         conn.close()
 
     logger.info("CometAPI webhook: complete variant_id=%d mp3=%s", variant_id, public_mp3_url)
+    _maybe_complete_remix(variant_id)
 
     # Animated covers removed 2026-08-06 — see the note in the Apiframe webhook.
 
@@ -1594,6 +1619,7 @@ async def goapi_webhook(request: Request):
         conn.close()
 
     logger.info("GoAPI webhook: complete variant_id=%d mp3=%s", variant_id, public_mp3_url)
+    _maybe_complete_remix(variant_id)
 
     # Animated covers removed 2026-08-06 — see the note in the Apiframe webhook.
 

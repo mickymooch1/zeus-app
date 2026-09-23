@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter, Route, Routes, Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { NowPlayingProvider, useNowPlaying } from './contexts/NowPlayingContext';
@@ -11,6 +11,7 @@ import WhatsNewModal from './components/WhatsNewModal';
 import KidsShell from './components/KidsShell';
 import ParentPINGate from './components/ParentPINGate';
 import SpaceBackground from './components/SpaceBackground';
+import { captureUtmFromUrl } from './utils/utmAttribution';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 import './index.css';
 
@@ -32,6 +33,7 @@ const RefundPolicyPage   = lazy(() => import('./pages/RefundPolicyPage'));
 const DataDeletionPage   = lazy(() => import('./pages/DataDeletionPage'));
 const SearchPage         = lazy(() => import('./pages/SearchPage'));
 const AdminBeats         = lazy(() => import('./pages/AdminBeats'));
+const AdminClipReports   = lazy(() => import('./pages/AdminClipReports'));
 const MixerPage          = lazy(() => import('./pages/MixerPage'));
 const DiscoverPage       = lazy(() => import('./pages/DiscoverPage'));
 const DiscoverSongPage   = lazy(() => import('./pages/DiscoverSongPage'));
@@ -48,6 +50,12 @@ const SchoolRegisterPage     = lazy(() => import('./pages/SchoolRegisterPage'));
 const MemorialsLandingPage   = lazy(() => import('./pages/MemorialsLandingPage'));
 const MemorialWizardPage     = lazy(() => import('./pages/MemorialWizardPage'));
 const MemorialPage           = lazy(() => import('./pages/MemorialPage'));
+
+// ── Zeus Clips (Phase 2) ─────────────────────────────────────────────────
+const ClipsFeedPage          = lazy(() => import('./pages/ClipsFeedPage'));
+const ClipPage                = lazy(() => import('./pages/ClipPage'));
+const ClipCreatorPage         = lazy(() => import('./pages/ClipCreatorPage'));
+const ClipRemixPage           = lazy(() => import('./pages/ClipRemixPage'));
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -111,6 +119,13 @@ const fallback = (
 function AppInner() {
   const { currentSong } = useNowPlaying();
   const location = useLocation();
+  // First-touch UTM capture (2026-09-23) — runs once per real page load, not
+  // per in-SPA navigation, since AppInner mounts once for the app's lifetime;
+  // React Router's client-side <Link> navigation never re-fires this. That
+  // matches "capture on first landing" — a marketing link always arrives as a
+  // fresh browser navigation, which is the only time utm_* params are ever on
+  // the URL at all. See utils/utmAttribution.js for the first-touch-wins rule.
+  useEffect(() => { captureUtmFromUrl(window.location.search); }, []);
   // The public share page is deliberately its own standalone, minimal-branding
   // page — the main app's cookie banner (bright purple, fixed to the bottom)
   // clashes with its calm design and can cover the photos on small screens.
@@ -173,6 +188,29 @@ export default function App() {
             />
             <Route path="/discover" element={<DiscoverPage />} />
             <Route path="/discover/:variantId" element={<DiscoverSongPage />} />
+
+            {/* ── Zeus Clips (Phase 2) ──────────────────────────────
+                Feed + detail are public, matching /discover. Creating a clip
+                and confirming a remix both require an account — same
+                SchoolSafeRoute gate as /songs. */}
+            <Route path="/clips" element={<ClipsFeedPage />} />
+            <Route path="/clips/:clipId" element={<ClipPage />} />
+            <Route
+              path="/clips/new"
+              element={
+                <SchoolSafeRoute>
+                  <ClipCreatorPage />
+                </SchoolSafeRoute>
+              }
+            />
+            <Route
+              path="/clips/:clipId/remix"
+              element={
+                <SchoolSafeRoute>
+                  <ClipRemixPage />
+                </SchoolSafeRoute>
+              }
+            />
             <Route
               path="/billing"
               element={
@@ -210,6 +248,14 @@ export default function App() {
               element={
                 <SchoolSafeRoute>
                   <AdminBeats />
+                </SchoolSafeRoute>
+              }
+            />
+            <Route
+              path="/admin/clips"
+              element={
+                <SchoolSafeRoute>
+                  <AdminClipReports />
                 </SchoolSafeRoute>
               }
             />

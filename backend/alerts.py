@@ -327,6 +327,29 @@ def alert_signup_flag(email: str, reason: str, detail: str) -> None:
         log.debug("alert_signup_flag failed (non-fatal)")
 
 
+def alert_clip_reported(clip_id: int, reporter_id: str, reason: str) -> None:
+    """Zeus Clips Phase 3 — "Porick alerts": pings the moment a clip is
+    reported, same as every other moderation-relevant event here. Deduped per
+    CLIP (not per exact report text) — a clip getting reported by several
+    people in quick succession is exactly the signal worth surfacing once and
+    letting admin review in the moderation queue, not re-pinging for each one.
+    """
+    try:
+        category = f"clip_report:{clip_id}"
+        prefix = _incidents.note(category, f"clip {clip_id} reported by {reporter_id}: {reason}")
+        send_admin_alert_deduped(
+            category,
+            f"{prefix}\n"
+            "🚩 Clip reported\n"
+            f"🎬 Clip #{clip_id}\n"
+            f"👤 Reporter: {reporter_id}\n"
+            f"📋 Reason: {reason}",
+            cooldown_seconds=1800,
+        )
+    except Exception:
+        log.debug("alert_clip_reported failed (non-fatal)")
+
+
 def alert_payment(email: str, plan_key: str, amount_display: str) -> None:
     try:
         _bump_digest_counter("new_subscriptions")

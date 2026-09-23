@@ -71,6 +71,8 @@ Just talk to me naturally, mate! Examples:
 <code>security events IP</code> — what a flagged IP was hitting: paths, user agents, status
 <code>unblock IP</code> — unblock an IP that was caught wrongly
 <code>security scan</code> — run a security scan right now
+<code>block EMAIL</code> — hard-block an email: can't register, publish, upload, like, report or remix; existing clips auto-hidden
+<code>unblock EMAIL</code> — reverse a block, restore the clips it auto-hid
 <code>yes</code> / <code>no</code> — reply to a pending fix-it offer (30 min window)
 <code>help</code>"""
 
@@ -1829,6 +1831,57 @@ def _cmd_unblock_ip(ip: str) -> str:
     return f"ℹ️ <code>{addr}</code> is not currently blocked."
 
 
+def _cmd_block_email(email: str) -> str:
+    """Zeus Clips Phase 3 — "Block user v1", hardened (2026-09-23 follow-up):
+    hard-blocks an email from registering AND stops an existing account under
+    it. Writes to the EXISTING abuse_blocklist table via db.add_to_blocklist —
+    the same table/mechanism a prior abuse case (paulgb189@gmail.com, see
+    db.py's own migration) already uses — which main.py's _reject_if_blocked
+    now re-checks on every clip-mutating request (publish, upload, like,
+    report, remix), not just at signup. Also auto-hides every currently-
+    published clip the account owns (clips.hide_clips_for_blocked_user),
+    restorable via _cmd_unblock_email below. Admin-only (this command), no
+    web UI, exactly as scoped."""
+    import db as _db
+    import signup_guard
+
+    canonical = signup_guard.normalize_email(email)
+    added = _db.add_to_blocklist(_db.get_db_path(), "email", canonical,
+                                 "Blocked via Porick (clip report / abuse)")
+    if not added:
+        return f"ℹ️ <code>{_esc(canonical)}</code> is already blocked."
+    hidden = 0
+    user = _db.get_user_by_canonical_email(_db.get_db_path(), canonical)
+    if user:
+        import clips as _clips_mod
+        hidden = _clips_mod.hide_clips_for_blocked_user(_db.get_db_path(), user["id"])
+    extra = f" {hidden} existing clip(s) hidden." if hidden else ""
+    return (f"✅ Blocked <code>{_esc(canonical)}</code> — it can no longer register, publish "
+            f"clips, upload media, like, report or remix.{extra}")
+
+
+def _cmd_unblock_email(email: str) -> str:
+    """Reverses _cmd_block_email: removes the abuse_blocklist row AND restores
+    any clips that were auto-hidden SPECIFICALLY because this account was
+    blocked (hidden_reason='blocked_user') — never a clip an admin separately
+    hid for its own reason via the moderation UI (hidden_reason=
+    'admin_moderation'), even under the same account."""
+    import db as _db
+    import signup_guard
+
+    canonical = signup_guard.normalize_email(email)
+    removed = _db.remove_from_blocklist(_db.get_db_path(), "email", canonical)
+    if not removed:
+        return f"ℹ️ <code>{_esc(canonical)}</code> was not blocked."
+    restored = 0
+    user = _db.get_user_by_canonical_email(_db.get_db_path(), canonical)
+    if user:
+        import clips as _clips_mod
+        restored = _clips_mod.restore_clips_hidden_for_reason(_db.get_db_path(), user["id"], "blocked_user")
+    extra = f" {restored} clip(s) restored." if restored else ""
+    return f"✅ Unblocked <code>{_esc(canonical)}</code>. It can register/act normally again.{extra}"
+
+
 def _cmd_security_events(ip: str) -> str:
     """What one flagged IP was doing — replaces hand-written SQL against security_events.
 
@@ -2750,6 +2803,27 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
     if re.match(r'^(?:porick\s+)?security\s+events$', t, re.IGNORECASE):
         return ("Usage: <code>security events 1.2.3.4</code> — shows what that IP was requesting "
                 "(paths, user agents, whether it is flagged). IP address required.")
+    # Zeus Clips Phase 3 — "Block user v1": block/unblock EMAIL. Checked BEFORE
+    # the generic `unblock IP` regex below, and requires an '@' — an email
+    # unblock would otherwise be swallowed by that regex's bare `(\S+)` capture
+    # (it matches any non-whitespace token, IP or not) and get misrouted to
+    # _cmd_unblock_ip. `block` is anchored (^block, not a substring) so it can
+    # never fire on "unblock ...". Exact match, same as every other precision
+    # command here — never AI-routed.
+    m = re.match(r'^(?:porick\s+)?unblock\s+(\S+@\S+)$', t, re.IGNORECASE)
+    if m:
+        result = _cmd_unblock_email(m.group(1))
+        if chat_id and result.startswith("✅"):
+            _db_log_action(chat_id, "unblock_email", f"Unblocked email {m.group(1)}")
+        return result
+
+    m = re.match(r'^(?:porick\s+)?block\s+(\S+@\S+)$', t, re.IGNORECASE)
+    if m:
+        result = _cmd_block_email(m.group(1))
+        if chat_id and result.startswith("✅"):
+            _db_log_action(chat_id, "block_email", f"Blocked email {m.group(1)}")
+        return result
+
     m = re.match(r'^(?:porick\s+)?unblock\s+(?:ip\s+)?(\S+)$', t, re.IGNORECASE)
     if m:
         result = _cmd_unblock_ip(m.group(1))

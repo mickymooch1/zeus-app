@@ -8,6 +8,8 @@ import LyricsModal from './LyricsModal';
 import { audioManager } from '../utils/audioManager';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
 import { genreColor, gLabel } from '../utils/genres';
+import { useAuth } from '../contexts/AuthContext';
+import { useClipsEnabled } from '../hooks/useClipsEnabled';
 
 export const S = {
   card: {
@@ -103,6 +105,8 @@ const SongCard = memo(function SongCard({
   lyricId,
 }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const canCreateClip = useClipsEnabled(user);
   const waveRef = useRef(null);
   const wsRef   = useRef(null);
   const [playing, setPlaying]     = useState(false);
@@ -702,6 +706,34 @@ const SongCard = memo(function SongCard({
                 </p>
               )}
             </div>
+            {/* Row 2.7: Create Clip (Zeus Clips, Phase 2) — only once the song has
+                actually finished rendering; variant + title carried via router
+                state so ClipCreatorPage never needs a second fetch to show them.
+                Gated by CLIPS_ENABLED (admin-only until the flag is flipped on) —
+                see useClipsEnabled. This is a UI convenience only: the real
+                enforcement is server-side in publish_clip/upload_clip_media. */}
+            {variant.mp3_url && canCreateClip && (
+              <div style={{ marginTop: 8 }}>
+                <Link
+                  to={`/clips/new?song=${variant.variant_id}`}
+                  state={{ song: { ...variant, title } }}
+                  style={{
+                    ...actionBtnStyle,
+                    width: '100%',
+                    minHeight: 44,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    textDecoration: 'none',
+                    background: 'linear-gradient(90deg, #00f0ff, #7c3aed)',
+                    color: '#000',
+                    border: 'none',
+                    fontWeight: 700,
+                    boxShadow: '0 0 14px rgba(124,58,237,0.45)',
+                  }}
+                >
+                  🎬 Create Clip
+                </Link>
+              </div>
+            )}
             {/* Row 3: YouTube */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               {ytBtn}

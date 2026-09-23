@@ -31,7 +31,7 @@ const RED = '#f87171';
  *     a locked-out user has no way to know their roast wasn't just lost.
  */
 export default function VerificationRequiredScreen({
-  email, message, token, bounced, bounceOrigin, roastSaved, onClose, onVerified, onEmailChanged,
+  email, message, token, bounced, bounceOrigin, roastSaved, remixSaved, onClose, onVerified, onEmailChanged,
 }) {
   const [resend, setResend] = useState('idle');   // idle | loading | sent | ratelimited | error
   const [checking, setChecking] = useState(false);
@@ -204,7 +204,7 @@ export default function VerificationRequiredScreen({
           )}
 
           {!isBounced && (
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, lineHeight: 1.55, textAlign: 'center', marginBottom: roastSaved ? 8 : 18 }}>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, lineHeight: 1.55, textAlign: 'center', marginBottom: (roastSaved || remixSaved) ? 8 : 18 }}>
               Open the link in the email, then come back and tap “I’ve verified”.
             </p>
           )}
@@ -212,6 +212,13 @@ export default function VerificationRequiredScreen({
           {roastSaved && (
             <p style={{ color: '#34d399', fontSize: 13, lineHeight: 1.55, textAlign: 'center', marginBottom: 18 }}>
               🎤 Your roast is saved — it&apos;ll be waiting for you once you verify,
+              even if the link opens in a different tab.
+            </p>
+          )}
+
+          {remixSaved && (
+            <p style={{ color: '#34d399', fontSize: 13, lineHeight: 1.55, textAlign: 'center', marginBottom: 18 }}>
+              ⚡ Your remix is saved — it&apos;ll start automatically once you verify,
               even if the link opens in a different tab.
             </p>
           )}

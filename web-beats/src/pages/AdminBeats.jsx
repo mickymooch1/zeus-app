@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
@@ -70,9 +70,12 @@ export default function AdminBeats() {
 
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px 80px' }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 4 }}>Admin — Users</h1>
-        <p style={{ color: '#555', fontSize: 13, marginBottom: 20 }}>
+        <p style={{ color: '#555', fontSize: 13, marginBottom: 12 }}>
           {users.length} registered user{users.length !== 1 ? 's' : ''}
         </p>
+        <Link to="/admin/clips" style={{ color: '#00f0ff', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-block', marginBottom: 20 }}>
+          🚩 Reported clips →
+        </Link>
 
         {overview && (
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>

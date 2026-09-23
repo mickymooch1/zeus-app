@@ -54,6 +54,10 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
 
   const OVERFLOW_LINKS = [
     { to: '/discover',  label: '🔍 Discover' },
+    // /clips is deliberately NOT linked here — Zeus Clips is still the build
+    // brief's "cheap experiment", reached only via a clip's own share link,
+    // remix hand-off, or SongCard's "Create Clip" button, not full nav-level
+    // traffic. Re-add when the experiment is validated and promoted.
     { to: '/playlists', label: '🎵 Playlists' },
     { to: '/mixer',     label: `🎛️ ${t('nav.mixer')}` },
     { to: '/billing',   label: `💳 ${t('nav.billing')}` },
