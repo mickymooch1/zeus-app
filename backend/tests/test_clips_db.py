@@ -272,6 +272,40 @@ def test_completing_a_remix_logs_a_remix_completed_event_exactly_once(path):
     assert rows[0] == ("u2", clip_id, 201), "logs the remixer, the ORIGINAL clip, and the new song that resulted"
 
 
+def test_recount_sets_remix_count_to_the_number_of_completed_remixes(path):
+    """Porick's 'reset_clip_remixes CLIP_ID' — recounts rather than zeroing,
+    matching exactly the condition complete_remix_for_lyric itself uses to
+    decide whether to increment (remix_song_id IS NOT NULL, i.e. actually
+    completed, never a merely-started/pending one)."""
+    add_user(path, "u1", "a@example.com"); add_user(path, "u2", "b@example.com")
+    add_song(path, 1, "u1")
+    clip_id = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+
+    # A completed remix (counts) and a still-pending one (does not).
+    clips.start_remix(path, clip_id, 1, "u2", lyric_id=99)
+    clips.start_remix(path, clip_id, 1, "u2", lyric_id=100)
+    conn = sqlite3.connect(path)
+    conn.execute("INSERT INTO song_variants (id, lyric_id, user_id, style_prompt, status, take_number) "
+                 "VALUES (201, 99, 'u2', 's', 'complete', 1)")
+    conn.commit(); conn.close()
+    clips.complete_remix_for_lyric(path, lyric_id=99, variant_id=201)
+    # lyric_id=100's remix never completes — its clip_remixes row stays remix_song_id IS NULL.
+
+    # Corrupt remix_count directly (as if test/analytics pollution had happened).
+    conn = sqlite3.connect(path)
+    conn.execute("UPDATE clips SET remix_count = 47 WHERE id = ?", (clip_id,))
+    conn.commit(); conn.close()
+
+    result = clips.recount_clip_remix_count(path, clip_id)
+    assert result == {"clip_id": clip_id, "old_count": 47, "new_count": 1}
+    assert clips.get_clip(path, clip_id)["remix_count"] == 1
+
+
+def test_recount_raises_for_an_unknown_clip(path):
+    with pytest.raises(ValueError):
+        clips.recount_clip_remix_count(path, 999)
+
+
 def test_a_not_yet_complete_variant_is_rejected_even_if_it_is_the_only_candidate(path):
     add_user(path, "u1", "a@example.com"); add_user(path, "u2", "b@example.com")
     add_song(path, 1, "u1")

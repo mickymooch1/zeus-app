@@ -1063,6 +1063,195 @@ def get_user_by_id(db_path: pathlib.Path, user_id: str) -> dict | None:
         conn.close()
 
 
+# ── account deletion (Porick delete_user, built 2026-09-23) ─────────────────
+#
+# Spans nearly every table in the schema, not just one feature's — so
+# discovery is DYNAMIC (PRAGMA table_info against sqlite_master's actual
+# current tables), never a hand-picked list. A hand-picked list goes stale
+# the moment a new table with a user_id column is added, silently leaving
+# orphans; dynamic discovery can't go stale, because it asks the live schema
+# every time.
+
+# Tables that reference users.id under a column NOT literally named
+# "user_id" — the dynamic sweep only catches "user_id" by name, so these
+# need to be listed explicitly. Found by a full schema review (2026-09-23).
+# Extend this dict if a future table adds another differently-named
+# user-reference column.
+_EXTRA_USER_REFERENCE_COLUMNS = {
+    "clip_reports": "reporter_id",
+}
+
+
+class AdminAccountProtectedError(Exception):
+    """Raised by preview_user_deletion/delete_user_account when the target
+    account is_admin — refused outright, never deletable through this path."""
+
+
+def _discover_user_reference_tables(conn: sqlite3.Connection) -> dict[str, str]:
+    """{table: column} for every table referencing users.id, on an ALREADY
+    OPEN connection — internal helper so preview/delete can do their whole
+    read (or read+write) on one connection/transaction, never a second one
+    racing against the first."""
+    tables = [r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+    )]
+    result = {}
+    for t in tables:
+        if t == "users":
+            continue
+        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({t})")}
+        if "user_id" in cols:
+            result[t] = "user_id"
+    result.update(_EXTRA_USER_REFERENCE_COLUMNS)
+    return result
+
+
+def discover_user_reference_tables(db_path: pathlib.Path) -> dict[str, str]:
+    """Public, single-purpose entry point (own connection) — see
+    _discover_user_reference_tables for what it returns and why it's dynamic."""
+    conn = _conn(db_path)
+    try:
+        return _discover_user_reference_tables(conn)
+    finally:
+        conn.close()
+
+
+def _orphan_rows(conn: sqlite3.Connection, user_id: str) -> dict[str, list[dict]]:
+    """Rows with NO direct user reference at all, but that become orphaned
+    once this user's OWNED rows in another table are gone: song_variant_photos
+    and playlist_songs are both children of song_variants (variant_id), and
+    playlist_songs is also a child of playlists (playlist_id). Cascaded by
+    the ids the user owns in those parent tables, not by user_id."""
+    variant_ids = [r[0] for r in conn.execute("SELECT id FROM song_variants WHERE user_id = ?", (user_id,))]
+    playlist_ids = [r[0] for r in conn.execute("SELECT id FROM playlists WHERE user_id = ?", (user_id,))]
+
+    orphans: dict[str, list[dict]] = {}
+    if variant_ids:
+        ph = ",".join("?" * len(variant_ids))
+        rows = [dict(r) for r in conn.execute(
+            f"SELECT * FROM song_variant_photos WHERE variant_id IN ({ph})", variant_ids
+        )]
+        if rows:
+            orphans["song_variant_photos"] = rows
+
+    if variant_ids or playlist_ids:
+        clauses, params = [], []
+        if variant_ids:
+            clauses.append(f"variant_id IN ({','.join('?' * len(variant_ids))})")
+            params += variant_ids
+        if playlist_ids:
+            clauses.append(f"playlist_id IN ({','.join('?' * len(playlist_ids))})")
+            params += playlist_ids
+        rows = [dict(r) for r in conn.execute(
+            f"SELECT * FROM playlist_songs WHERE {' OR '.join(clauses)}", params
+        )]
+        if rows:
+            orphans["playlist_songs"] = rows
+
+    return orphans, variant_ids, playlist_ids
+
+
+def preview_user_deletion(db_path: pathlib.Path, email: str) -> dict:
+    """Dry run — exactly what delete_user_account would remove, without
+    changing anything. Returns {"user": row|None, "rows": {table: [rows]},
+    "orphans": {table: [rows]}}. Raises AdminAccountProtectedError for an
+    is_admin account, so a dry run never promises a deletion that the real
+    call would actually refuse."""
+    conn = _conn(db_path)
+    try:
+        user = conn.execute("SELECT * FROM users WHERE lower(email) = lower(?)", (email,)).fetchone()
+        if not user:
+            return {"user": None, "rows": {}, "orphans": {}}
+        user = dict(user)
+        if user.get("is_admin"):
+            raise AdminAccountProtectedError(f"{email} is an admin account — refusing to delete")
+        uid = user["id"]
+
+        ref_tables = _discover_user_reference_tables(conn)
+        rows = {}
+        for t, col in ref_tables.items():
+            r = [dict(x) for x in conn.execute(f"SELECT * FROM {t} WHERE {col} = ?", (uid,))]
+            if r:
+                rows[t] = r
+
+        orphans, _variant_ids, _playlist_ids = _orphan_rows(conn, uid)
+        return {"user": user, "rows": rows, "orphans": orphans}
+    finally:
+        conn.close()
+
+
+def delete_user_account(db_path: pathlib.Path, email: str) -> dict:
+    """Deletes EVERY row for this user across every referencing table (see
+    _discover_user_reference_tables and _orphan_rows), in ONE transaction,
+    then commits. Raises ValueError if no such user, or AdminAccountProtectedError
+    for an is_admin account — either way, no changes are made.
+
+    Before committing, re-checks (inside the same transaction, so it sees its
+    own uncommitted deletes) that nothing referencing this user_id is left in
+    any of those tables. If anything is, rolls back and raises RuntimeError
+    instead of committing a half-done delete — this is the "prove it's clean
+    before COMMIT" guarantee, not just a best-effort sweep.
+
+    Returns {"user_id", "email", "deleted": {table: count}}."""
+    conn = _conn(db_path)
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        user = conn.execute("SELECT * FROM users WHERE lower(email) = lower(?)", (email,)).fetchone()
+        if not user:
+            conn.execute("ROLLBACK")
+            raise ValueError(f"no user with email {email!r}")
+        user = dict(user)
+        if user.get("is_admin"):
+            conn.execute("ROLLBACK")
+            raise AdminAccountProtectedError(f"{email} is an admin account — refusing to delete")
+        uid = user["id"]
+
+        ref_tables = _discover_user_reference_tables(conn)
+        _orphans, variant_ids, playlist_ids = _orphan_rows(conn, uid)
+
+        deleted: dict[str, int] = {}
+        for t, col in ref_tables.items():
+            cur = conn.execute(f"DELETE FROM {t} WHERE {col} = ?", (uid,))
+            if cur.rowcount:
+                deleted[t] = cur.rowcount
+
+        if variant_ids:
+            ph = ",".join("?" * len(variant_ids))
+            cur = conn.execute(f"DELETE FROM song_variant_photos WHERE variant_id IN ({ph})", variant_ids)
+            if cur.rowcount:
+                deleted["song_variant_photos"] = cur.rowcount
+
+        if variant_ids or playlist_ids:
+            clauses, params = [], []
+            if variant_ids:
+                clauses.append(f"variant_id IN ({','.join('?' * len(variant_ids))})")
+                params += variant_ids
+            if playlist_ids:
+                clauses.append(f"playlist_id IN ({','.join('?' * len(playlist_ids))})")
+                params += playlist_ids
+            cur = conn.execute(f"DELETE FROM playlist_songs WHERE {' OR '.join(clauses)}", params)
+            if cur.rowcount:
+                deleted["playlist_songs"] = cur.rowcount
+
+        cur = conn.execute("DELETE FROM users WHERE id = ?", (uid,))
+        deleted["users"] = cur.rowcount
+
+        # Prove clean before committing — see docstring.
+        for t, col in ref_tables.items():
+            n = conn.execute(f"SELECT COUNT(*) FROM {t} WHERE {col} = ?", (uid,)).fetchone()[0]
+            if n:
+                conn.execute("ROLLBACK")
+                raise RuntimeError(f"cleanup incomplete: {t} still has {n} row(s) for {uid} — rolled back, nothing committed")
+        if conn.execute("SELECT COUNT(*) FROM users WHERE id = ?", (uid,)).fetchone()[0]:
+            conn.execute("ROLLBACK")
+            raise RuntimeError(f"cleanup incomplete: users row for {uid} still present — rolled back, nothing committed")
+
+        conn.commit()
+        return {"user_id": uid, "email": user["email"], "deleted": deleted}
+    finally:
+        conn.close()
+
+
 def update_user_by_email(db_path: pathlib.Path, email: str, **fields) -> bool:
     """Update one or more columns for a user looked up by email. Returns True if found."""
     if not fields:
