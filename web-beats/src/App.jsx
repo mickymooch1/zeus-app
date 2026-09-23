@@ -33,6 +33,7 @@ const RefundPolicyPage   = lazy(() => import('./pages/RefundPolicyPage'));
 const DataDeletionPage   = lazy(() => import('./pages/DataDeletionPage'));
 const SearchPage         = lazy(() => import('./pages/SearchPage'));
 const AdminBeats         = lazy(() => import('./pages/AdminBeats'));
+const AdminClipReports   = lazy(() => import('./pages/AdminClipReports'));
 const MixerPage          = lazy(() => import('./pages/MixerPage'));
 const DiscoverPage       = lazy(() => import('./pages/DiscoverPage'));
 const DiscoverSongPage   = lazy(() => import('./pages/DiscoverSongPage'));
@@ -247,6 +248,14 @@ export default function App() {
               element={
                 <SchoolSafeRoute>
                   <AdminBeats />
+                </SchoolSafeRoute>
+              }
+            />
+            <Route
+              path="/admin/clips"
+              element={
+                <SchoolSafeRoute>
+                  <AdminClipReports />
                 </SchoolSafeRoute>
               }
             />
