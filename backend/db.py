@@ -561,6 +561,87 @@ def init_user_tables(db_path: pathlib.Path) -> None:
                 details  TEXT
             )""",
             "CREATE INDEX IF NOT EXISTS idx_security_scans_kind_ts ON security_scans (kind, ts)",
+            # Zeus Clips MVP (2026-09-23) — see clips.py and
+            # docs/superpowers/specs/2026-09-23-zeus-clips-mvp-design.md. A clip is a
+            # song reference + a time window + a visual; no server-side video
+            # rendering. media_url is NULL for media_type='cover' (uses the source
+            # song's own cover). status follows the same published/hidden/deleted
+            # convention as song_variants' is_public, kept as a 3-state column rather
+            # than a bool so "hidden by report" and "deleted by owner" stay distinct
+            # for moderation history.
+            """CREATE TABLE IF NOT EXISTS clips (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id          TEXT NOT NULL,
+                song_id          INTEGER NOT NULL,
+                caption          TEXT NOT NULL DEFAULT '',
+                media_type       TEXT NOT NULL,
+                media_url        TEXT,
+                clip_start_time  REAL NOT NULL,
+                clip_duration    INTEGER NOT NULL,
+                status           TEXT NOT NULL DEFAULT 'published',
+                view_count       INTEGER NOT NULL DEFAULT 0,
+                like_count       INTEGER NOT NULL DEFAULT 0,
+                remix_count      INTEGER NOT NULL DEFAULT 0,
+                created_at       TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (song_id) REFERENCES song_variants(id)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clips_status_created ON clips (status, created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_clips_user ON clips (user_id)",
+            """CREATE TABLE IF NOT EXISTS clip_likes (
+                clip_id    INTEGER NOT NULL,
+                user_id    TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (clip_id, user_id)
+            )""",
+            # original_song_id is denormalised from clips.song_id (rather than joined every read)
+            # because a remix analytics query outlives the clip if the clip is later deleted.
+            # lyric_id is the shared lyric row the standard 2-variant generation produces under
+            # (see songs_generate) — completion looks up "the first variant under this lyric_id
+            # to finish", never a variant id chosen at start time, since neither of the two exists yet.
+            """CREATE TABLE IF NOT EXISTS clip_remixes (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                original_clip_id  INTEGER NOT NULL,
+                original_song_id  INTEGER NOT NULL,
+                lyric_id          INTEGER,
+                remix_song_id     INTEGER,
+                user_id           TEXT NOT NULL,
+                created_at        TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clip_remixes_lyric ON clip_remixes (lyric_id)",
+            "CREATE INDEX IF NOT EXISTS idx_clip_remixes_clip ON clip_remixes (original_clip_id)",
+            """CREATE TABLE IF NOT EXISTS clip_reports (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                clip_id     INTEGER NOT NULL,
+                reporter_id TEXT NOT NULL,
+                reason      TEXT NOT NULL,
+                created_at  TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clip_reports_clip ON clip_reports (clip_id)",
+            # No existing generic analytics/event table in this codebase (song_play_events is
+            # play-specific) — this is the new one Phase 4's admin queries read from.
+            """CREATE TABLE IF NOT EXISTS clip_events (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_name TEXT NOT NULL,
+                user_id    TEXT,
+                anon_id    TEXT,
+                clip_id    INTEGER,
+                song_id    INTEGER,
+                created_at TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clip_events_name_created ON clip_events (event_name, created_at)",
+            # Views: once per user (or anon session) per clip per 24h (approved decision #5).
+            # A separate log table, not a UNIQUE constraint on clip_events, since the same
+            # (clip,user) pair legitimately re-views after the 24h window — the dedup key here is
+            # "most recent view", which a straight UNIQUE would prevent ever updating.
+            """CREATE TABLE IF NOT EXISTS clip_views (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                clip_id    INTEGER NOT NULL,
+                user_id    TEXT,
+                anon_id    TEXT,
+                created_at TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_clip_views_dedup ON clip_views (clip_id, user_id, anon_id, created_at)",
         ]:
             try:
                 conn.execute(_migration)
