@@ -661,6 +661,17 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             )""",
             "CREATE INDEX IF NOT EXISTS idx_clip_media_uploads_user_created ON clip_media_uploads (user_id, created_at)",
             "CREATE INDEX IF NOT EXISTS idx_clip_media_uploads_filename ON clip_media_uploads (filename)",
+            # UTM attribution (2026-09-23). First-touch: utils/utmAttribution.js on the
+            # frontend captures utm_source/medium/campaign from the URL on first landing
+            # and never overwrites an existing capture, so whatever reaches here — a
+            # clip_events row (per-event, may be anonymous) or a users row (once, at
+            # signup) — is genuinely the visitor's FIRST touch, not their latest one.
+            "ALTER TABLE clip_events ADD COLUMN utm_source TEXT",
+            "ALTER TABLE clip_events ADD COLUMN utm_medium TEXT",
+            "ALTER TABLE clip_events ADD COLUMN utm_campaign TEXT",
+            "ALTER TABLE users ADD COLUMN utm_source TEXT",
+            "ALTER TABLE users ADD COLUMN utm_medium TEXT",
+            "ALTER TABLE users ADD COLUMN utm_campaign TEXT",
         ]:
             try:
                 conn.execute(_migration)
@@ -949,8 +960,16 @@ def create_user(
     password_hash: str,
     name: str,
     tc_accepted_at: str,
+    utm_source: str | None = None,
+    utm_medium: str | None = None,
+    utm_campaign: str | None = None,
 ) -> dict:
-    """Insert a new user and return the user dict."""
+    """Insert a new user and return the user dict.
+
+    utm_* (2026-09-23): the frontend's first-touch attribution — see
+    utils/utmAttribution.js — written once here, at signup, and never touched
+    again. Optional/keyword-only so every existing call site keeps working
+    unchanged."""
     import signup_guard
     now = datetime.now(timezone.utc).isoformat()
     user_id = str(uuid.uuid4())
@@ -964,11 +983,12 @@ def create_user(
             """
             INSERT INTO users (id, email, email_canonical, password_hash, name,
                                subscription_status, tc_accepted_at, created_at, updated_at,
-                               last_seen_announcement_id)
-            VALUES (?, ?, ?, ?, ?, 'free', ?, ?, ?, ?)
+                               last_seen_announcement_id, utm_source, utm_medium, utm_campaign)
+            VALUES (?, ?, ?, ?, ?, 'free', ?, ?, ?, ?, ?, ?, ?)
             """,
             (user_id, email.lower().strip(), signup_guard.normalize_email(email),
-             password_hash, name, tc_accepted_at, now, now, last_seen_announcement_id),
+             password_hash, name, tc_accepted_at, now, now, last_seen_announcement_id,
+             utm_source, utm_medium, utm_campaign),
         )
         conn.commit()
         return get_user_by_id(db_path, user_id)

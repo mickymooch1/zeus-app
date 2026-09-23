@@ -363,13 +363,20 @@ def list_feed(db_path: pathlib.Path, sort: str = "new", page: int = 0, page_size
 # ── analytics ────────────────────────────────────────────────────────────────
 
 def log_event(db_path: pathlib.Path, event_name: str, user_id: str | None = None, anon_id: str | None = None,
-             clip_id: int | None = None, song_id: int | None = None, now: datetime | None = None) -> None:
+             clip_id: int | None = None, song_id: int | None = None, now: datetime | None = None,
+             utm_source: str | None = None, utm_medium: str | None = None,
+             utm_campaign: str | None = None) -> None:
+    """utm_* (2026-09-23): the caller's first-touch attribution, if it has any to
+    give — see utils/utmAttribution.js on the frontend. Optional/keyword-only so
+    every existing call site (including remix_completed above, which has no
+    request context to draw attribution from at all) keeps working unchanged."""
     conn = db._conn(db_path)
     try:
         conn.execute(
-            "INSERT INTO clip_events (event_name, user_id, anon_id, clip_id, song_id, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (event_name, user_id, anon_id, clip_id, song_id, (now or _now()).isoformat()),
+            "INSERT INTO clip_events (event_name, user_id, anon_id, clip_id, song_id, created_at, "
+            "utm_source, utm_medium, utm_campaign) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (event_name, user_id, anon_id, clip_id, song_id, (now or _now()).isoformat(),
+             utm_source, utm_medium, utm_campaign),
         )
         conn.commit()
     finally:

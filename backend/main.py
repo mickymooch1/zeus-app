@@ -731,6 +731,11 @@ class RegisterRequest(BaseModel):
     app: str = "ai"
     referral: str | None = None
     fingerprint: str | None = None
+    # First-touch attribution captured client-side — see utils/utmAttribution.js.
+    # Free-text marketing tags, not validated against any known list.
+    utm_source: str | None = Field(default=None, max_length=200)
+    utm_medium: str | None = Field(default=None, max_length=200)
+    utm_campaign: str | None = Field(default=None, max_length=200)
 
 
 class SchoolRegisterRequest(BaseModel):
@@ -986,6 +991,9 @@ async def register(request: Request, body: RegisterRequest):
             password_hash=password_hash,
             name=body.name.strip(),
             tc_accepted_at=tc_accepted_at,
+            utm_source=body.utm_source,
+            utm_medium=body.utm_medium,
+            utm_campaign=body.utm_campaign,
         )
     except Exception as exc:
         log.exception("register: create_user failed")
@@ -7151,7 +7159,18 @@ async def cover_song(
 # song's own mp3 over it. DB layer + trending/remix logic in clips.py; upload validation in
 # clip_uploads.py. Phase 3 (moderation admin UI, block-user, Porick alerts) is NOT built yet.
 
-class ClipCreateRequest(BaseModel):
+# UTM attribution (2026-09-23) — the frontend's first-touch capture, threaded
+# through to clips.log_event so a clip_events row can carry it. Every clip
+# endpoint that logs an event mixes this in; remix_completed (the one event with
+# no request to draw attribution from — it fires from a webhook) is the only
+# exception, and stays NULL there.
+class _UtmMixin(BaseModel):
+    utm_source: str | None = Field(default=None, max_length=200)
+    utm_medium: str | None = Field(default=None, max_length=200)
+    utm_campaign: str | None = Field(default=None, max_length=200)
+
+
+class ClipCreateRequest(_UtmMixin):
     song_id: int
     caption: str = Field(default="", max_length=150)
     media_type: str  # 'cover' | 'image' | 'video'
@@ -7161,8 +7180,16 @@ class ClipCreateRequest(BaseModel):
     make_song_public: bool = False
 
 
-class ClipViewRequest(BaseModel):
+class ClipViewRequest(_UtmMixin):
     anon_id: str | None = None  # used only when the caller is logged out
+
+
+class ClipLikeRequest(_UtmMixin):
+    pass
+
+
+class ClipRemixRequest(_UtmMixin):
+    pass
 
 
 class ClipReportRequest(BaseModel):
@@ -7301,7 +7328,8 @@ async def publish_clip(body: ClipCreateRequest, current_user: dict = Depends(aut
         import clip_uploads as _clip_uploads_mod
         _clip_uploads_mod.mark_upload_attached(db_path, pathlib.Path(body.media_url).name, clip_id)
 
-    _clips_mod.log_event(db_path, "clip_published", user_id=current_user["id"], clip_id=clip_id, song_id=body.song_id)
+    _clips_mod.log_event(db_path, "clip_published", user_id=current_user["id"], clip_id=clip_id, song_id=body.song_id,
+                         utm_source=body.utm_source, utm_medium=body.utm_medium, utm_campaign=body.utm_campaign)
     log.info("publish_clip: clip_id=%s user=%s song_id=%s media_type=%s", clip_id, current_user["id"], body.song_id, body.media_type)
     return _clip_out(_clips_mod.get_clip(db_path, clip_id))
 
@@ -7341,13 +7369,17 @@ async def delete_clip(clip_id: int, current_user: dict = Depends(auth.get_curren
 
 
 @app.post("/api/clips/{clip_id}/like")
-async def like_clip_endpoint(clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+async def like_clip_endpoint(clip_id: int, body: ClipLikeRequest | None = None,
+                             current_user: dict = Depends(auth.get_current_user)):
     import clips as _clips_mod
     db_path = db.get_db_path()
     like_count = _clips_mod.like_clip(db_path, clip_id, current_user["id"])
     row = _clips_mod.get_clip(db_path, clip_id, include_hidden=True)
     if row:
-        _clips_mod.log_event(db_path, "clip_liked", user_id=current_user["id"], clip_id=clip_id, song_id=row["song_id"])
+        _clips_mod.log_event(db_path, "clip_liked", user_id=current_user["id"], clip_id=clip_id, song_id=row["song_id"],
+                             utm_source=body.utm_source if body else None,
+                             utm_medium=body.utm_medium if body else None,
+                             utm_campaign=body.utm_campaign if body else None)
     return {"like_count": like_count}
 
 
@@ -7374,7 +7406,10 @@ async def view_clip_endpoint(clip_id: int, body: ClipViewRequest | None = None, 
     if not row:
         raise HTTPException(status_code=404, detail="Clip not found")
     if counted:
-        _clips_mod.log_event(db_path, "clip_viewed", user_id=user_id, anon_id=anon_id, clip_id=clip_id, song_id=row["song_id"])
+        _clips_mod.log_event(db_path, "clip_viewed", user_id=user_id, anon_id=anon_id, clip_id=clip_id, song_id=row["song_id"],
+                             utm_source=body.utm_source if body else None,
+                             utm_medium=body.utm_medium if body else None,
+                             utm_campaign=body.utm_campaign if body else None)
     return {"counted": counted, "view_count": row["view_count"]}
 
 
@@ -7395,14 +7430,17 @@ async def report_clip_endpoint(clip_id: int, body: ClipReportRequest, current_us
 
 @app.post("/api/clips/{clip_id}/remix", status_code=202)
 @limiter.limit("10/minute", key_func=_user_key)
-async def remix_clip(request: Request, clip_id: int, current_user: dict = Depends(auth.get_current_user)):
+async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | None = None,
+                     current_user: dict = Depends(auth.get_current_user)):
     """Reuses the exact same generation pipeline /api/songs/generate calls (lyrics first,
     then Apiframe submission) — never a separate/parallel path — so remix picks up every
     existing safety check (email verification, credit deduction/refund-on-failure) for
     free. The style descriptors and theme are ALWAYS re-derived server-side from the
     source clip (clips.get_remix_prefill, which sanitizes and never touches lyrics_text)
     — a client can never smuggle the original lyrics through this endpoint's body,
-    because this endpoint's body has no field that could carry them; only clip_id."""
+    because the only fields this body accepts are UTM attribution tags (see
+    utils/utmAttribution.js); nothing that could carry lyrics or override the
+    server-derived style/theme."""
     import lyrics as _lyrics_mod
     import songs as _songs_mod
     import clips as _clips_mod
@@ -7447,7 +7485,10 @@ async def remix_clip(request: Request, clip_id: int, current_user: dict = Depend
 
     remix_id = _clips_mod.start_remix(db_path, original_clip_id=clip_id, original_song_id=clip["song_id"],
                                       user_id=user_id, lyric_id=lyric_id)
-    _clips_mod.log_event(db_path, "remix_started", user_id=user_id, clip_id=clip_id, song_id=clip["song_id"])
+    _clips_mod.log_event(db_path, "remix_started", user_id=user_id, clip_id=clip_id, song_id=clip["song_id"],
+                         utm_source=body.utm_source if body else None,
+                         utm_medium=body.utm_medium if body else None,
+                         utm_campaign=body.utm_campaign if body else None)
     variant_id = variant_result["variants"][0]["variant_id"] if variant_result.get("variants") else None
     log.info("remix_clip: remix_id=%s clip_id=%s user=%s lyric_id=%s variant_id=%s",
              remix_id, clip_id, user_id, lyric_id, variant_id)
