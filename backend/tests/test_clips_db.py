@@ -315,6 +315,29 @@ def test_remix_prefill_returns_sanitized_style_and_theme_never_raw_lyrics(path):
     assert "la la la" not in prefill["theme"].lower()  # never the raw lyrics_text
 
 
+def test_remix_prefill_splits_a_single_genre_tag_into_genre_with_no_genre_b(path):
+    add_user(path, "u1", "a@example.com")
+    add_song(path, 1, "u1", genre_tag="pop")
+    clip_id = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    prefill = clips.get_remix_prefill(path, clip_id)
+    assert prefill["genre"] == "pop"
+    assert prefill["genre_b"] is None
+
+
+def test_remix_prefill_splits_a_blended_genre_tag_into_genre_and_genre_b(path):
+    """genre_tag stores a blend as '{genre}__{genre_b}' (see songs.py's own construction of
+    it) — the remix prefill must hand generation the same two components back, not the
+    joined string, or downstream genre validation rejects it outright (main.py bug, fixed
+    alongside this test)."""
+    add_user(path, "u1", "a@example.com")
+    add_song(path, 1, "u1", genre_tag="pop__rock")
+    clip_id = clips.create_clip(path, "u1", 1, "", "cover", None, 0, 15)
+    prefill = clips.get_remix_prefill(path, clip_id)
+    assert prefill["genre"] == "pop"
+    assert prefill["genre_b"] == "rock"
+    assert prefill["genre_tag"] == "pop__rock"  # unchanged — other callers still read this
+
+
 # ── reports ──────────────────────────────────────────────────────────────────
 
 def test_report_clip_records_reason_and_reporter(path):

@@ -7568,19 +7568,38 @@ async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | No
     if not clip:
         raise HTTPException(status_code=404, detail="Clip not found")
     prefill = _clips_mod.get_remix_prefill(db_path, clip_id)
-    genre = prefill.get("genre_tag")
-    if not genre:
+
+    # genre_tag stores a blend as "{genre}__{genre_b}" (clips.get_remix_prefill splits it
+    # into these two keys) — generation takes them as SEPARATE parameters (genres=[genre],
+    # genre_b=genre_b), never the joined string. Passing the joined string through used to
+    # make generate_multiple_variants reject it outright with a 502 (found via a real
+    # production remix attempt on a blended-genre clip, 2026-09-23) and silently skipped
+    # generate_lyrics' own blend-aware handling (DJ-transition structure, the haiku→sonnet
+    # model upgrade) even on requests that didn't fail outright.
+    #
+    # Validated here, against the same GENRE_PRESETS generation itself checks, so an
+    # unrecognised genre is a clean 400 BEFORE any Claude lyrics call or credit work —
+    # not a 502 discovered deep inside generate_multiple_variants after money's already
+    # been spent on lyrics. An unrecognised primary genre has nothing sensible to fall
+    # back to and is refused outright; an unrecognised secondary (blend partner) is
+    # dropped and the remix degrades gracefully to a plain single-genre request.
+    from song_genres import GENRE_PRESETS
+    genre = prefill.get("genre")
+    genre_b = prefill.get("genre_b")
+    if not genre or genre not in GENRE_PRESETS:
         raise HTTPException(status_code=400, detail="This clip's song has no genre to remix from")
+    if genre_b and genre_b not in GENRE_PRESETS:
+        genre_b = None
 
     lyric_result = _lyrics_mod.generate_lyrics(
-        user_id=user_id, brief="", db_path=db_path, genres=[genre],
+        user_id=user_id, brief="", db_path=db_path, genres=[genre], genre_b=genre_b,
         inspired_by_theme=prefill.get("theme") or None,
     )
     lyric_id = lyric_result["lyric_id"]
 
     try:
         variant_result = _songs_mod.generate_multiple_variants(
-            user_id=user_id, lyric_id=lyric_id, genres=[genre], db_path=str(db_path),
+            user_id=user_id, lyric_id=lyric_id, genres=[genre], genre_b=genre_b, db_path=str(db_path),
             inspired_by_descriptors=prefill.get("style_descriptors") or None,
             platform=_detect_platform(request, None),
         )

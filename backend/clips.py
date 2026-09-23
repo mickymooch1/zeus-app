@@ -312,8 +312,16 @@ def get_remix_prefill(db_path: pathlib.Path, clip_id: int) -> dict:
         conn.close()
     if not row:
         return {}
+    # genre_tag stores a blend as "{genre}__{genre_b}" (see songs.py's own construction of
+    # it, right where it names the genre_tag column) — split it back into the two
+    # components generation actually takes as separate parameters. partition() rather than
+    # split() so a tag with no "__" cleanly yields genre_b="" (below, None) instead of a
+    # one-item list; genre_tag is never anything but "genre" or "genre__genre_b".
+    genre, _sep, genre_b = (row["genre_tag"] or "").partition("__")
     return {
         "genre_tag": row["genre_tag"],
+        "genre": genre or None,
+        "genre_b": genre_b or None,
         "style_descriptors": _songs.sanitize_inspired_by_descriptors(row["style_prompt"]) or "",
         "theme": _songs.sanitize_inspired_by_theme(row["brief"]) or "",
         "source_song_title": row["song_title"],
