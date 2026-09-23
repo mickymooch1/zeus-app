@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 import { clearRemixIntent, saveRemixIntent } from '../utils/remixIntent';
+import { readUtmAttribution } from '../utils/utmAttribution';
 import VerificationRequiredScreen from '../components/VerificationRequiredScreen';
 import RemixButton from '../components/RemixButton';
 
@@ -55,7 +56,8 @@ export default function ClipRemixPage() {
     try {
       const r = await fetch(`${BACKEND_URL}/api/clips/${clipId}/remix`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(readUtmAttribution() || {}),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {

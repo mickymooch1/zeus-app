@@ -5,6 +5,7 @@ import { BACKEND_URL } from '../brand';
 import { clipSeekTarget, clipInitialTime } from '../utils/clipPlayback';
 import { getClipAnonId } from '../utils/clipAnonId';
 import { saveRemixIntent } from '../utils/remixIntent';
+import { readUtmAttribution } from '../utils/utmAttribution';
 import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
@@ -252,7 +253,10 @@ export default function ClipsFeedPage() {
                 'Content-Type': 'application/json',
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
               },
-              body: JSON.stringify(token ? {} : { anon_id: getClipAnonId() }),
+              body: JSON.stringify({
+                ...(token ? {} : { anon_id: getClipAnonId() }),
+                ...(readUtmAttribution() || {}),
+              }),
             }).catch(() => {});
           }
 
@@ -312,10 +316,16 @@ export default function ClipsFeedPage() {
     setLiked(prev => { const n = new Set(prev); wasLiked ? n.delete(clipId) : n.add(clipId); return n; });
     setCounts(prev => ({ ...prev, [clipId]: Math.max(0, (prev[clipId] || 0) + (wasLiked ? -1 : 1)) }));
     try {
-      await fetch(`${BACKEND_URL}/api/clips/${clipId}/like`, {
-        method: wasLiked ? 'DELETE' : 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Unlike (DELETE) has no body — the endpoint doesn't log an event for it
+      // (only "clip_liked" exists, not "clip_unliked"), so there's nothing to
+      // attach attribution to on that path.
+      await fetch(`${BACKEND_URL}/api/clips/${clipId}/like`, wasLiked
+        ? { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
+        : {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(readUtmAttribution() || {}),
+          });
     } catch {
       setLiked(prev => { const n = new Set(prev); wasLiked ? n.add(clipId) : n.delete(clipId); return n; });
       setCounts(prev => ({ ...prev, [clipId]: Math.max(0, (prev[clipId] || 0) + (wasLiked ? 1 : -1)) }));

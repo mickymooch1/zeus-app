@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
+import { readUtmAttribution } from '../utils/utmAttribution';
 
 const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
@@ -97,6 +98,7 @@ export default function ClipCreatorPage() {
         clip_start_time: startTime,
         clip_duration: duration,
         make_song_public: !song.is_public,
+        ...(readUtmAttribution() || {}),
       };
       const r = await fetch(`${BACKEND_URL}/api/clips`, {
         method: 'POST',

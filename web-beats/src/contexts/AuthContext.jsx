@@ -133,11 +133,18 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
-  const register = useCallback(async (email, password, name, tcAccepted, app = 'beats', referral = null, fingerprint = null) => {
+  // utm: an optional { utm_source, utm_medium, utm_campaign } — see
+  // utils/utmAttribution.js's readUtmAttribution(), the frontend's first-touch
+  // capture. Appended as its own param rather than growing the positional list
+  // further; existing call sites that don't pass it are unaffected.
+  const register = useCallback(async (email, password, name, tcAccepted, app = 'beats', referral = null, fingerprint = null, utm = null) => {
     const res = await fetch(`${BACKEND_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name, tc_accepted: tcAccepted, app, referral, fingerprint, platform: PLATFORM }),
+      body: JSON.stringify({
+        email, password, name, tc_accepted: tcAccepted, app, referral, fingerprint, platform: PLATFORM,
+        ...(utm || {}),
+      }),
     });
 
     const data = await res.json();

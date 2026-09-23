@@ -5,6 +5,7 @@ import { BACKEND_URL } from '../brand';
 import { clipSeekTarget, clipInitialTime } from '../utils/clipPlayback';
 import { getClipAnonId } from '../utils/clipAnonId';
 import { saveRemixIntent } from '../utils/remixIntent';
+import { readUtmAttribution } from '../utils/utmAttribution';
 import RemixButton from '../components/RemixButton';
 import ClipMoreMenu from '../components/ClipMoreMenu';
 
@@ -80,7 +81,10 @@ export default function ClipPage() {
     fetch(`${BACKEND_URL}/api/clips/${clipId}/view`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify(token ? {} : { anon_id: getClipAnonId() }),
+      body: JSON.stringify({
+        ...(token ? {} : { anon_id: getClipAnonId() }),
+        ...(readUtmAttribution() || {}),
+      }),
     }).catch(() => {});
   }, [clip, clipId, token]);
 
@@ -127,10 +131,13 @@ export default function ClipPage() {
     setLiked(!was);
     setLikeCount(c => Math.max(0, c + (was ? -1 : 1)));
     try {
-      await fetch(`${BACKEND_URL}/api/clips/${clipId}/like`, {
-        method: was ? 'DELETE' : 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await fetch(`${BACKEND_URL}/api/clips/${clipId}/like`, was
+        ? { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
+        : {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(readUtmAttribution() || {}),
+          });
     } catch {
       setLiked(was);
       setLikeCount(c => Math.max(0, c + (was ? 1 : -1)));
