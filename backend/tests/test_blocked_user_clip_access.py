@@ -41,6 +41,10 @@ def app_client(tmp_path, monkeypatch):
     monkeypatch.setenv("ZEUS_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("SONG_STORAGE_PATH", str(tmp_path / "songs"))
     monkeypatch.setenv("CLIP_STORAGE_PATH", str(tmp_path / "clips"))
+    # This suite tests the block-user gate, not the CLIPS_ENABLED gate (see
+    # test_clips_feature_flag.py for that) — open creation to everyone so the
+    # non-admin fixture users can publish as before the flag existed.
+    monkeypatch.setenv("CLIPS_ENABLED", "true")
     import db as _db
     importlib.reload(_db)
     import clips as _clips

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 import { readUtmAttribution } from '../utils/utmAttribution';
 import { clipSeekTarget, clipInitialTime } from '../utils/clipPlayback';
+import { useClipsEnabled } from '../hooks/useClipsEnabled';
 
 const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
@@ -22,7 +23,8 @@ function formatTime(seconds) {
  * missing — e.g. a page refresh, which drops state but keeps the URL.
  */
 export default function ClipCreatorPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const canCreateClip = useClipsEnabled(user);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -178,6 +180,22 @@ export default function ClipCreatorPage() {
     return (
       <div style={{ background: '#0a0a14', minHeight: '100svh', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 24 }}>
         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15 }}>Couldn&apos;t find that song.</p>
+        <Link to="/songs" style={{ color: CYAN, fontWeight: 600, textDecoration: 'none' }}>← Back to my songs</Link>
+      </div>
+    );
+  }
+
+  // CLIPS_ENABLED is off and this user isn't an admin: SongCard's "Create
+  // Clip" button is already hidden from them, but a direct/bookmarked visit
+  // to this URL would otherwise only find out on submit (a 403 from
+  // publish_clip). Tell them clearly instead. This is a UI convenience only
+  // — the real enforcement is server-side.
+  if (!canCreateClip) {
+    return (
+      <div style={{ background: '#0a0a14', minHeight: '100svh', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 24, textAlign: 'center' }}>
+        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, maxWidth: 320 }}>
+          Zeus Clips isn&apos;t open to everyone yet — check back soon.
+        </p>
         <Link to="/songs" style={{ color: CYAN, fontWeight: 600, textDecoration: 'none' }}>← Back to my songs</Link>
       </div>
     );

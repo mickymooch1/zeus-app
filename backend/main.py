@@ -7269,6 +7269,24 @@ def _reject_if_blocked(current_user: dict, db_path: pathlib.Path) -> None:
         )
 
 
+def _clips_enabled_env() -> bool:
+    """The raw CLIPS_ENABLED env var — default OFF. This is the value GET
+    /api/clips/config reports; it is deliberately NOT admin-aware, since the
+    frontend already knows the current user's own is_admin and combines the
+    two itself (see useClipsEnabled.js)."""
+    return os.environ.get("CLIPS_ENABLED", "").strip().lower() in ("1", "true", "yes")
+
+
+def _clips_feature_enabled(current_user: dict | None) -> bool:
+    """Gate for clip CREATION only (publish_clip, upload_clip_media) — never
+    for reading a clip (feed/detail, reachable by anyone with a link) or for
+    acting on one that already exists (like, remix, report). While
+    CLIPS_ENABLED is off, creation is admin-only so admins can dog-food the
+    feature before it's promoted to everyone; once the env var is set, it
+    opens to everyone regardless of is_admin."""
+    return _clips_enabled_env() or bool(current_user and current_user.get("is_admin"))
+
+
 def _clip_out(row: dict) -> dict:
     """Shapes a clips.get_clip()/list_feed() row for the API — folds in the sanitized
     remix-prefill fields (never the source song's raw lyrics) so the clip detail page and
@@ -7317,6 +7335,9 @@ async def upload_clip_media(
 
     _reject_if_blocked(current_user, db.get_db_path())
 
+    if not _clips_feature_enabled(current_user):
+        raise HTTPException(status_code=403, detail="Zeus Clips is not open to everyone yet.")
+
     if not (billing.get_subscription_status(current_user)["is_active"] or current_user.get("is_admin")):
         raise HTTPException(
             status_code=403,
@@ -7362,6 +7383,9 @@ async def publish_clip(body: ClipCreateRequest, current_user: dict = Depends(aut
     db_path = db.get_db_path()
     _reject_if_blocked(current_user, db_path)
 
+    if not _clips_feature_enabled(current_user):
+        raise HTTPException(status_code=403, detail="Zeus Clips is not open to everyone yet.")
+
     if body.media_type in ("image", "video") and not body.media_url:
         raise HTTPException(status_code=400, detail=f"media_type={body.media_type!r} requires a prior upload")
     if body.media_type == "cover" and body.media_url:
@@ -7397,6 +7421,16 @@ async def publish_clip(body: ClipCreateRequest, current_user: dict = Depends(aut
                          utm_source=body.utm_source, utm_medium=body.utm_medium, utm_campaign=body.utm_campaign)
     log.info("publish_clip: clip_id=%s user=%s song_id=%s media_type=%s", clip_id, current_user["id"], body.song_id, body.media_type)
     return _clip_out(_clips_mod.get_clip(db_path, clip_id))
+
+
+@app.get("/api/clips/config")
+async def clips_config():
+    """Public, no auth required — the flag itself is not sensitive, and the
+    frontend needs it before it knows whether a user is even logged in.
+    Registered BEFORE /api/clips/{clip_id} so 'config' is never swallowed as
+    a clip_id path param (same ordering reason upload-media is registered
+    ahead of that route)."""
+    return {"enabled": _clips_enabled_env()}
 
 
 @app.get("/api/clips")
