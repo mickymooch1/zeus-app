@@ -7,6 +7,7 @@ import { getClipAnonId } from '../utils/clipAnonId';
 import { saveRemixIntent } from '../utils/remixIntent';
 import { readUtmAttribution } from '../utils/utmAttribution';
 import { deriveClipHandle } from '../utils/clipHandle';
+import { formatCount } from '../utils/formatCount';
 import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
@@ -254,8 +255,8 @@ export default function ClipPage() {
         position: 'absolute', bottom: 232, right: 14, zIndex: 20,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
       }}>
-        <ClipActionBtn onClick={handleLike} icon="❤️" label={String(likeCount)} active={liked} activeColor={PURPLE} />
-        <ClipActionBtn icon="🔁" label={String(clip.remix_count)} />
+        <ClipActionBtn onClick={handleLike} icon="❤️" label={formatCount(likeCount)} active={liked} activeColor={PURPLE} />
+        <ClipActionBtn icon="🔁" label={formatCount(clip.remix_count)} />
         <ClipActionBtn onClick={handleCopy} icon={copied ? '✓' : '🔗'} label={copied ? 'Copied' : 'Share'} active={copied} activeColor={CYAN} />
       </div>
 

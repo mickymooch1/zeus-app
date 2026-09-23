@@ -1,16 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { BACKEND_URL } from '../brand';
+import { formatCount } from '../utils/formatCount';
 
 // Zeus Beats' own electric-blue → purple pair (see RemixButton.jsx).
 const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
-
-function formatCount(n) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  return String(n);
-}
 
 /**
  * A Clips profile — deliberately simple (build brief, 2026-09-24): avatar,
