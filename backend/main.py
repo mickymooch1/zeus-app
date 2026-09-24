@@ -7241,7 +7241,10 @@ class ClipLikeRequest(_UtmMixin):
 
 
 class ClipRemixRequest(_UtmMixin):
-    pass
+    # Remix in a different genre (2026-09-24). Both omitted = the original genre
+    # (the default). Validated by _resolve_remix_genre.
+    genre: str | None = None
+    genre_b: str | None = None
 
 
 class ClipReportRequest(BaseModel):
@@ -7581,6 +7584,35 @@ def _require_can_remix(current_user: dict, db_path) -> None:
         )
 
 
+def _resolve_remix_genre(prefill: dict, body: "ClipRemixRequest | None") -> tuple[dict, dict]:
+    """Applies the remixer's optional genre choice to the server-derived prefill.
+    Returns (prefill to generate from, analytics fields).
+
+    No choice, or the original genre re-picked: the prefill unchanged — the original
+    genre AND its sanitized style descriptors (current behaviour). A different genre:
+    that genre (and optional blend partner) with NO original style descriptors, so the
+    new genre's own preset drives the sound — but the original THEME is kept for the
+    new lyrics. Unknown genres are a 400 here, before any lyrics call or credit spend."""
+    from song_genres import GENRE_PRESETS
+    original_tag = prefill.get("genre_tag") or ""
+    genre = (body.genre or "").strip() if body else ""
+    genre_b = (body.genre_b or "").strip() if body else ""
+    if genre_b and not genre:
+        raise HTTPException(status_code=400, detail="Pick a main genre before a blend genre.")
+    if genre and genre not in GENRE_PRESETS:
+        raise HTTPException(status_code=400, detail="Unknown genre.")
+    if genre_b and (genre_b not in GENRE_PRESETS or genre_b == genre):
+        raise HTTPException(status_code=400, detail="Unknown or repeated blend genre.")
+    chosen_tag = f"{genre}__{genre_b}" if genre_b else genre
+    changed = bool(chosen_tag) and chosen_tag != original_tag
+    analytics = {"original_genre": original_tag or None,
+                 "remix_genre": (chosen_tag if changed else original_tag) or None,
+                 "genre_changed": changed}
+    if not changed:
+        return prefill, analytics
+    return {**prefill, "genre": genre, "genre_b": genre_b or None, "style_descriptors": ""}, analytics
+
+
 def _generate_remix(request: Request, user_id: str, prefill: dict, db_path, source: str) -> tuple[int, int | None]:
     """Shared by the clip remix and the Discover song remix. Reuses the exact same
     generation pipeline /api/songs/generate calls (lyrics first, then Apiframe
@@ -7654,7 +7686,7 @@ async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | No
     clip = _clips_mod.get_clip(db_path, clip_id)
     if not clip:
         raise HTTPException(status_code=404, detail="Clip not found")
-    prefill = _clips_mod.get_remix_prefill(db_path, clip_id)
+    prefill, genre_fields = _resolve_remix_genre(_clips_mod.get_remix_prefill(db_path, clip_id), body)
 
     lyric_id, variant_id = _generate_remix(request, user_id, prefill, db_path, source=f"clip:{clip_id}")
 
@@ -7663,7 +7695,8 @@ async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | No
     _clips_mod.log_event(db_path, "remix_started", user_id=user_id, clip_id=clip_id, song_id=clip["song_id"],
                          utm_source=body.utm_source if body else None,
                          utm_medium=body.utm_medium if body else None,
-                         utm_campaign=body.utm_campaign if body else None)
+                         utm_campaign=body.utm_campaign if body else None,
+                         **genre_fields)
     log.info("remix_clip: remix_id=%s clip_id=%s user=%s lyric_id=%s variant_id=%s",
              remix_id, clip_id, user_id, lyric_id, variant_id)
     return {"remix_id": remix_id, "lyric_id": lyric_id, "variant_id": variant_id}
@@ -7687,14 +7720,15 @@ async def remix_song(request: Request, variant_id: int, body: ClipRemixRequest |
     source = db.get_song_variant_by_id(db_path, variant_id)
     if not source or not (source.get("is_public") or source["user_id"] == user_id):
         raise HTTPException(status_code=404, detail="Song not found")
-    prefill = _clips_mod.get_song_remix_prefill(db_path, variant_id)
+    prefill, genre_fields = _resolve_remix_genre(_clips_mod.get_song_remix_prefill(db_path, variant_id), body)
 
     lyric_id, new_variant_id = _generate_remix(request, user_id, prefill, db_path, source=f"song:{variant_id}")
 
     _clips_mod.log_event(db_path, "song_remix_started", user_id=user_id, song_id=variant_id,
                          utm_source=body.utm_source if body else None,
                          utm_medium=body.utm_medium if body else None,
-                         utm_campaign=body.utm_campaign if body else None)
+                         utm_campaign=body.utm_campaign if body else None,
+                         **genre_fields)
     log.info("remix_song: song_id=%s user=%s lyric_id=%s variant_id=%s", variant_id, user_id, lyric_id, new_variant_id)
     return {"lyric_id": lyric_id, "variant_id": new_variant_id}
 

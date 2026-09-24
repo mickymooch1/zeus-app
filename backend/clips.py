@@ -541,7 +541,9 @@ def list_feed(db_path: pathlib.Path, sort: str = "new", page: int = 0, page_size
 def log_event(db_path: pathlib.Path, event_name: str, user_id: str | None = None, anon_id: str | None = None,
              clip_id: int | None = None, song_id: int | None = None, now: datetime | None = None,
              utm_source: str | None = None, utm_medium: str | None = None,
-             utm_campaign: str | None = None, is_own_song: bool | None = None) -> None:
+             utm_campaign: str | None = None, is_own_song: bool | None = None,
+             original_genre: str | None = None, remix_genre: str | None = None,
+             genre_changed: bool | None = None) -> None:
     """utm_* (2026-09-23): the caller's first-touch attribution, if it has any to
     give — see utils/utmAttribution.js on the frontend. Optional/keyword-only so
     every existing call site (including remix_completed above, which has no
@@ -550,9 +552,11 @@ def log_event(db_path: pathlib.Path, event_name: str, user_id: str | None = None
     try:
         conn.execute(
             "INSERT INTO clip_events (event_name, user_id, anon_id, clip_id, song_id, created_at, "
-            "utm_source, utm_medium, utm_campaign, is_own_song) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "utm_source, utm_medium, utm_campaign, is_own_song, original_genre, remix_genre, genre_changed) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (event_name, user_id, anon_id, clip_id, song_id, (now or _now()).isoformat(),
-             utm_source, utm_medium, utm_campaign, None if is_own_song is None else int(bool(is_own_song))),
+             utm_source, utm_medium, utm_campaign, None if is_own_song is None else int(bool(is_own_song)),
+             original_genre, remix_genre, None if genre_changed is None else int(bool(genre_changed))),
         )
         conn.commit()
     finally:

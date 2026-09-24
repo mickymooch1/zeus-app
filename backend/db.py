@@ -673,6 +673,12 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             # clip's creator also made the song (1) or clipped someone else's (0).
             # NULL on every other event.
             "ALTER TABLE clip_events ADD COLUMN is_own_song INTEGER",
+            # Remix genre choice (2026-09-24): on remix_started / song_remix_started,
+            # the source song's genre_tag, the genre_tag remixed into, and whether the
+            # remixer picked a different one (1) or kept the original (0).
+            "ALTER TABLE clip_events ADD COLUMN original_genre TEXT",
+            "ALTER TABLE clip_events ADD COLUMN remix_genre TEXT",
+            "ALTER TABLE clip_events ADD COLUMN genre_changed INTEGER",
             "ALTER TABLE users ADD COLUMN utm_source TEXT",
             "ALTER TABLE users ADD COLUMN utm_medium TEXT",
             "ALTER TABLE users ADD COLUMN utm_campaign TEXT",
