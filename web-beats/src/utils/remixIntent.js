@@ -54,3 +54,13 @@ export function readRemixIntent() {
 export function clearRemixIntent() {
   try { localStorage.removeItem(REMIX_INTENT_KEY); } catch { /* no-op */ }
 }
+
+// True when this /songs visit is part of a remix hand-off — either on the way
+// in (?remix= / stored intent, about to redirect to the remix confirm page) or
+// landing after the remix was started (navigation state). Used to skip the
+// first-visit "explore first" welcome, which makes no sense mid-remix.
+export function arrivedViaRemix({ state, search, hasStoredIntent = false }) {
+  if (state?.remixStarted) return true;
+  if (hasStoredIntent) return true;
+  return Number(new URLSearchParams(search || '').get('remix')) > 0;
+}

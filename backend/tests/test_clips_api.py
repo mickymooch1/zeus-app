@@ -338,6 +338,43 @@ def test_get_clip_404s_for_a_deleted_clip(app_client):
     assert client.get(f"/api/clips/{clip_id}").status_code == 404
 
 
+# ── public profile (/api/clips/u/:handle) ────────────────────────────────────
+
+def test_profile_endpoint_404s_for_an_unknown_handle(app_client):
+    client, *_ = app_client
+    r = client.get("/api/clips/u/nobody-uses-this-handle")
+    assert r.status_code == 404
+    # Must be OUR handler's message, not Starlette's generic "route doesn't
+    # exist at all" 404 — proves this actually reached get_user_public_profile
+    # rather than merely finding no matching route.
+    assert r.json()["detail"] != "Not Found"
+
+
+def test_profile_endpoint_is_public_and_returns_the_owners_clips(app_client):
+    client, db_mod, clips_mod, db_path, owner, *_ , owner_token, _ = app_client
+    conn = sqlite3.connect(db_path)
+    conn.execute("UPDATE users SET artist_name = 'Nyxra' WHERE id = ?", (owner["id"],))
+    conn.commit(); conn.close()
+    clip_id = _publish(client, owner_token).json()["id"]
+
+    r = client.get("/api/clips/u/nyxra")  # no Authorization header — must be public
+    assert r.status_code == 200
+    body = r.json()
+    assert body["display_name"] == "Nyxra"
+    assert body["clip_count"] == 1
+    assert [c["id"] for c in body["clips"]] == [clip_id]
+
+
+def test_profile_endpoint_does_not_collide_with_a_numeric_clip_id_route(app_client):
+    """/api/clips/{clip_id} is int-typed and single-segment — /api/clips/u/x is
+    two segments, so it can never be swallowed by that route regardless of
+    registration order. Pinned here as a regression guard."""
+    client, *_ = app_client
+    r = client.get("/api/clips/u/whoever")
+    assert r.status_code == 404
+    assert r.json()["detail"] != "Not Found"  # our handler, not a route-not-found 404
+
+
 def test_feed_lists_only_published_clips_new_first(app_client):
     client, *_ , owner_token, _ = app_client
     a = _publish(client, owner_token).json()["id"]

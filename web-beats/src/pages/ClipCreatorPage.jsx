@@ -5,6 +5,7 @@ import { BACKEND_URL } from '../brand';
 import { readUtmAttribution } from '../utils/utmAttribution';
 import { clipSeekTarget, clipInitialTime } from '../utils/clipPlayback';
 import { useClipsEnabled } from '../hooks/useClipsEnabled';
+import { ZeusClipsWordmark, ClipsAiBadge } from '../components/ClipsBranding';
 
 const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
@@ -214,9 +215,10 @@ export default function ClipCreatorPage() {
 
   return (
     <div style={{ background: '#0a0a14', minHeight: '100svh', color: '#fff', padding: '32px 20px 60px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <Link to="/songs" style={{ color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800, marginBottom: 24, textShadow: `0 0 16px ${CYAN}88` }}>
-        ⚡ Zeus Beats
-      </Link>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 460, marginBottom: 24 }}>
+        <ZeusClipsWordmark to="/songs" />
+        <ClipsAiBadge />
+      </div>
 
       <div style={{
         width: '100%', maxWidth: 460,

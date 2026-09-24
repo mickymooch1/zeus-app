@@ -320,6 +320,76 @@ def recount_clip_remix_count(db_path: pathlib.Path, clip_id: int) -> dict:
         conn.close()
 
 
+def _normalize_handle(name: str | None) -> str:
+    return (name or "").strip().lower().replace(" ", "")
+
+
+def get_user_public_profile(db_path: pathlib.Path, handle: str) -> dict | None:
+    """The Zeus Clips profile page (/clips/u/:handle) — a read-only aggregate,
+    not a real per-account username system (out of scope for this visual-only
+    restyle). Reuses the SAME @handle every clip already derives client-side:
+    artist_name, or the account name as fallback, lowercased with whitespace
+    stripped (see _clip_out's artist_name fallback). Handles are therefore
+    NOT guaranteed unique — a collision deterministically picks the user with
+    the most recently created matching clip, never a merged/mixed set.
+
+    Only matches a user with at least one currently-published clip: a profile
+    for someone who's never used Clips isn't useful, and this keeps a clips
+    URL from being usable to probe arbitrary account existence.
+
+    Returns {"handle", "display_name", "clip_count", "total_likes",
+    "avatar_url", "clips": [...]}, or None if no published clip's author
+    matches this handle."""
+    conn = _conn(db_path)
+    try:
+        rows = conn.execute(
+            """SELECT c.id AS clip_id, c.media_type, c.media_url, c.view_count, c.like_count, c.created_at,
+                      sv.image_url AS song_cover_url, u.id AS user_id, u.artist_name, u.name AS user_name
+               FROM clips c
+               JOIN song_variants sv ON sv.id = c.song_id
+               JOIN users u ON u.id = c.user_id
+               WHERE c.status = 'published'
+               ORDER BY c.created_at DESC"""
+        ).fetchall()
+    finally:
+        conn.close()
+
+    target = _normalize_handle(handle)
+    matches = [r for r in rows if _normalize_handle(r["artist_name"] or r["user_name"] or "zeusbeats") == target]
+    if not matches:
+        return None
+
+    # rows are already ordered by created_at DESC, so the first match's
+    # user_id is the "most recently active" one on a handle collision.
+    winning_user_id = matches[0]["user_id"]
+    display_name = matches[0]["artist_name"] or matches[0]["user_name"] or "Zeus Beats"
+    user_clips = [r for r in matches if r["user_id"] == winning_user_id]
+
+    avatar_url = None
+    for r in user_clips:
+        if r["media_type"] == "cover" and r["song_cover_url"]:
+            avatar_url = r["song_cover_url"]
+            break
+        if r["media_type"] == "image" and r["media_url"]:
+            avatar_url = r["media_url"]
+            break
+
+    return {
+        "handle": target,
+        "display_name": display_name,
+        "clip_count": len(user_clips),
+        "total_likes": sum(r["like_count"] for r in user_clips),
+        "avatar_url": avatar_url,
+        "clips": [
+            {
+                "id": r["clip_id"], "media_type": r["media_type"], "media_url": r["media_url"],
+                "song_cover_url": r["song_cover_url"], "view_count": r["view_count"],
+            }
+            for r in user_clips
+        ],
+    }
+
+
 def get_remix_prefill(db_path: pathlib.Path, clip_id: int) -> dict:
     """What the prefilled create-flow needs to remix this clip: SANITIZED style descriptors
     and a short theme — never the source song's lyrics_text (see the build brief's explicit

@@ -6,8 +6,14 @@ import { clipSeekTarget, clipInitialTime } from '../utils/clipPlayback';
 import { getClipAnonId } from '../utils/clipAnonId';
 import { saveRemixIntent } from '../utils/remixIntent';
 import { readUtmAttribution } from '../utils/utmAttribution';
+import { deriveClipHandle } from '../utils/clipHandle';
+import { formatCount } from '../utils/formatCount';
 import RemixButton from '../components/RemixButton';
+import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
+import ClipActionBtn from '../components/ClipActionBtn';
+import { aboveCookieBanner } from '../utils/clipsChrome';
+import { ZeusClipsWordmark, ClipsAiBadge, ClipGenrePill } from '../components/ClipsBranding';
 
 // Zeus Beats' own electric-blue → purple pair (see RemixButton.jsx).
 const CYAN = '#00f0ff';
@@ -29,6 +35,7 @@ export default function ClipPage() {
   const { token } = useAuth();
   const audioRef = useRef(null);
   const viewedRef = useRef(false);
+  const progressBarRef = useRef(null);
 
   const [clip, setClip]         = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -95,6 +102,11 @@ export default function ClipPage() {
     const onTime = () => {
       const target = clipSeekTarget(a.currentTime, clip.clip_start_time, clip.clip_duration);
       if (target !== null) a.currentTime = target;
+      const bar = progressBarRef.current;
+      if (bar && clip.clip_duration > 0) {
+        const pct = Math.min(100, Math.max(0, ((a.currentTime - clip.clip_start_time) / clip.clip_duration) * 100));
+        bar.style.width = `${pct}%`;
+      }
     };
     const onEnded = () => { a.currentTime = clip.clip_start_time; a.play().catch(() => {}); };
     a.addEventListener('timeupdate', onTime);
@@ -210,77 +222,76 @@ export default function ClipPage() {
         pointerEvents: 'none',
       }} />
 
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20 }}>
-        <Link to="/" style={{ color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800, textShadow: `0 1px 4px rgba(0,0,0,0.9), 0 0 16px ${CYAN}88` }}>⚡ Zeus Beats</Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link to="/clips" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>← All clips</Link>
+      {/* Header — wordmark centered, "All clips" + report menu at the edges,
+          AI badge on its own row underneath (same shape as the feed header) */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '14px 18px 10px', zIndex: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Link to="/clips" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: 13, fontWeight: 600, width: 60 }}>← Clips</Link>
+          <ZeusClipsWordmark />
           <ClipMoreMenu clipId={clipId} token={token} onRequireAuth={() => navigate('/register')} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <ClipsAiBadge />
         </div>
       </div>
 
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 24px 40px', zIndex: 20 }}>
-        {clip.genre_tag && (
-          <span style={{
-            display: 'inline-block', padding: '3px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            background: `linear-gradient(90deg, ${CYAN}33, ${PURPLE}33)`, border: `1px solid ${CYAN}55`, color: CYAN, marginBottom: 10,
-          }}>
-            {clip.genre_tag}
-          </span>
-        )}
-        <p style={{ margin: '0 0 4px', fontSize: 26, fontWeight: 800, color: '#fff', lineHeight: 1.2, textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}>
+      {/* Centered play/pause — this page has no autoplay (reached via a direct
+          link/share, not a scrolling feed), so it needs its own explicit control. */}
+      <button
+        onClick={togglePlay}
+        aria-label={playing ? 'Pause' : 'Play'}
+        style={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 15,
+          width: 64, height: 64, borderRadius: '50%', border: `2px solid ${CYAN}`,
+          background: playing ? `${CYAN}18` : 'rgba(0,0,0,0.45)', color: CYAN, fontSize: 22, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 24px ${CYAN}44`,
+          opacity: playing ? 0 : 1, transition: 'opacity 0.2s',
+        }}
+      >
+        {playing ? '⏸' : '▶'}
+      </button>
+
+      {/* Right-side action column — like, remix count, share (same as the feed) */}
+      <div style={{
+        position: 'absolute', bottom: aboveCookieBanner(232), right: 14, zIndex: 20,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+      }}>
+        <ClipActionBtn onClick={handleLike} icon="❤️" label={formatCount(likeCount)} active={liked} activeColor={PURPLE} />
+        <ClipActionBtn icon="🔁" label={formatCount(clip.remix_count)} />
+        <ClipActionBtn onClick={handleCopy} icon={copied ? '✓' : '🔗'} label={copied ? 'Copied' : 'Share'} active={copied} activeColor={CYAN} />
+      </div>
+
+      <div style={{ position: 'absolute', bottom: aboveCookieBanner(232), left: 24, right: 76, zIndex: 20 }}>
+        <ClipGenrePill genre={clip.genre_tag} style={{ marginBottom: 10 }} />
+        <p style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.2, textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}>
           {clip.song_title || 'Untitled'}
         </p>
-        <p style={{ margin: '0 0 6px', fontSize: 15, color: 'rgba(255,255,255,0.65)', fontWeight: 500 }}>
-          @{(clip.artist_name || 'zeusbeats').replace(/\s+/g, '').toLowerCase()}
-        </p>
+        <Link
+          to={`/clips/u/${deriveClipHandle(clip.artist_name)}`}
+          style={{ display: 'block', margin: '0 0 6px', fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: 600, textDecoration: 'none' }}
+        >
+          @{deriveClipHandle(clip.artist_name)}
+        </Link>
         {clip.caption && (
-          <p style={{ margin: '0 0 14px', fontSize: 14, color: 'rgba(255,255,255,0.8)', lineHeight: 1.5, textShadow: '0 1px 4px rgba(0,0,0,0.85)' }}>{clip.caption}</p>
+          <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5, textShadow: '0 1px 4px rgba(0,0,0,0.85)' }}>{clip.caption}</p>
         )}
+      </div>
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18 }}>
-          <button
-            onClick={togglePlay}
-            style={{
-              width: 52, height: 52, borderRadius: '50%', border: `2px solid ${CYAN}`,
-              background: playing ? `${CYAN}22` : 'rgba(0,0,0,0.6)', color: CYAN, fontSize: 18, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 20px ${CYAN}44`, flexShrink: 0,
-            }}
-          >
-            {playing ? '⏸' : '▶'}
-          </button>
-          <button
-            onClick={handleLike}
-            style={{
-              padding: '13px 18px', borderRadius: 999, border: `1px solid ${liked ? PURPLE : 'rgba(255,255,255,0.2)'}`,
-              background: liked ? `${PURPLE}22` : 'rgba(10,10,20,0.55)', color: liked ? '#c4b5fd' : 'rgba(255,255,255,0.8)',
-              fontSize: 14, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-            }}
-          >
-            ❤️ {likeCount > 0 ? likeCount : 'Like'}
-          </button>
-          <div style={{
-            padding: '13px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.2)',
-            background: 'rgba(10,10,20,0.55)', color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: 700,
-            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', flexShrink: 0,
-          }}>
-            🔁 {clip.remix_count}
-          </div>
-          <button
-            onClick={handleCopy}
-            style={{
-              flex: 1, padding: '13px 0', borderRadius: 999, border: `1px solid ${copied ? CYAN : 'rgba(255,255,255,0.2)'}`,
-              background: copied ? `${CYAN}15` : 'rgba(10,10,20,0.55)', color: copied ? CYAN : 'rgba(255,255,255,0.75)',
-              fontSize: 13, fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-            }}
-          >
-            {copied ? '✓ Copied' : '🔗 Share'}
-          </button>
-        </div>
-
-        {/* ── "⚡ Remix This Sound" — the most prominent button on the page, same
-             pill/waveform style as the feed (RemixButton.jsx) ── */}
+      {/* ── "⚡ Remix This Sound" — the most prominent button on the page ── */}
+      <div style={{ position: 'absolute', bottom: aboveCookieBanner(96), left: 16, right: 16, zIndex: 20 }}>
         <RemixButton onClick={handleRemix} />
+      </div>
+
+      {/* Song bar — pinned at the very bottom, full width, with its progress strip */}
+      <div style={{ position: 'absolute', bottom: aboveCookieBanner(16), left: 16, right: 16, zIndex: 20 }}>
+        <ClipSongBar
+          coverUrl={clip.song_cover_url}
+          title={clip.song_title}
+          artistName={clip.artist_name}
+          spinning={playing}
+          onUseSound={handleRemix}
+          progressBarRef={progressBarRef}
+        />
       </div>
     </div>
   );
