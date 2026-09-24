@@ -34,16 +34,19 @@ export default function RemixButton({ onClick, size = 'large', label, disabled, 
     <button
       onClick={onClick}
       disabled={disabled}
+      className="remix-btn"
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        width: large ? '100%' : 'auto',
-        padding: large ? '17px 24px' : '10px 18px',
+        width: large ? '100%' : 'auto', minWidth: 0, flex: 'none',
+        // Always one line: the label shrinks (clamp) and, at the very narrowest,
+        // ellipsises — it never wraps (2026-09-24 iPhone large-text bug).
+        padding: large ? 'clamp(11px, 2.4cqh, 17px) clamp(14px, 5cqw, 24px)' : '10px 18px',
         borderRadius: 999, // pill
         border: 'none',
         background: `linear-gradient(90deg, ${CYAN}, ${PURPLE})`,
         color: '#000',
         fontWeight: 900,
-        fontSize: large ? 16 : 13,
+        fontSize: large ? 'clamp(12px, 4.3cqw, 16px)' : 13,
         fontFamily: "'Orbitron', sans-serif",
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.7 : 1,
@@ -53,7 +56,9 @@ export default function RemixButton({ onClick, size = 'large', label, disabled, 
       }}
     >
       <WaveformIcon size={large ? 16 : 13} />
-      <span>{label || '⚡ Remix This Sound'}</span>
+      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+        {label || '⚡ Remix This Sound'}
+      </span>
     </button>
   );
 }
