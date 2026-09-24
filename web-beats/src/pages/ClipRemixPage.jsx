@@ -6,7 +6,7 @@ import { clearRemixIntent, saveRemixIntent } from '../utils/remixIntent';
 import { readUtmAttribution } from '../utils/utmAttribution';
 import VerificationRequiredScreen from '../components/VerificationRequiredScreen';
 import RemixButton from '../components/RemixButton';
-import { ClipGenrePill } from '../components/ClipsBranding';
+import { ClipGenrePill, ZeusClipsWordmark } from '../components/ClipsBranding';
 import { gLabel } from '../utils/genres';
 
 // Zeus Beats' own electric-blue → purple pair (see RemixButton.jsx).
@@ -108,9 +108,9 @@ export default function ClipRemixPage() {
 
   return (
     <div style={{ background: '#000', minHeight: '100svh', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px 48px' }}>
-      <Link to="/" style={{ color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800, marginBottom: 28, textShadow: `0 0 16px ${CYAN}88` }}>
-        ⚡ Zeus Beats
-      </Link>
+      <div style={{ marginBottom: 28 }}>
+        <ZeusClipsWordmark />
+      </div>
 
       <div style={{
         width: '100%', maxWidth: 420, background: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 100%)',

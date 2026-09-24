@@ -29,6 +29,7 @@ import {
 } from '../utils/roastDraft';
 import { readRemixIntent, arrivedViaRemix } from '../utils/remixIntent';
 import RemixStartedNotice from '../components/RemixStartedNotice';
+import { freeSongsLine } from '../utils/freeSongs';
 
 // Set once the post-first-song name prompt has been answered OR skipped, so a
 // user who isn't interested is never asked twice.
@@ -481,7 +482,8 @@ export default function SongsPage() {
   const [songTitle, setSongTitle]         = useState('');
   const [healingFrequency, setHealingFrequency] = useState('432');
 
-  const [showWelcome, setShowWelcome] = useState(() => !!user?.is_new_user);
+  // Not after a remix — RemixStartedNotice covers that landing instead.
+  const [showWelcome, setShowWelcome] = useState(() => !viaRemix && !!user?.is_new_user);
 
   // "What should we call you?" — asked once, AFTER the first song lands, for
   // users who skipped the optional name field at signup. Fully skippable.
@@ -1911,7 +1913,7 @@ export default function SongsPage() {
         <div className="songs-content-wrap" style={{ maxWidth: 880, margin: '0 auto', padding: '32px 24px 80px' }}>
           {!isOnline && <OfflineBanner />}
 
-          {showWelcome && (
+          {showWelcome && creditsStatus === 'ready' && freeSongsLine(credits.balance) && (
             <div style={{
               background: 'rgba(0,0,0,0.6)',
               border: '1px solid #00F0FF',
@@ -1932,7 +1934,7 @@ export default function SongsPage() {
                     ? `Welcome to Zeus Beats, ${user.name.trim().split(' ')[0]}!`
                     : 'Welcome to Zeus Beats!'}
                 </strong>
-                <span>You have 3 free songs to get started. Generate your first track below — pick a genre and hit Create.</span>
+                <span>{freeSongsLine(credits.balance)} Generate your first track below — pick a genre and hit Create.</span>
               </div>
               <button
                 onClick={() => setShowWelcome(false)}
