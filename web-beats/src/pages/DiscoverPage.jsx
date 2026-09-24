@@ -493,7 +493,7 @@ export default function DiscoverPage() {
                 letterSpacing: '0.02em', whiteSpace: 'nowrap',
               }}
             >
-              <span aria-hidden="true">⚡</span><span className="mk-long"> Make Your Own</span><span className="mk-short"> Make</span>
+              <span aria-hidden="true">⚡</span><span className="mk-long mk-wide"> Make Your Own</span><span className="mk-short mk-wide"> Make</span>
             </button>
           )}
         </div>
