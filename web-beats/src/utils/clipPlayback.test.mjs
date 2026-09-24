@@ -40,3 +40,18 @@ test('clipInitialTime is just clip_start_time — where playback should begin on
   assert.equal(clipInitialTime(10, 15), 10);
   assert.equal(clipInitialTime(0, 30), 0);
 });
+
+// Tap-to-pause (2026-09-24): resuming continues from where it paused — but only
+// inside the clip's window; anywhere else (never started, or drifted out) it
+// starts from the clip's start point.
+import { clipResumeTime } from './clipPlayback.js';
+
+test('clipResumeTime: continues from a paused point inside the window', () => {
+  assert.equal(clipResumeTime(17.5, 10, 15), 17.5);
+});
+
+test('clipResumeTime: starts from the clip start when outside the window', () => {
+  assert.equal(clipResumeTime(0, 10, 15), 10);     // never played yet
+  assert.equal(clipResumeTime(25, 10, 15), 10);    // at/after the end
+  assert.equal(clipResumeTime(3, 10, 15), 10);     // before the start
+});

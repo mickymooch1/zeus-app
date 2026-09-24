@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 import { clearRemixIntent, saveRemixIntent, saveSongRemixIntent } from '../utils/remixIntent';
 import { toRemixSource } from '../utils/remixSource';
+import { quickPickGenres, remixButtonLabel, remixGenreBody, selectionTag } from '../utils/remixGenre';
+import GenrePickerSheet from '../components/GenrePickerSheet';
 import { readUtmAttribution } from '../utils/utmAttribution';
 import VerificationRequiredScreen from '../components/VerificationRequiredScreen';
 import RemixButton from '../components/RemixButton';
@@ -42,6 +44,17 @@ export default function ClipRemixPage() {
   const [error, setError]       = useState('');
   const [verifyBlock, setVerifyBlock] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  // Remix genre: null = the original's genre (the default); else { genre, genreB? }.
+  const [genreSel, setGenreSel] = useState(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  // Genres a remix can't use (no vocals) — the server's list, hidden in "More genres".
+  const [nonVocal, setNonVocal] = useState(undefined);
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/api/clips/config`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setNonVocal(d?.non_vocal_genres))
+      .catch(() => {});
+  }, []);
 
   // The URL itself is now the source of truth for which clip to remix — clear the
   // stored intent so it can't stick around and bounce a later, unrelated /songs
@@ -65,7 +78,7 @@ export default function ClipRemixPage() {
       const r = await fetch(`${BACKEND_URL}${isSong ? `/api/songs/${variantId}/remix` : `/api/clips/${clipId}/remix`}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(readUtmAttribution() || {}),
+        body: JSON.stringify({ ...(readUtmAttribution() || {}), ...remixGenreBody(genreSel, clip?.genreTag) }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -114,6 +127,9 @@ export default function ClipRemixPage() {
   }
 
   const { visualUrl } = clip;
+  const quickPicks = quickPickGenres(clip.genreTag);
+  // The chosen genre, or null when it's the original (re-picking the original = default).
+  const chosenTag = selectionTag(genreSel) !== clip.genreTag ? selectionTag(genreSel) : null;
 
   return (
     <div style={{ background: '#000', minHeight: '100svh', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px 48px' }}>
@@ -140,8 +156,27 @@ export default function ClipRemixPage() {
         </h1>
         <ClipGenrePill genre={clip.genreTag} style={{ margin: '4px 0 12px' }} />
         <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, margin: '0 0 16px' }}>
-          We&apos;ll write brand-new lyrics in the same {clip.genreTag ? gLabel(clip.genreTag) : 'style'} — never the original song&apos;s words.
+          {chosenTag
+            ? <>We&apos;ll make it {gLabel(chosenTag)}, with brand-new lyrics on the same theme — never the original song&apos;s words.</>
+            : <>We&apos;ll write brand-new lyrics in the same {clip.genreTag ? gLabel(clip.genreTag) : 'style'} — never the original song&apos;s words.</>}
         </p>
+
+        {/* Remix in a different genre — the original is the default (no taps needed). */}
+        <div style={{ textAlign: 'left', marginBottom: 16 }}>
+          <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            Remix in a different genre
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            <GenreChip selected={!chosenTag} onClick={() => setGenreSel(null)}>Original</GenreChip>
+            {quickPicks.map(g => (
+              <GenreChip key={g} selected={chosenTag === g} onClick={() => setGenreSel({ genre: g })}>{gLabel(g)}</GenreChip>
+            ))}
+            {chosenTag && !quickPicks.includes(chosenTag) && (
+              <GenreChip selected onClick={() => setPickerOpen(true)}>{gLabel(chosenTag)}</GenreChip>
+            )}
+            <GenreChip onClick={() => setPickerOpen(true)}>More genres…</GenreChip>
+          </div>
+        </div>
 
         {/* The raw style prompt is generation plumbing, not something a
             non-technical user needs to read — collapsed by default. */}
@@ -164,7 +199,11 @@ export default function ClipRemixPage() {
             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 12, padding: '14px 16px', marginBottom: 20, textAlign: 'left',
           }}>
-            {clip.style && (
+            {chosenTag ? (
+              <p style={{ margin: '0 0 6px', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                <strong style={{ color: CYAN }}>Style:</strong> {gLabel(chosenTag)} (its own sound, not the original&apos;s)
+              </p>
+            ) : clip.style && (
               <p style={{ margin: '0 0 6px', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
                 <strong style={{ color: CYAN }}>Style:</strong> {clip.style}
               </p>
@@ -184,12 +223,22 @@ export default function ClipRemixPage() {
         <RemixButton
           onClick={handleConfirm}
           disabled={submitting}
-          label={submitting ? 'Starting your remix…' : undefined}
+          label={submitting ? 'Starting your remix…' : remixButtonLabel(genreSel)}
         />
         <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, marginTop: 12 }}>
           Uses 1 song credit. You&apos;ll find it in your songs once it&apos;s ready.
         </p>
       </div>
+
+      {pickerOpen && (
+        <GenrePickerSheet
+          exclude={(clip.genreTag || '').split('__')}
+          nonVocal={nonVocal}
+          initial={genreSel}
+          onClose={() => setPickerOpen(false)}
+          onPick={(sel) => { setGenreSel(sel); setPickerOpen(false); }}
+        />
+      )}
 
       {verifyBlock && (
         <VerificationRequiredScreen
@@ -209,5 +258,25 @@ export default function ClipRemixPage() {
         />
       )}
     </div>
+  );
+}
+
+/** One genre option on the remix confirm page. */
+function GenreChip({ selected, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={!!selected}
+      style={{
+        padding: '7px 13px', borderRadius: 999, fontSize: 13, fontWeight: selected ? 800 : 600, cursor: 'pointer',
+        color: selected ? '#000' : 'rgba(255,255,255,0.8)',
+        background: selected ? `linear-gradient(90deg, ${CYAN}, ${PURPLE})` : 'rgba(255,255,255,0.05)',
+        border: selected ? '1px solid transparent' : '1px solid rgba(255,255,255,0.18)',
+        boxShadow: selected ? `0 0 12px ${CYAN}55` : 'none',
+      }}
+    >
+      {children}
+    </button>
   );
 }

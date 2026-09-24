@@ -92,13 +92,13 @@ def test_config_reports_disabled_by_default(app_client):
     client, *_ = app_client
     r = client.get("/api/clips/config")
     assert r.status_code == 200
-    assert r.json() == {"enabled": False}
+    assert r.json()["enabled"] is False
 
 
 def test_config_reports_enabled_when_the_env_var_is_set(app_client, monkeypatch):
     monkeypatch.setenv("CLIPS_ENABLED", "true")
     client, *_ = app_client
-    assert client.get("/api/clips/config").json() == {"enabled": True}
+    assert client.get("/api/clips/config").json()["enabled"] is True
 
 
 def test_config_requires_no_auth(app_client):

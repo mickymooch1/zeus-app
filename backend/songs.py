@@ -27,6 +27,19 @@ def all_genres_instrumental(genres: list[str] | None) -> bool:
     return bool(valid) and all(g in INSTRUMENTAL_GENRES for g in valid)
 
 
+def non_vocal_genres() -> frozenset[str]:
+    """Genres with no singing: INSTRUMENTAL_GENRES plus any preset whose own text
+    asks for "no vocals" (e.g. ambient). Derived from that existing metadata, never
+    a separate hand-kept list. A remix always writes new lyrics, so these can't be
+    remixed into (main.py's _resolve_remix_genre), and the remix genre picker hides
+    them (served via /api/clips/config)."""
+    from song_genres import GENRE_PRESETS
+
+    return INSTRUMENTAL_GENRES | frozenset(
+        g for g, style in GENRE_PRESETS.items() if "no vocals" in style.lower()
+    )
+
+
 # Genres that should render as pure sound (no music at all) — pushed via Suno negative_tags.
 _NATURE_SOUND_NEG = "music, instruments, melody, beat, rhythm, drums, bass"
 GENRE_NEGATIVE_TAGS: dict[str, str] = {
