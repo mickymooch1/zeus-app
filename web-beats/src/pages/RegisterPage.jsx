@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
 import { readUtmAttribution } from '../utils/utmAttribution';
+import { clipsReturnPath } from '../utils/clipsChrome';
 
 function collectFingerprint() {
   try {
@@ -24,6 +25,7 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const referral = searchParams.get('ref') || null;
   // Zeus Clips remix hand-off — the ?remix= query param survives THIS same-tab
   // redirect on its own; see utils/remixIntent.js for the localStorage fallback
@@ -83,7 +85,9 @@ export default function RegisterPage() {
       // A remix in progress takes over that landing spot instead (SongsPage reads
       // ?remix= itself and redirects on to the actual remix flow — see its own
       // remix-intent effect for why the redirect happens there, not here).
-      navigate(remixId ? `/songs?remix=${remixId}` : '/songs', { replace: true });
+      // Zeus Clips bottom nav: a logged-out Create / My Clips tap comes back
+      // to that /clips page (via LoginPage's "create one" link) — see clipsReturnPath.
+      navigate(remixId ? `/songs?remix=${remixId}` : (clipsReturnPath(location.state?.from?.pathname) || '/songs'), { replace: true });
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -214,7 +218,7 @@ export default function RegisterPage() {
 
         <p className="auth-footer-text">
           {t('auth.register.haveAccount')}{' '}
-          <Link to={loginHref} className="auth-link">{t('auth.register.signIn')}</Link>
+          <Link to={loginHref} state={location.state?.from ? { from: location.state.from } : undefined} className="auth-link">{t('auth.register.signIn')}</Link>
         </p>
       </div>
     </div>

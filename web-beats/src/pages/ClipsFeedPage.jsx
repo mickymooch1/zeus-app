@@ -12,7 +12,8 @@ import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
 import ClipActionBtn from '../components/ClipActionBtn';
-import { aboveCookieBanner } from '../utils/clipsChrome';
+import ClipVisual from '../components/ClipVisual';
+import { aboveBottomChrome } from '../utils/clipsChrome';
 import { ZeusClipsWordmark, ClipsAiBadge, ClipsPillTab, ClipGenrePill } from '../components/ClipsBranding';
 
 /* ── Zeus Beats' own electric-blue → purple palette (App.jsx logo, NowPlayingBar,
@@ -26,7 +27,7 @@ const BG     = '#000';
  * SOURCE SONG's mp3 clamped to clip_start_time..+clip_duration as the audio —
  * two separate media elements kept in sync. */
 const ClipSlide = memo(function ClipSlide({
-  clip, idx, isLiked, likeCount, isCopied, token, isPlaying,
+  clip, idx, isLiked, likeCount, isCopied, token, isPlaying, isActive,
   onLike, onShare, onRemix, onRequireAuth, onSlideRef, onVideoRef, onAudioRef, onProgressRef,
 }) {
   const { media_type, media_url, song_cover_url, song_title, artist_name, genre_tag,
@@ -47,29 +48,17 @@ const ClipSlide = memo(function ClipSlide({
         scrollSnapAlign: 'start', overflow: 'hidden', background: '#0a0a14', flexShrink: 0,
       }}
     >
-      {/* Visual background — the clip's own media (or the song's cover) fills the
-          frame at full brightness, per the approved mockups; only the bottom
-          gradient below dims for text legibility. The flat gradient is a
-          genuine fallback (no image/video at all), never a stand-in for a
-          slow-loading one. */}
-      {media_type === 'video' ? (
-        <video
-          ref={onVideoRef}
-          src={visualUrl}
-          autoPlay muted loop playsInline
-          className="clip-video"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-        />
-      ) : visualUrl ? (
-        <img
-          src={visualUrl}
-          alt=""
-          className="cover-ken-burns"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-        />
-      ) : (
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 100%)' }} />
-      )}
+      {/* Visual — see ClipVisual for the cover/photo/video treatments. The
+          Ken Burns zoom follows the ACTIVE slide (it plays muted like a video
+          clip does until sound is turned on); the visualiser bars below only
+          move while audio is actually playing. */}
+      <ClipVisual
+        mediaType={media_type}
+        url={visualUrl}
+        playing={isActive}
+        duration={clip_duration}
+        videoRef={onVideoRef}
+      />
 
       {/* Hidden audio — the SOURCE SONG, clamped to the clip window by the parent's timeupdate handler */}
       <audio
@@ -100,7 +89,7 @@ const ClipSlide = memo(function ClipSlide({
 
       {/* Right-side action column — like, remix count, share, report (⋯) */}
       <div style={{
-        position: 'absolute', bottom: aboveCookieBanner(232), right: 14, zIndex: 10,
+        position: 'absolute', bottom: aboveBottomChrome(232), right: 14, zIndex: 10,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
       }}>
         <ClipActionBtn onClick={onLike} icon="❤️" label={formatCount(likeCount)} active={isLiked} activeColor={PURPLE} />
@@ -110,7 +99,7 @@ const ClipSlide = memo(function ClipSlide({
       </div>
 
       {/* Info — bottom left: @username (links to their profile) + caption */}
-      <div style={{ position: 'absolute', bottom: aboveCookieBanner(232), left: 16, right: 76, zIndex: 10 }}>
+      <div style={{ position: 'absolute', bottom: aboveBottomChrome(232), left: 16, right: 76, zIndex: 10 }}>
         <ClipGenrePill genre={genre_tag} style={{ marginBottom: 8 }} />
         <Link
           to={`/clips/u/${handle}`}
@@ -133,12 +122,12 @@ const ClipSlide = memo(function ClipSlide({
       </div>
 
       {/* ── "⚡ Remix This Sound" — the most prominent button on the page ── */}
-      <div style={{ position: 'absolute', bottom: aboveCookieBanner(96), left: 16, right: 16, zIndex: 10 }}>
+      <div style={{ position: 'absolute', bottom: aboveBottomChrome(96), left: 16, right: 16, zIndex: 10 }}>
         <RemixButton onClick={onRemix} />
       </div>
 
       {/* Song bar — pinned at the very bottom, full width, with its progress strip */}
-      <div style={{ position: 'absolute', bottom: aboveCookieBanner(16), left: 16, right: 16, zIndex: 10 }}>
+      <div style={{ position: 'absolute', bottom: aboveBottomChrome(16), left: 16, right: 16, zIndex: 10 }}>
         <ClipSongBar
           coverUrl={song_cover_url}
           title={song_title}
@@ -154,7 +143,7 @@ const ClipSlide = memo(function ClipSlide({
 
 /* ── Main page ──────────────────────────────────────────────────────────── */
 export default function ClipsFeedPage() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
   const [clips, setClips]     = useState([]);
   const [muted, setMuted]     = useState(true);
@@ -165,8 +154,6 @@ export default function ClipsFeedPage() {
   const [hasMore, setHasMore] = useState(true);
   const [sort, setSort]       = useState('new'); // 'new' | 'trending'
   const [activeIdx, setActiveIdx] = useState(null); // which slide is current — drives the song-bar disc spin
-
-  const myHandle = user ? deriveClipHandle(user.artist_name || user.name) : null;
 
   const pageRef            = useRef(0);
   const loadingRef         = useRef(false);
@@ -364,23 +351,15 @@ export default function ClipsFeedPage() {
   return (
     <div style={{ background: BG, height: '100svh', width: '100vw', overflow: 'hidden', position: 'relative' }}>
       {/* Fixed header — wordmark centered with the mute toggle at the edge,
-          then "My clips" (logged-in only) and the AI badge on their own row */}
+          then the AI badge on its own row */}
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, padding: '14px 18px 10px',
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%)',
         pointerEvents: 'none',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ width: 60, pointerEvents: 'auto' }}>
-            {myHandle && (
-              <Link to={`/clips/u/${myHandle}`} style={{
-                color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: 700, textDecoration: 'none',
-                textShadow: '0 1px 3px rgba(0,0,0,0.85)',
-              }}>
-                My clips
-              </Link>
-            )}
-          </div>
+          {/* Spacer keeping the wordmark centred ("My clips" moved to the bottom nav). */}
+          <div style={{ width: 60 }} />
           <div style={{ pointerEvents: 'auto' }}>
             <ZeusClipsWordmark />
           </div>
@@ -425,6 +404,7 @@ export default function ClipsFeedPage() {
             likeCount={counts[clip.id] || 0}
             isCopied={copied === clip.id}
             isPlaying={activeIdx === idx && !muted}
+            isActive={activeIdx === idx}
             onLike={() => handleLike(clip.id)}
             onShare={() => handleShare(clip.id)}
             onRemix={() => handleRemix(clip.id)}
