@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
-import { clearRemixIntent, saveRemixIntent } from '../utils/remixIntent';
+import { clearRemixIntent, saveRemixIntent, saveSongRemixIntent } from '../utils/remixIntent';
+import { toRemixSource } from '../utils/remixSource';
 import { readUtmAttribution } from '../utils/utmAttribution';
 import VerificationRequiredScreen from '../components/VerificationRequiredScreen';
 import RemixButton from '../components/RemixButton';
@@ -18,6 +19,9 @@ const PURPLE = '#7c3aed';
  * page → already logged in) or via SongsPage's remix-intent redirect (register/
  * login/email-verification hand-off — see utils/remixIntent.js).
  *
+ * Also serves Discover's song Remix at /discover/:variantId/remix (2026-09-24):
+ * same page, keyed by song — GET /api/discover/:id and POST /api/songs/:id/remix.
+ *
  * Deliberately thin: POST /api/clips/:id/remix takes no body and does everything
  * server-side (style/theme prefill, lyrics, generation submission) — see
  * backend/main.py's remix_clip. This page's only job is showing what's about to
@@ -26,7 +30,8 @@ const PURPLE = '#7c3aed';
  * song is not a different kind of row.
  */
 export default function ClipRemixPage() {
-  const { clipId } = useParams();
+  const { clipId, variantId } = useParams();
+  const isSong = variantId != null;
   const navigate = useNavigate();
   const { token, refreshUser } = useAuth();
 
@@ -46,18 +51,18 @@ export default function ClipRemixPage() {
   useEffect(() => {
     setLoading(true);
     setNotFound(false);
-    fetch(`${BACKEND_URL}/api/clips/${clipId}`)
+    fetch(`${BACKEND_URL}${isSong ? `/api/discover/${variantId}` : `/api/clips/${clipId}`}`)
       .then(r => { if (!r.ok) throw new Error('not found'); return r.json(); })
-      .then(setClip)
+      .then(d => setClip(toRemixSource(d, { isSong, backendUrl: BACKEND_URL })))
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
-  }, [clipId]);
+  }, [clipId, variantId, isSong]);
 
   const handleConfirm = async () => {
     setError('');
     setSubmitting(true);
     try {
-      const r = await fetch(`${BACKEND_URL}/api/clips/${clipId}/remix`, {
+      const r = await fetch(`${BACKEND_URL}${isSong ? `/api/songs/${variantId}/remix` : `/api/clips/${clipId}/remix`}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(readUtmAttribution() || {}),
@@ -68,7 +73,7 @@ export default function ClipRemixPage() {
         if (r.status === 403 && det && typeof det === 'object' && det.code === 'email_unverified') {
           // Re-arm the intent — verification opens in a NEW tab, and this page
           // will have already cleared it on mount above.
-          saveRemixIntent(clipId);
+          if (isSong) saveSongRemixIntent(variantId); else saveRemixIntent(clipId);
           setVerifyBlock({ message: det.message, email: det.email, bounced: !!det.bounced, bounceOrigin: det.bounce_origin || null });
           return;
         }
@@ -98,13 +103,17 @@ export default function ClipRemixPage() {
   if (notFound) {
     return (
       <div style={{ background: '#000', height: '100svh', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 24 }}>
-        <p style={{ color: '#555', fontSize: 16 }}>Clip not found, hidden, or removed.</p>
-        <Link to="/clips" style={{ color: CYAN, fontWeight: 600, textDecoration: 'none' }}>← Browse clips</Link>
+        <p style={{ color: '#555', fontSize: 16 }}>
+          {isSong ? 'Song not found or no longer public.' : 'Clip not found, hidden, or removed.'}
+        </p>
+        <Link to={isSong ? '/discover' : '/clips'} style={{ color: CYAN, fontWeight: 600, textDecoration: 'none' }}>
+          {isSong ? '← Back to Discover' : '← Browse clips'}
+        </Link>
       </div>
     );
   }
 
-  const visualUrl = clip.media_type === 'cover' ? clip.song_cover_url : `${BACKEND_URL}${clip.media_url}`;
+  const { visualUrl } = clip;
 
   return (
     <div style={{ background: '#000', minHeight: '100svh', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px 48px' }}>
@@ -126,16 +135,16 @@ export default function ClipRemixPage() {
         )}
 
         <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 20, fontWeight: 800, margin: '0 0 6px' }}>
-          Remix &ldquo;{clip.song_title || 'this sound'}&rdquo;
+          Remix &ldquo;{clip.title || 'this sound'}&rdquo;
         </h1>
-        <ClipGenrePill genre={clip.genre_tag} style={{ margin: '4px 0 12px' }} />
+        <ClipGenrePill genre={clip.genreTag} style={{ margin: '4px 0 12px' }} />
         <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, margin: '0 0 16px' }}>
-          We&apos;ll write brand-new lyrics in the same {clip.genre_tag ? gLabel(clip.genre_tag) : 'style'} — never the original song&apos;s words.
+          We&apos;ll write brand-new lyrics in the same {clip.genreTag ? gLabel(clip.genreTag) : 'style'} — never the original song&apos;s words.
         </p>
 
         {/* The raw style prompt is generation plumbing, not something a
             non-technical user needs to read — collapsed by default. */}
-        {(clip.remix_style_descriptors || clip.remix_theme) && (
+        {(clip.style || clip.theme) && (
           <button
             type="button"
             onClick={() => setShowDetails(v => !v)}
@@ -149,19 +158,19 @@ export default function ClipRemixPage() {
           </button>
         )}
 
-        {showDetails && (clip.remix_style_descriptors || clip.remix_theme) && (
+        {showDetails && (clip.style || clip.theme) && (
           <div style={{
             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 12, padding: '14px 16px', marginBottom: 20, textAlign: 'left',
           }}>
-            {clip.remix_style_descriptors && (
+            {clip.style && (
               <p style={{ margin: '0 0 6px', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                <strong style={{ color: CYAN }}>Style:</strong> {clip.remix_style_descriptors}
+                <strong style={{ color: CYAN }}>Style:</strong> {clip.style}
               </p>
             )}
-            {clip.remix_theme && (
+            {clip.theme && (
               <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                <strong style={{ color: CYAN }}>Theme:</strong> {clip.remix_theme}
+                <strong style={{ color: CYAN }}>Theme:</strong> {clip.theme}
               </p>
             )}
           </div>

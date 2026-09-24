@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
 import { readUtmAttribution } from '../utils/utmAttribution';
 import { clipsReturnPath } from '../utils/clipsChrome';
+import { remixTargetFromSearch, remixQuery } from '../utils/remixIntent';
 
 function collectFingerprint() {
   try {
@@ -27,11 +28,11 @@ export default function RegisterPage() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const referral = searchParams.get('ref') || null;
-  // Zeus Clips remix hand-off — the ?remix= query param survives THIS same-tab
-  // redirect on its own; see utils/remixIntent.js for the localStorage fallback
-  // that covers the (separate) email-verification-in-a-new-tab case.
-  const remixId = searchParams.get('remix') || null;
-  const loginHref = remixId ? `/login?remix=${remixId}` : '/login';
+  // Remix hand-off — the ?remix= (clip) / ?remixSong= (song) query param survives
+  // THIS same-tab redirect on its own; see utils/remixIntent.js for the localStorage
+  // fallback that covers the (separate) email-verification-in-a-new-tab case.
+  const remixTarget = remixTargetFromSearch(location.search);
+  const loginHref = `/login${remixQuery(remixTarget)}`;
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -87,7 +88,9 @@ export default function RegisterPage() {
       // remix-intent effect for why the redirect happens there, not here).
       // Zeus Clips bottom nav: a logged-out Create / My Clips tap comes back
       // to that /clips page (via LoginPage's "create one" link) — see clipsReturnPath.
-      navigate(remixId ? `/songs?remix=${remixId}` : (clipsReturnPath(location.state?.from?.pathname) || '/songs'), { replace: true });
+      const fromState = location.state?.from;
+      const fromPath = fromState ? `${fromState.pathname}${fromState.search || ''}` : null;
+      navigate(remixTarget ? `/songs${remixQuery(remixTarget)}` : (clipsReturnPath(fromPath) || '/songs'), { replace: true });
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {

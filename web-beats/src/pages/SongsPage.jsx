@@ -27,7 +27,7 @@ import {
   readRoastDraft, clearRoastDraft,
   savePostVerifyDraft, readPostVerifyDraft, clearPostVerifyDraft,
 } from '../utils/roastDraft';
-import { readRemixIntent, arrivedViaRemix } from '../utils/remixIntent';
+import { readRemixIntent, arrivedViaRemix, remixTargetFromSearch, remixDestination } from '../utils/remixIntent';
 import RemixStartedNotice from '../components/RemixStartedNotice';
 import { freeSongsLine } from '../utils/freeSongs';
 
@@ -611,10 +611,10 @@ export default function SongsPage() {
   // is a plain redirect to the actual remix flow — no clip logic belongs on
   // SongsPage itself, so the intent is left in localStorage for
   // ClipRemixPage to clear once it has the id from the URL.
+  // Discover's song Remix rides the same hand-off (?remixSong= / { songId }).
   useEffect(() => {
-    const fromUrl = Number(new URLSearchParams(location.search).get('remix'));
-    const clipId = fromUrl > 0 ? fromUrl : readRemixIntent()?.clipId;
-    if (clipId) navigate(`/clips/${clipId}/remix`, { replace: true });
+    const dest = remixDestination(remixTargetFromSearch(location.search) || readRemixIntent());
+    if (dest) navigate(dest, { replace: true });
   }, [location.search, navigate]);
 
   useEffect(() => {

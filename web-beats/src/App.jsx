@@ -201,6 +201,8 @@ export default function App() {
             />
             <Route path="/discover" element={<DiscoverPage />} />
             <Route path="/discover/:variantId" element={<DiscoverSongPage />} />
+            {/* Discover's song Remix — the Clips remix confirm page, keyed by song. */}
+            <Route path="/discover/:variantId/remix" element={<SchoolSafeRoute><ClipRemixPage /></SchoolSafeRoute>} />
 
             {/* ── Zeus Clips (Phase 2) ──────────────────────────────
                 Feed + detail are public, matching /discover. Creating a clip

@@ -5,6 +5,7 @@ import { BACKEND_URL } from '../brand';
 import { readUtmAttribution } from '../utils/utmAttribution';
 import { clipSeekTarget, clipInitialTime } from '../utils/clipPlayback';
 import { useClipsEnabled } from '../hooks/useClipsEnabled';
+import { discoverSongToClipSong } from '../utils/discoverSong';
 import { ZeusClipsWordmark, ClipsAiBadge } from '../components/ClipsBranding';
 
 const CYAN = '#00f0ff';
@@ -18,10 +19,12 @@ function formatTime(seconds) {
 }
 
 /**
- * Publish a clip from one of the user's own finished songs (build brief Phase 2).
- * Reached from SongCard's "🎬 Create Clip" button, which passes the full song via
- * router state (no extra fetch needed) and `?song=` as a fallback if state is
- * missing — e.g. a page refresh, which drops state but keeps the URL.
+ * Publish a clip from one of the user's own finished songs (build brief Phase 2),
+ * or — since 2026-09-24 — from anyone's PUBLIC song (Discover's Create Clip).
+ * Reached from SongCard's / Discover's "Create Clip" or the bottom nav's pick-a-song,
+ * which pass the full song via router state (no extra fetch needed) and `?song=` as
+ * a fallback if state is missing — e.g. a page refresh, which drops state but keeps
+ * the URL.
  */
 export default function ClipCreatorPage() {
   const { token, user } = useAuth();
@@ -50,14 +53,17 @@ export default function ClipCreatorPage() {
   const audioRef = useRef(null);
 
   // Fallback: state is missing (e.g. a refresh) — re-find the song from the
-  // library rather than inventing a new single-song endpoint for this one case.
+  // library, then (someone else's song) from the public Discover endpoint.
   useEffect(() => {
     if (song || !songId) { setLoadingSong(false); return; }
     fetch(`${BACKEND_URL}/api/library`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then(d => {
+      .then(async d => {
         const found = (d.variants || []).find(v => v.variant_id === songId);
-        if (found) setSong(found);
+        if (found) { setSong(found); return; }
+        // Not yours — any PUBLIC song can be clipped too (Discover's Create Clip).
+        const pub = await fetch(`${BACKEND_URL}/api/discover/${songId}`);
+        if (pub.ok) setSong(discoverSongToClipSong(await pub.json()));
         else setNotFound(true);
       })
       .catch(() => setNotFound(true))

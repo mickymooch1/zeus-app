@@ -292,7 +292,7 @@ export default function ClipPage() {
         <ClipSongBar
           coverUrl={clip.song_cover_url}
           title={clip.song_title}
-          artistName={clip.artist_name}
+          artistName={clip.song_artist_name || clip.artist_name}
           spinning={playing}
           onUseSound={handleRemix}
           progressBarRef={progressBarRef}
