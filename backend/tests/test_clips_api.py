@@ -148,9 +148,11 @@ def test_publish_with_make_song_public_sets_is_public_and_succeeds(app_client):
     assert is_pub == 1
 
 
-def test_publish_someone_elses_song_is_rejected(app_client):
+def test_publish_someone_elses_private_song_is_rejected(app_client):
+    # Public songs can be clipped by anyone since 2026-09-24 (see
+    # test_clips_public_songs.py); someone else's PRIVATE song still cannot.
     client, *_ , viewer_token = app_client
-    r = _publish(client, viewer_token, song_id=1)  # song 1 belongs to owner
+    r = _publish(client, viewer_token, song_id=2)  # song 2: owner's, private
     assert r.status_code == 404
 
 

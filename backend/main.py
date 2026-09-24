@@ -5723,7 +5723,13 @@ async def discover_song(variant_id: int):
         conn.close()
     if not row:
         raise HTTPException(status_code=404, detail="Song not found")
-    return dict(row)
+    # The same sanitized style/theme a remix will use (never the lyrics) — shown
+    # behind "See style details" on the song remix confirm page.
+    import clips as _clips_mod
+    prefill = _clips_mod.get_song_remix_prefill(db_path, variant_id)
+    return {**dict(row),
+            "remix_style_descriptors": prefill.get("style_descriptors", ""),
+            "remix_theme": prefill.get("theme", "")}
 
 
 class _PlayEventRequest(BaseModel):
@@ -7301,7 +7307,11 @@ def _clip_out(row: dict) -> dict:
         "remix_count": row["remix_count"], "created_at": row["created_at"],
         "song_title": row["song_title"], "genre_tag": row["genre_tag"], "mp3_url": row["mp3_url"],
         "song_cover_url": row["song_cover_url"],
+        # artist_name = the clip's CREATOR (@handle, profile link); song_artist_name =
+        # whoever made the SONG (the song bar's credit). The same person unless the
+        # clip was made from someone else's public song.
         "artist_name": row.get("artist_name") or row.get("user_name"),
+        "song_artist_name": row.get("song_artist_name") or row.get("song_user_name"),
         "remix_style_descriptors": prefill.get("style_descriptors", ""),
         "remix_theme": prefill.get("theme", ""),
     }
@@ -7391,15 +7401,20 @@ async def publish_clip(body: ClipCreateRequest, current_user: dict = Depends(aut
     if body.media_type == "cover" and body.media_url:
         raise HTTPException(status_code=400, detail="media_url must not be set for media_type='cover'")
 
+    # Any PUBLIC song can be clipped (2026-09-24); a private song only by its owner.
+    # Someone else's private song is a 404, never a 403, so it doesn't reveal it exists.
     source = db.get_song_variant_by_id(db_path, body.song_id)
-    if not source or source["user_id"] != current_user["id"]:
+    is_own_song = bool(source) and source["user_id"] == current_user["id"]
+    if not source or not (is_own_song or source.get("is_public")):
         raise HTTPException(status_code=404, detail="Song not found")
 
     try:
         clip_id = _clips_mod.create_clip(
             db_path, user_id=current_user["id"], song_id=body.song_id, caption=body.caption,
             media_type=body.media_type, media_url=body.media_url, clip_start_time=body.clip_start_time,
-            clip_duration=body.clip_duration, make_song_public=body.make_song_public,
+            clip_duration=body.clip_duration,
+            # Only the owner can make their own song public by publishing a clip of it.
+            make_song_public=body.make_song_public and is_own_song,
         )
     except _clips_mod.SourceNotPublicError:
         raise HTTPException(
@@ -7418,8 +7433,10 @@ async def publish_clip(body: ClipCreateRequest, current_user: dict = Depends(aut
         _clip_uploads_mod.mark_upload_attached(db_path, pathlib.Path(body.media_url).name, clip_id)
 
     _clips_mod.log_event(db_path, "clip_published", user_id=current_user["id"], clip_id=clip_id, song_id=body.song_id,
-                         utm_source=body.utm_source, utm_medium=body.utm_medium, utm_campaign=body.utm_campaign)
-    log.info("publish_clip: clip_id=%s user=%s song_id=%s media_type=%s", clip_id, current_user["id"], body.song_id, body.media_type)
+                         utm_source=body.utm_source, utm_medium=body.utm_medium, utm_campaign=body.utm_campaign,
+                         is_own_song=is_own_song)
+    log.info("publish_clip: clip_id=%s user=%s song_id=%s media_type=%s own_song=%s",
+             clip_id, current_user["id"], body.song_id, body.media_type, is_own_song)
     return _clip_out(_clips_mod.get_clip(db_path, clip_id))
 
 
@@ -7551,29 +7568,11 @@ async def report_clip_endpoint(clip_id: int, body: ClipReportRequest, current_us
     return {"ok": True}
 
 
-@app.post("/api/clips/{clip_id}/remix", status_code=202)
-@limiter.limit("10/minute", key_func=_user_key)
-async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | None = None,
-                     current_user: dict = Depends(auth.get_current_user)):
-    """Reuses the exact same generation pipeline /api/songs/generate calls (lyrics first,
-    then Apiframe submission) — never a separate/parallel path — so remix picks up every
-    existing safety check (email verification, credit deduction/refund-on-failure) for
-    free. The style descriptors and theme are ALWAYS re-derived server-side from the
-    source clip (clips.get_remix_prefill, which sanitizes and never touches lyrics_text)
-    — a client can never smuggle the original lyrics through this endpoint's body,
-    because the only fields this body accepts are UTM attribution tags (see
-    utils/utmAttribution.js); nothing that could carry lyrics or override the
-    server-derived style/theme."""
-    import lyrics as _lyrics_mod
-    import songs as _songs_mod
-    import clips as _clips_mod
-    from songs import InsufficientCreditsError
-
-    db_path = db.get_db_path()
-    user_id = current_user["id"]
+def _require_can_remix(current_user: dict, db_path) -> None:
+    """The gates every remix passes before any lookup or spend: blocked users are out,
+    and — same hard gate /api/songs/generate applies, a remix is a real generation — an
+    unverified email is refused with the code the frontend's verification flow expects."""
     _reject_if_blocked(current_user, db_path)
-
-    # Same hard gate /api/songs/generate applies — a remix is a real generation.
     if not current_user.get("email_verified"):
         raise HTTPException(
             status_code=403,
@@ -7581,12 +7580,19 @@ async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | No
                     "message": "Please verify your email address before remixing songs."},
         )
 
-    clip = _clips_mod.get_clip(db_path, clip_id)
-    if not clip:
-        raise HTTPException(status_code=404, detail="Clip not found")
-    prefill = _clips_mod.get_remix_prefill(db_path, clip_id)
 
-    # genre_tag stores a blend as "{genre}__{genre_b}" (clips.get_remix_prefill splits it
+def _generate_remix(request: Request, user_id: str, prefill: dict, db_path, source: str) -> tuple[int, int | None]:
+    """Shared by the clip remix and the Discover song remix. Reuses the exact same
+    generation pipeline /api/songs/generate calls (lyrics first, then Apiframe
+    submission) — never a separate/parallel path — so a remix picks up every existing
+    safety check (credit deduction/refund-on-failure) for free. `prefill` is ALWAYS
+    server-derived (clips.get_song_remix_prefill: sanitized style + theme, never the
+    source lyrics). Returns (lyric_id, first variant_id)."""
+    import lyrics as _lyrics_mod
+    import songs as _songs_mod
+    from songs import InsufficientCreditsError
+
+    # genre_tag stores a blend as "{genre}__{genre_b}" (get_song_remix_prefill splits it
     # into these two keys) — generation takes them as SEPARATE parameters (genres=[genre],
     # genre_b=genre_b), never the joined string. Passing the joined string through used to
     # make generate_multiple_variants reject it outright with a 502 (found via a real
@@ -7604,7 +7610,7 @@ async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | No
     genre = prefill.get("genre")
     genre_b = prefill.get("genre_b")
     if not genre or genre not in GENRE_PRESETS:
-        raise HTTPException(status_code=400, detail="This clip's song has no genre to remix from")
+        raise HTTPException(status_code=400, detail="This song has no genre to remix from")
     if genre_b and genre_b not in GENRE_PRESETS:
         genre_b = None
 
@@ -7623,8 +7629,34 @@ async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | No
     except InsufficientCreditsError:
         raise HTTPException(status_code=402, detail="Insufficient song credits")
     except Exception as exc:
-        log.exception("remix_clip: generation submission failed clip_id=%s user=%s", clip_id, user_id)
+        log.exception("remix: generation submission failed source=%s user=%s", source, user_id)
         raise HTTPException(status_code=502, detail=f"Remix generation failed: {exc}")
+
+    variant_id = variant_result["variants"][0]["variant_id"] if variant_result.get("variants") else None
+    return lyric_id, variant_id
+
+
+@app.post("/api/clips/{clip_id}/remix", status_code=202)
+@limiter.limit("10/minute", key_func=_user_key)
+async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | None = None,
+                     current_user: dict = Depends(auth.get_current_user)):
+    """Remix a clip's sound — see _generate_remix. The style descriptors and theme are
+    ALWAYS re-derived server-side from the source clip's song — a client can never
+    smuggle the original lyrics through this endpoint's body, because the only fields
+    this body accepts are UTM attribution tags (see utils/utmAttribution.js); nothing
+    that could carry lyrics or override the server-derived style/theme."""
+    import clips as _clips_mod
+
+    db_path = db.get_db_path()
+    user_id = current_user["id"]
+    _require_can_remix(current_user, db_path)
+
+    clip = _clips_mod.get_clip(db_path, clip_id)
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    prefill = _clips_mod.get_remix_prefill(db_path, clip_id)
+
+    lyric_id, variant_id = _generate_remix(request, user_id, prefill, db_path, source=f"clip:{clip_id}")
 
     remix_id = _clips_mod.start_remix(db_path, original_clip_id=clip_id, original_song_id=clip["song_id"],
                                       user_id=user_id, lyric_id=lyric_id)
@@ -7632,10 +7664,39 @@ async def remix_clip(request: Request, clip_id: int, body: ClipRemixRequest | No
                          utm_source=body.utm_source if body else None,
                          utm_medium=body.utm_medium if body else None,
                          utm_campaign=body.utm_campaign if body else None)
-    variant_id = variant_result["variants"][0]["variant_id"] if variant_result.get("variants") else None
     log.info("remix_clip: remix_id=%s clip_id=%s user=%s lyric_id=%s variant_id=%s",
              remix_id, clip_id, user_id, lyric_id, variant_id)
     return {"remix_id": remix_id, "lyric_id": lyric_id, "variant_id": variant_id}
+
+
+@app.post("/api/songs/{variant_id}/remix", status_code=202)
+@limiter.limit("10/minute", key_func=_user_key)
+async def remix_song(request: Request, variant_id: int, body: ClipRemixRequest | None = None,
+                     current_user: dict = Depends(auth.get_current_user)):
+    """Discover's "Remix": the same remix as a clip's (_generate_remix, same server-derived
+    sanitized prefill, never the source lyrics), keyed by the song itself. Any PUBLIC
+    song, or your own; someone else's private song is a 404. There's no clip, so no
+    clip_remixes row — logged as its own song_remix_started event (song_id set,
+    clip_id NULL) so it can't inflate the clips remix funnel."""
+    import clips as _clips_mod
+
+    db_path = db.get_db_path()
+    user_id = current_user["id"]
+    _require_can_remix(current_user, db_path)
+
+    source = db.get_song_variant_by_id(db_path, variant_id)
+    if not source or not (source.get("is_public") or source["user_id"] == user_id):
+        raise HTTPException(status_code=404, detail="Song not found")
+    prefill = _clips_mod.get_song_remix_prefill(db_path, variant_id)
+
+    lyric_id, new_variant_id = _generate_remix(request, user_id, prefill, db_path, source=f"song:{variant_id}")
+
+    _clips_mod.log_event(db_path, "song_remix_started", user_id=user_id, song_id=variant_id,
+                         utm_source=body.utm_source if body else None,
+                         utm_medium=body.utm_medium if body else None,
+                         utm_campaign=body.utm_campaign if body else None)
+    log.info("remix_song: song_id=%s user=%s lyric_id=%s variant_id=%s", variant_id, user_id, lyric_id, new_variant_id)
+    return {"lyric_id": lyric_id, "variant_id": new_variant_id}
 
 
 # ── Playlists ─────────────────────────────────────────────────────────────────

@@ -669,6 +669,10 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE clip_events ADD COLUMN utm_source TEXT",
             "ALTER TABLE clip_events ADD COLUMN utm_medium TEXT",
             "ALTER TABLE clip_events ADD COLUMN utm_campaign TEXT",
+            # Clips from ANY public song (2026-09-24): on clip_published, whether the
+            # clip's creator also made the song (1) or clipped someone else's (0).
+            # NULL on every other event.
+            "ALTER TABLE clip_events ADD COLUMN is_own_song INTEGER",
             "ALTER TABLE users ADD COLUMN utm_source TEXT",
             "ALTER TABLE users ADD COLUMN utm_medium TEXT",
             "ALTER TABLE users ADD COLUMN utm_campaign TEXT",
