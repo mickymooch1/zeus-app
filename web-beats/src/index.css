@@ -933,3 +933,99 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .tap-flash { animation-duration: 0.8s; animation-name: none; opacity: 0; }
 }
+
+/* ══ Clips / Discover: layout that survives large text and short screens ═══════
+   (2026-09-24 iPhone bug: at Safari page zoom 125–175% everything was stacked
+   from the bottom with fixed px offsets, so it piled onto the header/tabs and
+   the picture's box went to zero height.)
+   Each slide is a size container (`clipslide`) holding one flex column:
+   header space → stage (picture | action column) → info → Remix → song bar.
+   Nothing is positioned against anything else, so nothing can overlap; the
+   picture takes whatever height is left. As the slide gets shorter, the less
+   important bits go first (container queries below). */
+
+/* iOS Safari can inflate text on its own (orientation / "text autosizing"). */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+.clip-box { container: clipslide / size; }
+.clip-layout {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; gap: clamp(6px, 1.5cqh, 12px);
+  padding-left: 14px; padding-right: 14px;
+  pointer-events: none;
+}
+.clip-layout > * { pointer-events: auto; }
+/* The stage is its own size container: whether the action column fits beside
+   the picture depends on the stage's real height, not the slide's. */
+.clip-stage { flex: 1 1 0; min-height: 0; container: clipstage / size; }
+.clip-stage-inner { height: 100%; display: flex; gap: 10px; }
+.clip-picture {
+  position: relative; flex: 1 1 0; min-width: 0; min-height: 0;
+  container-type: size;
+  display: flex; align-items: center; justify-content: center;
+}
+/* The framed square cover: largest square that fits the picture box. The Ken
+   Burns zoom runs on the image INSIDE this frame (overflow hidden), so it can
+   never grow past the box into the action column. */
+.clip-framed {
+  width: 100%; max-height: 100%; aspect-ratio: 1 / 1; overflow: hidden; flex: none;
+  border-radius: 18px; box-shadow: 0 18px 50px rgba(0,0,0,0.65), 0 0 40px rgba(0,240,255,0.18);
+}
+.clip-framed > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@supports (width: 1cqw) {
+  .clip-framed { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); max-height: none; }
+}
+.clip-actions {
+  flex: none; display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+  gap: clamp(6px, 1.8cqh, 16px);
+}
+.clip-action-btn { --clip-action-size: clamp(36px, 11cqw, 44px); }
+.clip-info { flex: none; min-width: 0; }
+.clip-oneline { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.clip-caption {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.clip-title2 {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+
+/* Shorter slides: shed the less important bits, in order. */
+@container clipslide (max-height: 620px) {
+  .clip-caption { -webkit-line-clamp: 1; }
+  .clip-viz { display: none; }
+  .clip-title2 { -webkit-line-clamp: 1; }
+}
+/* Not enough height for the action column beside the picture (4 buttons with
+   labels ≈ 300px): it moves under the picture as a row. */
+@container clipstage (max-height: 330px) {
+  .clip-stage-inner { flex-direction: column; }
+  .clip-actions { flex-direction: row; justify-content: flex-end; gap: clamp(6px, 3cqw, 14px); }
+}
+@container clipslide (max-height: 500px) {
+  .clip-caption, .clip-songbar-sub { display: none; }
+}
+@container clipslide (max-height: 470px) {
+  /* "Use Sound" does what the Remix button right above it does. */
+  .clip-songbar-disc, .clip-songbar-use, .clip-action-label { display: none; }
+  .clip-layout { gap: 6px; }
+  .remix-btn { padding-top: 9px !important; padding-bottom: 9px !important; }
+}
+@container clipslide (max-height: 400px) {
+  /* Last resort on very short slides: the picture matters more than the song
+     bar (its title is the only thing lost; Remix is still right there). */
+  .clip-songbar { display: none; }
+}
+/* Header + bottom nav (outside the slides, so these use the viewport). */
+@media (max-height: 470px) {
+  .clips-pill-tab { padding: 4px 16px !important; }
+  .clips-nav-label { display: none; }
+  .clips-nav-plus { width: 44px !important; height: 44px !important; margin-top: 0 !important; font-size: 26px !important; }
+}
+@media (max-height: 620px), (max-width: 330px) { .clips-ai-badge { display: none !important; } }
+.beats-back-short, .mk-short { display: none; }
+@media (max-width: 340px) {
+  .beats-back-long, .mk-long { display: none; }
+  .beats-back-short, .mk-short { display: inline; }
+}
+/* Narrowest (e.g. Display Zoom + 150–175% page zoom): Discover's CTA is just ⚡. */
+@media (max-width: 290px) { .mk-short { display: none; } }

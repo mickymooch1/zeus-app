@@ -9,7 +9,8 @@ import { deriveClipHandle } from '../utils/clipHandle';
 import { formatCount } from '../utils/formatCount';
 import { saveSongRemixIntent } from '../utils/remixIntent';
 import { discoverSongToClipSong } from '../utils/discoverSong';
-import ClipVisual, { frameCenter } from '../components/ClipVisual';
+import ClipVisual, { FramedCover } from '../components/ClipVisual';
+import { usePublishedHeight } from '../hooks/usePublishedHeight';
 import TapToPause from '../components/TapToPause';
 import ClipActionBtn from '../components/ClipActionBtn';
 import { ZeusClipsWordmark, ClipsPillTab, ClipGenrePill } from '../components/ClipsBranding';
@@ -18,10 +19,6 @@ import { ZeusClipsWordmark, ClipsPillTab, ClipGenrePill } from '../components/Cl
 const CYAN   = '#00f0ff';
 const PURPLE = '#7c3aed';
 const BG     = '#000';
-// Slide layout: the caption block and action column sit INFO_BOTTOM px up
-// (clear of the playback bar); the framed cover stops FRAME_BOTTOM px up, above them.
-const INFO_BOTTOM  = 108;
-const FRAME_BOTTOM = 250;
 
 function formatTime(secs) {
   if (!secs || isNaN(secs)) return '0:00';
@@ -47,7 +44,7 @@ const SongSlide = memo(function SongSlide({
     <div
       ref={onSlideRef}
       data-idx={idx}
-      className="discover-slide"
+      className="discover-slide clip-box"
       style={{
         position: 'relative', height: '100svh', width: '100%',
         scrollSnapAlign: 'start', overflow: 'hidden', background: BG, flexShrink: 0,
@@ -70,8 +67,6 @@ const SongSlide = memo(function SongSlide({
           url={cover_url}
           playing={isActive && !isPaused}
           duration={20}
-          frameTop={112}
-          frameBottom={FRAME_BOTTOM}
         />
       )}
 
@@ -96,34 +91,46 @@ const SongSlide = memo(function SongSlide({
         pointerEvents: 'none',
       }} />
 
-      {/* Tap the picture to play/pause — the same control as the playback bar's ▶.
-          Under every control below (z-index 10). */}
-      <TapToPause paused={isActive && isPaused} onToggle={onTogglePause} center={frameCenter(112, FRAME_BOTTOM)} />
+      {/* One flex column (.clip-layout, index.css) — header space → picture +
+          actions → info — above the playback bar, so nothing overlaps at any
+          text size and the picture takes what's left. */}
+      <div
+        className="clip-layout"
+        style={{
+          paddingTop: 'calc(var(--discover-header-h, 110px) + 4px)',
+          paddingBottom: 'calc(10px + var(--discover-bar-h, 0px) + var(--cookie-banner-h, 0px))',
+        }}
+      >
+        <div className="clip-stage"><div className="clip-stage-inner">
+          {/* Tap the picture to play/pause — the same control as the playback bar's ▶. */}
+          <div className="clip-picture">
+            {!music_video_url && (
+              <FramedCover mediaType="cover" url={cover_url} playing={isActive && !isPaused} duration={20} />
+            )}
+            <TapToPause paused={isActive && isPaused} onToggle={onTogglePause} />
+          </div>
+          {/* Action column — like, remix, create clip (CLIPS_ENABLED), share */}
+          <div className="clip-actions">
+            <ClipActionBtn onClick={onLike} icon="❤️" label={formatCount(likeCount)} active={isLiked} activeColor={PURPLE} />
+            <ClipActionBtn onClick={onRemix} icon="🔁" label="Remix" />
+            {canCreateClip && <ClipActionBtn onClick={onCreateClip} icon="🎬" label="Clip" />}
+            <ClipActionBtn onClick={onShare} icon={isCopied ? '✓' : '🔗'} label={isCopied ? 'Copied' : 'Share'} active={isCopied} activeColor={CYAN} />
+          </div>
+        </div></div>
 
-      {/* Song info — bottom left, Clips typography */}
-      <div style={{ position: 'absolute', bottom: INFO_BOTTOM, left: 16, right: 76, zIndex: 10 }}>
-        <ClipGenrePill genre={genre_tag} style={{ marginBottom: 10 }} />
-        <p style={{
-          margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.2,
-          textShadow: '0 2px 12px rgba(0,0,0,0.9)',
-          WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden',
-        }}>
-          {title || `Song #${variant_id}`}
-        </p>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.6)', textShadow: '0 1px 4px rgba(0,0,0,0.85)' }}>
-          @{deriveClipHandle(artist_name)}
-        </p>
-      </div>
-
-      {/* Action column — like, remix, create clip (CLIPS_ENABLED), share */}
-      <div style={{
-        position: 'absolute', bottom: INFO_BOTTOM, right: 14, zIndex: 10,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
-      }}>
-        <ClipActionBtn onClick={onLike} icon="❤️" label={formatCount(likeCount)} active={isLiked} activeColor={PURPLE} />
-        <ClipActionBtn onClick={onRemix} icon="🔁" label="Remix" />
-        {canCreateClip && <ClipActionBtn onClick={onCreateClip} icon="🎬" label="Clip" />}
-        <ClipActionBtn onClick={onShare} icon={isCopied ? '✓' : '🔗'} label={isCopied ? 'Copied' : 'Share'} active={isCopied} activeColor={CYAN} />
+        {/* Song info — Clips typography */}
+        <div className="clip-info">
+          <ClipGenrePill genre={genre_tag} style={{ marginBottom: 6 }} />
+          <p className="clip-title2" style={{
+            margin: '0 0 2px', fontSize: 'clamp(16px, 5.8cqw, 22px)', fontWeight: 800, color: '#fff', lineHeight: 1.2,
+            textShadow: '0 2px 12px rgba(0,0,0,0.9)',
+          }}>
+            {title || `Song #${variant_id}`}
+          </p>
+          <p className="clip-oneline" style={{ margin: 0, fontSize: 'clamp(12px, 3.6cqw, 13px)', fontWeight: 600, color: 'rgba(255,255,255,0.6)', textShadow: '0 1px 4px rgba(0,0,0,0.85)' }}>
+            @{deriveClipHandle(artist_name)}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -166,6 +173,11 @@ export default function DiscoverPage() {
   const videoRefs          = useRef({});
   const audioRefs          = useRef({});
   const scrollContainerRef = useRef(null);
+  // Fixed chrome whose live heights the slides' layout clears (index.css .clip-layout).
+  const headerRef          = useRef(null);
+  const barRef             = useRef(null);
+  usePublishedHeight(headerRef, '--discover-header-h');
+  usePublishedHeight(barRef, '--discover-bar-h', !!activeAudioEl);
 
   // Derived, not corrected after the fact: if For You is selected but no longer
   // offered, render Trending. An effect calling setActiveTab would work but costs a
@@ -428,19 +440,22 @@ export default function DiscoverPage() {
     <div style={{ background: BG, height: '100svh', width: '100vw', overflow: 'hidden', position: 'relative' }}>
 
       {/* Fixed header — Clips-style: ZEUS wordmark, small speaker toggle, and
-          "Make Your Own" (prominent for visitors, small for signed-in users). */}
-      <div style={{
+          "Make Your Own" (prominent for visitors, small for signed-in users),
+          then the tabs. One block whose live height is published as
+          --discover-header-h, so each slide's layout starts below it. */}
+      <div ref={headerRef} style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200,
-        padding: '14px 16px 10px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-        background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%)',
+        padding: 'max(10px, env(safe-area-inset-top)) 14px 8px',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.55) 70%, transparent 100%)',
         pointerEvents: 'none',
       }}>
-        <div style={{ pointerEvents: 'auto' }}>
-          <ZeusClipsWordmark to="/" word="BEATS" size={17} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
+        {/* Shrinks with the screen and clips inside its own slot — never under the buttons. */}
+        <div style={{ pointerEvents: 'auto', minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
+          <ZeusClipsWordmark to="/" word="BEATS" size="clamp(10px, 4.4vw, 17px)" />
         </div>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', pointerEvents: 'auto' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', pointerEvents: 'auto', flex: 'none' }}>
           {/* Speaker toggle — same small control as Clips */}
           <button
             onClick={toggleMute}
@@ -465,7 +480,7 @@ export default function DiscoverPage() {
                 border: `1px solid ${CYAN}55`, cursor: 'pointer', whiteSpace: 'nowrap',
               }}
             >
-              ⚡ Make Your Own
+              <span aria-hidden="true">⚡</span><span className="mk-long"> Make Your Own</span><span className="mk-short"> Make</span>
             </button>
           ) : (
             <button
@@ -478,7 +493,7 @@ export default function DiscoverPage() {
                 letterSpacing: '0.02em', whiteSpace: 'nowrap',
               }}
             >
-              ⚡ Make Your Own
+              <span aria-hidden="true">⚡</span><span className="mk-long"> Make Your Own</span><span className="mk-short"> Make</span>
             </button>
           )}
         </div>
@@ -486,8 +501,7 @@ export default function DiscoverPage() {
 
       {/* Tabs — the same pill tabs as Clips' New / Trending */}
       <div style={{
-        position: 'fixed', top: 62, left: 0, right: 0, zIndex: 199,
-        display: 'flex', justifyContent: 'center', gap: 10,
+        display: 'flex', justifyContent: 'center', gap: 10, marginTop: 8,
         pointerEvents: 'auto',
       }}>
         {[
@@ -504,6 +518,7 @@ export default function DiscoverPage() {
             {label}
           </ClipsPillTab>
         ))}
+      </div>
       </div>
 
       {/* Scroll feed */}
@@ -631,7 +646,7 @@ export default function DiscoverPage() {
 
       {/* ── Playback controls bar (same controls, Clips styling) ──────────────── */}
       {activeAudioEl && (
-        <div style={{
+        <div ref={barRef} style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200,
           padding: '8px 16px 14px',
           background: 'linear-gradient(to top, rgba(0,0,0,0.97) 65%, transparent 100%)',

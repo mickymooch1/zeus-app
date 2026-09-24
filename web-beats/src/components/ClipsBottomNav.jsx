@@ -36,7 +36,12 @@ export default function ClipsBottomNav() {
       root.style.setProperty(CLIPS_NAV_H_VAR, '0px');
       return undefined;
     }
-    const publish = () => root.style.setProperty(CLIPS_NAV_H_VAR, `${el.offsetHeight + RAISE}px`);
+    // How far the "+" actually rises right now (0 on short screens — index.css).
+    const publish = () => {
+      const plus = el.querySelector('.clips-nav-plus');
+      const rise = plus ? Math.max(0, -parseFloat(getComputedStyle(plus).marginTop) || 0) : 0;
+      root.style.setProperty(CLIPS_NAV_H_VAR, `${el.offsetHeight + rise}px`);
+    };
     publish();
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null;
     ro?.observe(el);
@@ -54,7 +59,7 @@ export default function ClipsBottomNav() {
 
   const item = (active) => ({
     flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-    textDecoration: 'none', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
+    textDecoration: 'none', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', whiteSpace: 'nowrap', minWidth: 0,
     color: active ? '#fff' : 'rgba(255,255,255,0.55)',
     textShadow: active ? `0 0 10px ${CYAN}aa` : 'none',
   });
@@ -80,14 +85,14 @@ export default function ClipsBottomNav() {
           <circle cx="6" cy="18" r="3" />
           <circle cx="18" cy="16" r="3" />
         </svg>
-        Songs
+        <span className="clips-nav-label">Songs</span>
       </Link>
 
       <Link to="/clips" style={item(feedActive)} aria-current={feedActive ? 'page' : undefined}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
         </svg>
-        Feed
+        <span className="clips-nav-label">Feed</span>
       </Link>
 
       <Link
@@ -95,7 +100,7 @@ export default function ClipsBottomNav() {
         aria-label="Create a clip"
         style={{ flex: 1, display: 'flex', justifyContent: 'center', textDecoration: 'none' }}
       >
-        <span style={{
+        <span className="clips-nav-plus" style={{
           width: 58, height: 58, marginTop: -RAISE, borderRadius: '50%',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: `linear-gradient(135deg, ${CYAN}, ${PURPLE})`,
@@ -112,7 +117,7 @@ export default function ClipsBottomNav() {
           <circle cx="12" cy="8" r="4" />
           <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
         </svg>
-        My Clips
+        <span className="clips-nav-label">My Clips</span>
       </Link>
     </nav>
   );

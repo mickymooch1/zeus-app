@@ -12,21 +12,14 @@ import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
 import ClipActionBtn from '../components/ClipActionBtn';
-import ClipVisual, { frameCenter } from '../components/ClipVisual';
+import ClipVisual, { FramedCover } from '../components/ClipVisual';
 import TapToPause from '../components/TapToPause';
-import { aboveBottomChrome } from '../utils/clipsChrome';
 import { ZeusClipsWordmark, ClipsAiBadge, ClipGenrePill } from '../components/ClipsBranding';
 
 // Zeus Beats' own electric-blue → purple pair (see RemixButton.jsx).
 const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
 
-// The box between the header and the caption block: ClipVisual frames a cover
-// in it and the tap-to-pause icon is centred in it. FRAME_BOTTOM is above the bottom
-// chrome (cookie banner + nav) and larger than the feed's — this page's
-// caption block also carries the big song title.
-const FRAME_TOP = 124;
-const FRAME_BOTTOM = 370;
 
 function setMetaTag(property, content, attr = 'property') {
   let el = document.querySelector(`meta[${attr}="${property}"]`);
@@ -203,10 +196,10 @@ export default function ClipPage() {
   const visualUrl = clip.media_type === 'cover' ? clip.song_cover_url : `${BACKEND_URL}${clip.media_url}`;
 
   return (
-    <div style={{ background: '#000', height: '100svh', width: '100vw', overflow: 'hidden', position: 'relative' }}>
+    <div className="clip-box" style={{ background: '#000', height: '100svh', width: '100vw', overflow: 'hidden', position: 'relative' }}>
       <audio ref={audioRef} src={clip.mp3_url} onEnded={() => setPlaying(false)} />
 
-      {/* See ClipVisual, and FRAME_TOP/FRAME_BOTTOM above. */}
+      {/* Full-screen layer (see ClipVisual); a cover's framed copy sits in the picture box below. */}
       <ClipVisual
         mediaType={clip.media_type}
         url={visualUrl}
@@ -214,8 +207,6 @@ export default function ClipPage() {
         videoRef={videoRef}
         duration={clip.clip_duration}
         alt={clip.song_title}
-        frameTop={FRAME_TOP}
-        frameBottom={FRAME_BOTTOM}
       />
 
       {/* Scrims (2026-09-23 readability fix): dim only the header strip and the
@@ -232,57 +223,65 @@ export default function ClipPage() {
         pointerEvents: 'none',
       }} />
 
-      {/* Header — wordmark centered, "All clips" + report menu at the edges,
-          AI badge on its own row underneath (same shape as the feed header) */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '14px 18px 10px', zIndex: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link to="/clips" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: 13, fontWeight: 600, width: 60 }}>← Clips</Link>
-          <ZeusClipsWordmark />
-          <ClipMoreMenu clipId={clipId} token={token} onRequireAuth={() => navigate('/register')} />
+      {/* One flex column (.clip-layout, index.css) — header → picture + actions →
+          info → Remix → song bar — so nothing overlaps at any text size. */}
+      <div
+        className="clip-layout"
+        style={{
+          paddingTop: 'max(10px, env(safe-area-inset-top))',
+          paddingBottom: 'calc(10px + var(--cookie-banner-h, 0px) + var(--clips-nav-h, 0px))',
+        }}
+      >
+        {/* Header — "← Clips", wordmark centred, report menu; AI badge underneath */}
+        <div style={{ flex: 'none' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: 8 }}>
+            <Link to="/clips" className="clip-oneline" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: 13, fontWeight: 600, justifySelf: 'start' }}>← Clips</Link>
+            <ZeusClipsWordmark />
+            <div style={{ justifySelf: 'end' }}>
+              <ClipMoreMenu clipId={clipId} token={token} onRequireAuth={() => navigate('/register')} />
+            </div>
+          </div>
+          <div className="clips-ai-badge" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+            <ClipsAiBadge />
+          </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-          <ClipsAiBadge />
+
+        <div className="clip-stage"><div className="clip-stage-inner">
+          {/* Tap the picture to play/pause — this page has no autoplay (reached via a
+              direct link/share), so it starts paused with the play icon showing. */}
+          <div className="clip-picture">
+            <FramedCover mediaType={clip.media_type} url={visualUrl} playing={playing} duration={clip.clip_duration} alt={clip.song_title} />
+            <TapToPause paused={!playing} onToggle={togglePlay} />
+          </div>
+          {/* Action column — like, remix count, share (same as the feed) */}
+          <div className="clip-actions">
+            <ClipActionBtn onClick={handleLike} icon="❤️" label={formatCount(likeCount)} active={liked} activeColor={PURPLE} />
+            <ClipActionBtn icon="🔁" label={formatCount(clip.remix_count)} />
+            <ClipActionBtn onClick={handleCopy} icon={copied ? '✓' : '🔗'} label={copied ? 'Copied' : 'Share'} active={copied} activeColor={CYAN} />
+          </div>
+        </div></div>
+
+        <div className="clip-info">
+          <ClipGenrePill genre={clip.genre_tag} style={{ marginBottom: 6 }} />
+          <p className="clip-title2" style={{ margin: '0 0 2px', fontSize: 'clamp(16px, 5.8cqw, 22px)', fontWeight: 800, color: '#fff', lineHeight: 1.2, textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}>
+            {clip.song_title || 'Untitled'}
+          </p>
+          <Link
+            to={`/clips/u/${deriveClipHandle(clip.artist_name)}`}
+            className="clip-oneline"
+            style={{ margin: '0 0 4px', fontSize: 'clamp(12px, 3.8cqw, 14px)', color: 'rgba(255,255,255,0.7)', fontWeight: 600, textDecoration: 'none' }}
+          >
+            @{deriveClipHandle(clip.artist_name)}
+          </Link>
+          {clip.caption && (
+            <p className="clip-caption" style={{ margin: 0, fontSize: 'clamp(12px, 3.6cqw, 13px)', color: 'rgba(255,255,255,0.85)', lineHeight: 1.45, textShadow: '0 1px 4px rgba(0,0,0,0.85)' }}>{clip.caption}</p>
+          )}
         </div>
-      </div>
 
-      {/* Tap the picture to play/pause — this page has no autoplay (reached via a
-          direct link/share), so it starts paused with the play icon showing. The
-          layer sits under every control (they're z-index 20). */}
-      <TapToPause paused={!playing} onToggle={togglePlay} center={frameCenter(FRAME_TOP, FRAME_BOTTOM)} />
-
-      {/* Right-side action column — like, remix count, share (same as the feed) */}
-      <div style={{
-        position: 'absolute', bottom: aboveBottomChrome(232), right: 14, zIndex: 20,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
-      }}>
-        <ClipActionBtn onClick={handleLike} icon="❤️" label={formatCount(likeCount)} active={liked} activeColor={PURPLE} />
-        <ClipActionBtn icon="🔁" label={formatCount(clip.remix_count)} />
-        <ClipActionBtn onClick={handleCopy} icon={copied ? '✓' : '🔗'} label={copied ? 'Copied' : 'Share'} active={copied} activeColor={CYAN} />
-      </div>
-
-      <div style={{ position: 'absolute', bottom: aboveBottomChrome(232), left: 24, right: 76, zIndex: 20 }}>
-        <ClipGenrePill genre={clip.genre_tag} style={{ marginBottom: 10 }} />
-        <p style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.2, textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}>
-          {clip.song_title || 'Untitled'}
-        </p>
-        <Link
-          to={`/clips/u/${deriveClipHandle(clip.artist_name)}`}
-          style={{ display: 'block', margin: '0 0 6px', fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: 600, textDecoration: 'none' }}
-        >
-          @{deriveClipHandle(clip.artist_name)}
-        </Link>
-        {clip.caption && (
-          <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5, textShadow: '0 1px 4px rgba(0,0,0,0.85)' }}>{clip.caption}</p>
-        )}
-      </div>
-
-      {/* ── "⚡ Remix This Sound" — the most prominent button on the page ── */}
-      <div style={{ position: 'absolute', bottom: aboveBottomChrome(96), left: 16, right: 16, zIndex: 20 }}>
+        {/* ── "⚡ Remix This Sound" — the most prominent button on the page ── */}
         <RemixButton onClick={handleRemix} />
-      </div>
 
-      {/* Song bar — pinned at the very bottom, full width, with its progress strip */}
-      <div style={{ position: 'absolute', bottom: aboveBottomChrome(16), left: 16, right: 16, zIndex: 20 }}>
+        {/* Song bar, with its progress strip */}
         <ClipSongBar
           coverUrl={clip.song_cover_url}
           title={clip.song_title}
