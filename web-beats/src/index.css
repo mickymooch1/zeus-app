@@ -1029,3 +1029,10 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 }
 /* Narrowest (e.g. Display Zoom + 150–175% page zoom): Discover's CTA is just ⚡. */
 @media (max-width: 290px) { .mk-short { display: none; } }
+/* Visitors' "Make Your Own" is the big gradient pill — it needs the short label
+   sooner, or the wordmark gets squeezed (found on the live site at 125% zoom). */
+@media (max-width: 400px) {
+  .mk-long.mk-wide { display: none; }
+  .mk-short.mk-wide { display: inline; }
+}
+@media (max-width: 290px) { .mk-short.mk-wide { display: none; } }
