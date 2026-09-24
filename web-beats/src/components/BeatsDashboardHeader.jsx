@@ -108,7 +108,9 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
           </Link>
         ))}
 
-        {user?.is_admin && (
+        {/* !! — /auth/me sends is_admin as SQLite 0/1, and a bare 0 would
+            render a stray "0" next to the account icon (reads like "0 credits"). */}
+        {!!user?.is_admin && (
           <Link
             to="/admin"
             className={`dashboard-header-link${isActive(pathname, '/admin') ? ' dashboard-header-link--active' : ''}`}
