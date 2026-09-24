@@ -10,6 +10,7 @@ import { ZeusClipsWordmark, ClipsAiBadge } from '../components/ClipsBranding';
 import { CLIPS_NAV_H_VAR, COOKIE_BANNER_H_VAR } from '../utils/clipsChrome';
 
 const CYAN = '#00f0ff';
+const PURPLE = '#7c3aed';
 
 /**
  * "Pick a song" — where the bottom nav's "+" goes. A plain list of the user's
@@ -66,9 +67,23 @@ export default function ClipPickSongPage() {
       {!error && songs === null && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Loading your songs…</p>}
 
       {songs && songs.length === 0 && (
-        <div style={{ textAlign: 'center', marginTop: 40 }}>
-          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15 }}>You don&apos;t have any finished songs yet.</p>
-          <Link to="/songs" style={{ color: CYAN, fontWeight: 700, textDecoration: 'none' }}>Make your first song →</Link>
+        <div style={{ textAlign: 'center', marginTop: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
+          <span style={{ fontSize: 40 }} aria-hidden="true">🎵</span>
+          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 16, fontWeight: 600, margin: 0 }}>
+            You haven&apos;t made any songs yet
+          </p>
+          {/* /songs is the song creator ("Create a Song"). */}
+          <Link
+            to="/songs"
+            style={{
+              display: 'inline-block', padding: '13px 26px', borderRadius: 999, textDecoration: 'none',
+              fontSize: 15, fontWeight: 800, color: '#000',
+              background: `linear-gradient(90deg, ${CYAN}, ${PURPLE})`,
+              boxShadow: `0 0 20px ${CYAN}55`,
+            }}
+          >
+            Make your first song
+          </Link>
         </div>
       )}
 

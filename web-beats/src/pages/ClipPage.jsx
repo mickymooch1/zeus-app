@@ -12,7 +12,7 @@ import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
 import ClipActionBtn from '../components/ClipActionBtn';
-import ClipVisual from '../components/ClipVisual';
+import ClipVisual, { FRAME_LEFT, FRAME_RIGHT } from '../components/ClipVisual';
 import { aboveBottomChrome, COOKIE_BANNER_H_VAR, CLIPS_NAV_H_VAR } from '../utils/clipsChrome';
 import { ZeusClipsWordmark, ClipsAiBadge, ClipGenrePill } from '../components/ClipsBranding';
 
@@ -244,7 +244,8 @@ export default function ClipPage() {
           // Centred in the space between the header and the caption block (the
           // same box ClipVisual frames a cover in) — plain 50% put it under
           // the caption once the bottom nav pushed that block up.
-          position: 'absolute', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 25,
+          position: 'absolute', transform: 'translate(-50%, -50%)', zIndex: 25,
+          left: `calc((${FRAME_LEFT}px + 100% - ${FRAME_RIGHT}px) / 2)`,
           top: `calc((${FRAME_TOP}px + 100svh - ${FRAME_BOTTOM}px - var(${COOKIE_BANNER_H_VAR}, 0px) - var(${CLIPS_NAV_H_VAR}, 0px)) / 2)`,
           width: 64, height: 64, borderRadius: '50%', border: `2px solid ${CYAN}`,
           background: playing ? `${CYAN}18` : 'rgba(0,0,0,0.45)', color: CYAN, fontSize: 22, cursor: 'pointer',
