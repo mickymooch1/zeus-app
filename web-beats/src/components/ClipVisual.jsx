@@ -1,6 +1,12 @@
 import { clipVisualMode, kenBurnsStyle } from '../utils/clipVisual';
 import { aboveBottomChrome } from '../utils/clipsChrome';
 
+// Side insets of the framed-cover box. The right one keeps the cover clear of
+// the action column (44px buttons at right: 14, labels slightly wider) at
+// every phone width; ClipPage centres its play button on the same box.
+export const FRAME_LEFT = 16;
+export const FRAME_RIGHT = 72;
+
 /**
  * The visual behind a clip, shared by the feed and the single-clip page.
  *
@@ -43,7 +49,7 @@ export default function ClipVisual({
           style={{ ...fill, transform: 'scale(1.3)', filter: 'blur(28px) brightness(0.45) saturate(1.2)' }}
         />
         <div style={{
-          position: 'absolute', top: frameTop, bottom: aboveBottomChrome(frameBottom), left: 24, right: 24,
+          position: 'absolute', top: frameTop, bottom: aboveBottomChrome(frameBottom), left: FRAME_LEFT, right: FRAME_RIGHT,
           display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none',
           containerType: 'size',
         }}>
