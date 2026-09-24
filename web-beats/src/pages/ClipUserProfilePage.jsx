@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { BACKEND_URL } from '../brand';
 import { formatCount } from '../utils/formatCount';
+import { ZeusClipsWordmark, ClipsAiBadge } from '../components/ClipsBranding';
 
 // Zeus Beats' own electric-blue → purple pair (see RemixButton.jsx).
 const CYAN = '#00f0ff';
@@ -55,6 +56,10 @@ export default function ClipUserProfilePage() {
 
   return (
     <div style={{ background: '#0a0a14', minHeight: '100svh', color: '#fff', padding: '20px 20px 48px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <ZeusClipsWordmark />
+        <ClipsAiBadge />
+      </div>
       <Link to="/clips" style={{ color: CYAN, textDecoration: 'none', fontSize: 14, fontWeight: 700 }}>← Clips</Link>
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 24, marginBottom: 28 }}>

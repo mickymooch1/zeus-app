@@ -16,12 +16,16 @@ export function ZeusClipsWordmark({ size = 19, to = '/clips' }) {
     <span style={{
       fontFamily: "'Orbitron', sans-serif", fontWeight: 900, fontSize: size,
       letterSpacing: '0.01em', whiteSpace: 'nowrap', display: 'inline-flex', gap: 6,
-      textShadow: `0 1px 4px rgba(0,0,0,0.9), 0 0 16px ${CYAN}77`,
     }}>
-      <span style={{ color: '#fff' }}>ZEUS</span>
+      <span style={{ color: '#fff', textShadow: `0 1px 4px rgba(0,0,0,0.9), 0 0 16px ${CYAN}77` }}>ZEUS</span>
+      {/* No text-shadow here: with a transparent text fill the shadow shows
+          THROUGH the letters and darkens the gradient. The glow comes from
+          drop-shadow instead, which sits behind the painted gradient. Colours
+          are lighter tints of the brand pair so CLIPS reads on pure black. */}
       <span style={{
-        background: `linear-gradient(90deg, ${CYAN}, ${PURPLE})`,
+        background: 'linear-gradient(90deg, #5ee7ff, #8b9dff 50%, #c77dff)',
         WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+        filter: `drop-shadow(0 0 6px ${CYAN}99) drop-shadow(0 0 12px ${PURPLE}aa)`,
       }}>
         CLIPS
       </span>
@@ -72,5 +76,24 @@ export function ClipsPillTab({ active, onClick, children }) {
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * Genre pill shown above the @username. Near-solid dark fill (not a
+ * translucent tint) so it stays readable over light cover images.
+ */
+export function ClipGenrePill({ children, style }) {
+  return (
+    <span style={{
+      display: 'inline-block', padding: '3px 11px', borderRadius: 20, fontSize: 11,
+      fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
+      background: 'rgba(8,8,18,0.85)', border: `1px solid ${CYAN}88`,
+      boxShadow: `0 0 10px ${CYAN}33`, color: '#7ff6ff',
+      backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+      ...style,
+    }}>
+      {children}
+    </span>
   );
 }

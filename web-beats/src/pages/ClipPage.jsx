@@ -12,7 +12,7 @@ import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
 import ClipActionBtn from '../components/ClipActionBtn';
-import { ZeusClipsWordmark, ClipsAiBadge } from '../components/ClipsBranding';
+import { ZeusClipsWordmark, ClipsAiBadge, ClipGenrePill } from '../components/ClipsBranding';
 
 // Zeus Beats' own electric-blue → purple pair (see RemixButton.jsx).
 const CYAN = '#00f0ff';
@@ -262,13 +262,7 @@ export default function ClipPage() {
 
       <div style={{ position: 'absolute', bottom: 232, left: 24, right: 76, zIndex: 20 }}>
         {clip.genre_tag && (
-          <span style={{
-            display: 'inline-block', padding: '3px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            background: `linear-gradient(90deg, ${CYAN}33, ${PURPLE}33)`, border: `1px solid ${CYAN}55`, color: CYAN, marginBottom: 10,
-          }}>
-            {clip.genre_tag}
-          </span>
+          <ClipGenrePill style={{ marginBottom: 10 }}>{clip.genre_tag}</ClipGenrePill>
         )}
         <p style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.2, textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}>
           {clip.song_title || 'Untitled'}

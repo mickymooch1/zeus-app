@@ -12,7 +12,7 @@ import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
 import ClipActionBtn from '../components/ClipActionBtn';
-import { ZeusClipsWordmark, ClipsAiBadge, ClipsPillTab } from '../components/ClipsBranding';
+import { ZeusClipsWordmark, ClipsAiBadge, ClipsPillTab, ClipGenrePill } from '../components/ClipsBranding';
 
 /* ── Zeus Beats' own electric-blue → purple palette (App.jsx logo, NowPlayingBar,
  * PlaylistPage all use this pair already — not a new colour introduced here). ── */
@@ -111,14 +111,7 @@ const ClipSlide = memo(function ClipSlide({
       {/* Info — bottom left: @username (links to their profile) + caption */}
       <div style={{ position: 'absolute', bottom: 232, left: 16, right: 76, zIndex: 10 }}>
         {genre_tag && (
-          <span style={{
-            display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 11,
-            fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
-            background: `linear-gradient(90deg, ${CYAN}33, ${PURPLE}33)`, border: `1px solid ${CYAN}55`,
-            color: CYAN, marginBottom: 8,
-          }}>
-            {genre_tag}
-          </span>
+          <ClipGenrePill style={{ marginBottom: 8 }}>{genre_tag}</ClipGenrePill>
         )}
         <Link
           to={`/clips/u/${handle}`}
