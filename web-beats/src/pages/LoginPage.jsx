@@ -114,7 +114,7 @@ export default function LoginPage() {
         </p>
         <p className="auth-footer-text">
           {t('auth.login.noAccount')}{' '}
-          <Link to={registerHref} className="auth-link">{t('auth.login.createOne')}</Link>
+          <Link to={registerHref} state={location.state?.from ? { from: location.state.from } : undefined} className="auth-link">{t('auth.login.createOne')}</Link>
         </p>
       </div>
     </div>

@@ -41,6 +41,11 @@ export default function ClipSongBar({ coverUrl, title, artistName, spinning, onU
           </p>
         </div>
 
+        {/* Visualiser — moves only while the clip's audio is playing. */}
+        <span className={`clip-viz${spinning ? '' : ' clip-viz--paused'}`} aria-hidden="true">
+          <span /><span /><span /><span /><span />
+        </span>
+
         <button
           onClick={onUseSound}
           style={{

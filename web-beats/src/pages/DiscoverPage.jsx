@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
+import { gLabel } from '../utils/genres';
 import { audioManager } from '../utils/audioManager';
 import { markDiscoverSeen } from '../hooks/useDiscoverBadge';
 
@@ -17,29 +18,6 @@ function formatTime(secs) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-/* ── Genre label → display ─────────────────────────────────────────────── */
-const GENRE_LABELS = {
-  hiphop:'Hip-Hop', rnb:'R&B', pop:'Pop', rock:'Rock', soul:'Soul',
-  blues:'Blues', jazz:'Jazz', reggae:'Reggae', lofi:'Lo-Fi', edm:'EDM',
-  drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage', jungle:'Jungle',
-  bassline:'Bassline', house:'House', techno:'Techno', loversrock:'Lovers Rock',
-  ukdrill:'UK Drill', kpop:'K-Pop', classical:'Classical', indie:'Indie',
-  afrobeats:'Afrobeats', amapiano:'Amapiano', afroswing:'Afroswing',
-  country:'Country', acoustic:'Acoustic', hyperpop:'Hyperpop',
-  trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap',
-  synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul',
-  meditation:'Meditation', christmas:'Christmas', corridos:'Corridos',
-  healingfrequency:'Healing Frequency',
-  irishjig:'Irish Jig', irishfolk:'Irish Folk', bluessoul:'Blues Soul',
-  deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House',
-  driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', rastadub:'Rasta Dub',
-  deeprotbassline:'Deeprot Bassline', electronicfunk:'Electronic Funk',
-  syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep',
-  bhangra:'Bhangra', rockney:'Rockney', metal:'Metal',
-  swing:'Swing', vocaljazz:'Vocal Jazz', traditionalpop:'Traditional Pop',
-  rocknroll:"Rock 'n' Roll", southemsoul:'Southern Soul', countryamericana:'Country Americana',
-};
-const gLabel = (g) => GENRE_LABELS[g] || (g ? g.charAt(0).toUpperCase() + g.slice(1) : '');
 
 /* ── Individual song slide ──────────────────────────────────────────────── */
 const SongSlide = memo(function SongSlide({

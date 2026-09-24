@@ -5,6 +5,8 @@ import { NowPlayingProvider, useNowPlaying } from './contexts/NowPlayingContext'
 import { useAuth } from './contexts/AuthContext';
 import { ProtectedRoute, SchoolSafeRoute } from './components/ProtectedRoute';
 import CookieBanner from './components/CookieBanner';
+import ClipsBottomNav from './components/ClipsBottomNav';
+import { isClipsNavPath } from './utils/clipsChrome';
 import NowPlayingBar from './components/NowPlayingBar';
 import { UpdateToast } from './components/UpdateToast';
 import WhatsNewModal from './components/WhatsNewModal';
@@ -56,6 +58,8 @@ const ClipsFeedPage          = lazy(() => import('./pages/ClipsFeedPage'));
 const ClipPage                = lazy(() => import('./pages/ClipPage'));
 const ClipCreatorPage         = lazy(() => import('./pages/ClipCreatorPage'));
 const ClipRemixPage           = lazy(() => import('./pages/ClipRemixPage'));
+const ClipPickSongPage        = lazy(() => import('./pages/ClipPickSongPage'));
+const MyClipsRedirect         = lazy(() => import('./pages/ClipPickSongPage').then(m => ({ default: m.MyClipsRedirect })));
 const ClipUserProfilePage     = lazy(() => import('./pages/ClipUserProfilePage'));
 
 function RootRedirect() {
@@ -118,8 +122,15 @@ const fallback = (
 );
 
 function AppInner() {
-  const { currentSong } = useNowPlaying();
+  const { currentSong, isPlaying, pause } = useNowPlaying();
   const location = useLocation();
+  // Zeus Clips pages play their own clip audio and own the bottom of the
+  // screen (song bar + bottom nav): pause the global player there and hide its
+  // bar; the queue is kept, so the bar comes back (paused) on leaving.
+  const onClipsNavPage = isClipsNavPath(location.pathname);
+  useEffect(() => {
+    if (onClipsNavPage && isPlaying) pause();
+  }, [onClipsNavPage, isPlaying, pause]);
   // First-touch UTM capture (2026-09-23) — runs once per real page load, not
   // per in-SPA navigation, since AppInner mounts once for the app's lifetime;
   // React Router's client-side <Link> navigation never re-fires this. That
@@ -138,9 +149,10 @@ function AppInner() {
   return (
     <>
       {!isSharePage && <CookieBanner />}
+      <ClipsBottomNav />
       <UpdateToast />
       <WhatsNewModal />
-      {currentSong?.mp3_url && <NowPlayingBar />}
+      {currentSong?.mp3_url && !onClipsNavPage && <NowPlayingBar />}
     </>
   );
 }
@@ -197,6 +209,10 @@ export default function App() {
             <Route path="/clips" element={<ClipsFeedPage />} />
             <Route path="/clips/u/:username" element={<ClipUserProfilePage />} />
             <Route path="/clips/:clipId" element={<ClipPage />} />
+            {/* Bottom-nav destinations (Create / My Clips) — account-only, so a
+                logged-out tap goes to login and comes back here afterwards. */}
+            <Route path="/clips/pick" element={<SchoolSafeRoute><ClipPickSongPage /></SchoolSafeRoute>} />
+            <Route path="/clips/me" element={<SchoolSafeRoute><MyClipsRedirect /></SchoolSafeRoute>} />
             <Route
               path="/clips/new"
               element={

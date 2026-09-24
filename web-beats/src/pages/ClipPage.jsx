@@ -12,12 +12,20 @@ import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
 import ClipActionBtn from '../components/ClipActionBtn';
-import { aboveCookieBanner } from '../utils/clipsChrome';
+import ClipVisual from '../components/ClipVisual';
+import { aboveBottomChrome, COOKIE_BANNER_H_VAR, CLIPS_NAV_H_VAR } from '../utils/clipsChrome';
 import { ZeusClipsWordmark, ClipsAiBadge, ClipGenrePill } from '../components/ClipsBranding';
 
 // Zeus Beats' own electric-blue → purple pair (see RemixButton.jsx).
 const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
+
+// The box between the header and the caption block: ClipVisual frames a cover
+// in it and the play button is centred in it. FRAME_BOTTOM is above the bottom
+// chrome (cookie banner + nav) and larger than the feed's — this page's
+// caption block also carries the big song title.
+const FRAME_TOP = 124;
+const FRAME_BOTTOM = 370;
 
 function setMetaTag(property, content, attr = 'property') {
   let el = document.querySelector(`meta[${attr}="${property}"]`);
@@ -189,24 +197,16 @@ export default function ClipPage() {
     <div style={{ background: '#000', height: '100svh', width: '100vw', overflow: 'hidden', position: 'relative' }}>
       <audio ref={audioRef} src={clip.mp3_url} onEnded={() => setPlaying(false)} />
 
-      {/* The clip's own media fills the frame at full brightness, per the
-          approved mockups — only the bottom gradient below dims for text. */}
-      {clip.media_type === 'video' ? (
-        <video
-          src={visualUrl}
-          autoPlay muted loop playsInline
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-        />
-      ) : visualUrl ? (
-        <img
-          src={visualUrl}
-          alt={clip.song_title}
-          className="cover-ken-burns"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-        />
-      ) : (
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 100%)' }} />
-      )}
+      {/* See ClipVisual, and FRAME_TOP/FRAME_BOTTOM above. */}
+      <ClipVisual
+        mediaType={clip.media_type}
+        url={visualUrl}
+        playing={playing}
+        duration={clip.clip_duration}
+        alt={clip.song_title}
+        frameTop={FRAME_TOP}
+        frameBottom={FRAME_BOTTOM}
+      />
 
       {/* Scrims (2026-09-23 readability fix): dim only the header strip and the
           caption/stats/Remix-button strip, leaving the middle of the image
@@ -241,7 +241,11 @@ export default function ClipPage() {
         onClick={togglePlay}
         aria-label={playing ? 'Pause' : 'Play'}
         style={{
-          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 15,
+          // Centred in the space between the header and the caption block (the
+          // same box ClipVisual frames a cover in) — plain 50% put it under
+          // the caption once the bottom nav pushed that block up.
+          position: 'absolute', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 25,
+          top: `calc((${FRAME_TOP}px + 100svh - ${FRAME_BOTTOM}px - var(${COOKIE_BANNER_H_VAR}, 0px) - var(${CLIPS_NAV_H_VAR}, 0px)) / 2)`,
           width: 64, height: 64, borderRadius: '50%', border: `2px solid ${CYAN}`,
           background: playing ? `${CYAN}18` : 'rgba(0,0,0,0.45)', color: CYAN, fontSize: 22, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 24px ${CYAN}44`,
@@ -253,7 +257,7 @@ export default function ClipPage() {
 
       {/* Right-side action column — like, remix count, share (same as the feed) */}
       <div style={{
-        position: 'absolute', bottom: aboveCookieBanner(232), right: 14, zIndex: 20,
+        position: 'absolute', bottom: aboveBottomChrome(232), right: 14, zIndex: 20,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
       }}>
         <ClipActionBtn onClick={handleLike} icon="❤️" label={formatCount(likeCount)} active={liked} activeColor={PURPLE} />
@@ -261,7 +265,7 @@ export default function ClipPage() {
         <ClipActionBtn onClick={handleCopy} icon={copied ? '✓' : '🔗'} label={copied ? 'Copied' : 'Share'} active={copied} activeColor={CYAN} />
       </div>
 
-      <div style={{ position: 'absolute', bottom: aboveCookieBanner(232), left: 24, right: 76, zIndex: 20 }}>
+      <div style={{ position: 'absolute', bottom: aboveBottomChrome(232), left: 24, right: 76, zIndex: 20 }}>
         <ClipGenrePill genre={clip.genre_tag} style={{ marginBottom: 10 }} />
         <p style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.2, textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}>
           {clip.song_title || 'Untitled'}
@@ -278,12 +282,12 @@ export default function ClipPage() {
       </div>
 
       {/* ── "⚡ Remix This Sound" — the most prominent button on the page ── */}
-      <div style={{ position: 'absolute', bottom: aboveCookieBanner(96), left: 16, right: 16, zIndex: 20 }}>
+      <div style={{ position: 'absolute', bottom: aboveBottomChrome(96), left: 16, right: 16, zIndex: 20 }}>
         <RemixButton onClick={handleRemix} />
       </div>
 
       {/* Song bar — pinned at the very bottom, full width, with its progress strip */}
-      <div style={{ position: 'absolute', bottom: aboveCookieBanner(16), left: 16, right: 16, zIndex: 20 }}>
+      <div style={{ position: 'absolute', bottom: aboveBottomChrome(16), left: 16, right: 16, zIndex: 20 }}>
         <ClipSongBar
           coverUrl={clip.song_cover_url}
           title={clip.song_title}
