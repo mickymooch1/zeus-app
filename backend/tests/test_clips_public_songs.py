@@ -157,3 +157,122 @@ def test_discover_song_exposes_sanitised_remix_prefill_never_lyrics(app_client):
     assert "synth" in d["remix_style_descriptors"].lower()
     assert "summer" in d["remix_theme"].lower()
     assert "la la la real lyrics here" not in str(d)
+
+
+# ── a song going private / deleted hides OTHER people's clips of it ──────────
+# (2026-09-24) Clips of someone else's song are hidden with hidden_reason
+# 'song_private' when that song stops being public, and come back automatically
+# if it's made public again. The owner's own clips follow the existing rules
+# (untouched). Enforced by DB triggers, so every writer is covered — the share
+# toggle, a clip publish that makes the song public, and raw admin SQL alike.
+
+def _clip_row(db_path, clip_id):
+    conn = sqlite3.connect(db_path)
+    row = conn.execute("SELECT status, hidden_reason FROM clips WHERE id = ?", (clip_id,)).fetchone()
+    conn.close()
+    return row
+
+
+def _two_clips(client, owner_token, viewer_token):
+    """Owner's own clip + viewer's clip, both of the owner's public song 1."""
+    own = _publish(client, owner_token, song_id=1).json()["id"]
+    theirs = _publish(client, viewer_token, song_id=1).json()["id"]
+    return own, theirs
+
+
+def _toggle_share(client, token, song_id=1):
+    r = client.patch(f"/api/songs/variants/{song_id}/share", headers=auth_hdr(token))
+    assert r.status_code == 200, r.text
+    return r.json()["is_public"]
+
+
+def test_making_a_song_private_hides_other_peoples_clips_of_it(app_client):
+    client, _db, _clips, db_path, owner, viewer, owner_token, viewer_token = app_client
+    own, theirs = _two_clips(client, owner_token, viewer_token)
+    assert _toggle_share(client, owner_token) is False
+    assert _clip_row(db_path, theirs) == ("hidden", "song_private")
+    assert client.get(f"/api/clips/{theirs}").status_code == 404
+    assert theirs not in [c["id"] for c in client.get("/api/clips?sort=new").json()["clips"]]
+    assert _clip_row(db_path, own) == ("published", None), "the owner's own clip follows the existing rules"
+
+
+def test_making_the_song_public_again_restores_them(app_client):
+    client, _db, _clips, db_path, owner, viewer, owner_token, viewer_token = app_client
+    own, theirs = _two_clips(client, owner_token, viewer_token)
+    _toggle_share(client, owner_token)   # → private
+    assert _toggle_share(client, owner_token) is True
+    assert _clip_row(db_path, theirs) == ("published", None)
+    assert client.get(f"/api/clips/{theirs}").status_code == 200
+
+
+def test_a_clip_hidden_for_another_reason_is_left_alone_both_ways(app_client):
+    client, _db, clips_mod, db_path, owner, viewer, owner_token, viewer_token = app_client
+    own, theirs = _two_clips(client, owner_token, viewer_token)
+    clips_mod.set_clip_status(db_path, theirs, "hidden", reason="admin_moderation")
+    _toggle_share(client, owner_token)   # → private
+    assert _clip_row(db_path, theirs) == ("hidden", "admin_moderation")
+    _toggle_share(client, owner_token)   # → public
+    assert _clip_row(db_path, theirs) == ("hidden", "admin_moderation"), "never un-moderates a clip"
+
+
+def test_deleting_the_song_hides_other_peoples_clips_of_it(app_client):
+    client, _db, _clips, db_path, owner, viewer, owner_token, viewer_token = app_client
+    own, theirs = _two_clips(client, owner_token, viewer_token)
+    r = client.delete("/api/songs/variants/1", headers=auth_hdr(owner_token))
+    assert r.status_code == 200, r.text
+    assert _clip_row(db_path, theirs) == ("hidden", "song_private")
+
+
+def test_owner_republishing_via_a_clip_also_restores_them(app_client):
+    """make_song_public on the owner's own clip publish flips the song public — the
+    trigger restores other people's hidden clips on that path too."""
+    client, _db, _clips, db_path, owner, viewer, owner_token, viewer_token = app_client
+    own, theirs = _two_clips(client, owner_token, viewer_token)
+    _toggle_share(client, owner_token)   # → private
+    assert _publish(client, owner_token, song_id=1, make_song_public=True).status_code == 201
+    assert _clip_row(db_path, theirs) == ("published", None)
+
+
+def test_raw_sql_visibility_changes_are_covered_too(app_client):
+    """Porick's `db exec` runs raw SQL no endpoint can intercept — the storage-level
+    trigger still applies."""
+    client, _db, _clips, db_path, owner, viewer, owner_token, viewer_token = app_client
+    own, theirs = _two_clips(client, owner_token, viewer_token)
+    conn = sqlite3.connect(db_path)
+    conn.execute("UPDATE song_variants SET is_public = 0 WHERE id = 1"); conn.commit()
+    assert _clip_row(db_path, theirs) == ("hidden", "song_private")
+    conn.execute("UPDATE song_variants SET is_public = 1 WHERE id = 1"); conn.commit()
+    conn.close()
+    assert _clip_row(db_path, theirs) == ("published", None)
+
+
+def test_a_blocked_creators_clip_is_not_revived_when_the_song_goes_public_again(app_client):
+    client, _db, clips_mod, db_path, owner, viewer, owner_token, viewer_token = app_client
+    own, theirs = _two_clips(client, owner_token, viewer_token)
+    _toggle_share(client, owner_token)                           # → private: theirs hidden (song_private)
+    clips_mod.hide_clips_for_blocked_user(db_path, viewer["id"])  # then the viewer is blocked
+    assert _clip_row(db_path, theirs) == ("hidden", "blocked_user")
+    _toggle_share(client, owner_token)                           # → public again
+    assert _clip_row(db_path, theirs) == ("hidden", "blocked_user"), "the block must win"
+
+
+def test_unblocking_while_the_song_is_still_private_keeps_the_clip_hidden_until_it_is_public(app_client):
+    client, _db, clips_mod, db_path, owner, viewer, owner_token, viewer_token = app_client
+    own, theirs = _two_clips(client, owner_token, viewer_token)
+    clips_mod.hide_clips_for_blocked_user(db_path, viewer["id"])
+    _toggle_share(client, owner_token)                           # → private while blocked
+    clips_mod.restore_clips_hidden_for_reason(db_path, viewer["id"], "blocked_user")
+    assert _clip_row(db_path, theirs) == ("hidden", "song_private")
+    _toggle_share(client, owner_token)                           # → public
+    assert _clip_row(db_path, theirs) == ("published", None)
+
+
+def test_unblocking_restores_a_clip_of_the_creators_own_private_song(app_client):
+    """The owner's own clips follow the existing rules: a private song never hid them,
+    so unblocking publishes them as before."""
+    client, _db, clips_mod, db_path, owner, viewer, owner_token, viewer_token = app_client
+    own, theirs = _two_clips(client, owner_token, viewer_token)
+    clips_mod.hide_clips_for_blocked_user(db_path, owner["id"])
+    _toggle_share(client, owner_token)
+    clips_mod.restore_clips_hidden_for_reason(db_path, owner["id"], "blocked_user")
+    assert _clip_row(db_path, own) == ("published", None)

@@ -132,15 +132,16 @@ def set_clip_status(db_path: pathlib.Path, clip_id: int, status: str, reason: st
 def hide_clips_for_blocked_user(db_path: pathlib.Path, user_id: str) -> int:
     """Auto-hides every currently-published clip owned by this user — called
     when their account is blocked (see telegram_admin.py's _cmd_block_email).
-    Only touches 'published' clips (never an already-hidden or owner-deleted
-    one, and never overwrites an existing hidden_reason), so it composes
-    correctly with a clip an admin separately moderated. Idempotent to re-run.
-    Returns the count hidden."""
+    Touches 'published' clips, plus ones hidden only because their song went
+    private ('song_private') — the block takes those over, so the song being
+    made public again can't revive a blocked user's clip. Never an admin-
+    moderated or owner-deleted one. Idempotent to re-run. Returns the count hidden."""
     conn = db._conn(db_path)
     try:
         cur = conn.execute(
             "UPDATE clips SET status = 'hidden', hidden_reason = 'blocked_user' "
-            "WHERE user_id = ? AND status = 'published'",
+            "WHERE user_id = ? AND (status = 'published' "
+            "OR (status = 'hidden' AND hidden_reason = 'song_private'))",
             (user_id,),
         )
         conn.commit()
@@ -153,9 +154,19 @@ def restore_clips_hidden_for_reason(db_path: pathlib.Path, user_id: str, reason:
     """Reverses hide_clips_for_blocked_user — restores only clips hidden for
     the GIVEN reason, leaving one an admin separately hid (a different
     hidden_reason) untouched even if this same account is now unblocked.
-    Returns the count restored."""
+    A clip of SOMEONE ELSE'S song that is no longer public (private or deleted)
+    goes back to 'song_private' instead of published — the song-visibility
+    triggers (db.py) will publish it if that song is made public again.
+    Returns the count restored (published)."""
     conn = db._conn(db_path)
     try:
+        song_gone = ("NOT EXISTS (SELECT 1 FROM song_variants sv WHERE sv.id = clips.song_id "
+                     "AND (sv.is_public = 1 OR sv.user_id = clips.user_id))")
+        conn.execute(
+            "UPDATE clips SET hidden_reason = 'song_private' "
+            f"WHERE user_id = ? AND status = 'hidden' AND hidden_reason = ? AND {song_gone}",
+            (user_id, reason),
+        )
         cur = conn.execute(
             "UPDATE clips SET status = 'published', hidden_reason = NULL "
             "WHERE user_id = ? AND status = 'hidden' AND hidden_reason = ?",
