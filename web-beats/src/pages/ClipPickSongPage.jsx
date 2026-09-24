@@ -6,7 +6,7 @@ import { useClipsEnabled } from '../hooks/useClipsEnabled';
 import { pickableSongs } from '../utils/clipVisual';
 import { gLabel } from '../utils/genres';
 import { deriveClipHandle } from '../utils/clipHandle';
-import { ZeusClipsWordmark, ClipsAiBadge } from '../components/ClipsBranding';
+import { ZeusClipsWordmark, ClipsAiBadge, BackToBeatsLink } from '../components/ClipsBranding';
 import { CLIPS_NAV_H_VAR, COOKIE_BANNER_H_VAR } from '../utils/clipsChrome';
 
 const CYAN = '#00f0ff';
@@ -38,10 +38,13 @@ export default function ClipPickSongPage() {
   };
 
   const header = (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-      <ZeusClipsWordmark />
-      <ClipsAiBadge />
-    </div>
+    <>
+      <BackToBeatsLink style={{ display: 'inline-block', marginBottom: 10 }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+        <ZeusClipsWordmark />
+        <ClipsAiBadge />
+      </div>
+    </>
   );
 
   if (!canCreateClip) {

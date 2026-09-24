@@ -14,7 +14,7 @@ import ClipMoreMenu from '../components/ClipMoreMenu';
 import ClipActionBtn from '../components/ClipActionBtn';
 import ClipVisual from '../components/ClipVisual';
 import { aboveBottomChrome } from '../utils/clipsChrome';
-import { ZeusClipsWordmark, ClipsAiBadge, ClipsPillTab, ClipGenrePill } from '../components/ClipsBranding';
+import { ZeusClipsWordmark, ClipsAiBadge, ClipsPillTab, ClipGenrePill, BackToBeatsLink } from '../components/ClipsBranding';
 
 /* ── Zeus Beats' own electric-blue → purple palette (App.jsx logo, NowPlayingBar,
  * PlaylistPage all use this pair already — not a new colour introduced here). ── */
@@ -357,15 +357,18 @@ export default function ClipsFeedPage() {
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%)',
         pointerEvents: 'none',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          {/* Spacer keeping the wordmark centred ("My clips" moved to the bottom nav). */}
-          <div style={{ width: 60 }} />
+        {/* 1fr | auto | 1fr keeps the wordmark centred whatever sits either side. */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8 }}>
+          <div style={{ pointerEvents: 'auto', justifySelf: 'start' }}>
+            <BackToBeatsLink />
+          </div>
           <div style={{ pointerEvents: 'auto' }}>
             <ZeusClipsWordmark />
           </div>
           <button
             onClick={toggleMute}
             style={{
+              justifySelf: 'end',
               background: muted ? 'rgba(255,255,255,0.08)' : `${CYAN}22`,
               border: `1px solid ${muted ? 'rgba(255,255,255,0.2)' : CYAN}`,
               borderRadius: 20, padding: '5px 10px', color: muted ? 'rgba(255,255,255,0.7)' : CYAN,

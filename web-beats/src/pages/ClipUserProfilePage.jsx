@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { BACKEND_URL } from '../brand';
 import { formatCount } from '../utils/formatCount';
-import { ZeusClipsWordmark, ClipsAiBadge } from '../components/ClipsBranding';
+import { ZeusClipsWordmark, ClipsAiBadge, BackToBeatsLink } from '../components/ClipsBranding';
 import { CLIPS_NAV_H_VAR, COOKIE_BANNER_H_VAR } from '../utils/clipsChrome';
 
 // Zeus Beats' own electric-blue → purple pair (see RemixButton.jsx).
@@ -61,6 +61,7 @@ export default function ClipUserProfilePage() {
       // Room for the bottom nav (+ cookie banner) so the grid's last row isn't hidden.
       padding: `20px 20px calc(48px + var(${CLIPS_NAV_H_VAR}, 0px) + var(${COOKIE_BANNER_H_VAR}, 0px))`,
     }}>
+      <BackToBeatsLink style={{ display: 'inline-block', marginBottom: 10 }} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <ZeusClipsWordmark />
         <ClipsAiBadge />
