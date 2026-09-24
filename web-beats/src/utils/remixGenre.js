@@ -3,14 +3,22 @@
 // original genre — the default) or { genre, genreB? }.
 import { gLabel } from './genres.js';
 
-// Popular, clearly-different-sounding genres offered as one-tap chips. The first
-// QUICK_PICK_COUNT that aren't part of the original are shown.
-const QUICK_PICK_POOL = ['ukdrill', 'trap', 'rnb', 'edm', 'kpop', 'dancehall', 'drumandbass', 'lofi', 'afroswing', 'metal'];
-const QUICK_PICK_COUNT = 7;
+// One-tap chips: a broad, all-ages mix. Any that are part of the original are
+// dropped and topped up from the fallbacks, in order, back to QUICK_PICK_COUNT.
+const QUICK_PICKS = ['pop', 'rock', 'country', 'soul', 'rnb', 'ukdrill', 'edm', 'reggae'];
+const QUICK_PICK_FALLBACKS = ['trap', 'dancehall'];
+const QUICK_PICK_COUNT = 8;
 
 export function quickPickGenres(originalTag) {
   const original = new Set((originalTag || '').split('__').filter(Boolean));
-  return QUICK_PICK_POOL.filter(g => !original.has(g)).slice(0, QUICK_PICK_COUNT);
+  return [...QUICK_PICKS, ...QUICK_PICK_FALLBACKS].filter(g => !original.has(g)).slice(0, QUICK_PICK_COUNT);
+}
+
+// "More genres": everything except non-vocal genres (a remix always writes new
+// lyrics — the server's list, derived from its own genre metadata) and `exclude`.
+export function remixableGenres(allGenres, nonVocal, exclude = []) {
+  const hidden = new Set([...(nonVocal || []), ...exclude]);
+  return allGenres.filter(g => !hidden.has(g));
 }
 
 export function selectionTag(sel) {

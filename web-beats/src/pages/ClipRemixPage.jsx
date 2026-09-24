@@ -47,6 +47,14 @@ export default function ClipRemixPage() {
   // Remix genre: null = the original's genre (the default); else { genre, genreB? }.
   const [genreSel, setGenreSel] = useState(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Genres a remix can't use (no vocals) — the server's list, hidden in "More genres".
+  const [nonVocal, setNonVocal] = useState(undefined);
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/api/clips/config`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setNonVocal(d?.non_vocal_genres))
+      .catch(() => {});
+  }, []);
 
   // The URL itself is now the source of truth for which clip to remix — clear the
   // stored intent so it can't stick around and bounce a later, unrelated /songs
@@ -225,6 +233,7 @@ export default function ClipRemixPage() {
       {pickerOpen && (
         <GenrePickerSheet
           exclude={(clip.genreTag || '').split('__')}
+          nonVocal={nonVocal}
           initial={genreSel}
           onClose={() => setPickerOpen(false)}
           onPick={(sel) => { setGenreSel(sel); setPickerOpen(false); }}

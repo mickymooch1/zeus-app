@@ -7450,7 +7450,12 @@ async def clips_config():
     Registered BEFORE /api/clips/{clip_id} so 'config' is never swallowed as
     a clip_id path param (same ordering reason upload-media is registered
     ahead of that route)."""
-    return {"enabled": _clips_enabled_env()}
+    import songs as _songs_mod
+    return {
+        "enabled": _clips_enabled_env(),
+        # Genres a remix can't be made in (no singing) — the remix picker hides them.
+        "non_vocal_genres": sorted(_songs_mod.non_vocal_genres()),
+    }
 
 
 @app.get("/api/clips")
@@ -7603,6 +7608,9 @@ def _resolve_remix_genre(prefill: dict, body: "ClipRemixRequest | None") -> tupl
         raise HTTPException(status_code=400, detail="Unknown genre.")
     if genre_b and (genre_b not in GENRE_PRESETS or genre_b == genre):
         raise HTTPException(status_code=400, detail="Unknown or repeated blend genre.")
+    import songs as _songs_mod
+    if {genre, genre_b} & _songs_mod.non_vocal_genres():
+        raise HTTPException(status_code=400, detail="A remix writes new lyrics, so it needs a genre with vocals.")
     chosen_tag = f"{genre}__{genre_b}" if genre_b else genre
     changed = bool(chosen_tag) and chosen_tag != original_tag
     analytics = {"original_genre": original_tag or None,

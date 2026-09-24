@@ -148,3 +148,41 @@ def test_blending_a_genre_with_itself_is_refused(app_client):
     client, _db, _clips, db_path, owner, viewer, owner_token, viewer_token = app_client
     r, gen_lyrics, _gv = _remix(client, db_path, viewer, viewer_token, "/api/songs/1/remix", {"genre": "trap", "genre_b": "trap"})
     assert r.status_code == 400 and not gen_lyrics.called
+
+
+# ── non-vocal genres (2026-09-24): a remix always writes new lyrics ───────────
+# "Non-vocal" is derived from existing metadata, not a hand-typed list:
+# songs.INSTRUMENTAL_GENRES (the set generation itself treats as instrumental)
+# plus any preset whose own text says "no vocals".
+
+def test_non_vocal_genres_are_derived_from_existing_metadata():
+    import songs
+    from song_genres import GENRE_PRESETS
+    nv = songs.non_vocal_genres()
+    assert songs.INSTRUMENTAL_GENRES <= nv
+    assert "ambient" in nv, "its preset says 'no vocals'"
+    assert {"pop", "rock", "ukdrill", "country"}.isdisjoint(nv)
+    assert all(g in GENRE_PRESETS for g in nv)
+
+
+def test_a_non_vocal_genre_is_refused_for_a_remix_server_side(app_client):
+    client, _db, _clips, db_path, owner, viewer, owner_token, viewer_token = app_client
+    before = _balance(db_path, viewer["id"])
+    for g in ("oceanwaves", "pianosolo", "healingfrequency", "ambient"):
+        r, gen_lyrics, _gv = _remix(client, db_path, viewer, viewer_token, "/api/songs/1/remix", {"genre": g})
+        assert r.status_code == 400, (g, r.text)
+        assert not gen_lyrics.called
+    assert _balance(db_path, viewer["id"]) == before
+
+
+def test_a_non_vocal_blend_partner_is_refused_too(app_client):
+    client, _db, _clips, db_path, owner, viewer, owner_token, viewer_token = app_client
+    r, gen_lyrics, _gv = _remix(client, db_path, viewer, viewer_token, "/api/songs/1/remix", {"genre": "rock", "genre_b": "saxophone"})
+    assert r.status_code == 400 and not gen_lyrics.called
+
+
+def test_config_tells_the_picker_which_genres_to_hide(app_client):
+    client, *_ = app_client
+    import songs
+    body = client.get("/api/clips/config").json()
+    assert set(body["non_vocal_genres"]) == songs.non_vocal_genres()

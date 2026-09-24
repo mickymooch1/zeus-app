@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { GENRE_CATEGORIES, GENRES, gLabel } from '../utils/genres';
+import { remixableGenres } from '../utils/remixGenre';
 
 const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
@@ -9,11 +10,12 @@ const PURPLE = '#7c3aed';
  * Same data and interaction as the song creator's picker in SongsPage
  * (GENRE_CATEGORIES accordion of colour-coded pills, optional "Blend with" a
  * second genre), as a self-contained component so SongsPage itself is untouched.
- * One main genre (a remix is one generation); `exclude` hides the original.
+ * One main genre (a remix is one generation); `exclude` hides the original and
+ * `nonVocal` (the server's list) hides genres with no singing — a remix always
+ * writes new lyrics.
  * onPick({ genre, genreB }) / onClose().
  */
-export default function GenrePickerSheet({ exclude = [], initial, onPick, onClose }) {
-  const excluded = new Set(exclude);
+export default function GenrePickerSheet({ exclude = [], nonVocal, initial, onPick, onClose }) {
   const [genre, setGenre] = useState(initial?.genre || '');
   const [blend, setBlend] = useState(!!initial?.genreB);
   const [genreB, setGenreB] = useState(initial?.genreB || '');
@@ -47,7 +49,7 @@ export default function GenrePickerSheet({ exclude = [], initial, onPick, onClos
 
         <div style={{ overflowY: 'auto', padding: '4px 16px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {GENRE_CATEGORIES.map(cat => {
-            const genres = cat.genres.filter(g => !excluded.has(g));
+            const genres = remixableGenres(cat.genres, nonVocal, exclude);
             if (!genres.length) return null;
             const open = openCats.has(cat.id);
             return (
@@ -106,7 +108,7 @@ export default function GenrePickerSheet({ exclude = [], initial, onPick, onClos
               style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 10px', color: genreB ? CYAN : '#ccc', fontSize: 13, marginBottom: 12 }}
             >
               <option value="">Pick a second genre…</option>
-              {GENRES.filter(g => g !== genre).map(g => <option key={g} value={g}>{gLabel(g)}</option>)}
+              {remixableGenres(GENRES, nonVocal, [genre]).map(g => <option key={g} value={g}>{gLabel(g)}</option>)}
             </select>
           )}
           <button
