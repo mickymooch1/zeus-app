@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { gLabel } from '../utils/genres';
 
 // Zeus Beats' own electric-blue → purple pair (RemixButton.jsx and everywhere
 // else in Clips already use this exact gradient — not a new colour).
@@ -81,19 +82,22 @@ export function ClipsPillTab({ active, onClick, children }) {
 
 /**
  * Genre pill shown above the @username. Near-solid dark fill (not a
- * translucent tint) so it stays readable over light cover images.
+ * translucent tint) so it stays readable over light cover images. Takes the
+ * raw genre_tag and shows its display name ("soulrnb" → "Soul R&B", blends as
+ * "Synth Funk × Soul R&B").
  */
-export function ClipGenrePill({ children, style }) {
+export function ClipGenrePill({ genre, style }) {
+  if (!genre) return null;
   return (
     <span style={{
       display: 'inline-block', padding: '3px 11px', borderRadius: 20, fontSize: 11,
-      fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
+      fontWeight: 700, letterSpacing: '0.02em',
       background: 'rgba(8,8,18,0.85)', border: `1px solid ${CYAN}88`,
       boxShadow: `0 0 10px ${CYAN}33`, color: '#7ff6ff',
       backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
       ...style,
     }}>
-      {children}
+      {gLabel(genre)}
     </span>
   );
 }

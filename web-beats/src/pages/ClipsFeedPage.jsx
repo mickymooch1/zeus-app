@@ -12,6 +12,7 @@ import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
 import ClipActionBtn from '../components/ClipActionBtn';
+import { aboveCookieBanner } from '../utils/clipsChrome';
 import { ZeusClipsWordmark, ClipsAiBadge, ClipsPillTab, ClipGenrePill } from '../components/ClipsBranding';
 
 /* ── Zeus Beats' own electric-blue → purple palette (App.jsx logo, NowPlayingBar,
@@ -99,7 +100,7 @@ const ClipSlide = memo(function ClipSlide({
 
       {/* Right-side action column — like, remix count, share, report (⋯) */}
       <div style={{
-        position: 'absolute', bottom: 232, right: 14, zIndex: 10,
+        position: 'absolute', bottom: aboveCookieBanner(232), right: 14, zIndex: 10,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
       }}>
         <ClipActionBtn onClick={onLike} icon="❤️" label={formatCount(likeCount)} active={isLiked} activeColor={PURPLE} />
@@ -109,10 +110,8 @@ const ClipSlide = memo(function ClipSlide({
       </div>
 
       {/* Info — bottom left: @username (links to their profile) + caption */}
-      <div style={{ position: 'absolute', bottom: 232, left: 16, right: 76, zIndex: 10 }}>
-        {genre_tag && (
-          <ClipGenrePill style={{ marginBottom: 8 }}>{genre_tag}</ClipGenrePill>
-        )}
+      <div style={{ position: 'absolute', bottom: aboveCookieBanner(232), left: 16, right: 76, zIndex: 10 }}>
+        <ClipGenrePill genre={genre_tag} style={{ marginBottom: 8 }} />
         <Link
           to={`/clips/u/${handle}`}
           style={{
@@ -134,12 +133,12 @@ const ClipSlide = memo(function ClipSlide({
       </div>
 
       {/* ── "⚡ Remix This Sound" — the most prominent button on the page ── */}
-      <div style={{ position: 'absolute', bottom: 96, left: 16, right: 16, zIndex: 10 }}>
+      <div style={{ position: 'absolute', bottom: aboveCookieBanner(96), left: 16, right: 16, zIndex: 10 }}>
         <RemixButton onClick={onRemix} />
       </div>
 
       {/* Song bar — pinned at the very bottom, full width, with its progress strip */}
-      <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16, zIndex: 10 }}>
+      <div style={{ position: 'absolute', bottom: aboveCookieBanner(16), left: 16, right: 16, zIndex: 10 }}>
         <ClipSongBar
           coverUrl={song_cover_url}
           title={song_title}

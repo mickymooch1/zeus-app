@@ -6,6 +6,8 @@ import { clearRemixIntent, saveRemixIntent } from '../utils/remixIntent';
 import { readUtmAttribution } from '../utils/utmAttribution';
 import VerificationRequiredScreen from '../components/VerificationRequiredScreen';
 import RemixButton from '../components/RemixButton';
+import { ClipGenrePill } from '../components/ClipsBranding';
+import { gLabel } from '../utils/genres';
 
 // Zeus Beats' own electric-blue → purple pair (see RemixButton.jsx).
 const CYAN = '#00f0ff';
@@ -34,6 +36,7 @@ export default function ClipRemixPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]       = useState('');
   const [verifyBlock, setVerifyBlock] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   // The URL itself is now the source of truth for which clip to remix — clear the
   // stored intent so it can't stick around and bounce a later, unrelated /songs
@@ -73,7 +76,9 @@ export default function ClipRemixPage() {
         setError((typeof det === 'string' ? det : det?.message) || 'Could not start the remix — please try again.');
         return;
       }
-      navigate('/songs', { replace: true });
+      // remixStarted: SongsPage skips its first-visit welcome and shows a
+      // "your remix is being made" notice instead (see arrivedViaRemix).
+      navigate('/songs', { replace: true, state: { remixStarted: true } });
     } catch {
       setError('Network error — please try again.');
     } finally {
@@ -123,11 +128,28 @@ export default function ClipRemixPage() {
         <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 20, fontWeight: 800, margin: '0 0 6px' }}>
           Remix &ldquo;{clip.song_title || 'this sound'}&rdquo;
         </h1>
-        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, margin: '0 0 20px' }}>
-          We&apos;ll write brand-new lyrics in the same {clip.genre_tag || 'style'} — never the original song&apos;s words.
+        <ClipGenrePill genre={clip.genre_tag} style={{ margin: '4px 0 12px' }} />
+        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, margin: '0 0 16px' }}>
+          We&apos;ll write brand-new lyrics in the same {clip.genre_tag ? gLabel(clip.genre_tag) : 'style'} — never the original song&apos;s words.
         </p>
 
+        {/* The raw style prompt is generation plumbing, not something a
+            non-technical user needs to read — collapsed by default. */}
         {(clip.remix_style_descriptors || clip.remix_theme) && (
+          <button
+            type="button"
+            onClick={() => setShowDetails(v => !v)}
+            aria-expanded={showDetails}
+            style={{
+              background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: 12,
+              cursor: 'pointer', padding: 4, marginBottom: showDetails ? 8 : 18,
+            }}
+          >
+            {showDetails ? 'Hide style details ▴' : 'See style details ▾'}
+          </button>
+        )}
+
+        {showDetails && (clip.remix_style_descriptors || clip.remix_theme) && (
           <div style={{
             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 12, padding: '14px 16px', marginBottom: 20, textAlign: 'left',

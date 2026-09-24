@@ -69,3 +69,27 @@ test('localStorage throwing (private browsing) never throws out of save/read/cle
   assert.equal(readRemixIntent(), null);
   assert.doesNotThrow(() => clearRemixIntent());
 });
+
+// ── Onboarding suppression (2026-09-24) ──────────────────────────────────────
+// Someone who arrived via a remix must not get the "explore first" welcome
+// modal — neither on the /songs?remix= bounce nor on landing after the remix
+// was started.
+import { arrivedViaRemix } from './remixIntent.js';
+
+test('arrivedViaRemix: remix just started (navigation state)', () => {
+  assert.equal(arrivedViaRemix({ state: { remixStarted: true }, search: '' }), true);
+});
+
+test('arrivedViaRemix: ?remix= on the URL', () => {
+  assert.equal(arrivedViaRemix({ state: null, search: '?remix=7' }), true);
+});
+
+test('arrivedViaRemix: stored intent from the email-verification tab', () => {
+  assert.equal(arrivedViaRemix({ state: null, search: '', hasStoredIntent: true }), true);
+});
+
+test('arrivedViaRemix: ordinary visit', () => {
+  assert.equal(arrivedViaRemix({ state: null, search: '' }), false);
+  assert.equal(arrivedViaRemix({ state: { prefillGenre: 'jazz' }, search: '?tab=all' }), false);
+  assert.equal(arrivedViaRemix({ state: null, search: '?remix=abc' }), false);
+});

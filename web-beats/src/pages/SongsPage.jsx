@@ -27,7 +27,8 @@ import {
   readRoastDraft, clearRoastDraft,
   savePostVerifyDraft, readPostVerifyDraft, clearPostVerifyDraft,
 } from '../utils/roastDraft';
-import { readRemixIntent } from '../utils/remixIntent';
+import { readRemixIntent, arrivedViaRemix } from '../utils/remixIntent';
+import RemixStartedNotice from '../components/RemixStartedNotice';
 
 // Set once the post-first-song name prompt has been answered OR skipped, so a
 // user who isn't interested is never asked twice.
@@ -455,11 +456,16 @@ export default function SongsPage() {
   // onboarding_done still unset — the tour must resume directly on their next visit,
   // not show this welcome screen again. That's why showTour also checks
   // explore_first_seen rather than defaulting purely on onboarding_done as before.
+  // A Zeus Clips remix hand-off skips both for this visit (neither flag is set,
+  // so a genuinely new user still gets the welcome on a later visit).
+  const [viaRemix] = useState(() => arrivedViaRemix({
+    state: location.state, search: location.search, hasStoredIntent: !!readRemixIntent(),
+  }));
   const [showExploreFirst, setShowExploreFirst] = useState(() =>
-    !localStorage.getItem('zeus_onboarding_done') && !localStorage.getItem('zeus_explore_first_seen')
+    !viaRemix && !localStorage.getItem('zeus_onboarding_done') && !localStorage.getItem('zeus_explore_first_seen')
   );
   const [showTour, setShowTour]           = useState(() =>
-    !localStorage.getItem('zeus_onboarding_done') && !!localStorage.getItem('zeus_explore_first_seen')
+    !viaRemix && !localStorage.getItem('zeus_onboarding_done') && !!localStorage.getItem('zeus_explore_first_seen')
   );
   const [pendingAutoGen, setPendingAutoGen] = useState(null);
   const [showRetrigger, setShowRetrigger] = useState(false);
@@ -1731,6 +1737,8 @@ export default function SongsPage() {
 
   return (
     <>
+      {location.state?.remixStarted && <RemixStartedNotice />}
+
       {showExploreFirst && (
         <ExploreFirstWelcome
           onShowTour={() => {

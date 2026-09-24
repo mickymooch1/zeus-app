@@ -12,6 +12,7 @@ import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
 import ClipActionBtn from '../components/ClipActionBtn';
+import { aboveCookieBanner } from '../utils/clipsChrome';
 import { ZeusClipsWordmark, ClipsAiBadge, ClipGenrePill } from '../components/ClipsBranding';
 
 // Zeus Beats' own electric-blue → purple pair (see RemixButton.jsx).
@@ -252,7 +253,7 @@ export default function ClipPage() {
 
       {/* Right-side action column — like, remix count, share (same as the feed) */}
       <div style={{
-        position: 'absolute', bottom: 232, right: 14, zIndex: 20,
+        position: 'absolute', bottom: aboveCookieBanner(232), right: 14, zIndex: 20,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
       }}>
         <ClipActionBtn onClick={handleLike} icon="❤️" label={formatCount(likeCount)} active={liked} activeColor={PURPLE} />
@@ -260,10 +261,8 @@ export default function ClipPage() {
         <ClipActionBtn onClick={handleCopy} icon={copied ? '✓' : '🔗'} label={copied ? 'Copied' : 'Share'} active={copied} activeColor={CYAN} />
       </div>
 
-      <div style={{ position: 'absolute', bottom: 232, left: 24, right: 76, zIndex: 20 }}>
-        {clip.genre_tag && (
-          <ClipGenrePill style={{ marginBottom: 10 }}>{clip.genre_tag}</ClipGenrePill>
-        )}
+      <div style={{ position: 'absolute', bottom: aboveCookieBanner(232), left: 24, right: 76, zIndex: 20 }}>
+        <ClipGenrePill genre={clip.genre_tag} style={{ marginBottom: 10 }} />
         <p style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.2, textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}>
           {clip.song_title || 'Untitled'}
         </p>
@@ -279,12 +278,12 @@ export default function ClipPage() {
       </div>
 
       {/* ── "⚡ Remix This Sound" — the most prominent button on the page ── */}
-      <div style={{ position: 'absolute', bottom: 96, left: 16, right: 16, zIndex: 20 }}>
+      <div style={{ position: 'absolute', bottom: aboveCookieBanner(96), left: 16, right: 16, zIndex: 20 }}>
         <RemixButton onClick={handleRemix} />
       </div>
 
       {/* Song bar — pinned at the very bottom, full width, with its progress strip */}
-      <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16, zIndex: 20 }}>
+      <div style={{ position: 'absolute', bottom: aboveCookieBanner(16), left: 16, right: 16, zIndex: 20 }}>
         <ClipSongBar
           coverUrl={clip.song_cover_url}
           title={clip.song_title}

@@ -46,15 +46,14 @@ export const genreColor = (g) => {
   const base = g.includes('__') ? g.split('__')[0] : g;
   return _genreColorMap[base] || '#cccccc';
 };
+// Unknown keys (a genre added on the backend before this map) still read as
+// words: "dark_wave-pop" → "Dark Wave Pop" rather than the raw key.
+const _tidyGenreKey = (k) => k.split(/[_\-\s]+/).filter(Boolean)
+  .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 export const gLabel = (g) => {
   if (!g) return '';
-  if (g.includes('__')) {
-    const [a, b] = g.split('__');
-    const la = GENRE_LABEL[a] || a.charAt(0).toUpperCase() + a.slice(1);
-    const lb = GENRE_LABEL[b] || b.charAt(0).toUpperCase() + b.slice(1);
-    return `${la} × ${lb}`;
-  }
-  return GENRE_LABEL[g] || g.charAt(0).toUpperCase() + g.slice(1);
+  // Blends are "a__b" (occasionally more parts) and read as "A × B".
+  return g.split('__').filter(Boolean).map(k => GENRE_LABEL[k] || _tidyGenreKey(k)).join(' × ');
 };
 
 // Every genre the category grid can select, derived from that grid rather than
