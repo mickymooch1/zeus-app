@@ -59,3 +59,24 @@ test('clipsReturnPath ignores everything else', () => {
 test('clipsReturnPath keeps the query string (Discover Create Clip → /clips/new?song=)', () => {
   assert.equal(clipsReturnPath('/clips/new?song=7'), '/clips/new?song=7');
 });
+
+// ── Way back to Zeus Beats (2026-09-24) ──────────────────────────────────────
+import { beatsHomePath, mediaUploadAllowed } from './clipsChrome.js';
+
+test('"← Zeus Beats" / logo: song library when signed in, home page when not', () => {
+  assert.equal(beatsHomePath({ id: 'u1' }), '/songs');
+  assert.equal(beatsHomePath(null), '/');
+});
+
+// Photo/Video uploads mirror the backend gate (upload_clip_media): an active paid
+// plan, or an admin. Unknown (still loading / fetch failed) is not locked — the
+// backend still enforces it, and a paying user should never see a false lock.
+test('uploads allowed for an active plan or an admin', () => {
+  assert.equal(mediaUploadAllowed({ is_active: true, is_admin: false }), true);
+  assert.equal(mediaUploadAllowed({ is_active: false, is_admin: true }), true);
+  assert.equal(mediaUploadAllowed({ is_active: false, is_admin: false }), false);
+});
+
+test('unknown status does not show a lock', () => {
+  assert.equal(mediaUploadAllowed(null), true);
+});

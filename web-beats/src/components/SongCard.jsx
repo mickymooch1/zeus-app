@@ -478,25 +478,6 @@ const SongCard = memo(function SongCard({
             <span style={{ fontSize: 40, opacity: 0.2 }}>♫</span>
           </div>
         )}
-        {isFreeTier && variant.image_url && (
-          <a
-            href="#pricing"
-            style={{
-              position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
-              display: 'inline-block',
-              background: 'rgba(0,0,0,0.78)',
-              border: '1px solid rgba(255,0,153,0.4)',
-              borderRadius: 20,
-              padding: '3px 10px',
-              fontSize: 11,
-              fontWeight: 600,
-              color: '#ff0099',
-              textDecoration: 'none',
-              whiteSpace: 'nowrap',
-              letterSpacing: '0.02em',
-            }}
-          >🎬 Upgrade for HD Video Animation</a>
-        )}
         {!isFailed && (
           <button
             onClick={onPlayOffline || handlePlay}

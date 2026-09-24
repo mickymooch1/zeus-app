@@ -7,6 +7,8 @@ import { clipSeekTarget, clipInitialTime } from '../utils/clipPlayback';
 import { useClipsEnabled } from '../hooks/useClipsEnabled';
 import { discoverSongToClipSong } from '../utils/discoverSong';
 import { ZeusClipsWordmark, ClipsAiBadge } from '../components/ClipsBranding';
+import { mediaUploadAllowed } from '../utils/clipsChrome';
+import { isIOSWebView } from '../hooks/useIsIOSWebView';
 
 const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
@@ -51,6 +53,19 @@ export default function ClipCreatorPage() {
 
   const [previewPlaying, setPreviewPlaying] = useState(false);
   const audioRef = useRef(null);
+
+  // Photo/Video uploads are paid-plan only (upload_clip_media) — ask the same
+  // status the server checks so the lock can't disagree with it. Until it
+  // answers (or if it fails) nothing is locked; the server still enforces.
+  const [billingStatus, setBillingStatus] = useState(null);
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${BACKEND_URL}/billing/status`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => (r.ok ? r.json() : null))
+      .then(setBillingStatus)
+      .catch(() => {});
+  }, [token]);
+  const uploadsAllowed = mediaUploadAllowed(billingStatus);
 
   // Fallback: state is missing (e.g. a refresh) — re-find the song from the
   // library, then (someone else's song) from the public Discover endpoint.
@@ -314,12 +329,52 @@ export default function ClipCreatorPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, whiteSpace: 'nowrap',
               }}
             >
-              <span style={{ fontSize: 14 }}>{icon}</span>{label}
+              <span style={{ fontSize: 14 }}>{v !== 'cover' && !uploadsAllowed ? '🔒' : icon}</span>{label}
             </button>
           ))}
         </div>
 
-        {mediaType !== 'cover' && (
+        {/* Free plan: uploads are paid-only (enforced server-side in upload_clip_media) —
+            say so plainly, and make clear the cover still works. */}
+        {mediaType !== 'cover' && !uploadsAllowed && (
+          <div style={{
+            marginBottom: 18, padding: '14px 16px', borderRadius: 14, textAlign: 'center',
+            background: 'rgba(255,255,255,0.04)', border: `1px solid ${PURPLE}66`,
+          }}>
+            <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, color: '#fff', lineHeight: 1.4 }}>
+              Use your own photos &amp; videos. Available on paid plans.
+            </p>
+            {isIOSWebView ? (
+              // App Store rule: no upgrade CTAs inside the iOS app.
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+                Visit zeusbeats.com to upgrade your plan.
+              </p>
+            ) : (
+              <Link
+                to="/pricing"
+                style={{
+                  display: 'inline-block', marginBottom: 12, padding: '9px 22px', borderRadius: 999,
+                  background: `linear-gradient(90deg, ${CYAN}, ${PURPLE})`, color: '#000',
+                  fontSize: 13, fontWeight: 800, textDecoration: 'none',
+                }}
+              >
+                Upgrade
+              </Link>
+            )}
+            <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+              You can still make a clip with your song&apos;s cover —{' '}
+              <button
+                type="button"
+                onClick={() => { setMediaType('cover'); setUploadedUrl(null); setUploadError(''); }}
+                style={{ background: 'none', border: 'none', padding: 0, color: CYAN, fontSize: 12, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                use the cover
+              </button>
+            </p>
+          </div>
+        )}
+
+        {mediaType !== 'cover' && uploadsAllowed && (
           <div style={{ marginBottom: 18 }}>
             <input
               type="file"

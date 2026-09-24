@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { gLabel } from '../utils/genres';
+import { beatsHomePath } from '../utils/clipsChrome';
 
 // Zeus Beats' own electric-blue → purple pair (RemixButton.jsx and everywhere
 // else in Clips already use this exact gradient — not a new colour).
@@ -13,7 +15,11 @@ const PURPLE = '#7c3aed';
  * (the three pages the restyle brief names) so all three read as one
  * product, not three slightly different headers.
  */
-export function ZeusClipsWordmark({ size = 19, to = '/clips', word = 'CLIPS' }) {
+// `to` omitted: the logo leads back to Zeus Beats (song library, or home for a
+// visitor) — Clips' way out of itself. `to={null}` renders it unlinked.
+export function ZeusClipsWordmark({ size = 19, to, word = 'CLIPS' }) {
+  const { user } = useAuth();
+  const dest = to === undefined ? beatsHomePath(user) : to;
   const mark = (
     <span style={{
       fontFamily: "'Orbitron', sans-serif", fontWeight: 900, fontSize: size,
@@ -33,8 +39,10 @@ export function ZeusClipsWordmark({ size = 19, to = '/clips', word = 'CLIPS' }) 
       </span>
     </span>
   );
-  if (!to) return mark;
-  return <Link to={to} style={{ textDecoration: 'none', display: 'inline-block' }}>{mark}</Link>;
+  if (!dest) return mark;
+  return (
+    <Link to={dest} aria-label="Zeus Beats" style={{ textDecoration: 'none', display: 'inline-block' }}>{mark}</Link>
+  );
 }
 
 /** The small "⚡ AI MADE HUMAN FELT" badge, top-right on every Clips page per the mockups. */
@@ -100,5 +108,21 @@ export function ClipGenrePill({ genre, style }) {
     }}>
       {gLabel(genre)}
     </span>
+  );
+}
+
+/** Small "← Zeus Beats" link, top-left on Clips pages — the way back to the main app. */
+export function BackToBeatsLink({ style }) {
+  const { user } = useAuth();
+  return (
+    <Link
+      to={beatsHomePath(user)}
+      style={{
+        color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 12, fontWeight: 700,
+        whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(0,0,0,0.85)', ...style,
+      }}
+    >
+      ← Zeus Beats
+    </Link>
   );
 }

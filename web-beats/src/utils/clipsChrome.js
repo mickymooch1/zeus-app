@@ -30,3 +30,17 @@ export const aboveBottomChrome = (px) =>
 export function clipsReturnPath(pathname) {
   return typeof pathname === 'string' && /^\/clips\//.test(pathname) ? pathname : null;
 }
+
+// "Back to Zeus Beats" from Clips (the ← link, the ZEUS CLIPS logo): the song
+// library for a signed-in user, the home page for a visitor.
+export function beatsHomePath(user) {
+  return user ? '/songs' : '/';
+}
+
+// Whether the clip creator offers Photo/Video uploads — the same rule the backend
+// enforces in upload_clip_media (GET /billing/status: active paid plan, or admin).
+// null = not known yet → not locked (the server is the real gate).
+export function mediaUploadAllowed(status) {
+  if (!status) return true;
+  return Boolean(status.is_active || status.is_admin);
+}

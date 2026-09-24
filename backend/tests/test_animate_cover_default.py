@@ -112,4 +112,9 @@ def test_no_user_facing_copy_still_sells_animation():
     for page in ("LandingPage.jsx", "PricingPage.jsx", "TutorialPage.jsx"):
         txt = (root / "pages" / page).read_text(encoding="utf-8")
         assert "Kling" not in txt, f"{page} still mentions Kling"
-        assert "HD Video Animation" not in txt, f"{page} still advertises animation"
+    # Anywhere in the app, not just the marketing pages — a leftover "Upgrade for HD
+    # Video Animation" badge on every free user's song card survived the removal
+    # (found 2026-09-24 via a Zeus Clips report).
+    for src in list(root.rglob("*.jsx")) + list(root.rglob("*.js")):
+        txt = src.read_text(encoding="utf-8")
+        assert "HD Video Animation" not in txt, f"{src.relative_to(root)} still advertises animation"
