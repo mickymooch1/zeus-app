@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNowPlaying } from '../contexts/NowPlayingContext';
 import { audioManager } from '../utils/audioManager';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
+import { gLabel } from '../utils/genres';
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
@@ -13,28 +14,6 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
-
-const GENRE_LABEL = {
-  hiphop:'Hip-hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', celticpunk:'Celtic Punk', countryballad:'Country Ballad', outlawcountry:'Dark Outlaw Country',
-  rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage',
-  jungle:'Jungle', bassline:'Bassline', house:'House', loversrock:'Lovers Rock', ukdrill:'UK Drill',
-  kpop:'K-Pop', deepsoulblues:'Deep Soul Blues', ukstreetsoul:'UK Street Soul', technhouse:'Tech House',
-  driftphonk:'Drift Phonk', jerseyclub:'Jersey Club', afroswing:'Afroswing', rastadub:'Rasta Dub', dancehall:'Dancehall',
-  deeprotbassline:'Deeprot Bassline', jazz:'Jazz', electronicfunk:'Electronic Funk',
-  syntheticpop:'Synthetic Pop', ragga:'Ragga', dubstep:'Dubstep',
-  bhangra:'Bhangra', rockney:'Rockney', metal:'Metal', rootsreggae:'Roots Reggae',
-  trap:'Trap', eastcoasthiphop:'East Coast Hip-Hop', poprap:'Pop Rap',
-  synthwave:'Synthwave', gospel:'Gospel', trapsoul:'Trap Soul',
-  meditation:'Meditation', christmas:'Christmas', corridos:'Corridos',
-  healingfrequency:'Healing Frequency', swing:'Swing', vocaljazz:'Vocal Jazz', scat:'Scat Jazz', opera:'Opera',
-  traditionalpop:'Traditional Pop', rocknroll:"Rock 'n' Roll",
-  southemsoul:'Southern Soul', countryamericana:'Country Americana',
-};
-function gLabel(g) {
-  if (!g) return '';
-  if (g.includes('__')) { const [a,b]=g.split('__'); return `${GENRE_LABEL[a]||a} × ${GENRE_LABEL[b]||b}`; }
-  return GENRE_LABEL[g] || g.charAt(0).toUpperCase()+g.slice(1);
-}
 
 const AI_CHIPS = [
   'Sunday morning chill', 'Hype workout', 'Late night drive',
