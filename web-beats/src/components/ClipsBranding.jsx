@@ -7,12 +7,13 @@ const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
 
 /**
- * The "ZEUS CLIPS" wordmark — ZEUS bold white, CLIPS in the brand gradient,
+ * The "ZEUS CLIPS" wordmark — ZEUS bold white, CLIPS in the brand gradient (`word`
+ * swaps CLIPS, e.g. Discover shows "ZEUS BEATS"),
  * per the approved mockups. Shared across the feed, clip page and creator
  * (the three pages the restyle brief names) so all three read as one
  * product, not three slightly different headers.
  */
-export function ZeusClipsWordmark({ size = 19, to = '/clips' }) {
+export function ZeusClipsWordmark({ size = 19, to = '/clips', word = 'CLIPS' }) {
   const mark = (
     <span style={{
       fontFamily: "'Orbitron', sans-serif", fontWeight: 900, fontSize: size,
@@ -28,7 +29,7 @@ export function ZeusClipsWordmark({ size = 19, to = '/clips' }) {
         WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
         filter: `drop-shadow(0 0 6px ${CYAN}99) drop-shadow(0 0 12px ${PURPLE}aa)`,
       }}>
-        CLIPS
+        {word}
       </span>
     </span>
   );

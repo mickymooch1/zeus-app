@@ -118,7 +118,8 @@ export default function ClipRemixPage() {
   return (
     <div style={{ background: '#000', minHeight: '100svh', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px 48px' }}>
       <div style={{ marginBottom: 28 }}>
-        <ZeusClipsWordmark />
+        {/* A song remix comes from Discover, so it wears Discover's ZEUS BEATS mark. */}
+        {isSong ? <ZeusClipsWordmark word="BEATS" to="/discover" /> : <ZeusClipsWordmark />}
       </div>
 
       <div style={{
