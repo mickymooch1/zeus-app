@@ -669,6 +669,10 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE clip_events ADD COLUMN utm_source TEXT",
             "ALTER TABLE clip_events ADD COLUMN utm_medium TEXT",
             "ALTER TABLE clip_events ADD COLUMN utm_campaign TEXT",
+            # Clips from ANY public song (2026-09-24): on clip_published, whether the
+            # clip's creator also made the song (1) or clipped someone else's (0).
+            # NULL on every other event.
+            "ALTER TABLE clip_events ADD COLUMN is_own_song INTEGER",
             "ALTER TABLE users ADD COLUMN utm_source TEXT",
             "ALTER TABLE users ADD COLUMN utm_medium TEXT",
             "ALTER TABLE users ADD COLUMN utm_campaign TEXT",
@@ -679,6 +683,40 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             # admin separately moderated must stay hidden even if that same user
             # later gets unblocked. NULL for a published (or owner-deleted) clip.
             "ALTER TABLE clips ADD COLUMN hidden_reason TEXT",
+            # Clips of someone else's song (2026-09-24): when that song stops being
+            # public — made private, or deleted — every PUBLISHED clip of it made by
+            # someone OTHER than the song's owner is hidden (hidden_reason
+            # 'song_private'); when it's made public again, exactly those come back.
+            # The owner's own clips are never touched here. Triggers, like
+            # trg_song_variants_shared_at above, so every writer is covered: the
+            # share toggle, a clip publish with make_song_public, song delete, and
+            # telegram_admin's raw `db exec` SQL. Only 'published' rows are hidden
+            # and only 'song_private' rows restored, so an admin-moderated or
+            # blocked-user clip is never overridden (see clips.hide_clips_for_blocked_user
+            # / restore_clips_hidden_for_reason for how a block and this compose).
+            """CREATE TRIGGER IF NOT EXISTS trg_clips_hide_when_song_private
+               AFTER UPDATE OF is_public ON song_variants
+               FOR EACH ROW
+               WHEN OLD.is_public = 1 AND NEW.is_public = 0
+               BEGIN
+                 UPDATE clips SET status = 'hidden', hidden_reason = 'song_private'
+                 WHERE song_id = NEW.id AND user_id != NEW.user_id AND status = 'published';
+               END""",
+            """CREATE TRIGGER IF NOT EXISTS trg_clips_restore_when_song_public
+               AFTER UPDATE OF is_public ON song_variants
+               FOR EACH ROW
+               WHEN OLD.is_public = 0 AND NEW.is_public = 1
+               BEGIN
+                 UPDATE clips SET status = 'published', hidden_reason = NULL
+                 WHERE song_id = NEW.id AND status = 'hidden' AND hidden_reason = 'song_private';
+               END""",
+            """CREATE TRIGGER IF NOT EXISTS trg_clips_hide_when_song_deleted
+               AFTER DELETE ON song_variants
+               FOR EACH ROW
+               BEGIN
+                 UPDATE clips SET status = 'hidden', hidden_reason = 'song_private'
+                 WHERE song_id = OLD.id AND user_id != OLD.user_id AND status = 'published';
+               END""",
         ]:
             try:
                 conn.execute(_migration)

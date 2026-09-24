@@ -56,6 +56,10 @@ test('clipsReturnPath ignores everything else', () => {
   assert.equal(clipsReturnPath('https://evil.example/clips/pick'), null);
 });
 
+test('clipsReturnPath keeps the query string (Discover Create Clip → /clips/new?song=)', () => {
+  assert.equal(clipsReturnPath('/clips/new?song=7'), '/clips/new?song=7');
+});
+
 // ── Way back to Zeus Beats (2026-09-24) ──────────────────────────────────────
 import { beatsHomePath, mediaUploadAllowed } from './clipsChrome.js';
 

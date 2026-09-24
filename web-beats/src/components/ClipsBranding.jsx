@@ -9,14 +9,15 @@ const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
 
 /**
- * The "ZEUS CLIPS" wordmark — ZEUS bold white, CLIPS in the brand gradient,
+ * The "ZEUS CLIPS" wordmark — ZEUS bold white, CLIPS in the brand gradient (`word`
+ * swaps CLIPS, e.g. Discover shows "ZEUS BEATS"),
  * per the approved mockups. Shared across the feed, clip page and creator
  * (the three pages the restyle brief names) so all three read as one
  * product, not three slightly different headers.
  */
 // `to` omitted: the logo leads back to Zeus Beats (song library, or home for a
 // visitor) — Clips' way out of itself. `to={null}` renders it unlinked.
-export function ZeusClipsWordmark({ size = 19, to }) {
+export function ZeusClipsWordmark({ size = 19, to, word = 'CLIPS' }) {
   const { user } = useAuth();
   const dest = to === undefined ? beatsHomePath(user) : to;
   const mark = (
@@ -34,7 +35,7 @@ export function ZeusClipsWordmark({ size = 19, to }) {
         WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
         filter: `drop-shadow(0 0 6px ${CYAN}99) drop-shadow(0 0 12px ${PURPLE}aa)`,
       }}>
-        CLIPS
+        {word}
       </span>
     </span>
   );

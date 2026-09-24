@@ -1,22 +1,25 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
+import { remixTargetFromSearch, remixQuery } from '../utils/remixIntent';
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
-  // Zeus Clips remix hand-off — same-tab survival of the ?remix= query param;
-  // see RegisterPage.jsx and utils/remixIntent.js for the fuller picture. Takes
-  // priority over ProtectedRoute's own `from` state, since that state only ever
-  // carries a bare pathname (no query string) — see ProtectedRoute.jsx.
-  const remixId = searchParams.get('remix') || null;
-  const registerHref = remixId ? `/register?remix=${remixId}` : '/register';
-  const from = remixId ? `/songs?remix=${remixId}` : (location.state?.from?.pathname || '/songs');
+  // Remix hand-off — same-tab survival of the ?remix= (clip) / ?remixSong= (song)
+  // query param; see RegisterPage.jsx and utils/remixIntent.js for the fuller
+  // picture. Takes priority over ProtectedRoute's own `from` state.
+  const remixTarget = remixTargetFromSearch(location.search);
+  const registerHref = `/register${remixQuery(remixTarget)}`;
+  // `from` keeps its query string, so e.g. /clips/new?song=7 survives the login.
+  const fromState = location.state?.from;
+  const from = remixTarget
+    ? `/songs${remixQuery(remixTarget)}`
+    : (fromState ? `${fromState.pathname}${fromState.search || ''}` : '/songs');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

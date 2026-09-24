@@ -1,15 +1,26 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
-import { gLabel } from '../utils/genres';
 import { audioManager } from '../utils/audioManager';
 import { markDiscoverSeen } from '../hooks/useDiscoverBadge';
+import { useClipsEnabled } from '../hooks/useClipsEnabled';
+import { deriveClipHandle } from '../utils/clipHandle';
+import { formatCount } from '../utils/formatCount';
+import { saveSongRemixIntent } from '../utils/remixIntent';
+import { discoverSongToClipSong } from '../utils/discoverSong';
+import ClipVisual from '../components/ClipVisual';
+import ClipActionBtn from '../components/ClipActionBtn';
+import { ZeusClipsWordmark, ClipsPillTab, ClipGenrePill } from '../components/ClipsBranding';
 
-/* ── Neon cyberpunk tokens ──────────────────────────────────────────────── */
-const CYAN  = '#00f0ff';
-const PINK  = '#f472b6';
-const BG    = '#000';
+/* ── Zeus Clips design language (2026-09-24): true black, cyan → purple ── */
+const CYAN   = '#00f0ff';
+const PURPLE = '#7c3aed';
+const BG     = '#000';
+// Slide layout: the caption block and action column sit INFO_BOTTOM px up
+// (clear of the playback bar); the framed cover stops FRAME_BOTTOM px up, above them.
+const INFO_BOTTOM  = 108;
+const FRAME_BOTTOM = 250;
 
 function formatTime(secs) {
   if (!secs || isNaN(secs)) return '0:00';
@@ -19,10 +30,15 @@ function formatTime(secs) {
 }
 
 
-/* ── Individual song slide ──────────────────────────────────────────────── */
+/* ── Individual song slide ──────────────────────────────────────────────────
+ * Styled like a Zeus Clips slide (2026-09-24): the cover shown whole over a
+ * blurred copy (ClipVisual — never cropping text baked into the art), the
+ * same genre pill / title / @handle typography, and the same round action
+ * buttons down the right. Deliberately NO big "Remix This Sound" button —
+ * that stays the hero action in Clips only; here Remix is one small button. */
 const SongSlide = memo(function SongSlide({
-  song, idx, muted, isLiked, likeCount, isCopied,
-  onLike, onShare, onSlideRef, onVideoRef, onAudioRef,
+  song, idx, isActive, isLiked, likeCount, isCopied, canCreateClip,
+  onLike, onShare, onRemix, onCreateClip, onSlideRef, onVideoRef, onAudioRef,
 }) {
   const { variant_id, title, artist_name, genre_tag, mp3_url, cover_url, music_video_url } = song;
 
@@ -32,49 +48,30 @@ const SongSlide = memo(function SongSlide({
       data-idx={idx}
       className="discover-slide"
       style={{
-        position: 'relative',
-        height: '100svh',
-        width: '100%',
-        scrollSnapAlign: 'start',
-        overflow: 'hidden',
-        background: '#0a0a14',
-        flexShrink: 0,
+        position: 'relative', height: '100svh', width: '100%',
+        scrollSnapAlign: 'start', overflow: 'hidden', background: BG, flexShrink: 0,
       }}
     >
-      {/* Background: HD video (premium) or Ken Burns on static cover (default) */}
+      {/* Visual: a premium HD music video fills the screen as before; otherwise
+          the Clips cover treatment. The video keeps its discover-video class and
+          ref — the playback logic below drives it exactly as it always has. */}
       {music_video_url ? (
         <video
           ref={onVideoRef}
           src={music_video_url}
-          autoPlay
-          loop
-          muted
-          playsInline
+          autoPlay loop muted playsInline
           className="discover-video"
-          style={{
-            position: 'absolute', inset: 0,
-            width: '100%', height: '100%',
-            objectFit: 'cover',
-            filter: 'brightness(0.55)',
-          }}
-        />
-      ) : cover_url ? (
-        <img
-          src={cover_url}
-          alt=""
-          className="cover-ken-burns"
-          style={{
-            position: 'absolute', inset: 0,
-            width: '100%', height: '100%',
-            objectFit: 'cover',
-            filter: 'brightness(0.45)',
-          }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />
       ) : (
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 100%)',
-        }} />
+        <ClipVisual
+          mediaType="cover"
+          url={cover_url}
+          playing={isActive}
+          duration={20}
+          frameTop={112}
+          frameBottom={FRAME_BOTTOM}
+        />
       )}
 
       {/* Hidden audio element */}
@@ -86,137 +83,46 @@ const SongSlide = memo(function SongSlide({
         style={{ display: 'none' }}
       />
 
-      {/* Bottom gradient overlay */}
+      {/* Readability scrims — header strip and caption strip only (as in Clips). */}
       <div style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.3) 45%, transparent 70%)',
+        position: 'absolute', top: 0, left: 0, right: 0, height: '18%',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '42%',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)',
         pointerEvents: 'none',
       }} />
 
-      {/* Cyan left edge glow */}
-      <div style={{
-        position: 'absolute', top: 0, bottom: 0, left: 0,
-        width: 3,
-        background: `linear-gradient(to bottom, transparent, ${CYAN}, transparent)`,
-        opacity: 0.6,
-        pointerEvents: 'none',
-      }} />
-
-      {/* Song info — bottom left */}
-      <div style={{
-        position: 'absolute', bottom: 80, left: 20, right: 80,
-        zIndex: 10,
-      }}>
-        {/* Genre badge */}
-        <span style={{
-          display: 'inline-block',
-          padding: '2px 10px',
-          borderRadius: 20,
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.05em',
-          textTransform: 'uppercase',
-          background: `linear-gradient(90deg, ${CYAN}33, ${PINK}33)`,
-          border: `1px solid ${CYAN}55`,
-          color: CYAN,
-          marginBottom: 8,
-        }}>
-          {gLabel(genre_tag)}
-        </span>
+      {/* Song info — bottom left, Clips typography */}
+      <div style={{ position: 'absolute', bottom: INFO_BOTTOM, left: 16, right: 76, zIndex: 10 }}>
+        <ClipGenrePill genre={genre_tag} style={{ marginBottom: 10 }} />
         <p style={{
-          margin: '0 0 4px',
-          fontSize: 22,
-          fontWeight: 800,
-          color: '#fff',
-          lineHeight: 1.2,
-          textShadow: '0 2px 8px rgba(0,0,0,0.8)',
-          WebkitLineClamp: 2,
-          display: '-webkit-box',
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
+          margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.2,
+          textShadow: '0 2px 12px rgba(0,0,0,0.9)',
+          WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden',
         }}>
           {title || `Song #${variant_id}`}
         </p>
-        <p style={{ margin: '0 0 10px', fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
-          {artist_name || 'Zeus Beats Artist'}
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.6)', textShadow: '0 1px 4px rgba(0,0,0,0.85)' }}>
+          @{deriveClipHandle(artist_name)}
         </p>
-        {/* Made with Zeus Beats branding */}
-        <span style={{
-          fontSize: 11,
-          color: `${CYAN}99`,
-          fontWeight: 600,
-          letterSpacing: '0.04em',
-        }}>
-          ⚡ Made with Zeus Beats
-        </span>
       </div>
 
-      {/* Action buttons — bottom right column */}
+      {/* Action column — like, remix, create clip (CLIPS_ENABLED), share */}
       <div style={{
-        position: 'absolute', bottom: 80, right: 16,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
-        zIndex: 10,
+        position: 'absolute', bottom: INFO_BOTTOM, right: 14, zIndex: 10,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
       }}>
-        {/* Like */}
-        <ActionBtn
-          onClick={onLike}
-          icon="❤️"
-          label={likeCount > 0 ? String(likeCount) : ''}
-          active={isLiked}
-          activeColor={PINK}
-        />
-        {/* Share */}
-        <ActionBtn
-          onClick={onShare}
-          icon={isCopied ? '✓' : '🔗'}
-          label={isCopied ? 'Copied! 🎵' : 'Share'}
-          active={isCopied}
-          activeColor={CYAN}
-        />
+        <ClipActionBtn onClick={onLike} icon="❤️" label={formatCount(likeCount)} active={isLiked} activeColor={PURPLE} />
+        <ClipActionBtn onClick={onRemix} icon="🔁" label="Remix" />
+        {canCreateClip && <ClipActionBtn onClick={onCreateClip} icon="🎬" label="Clip" />}
+        <ClipActionBtn onClick={onShare} icon={isCopied ? '✓' : '🔗'} label={isCopied ? 'Copied' : 'Share'} active={isCopied} activeColor={CYAN} />
       </div>
     </div>
   );
 });
-
-function ActionBtn({ onClick, icon, label, active, activeColor }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: 'none', border: 'none', cursor: 'pointer',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-        padding: 0,
-        transform: hovered ? 'scale(1.12)' : 'scale(1)',
-        transition: 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)',
-      }}
-    >
-      <div style={{
-        width: 48, height: 48,
-        borderRadius: '50%',
-        background: active ? `${activeColor}28` : hovered ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        border: `1.5px solid ${active ? activeColor : hovered ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.22)'}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 20,
-        transition: 'all 0.2s ease',
-        boxShadow: active
-          ? `0 0 20px ${activeColor}66, 0 0 40px ${activeColor}22`
-          : hovered ? '0 4px 16px rgba(0,0,0,0.45)' : 'none',
-      }}>
-        {icon}
-      </div>
-      {label && (
-        <span style={{ color: active ? activeColor : hovered ? '#ffffff' : 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600 }}>
-          {label}
-        </span>
-      )}
-    </button>
-  );
-}
 
 /* ── Main page ──────────────────────────────────────────────────────────── */
 export default function DiscoverPage() {
@@ -240,6 +146,10 @@ export default function DiscoverPage() {
   const [forYouEligible, setForYouEligible] = useState(false);
   const [activeAudioEl, setActiveAudioEl] = useState(null);
   const [playState, setPlayState]         = useState({ playing: false, currentTime: 0, duration: 0 });
+  // Which slide is on screen — only drives the cover's Ken Burns zoom (the
+  // playback logic keeps using activeRef, unchanged).
+  const [activeIdx, setActiveIdx]         = useState(null);
+  const canCreateClip = useClipsEnabled(user);
 
   // Refs that don't trigger re-renders
   const pageRef            = useRef(0);
@@ -366,6 +276,7 @@ export default function DiscoverPage() {
             if (pa) { pa.pause(); pa.currentTime = 0; }
           }
           activeRef.current = idx;
+          setActiveIdx(idx);
           setActiveAudioEl(aud || null);
 
           if (vid) { vid.muted = true; vid.play().catch(() => {}); }
@@ -487,96 +398,102 @@ export default function DiscoverPage() {
     setTimeout(() => setCopied(c => c === variantId ? null : c), 2000);
   }, []);
 
+  /* ── Remix — the same song-keyed hand-off as a Clips remix ──────────────── */
+  const handleRemix = useCallback((variantId) => {
+    if (!token) {
+      saveSongRemixIntent(variantId);
+      navigate(`/register?remixSong=${variantId}`);
+      return;
+    }
+    navigate(`/discover/${variantId}/remix`);
+  }, [token, navigate]);
+
+  /* ── Create Clip from any public song (CLIPS_ENABLED) ───────────────────── */
+  // /clips/new is account-only: logged out, it goes to login and comes back
+  // here with ?song= intact, and the creator re-fetches the song itself.
+  const handleCreateClip = useCallback((song) => {
+    navigate(`/clips/new?song=${song.variant_id}`, { state: { song: discoverSongToClipSong(song) } });
+  }, [navigate]);
+
   return (
     <div style={{ background: BG, height: '100svh', width: '100vw', overflow: 'hidden', position: 'relative' }}>
 
-      {/* Fixed header */}
+      {/* Fixed header — Clips-style: ZEUS wordmark, small speaker toggle, and
+          "Make Your Own" (prominent for visitors, small for signed-in users). */}
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200,
-        padding: '12px 20px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 16px 10px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%)',
         pointerEvents: 'none',
       }}>
-        {/* Logo — taps to landing page */}
-        <Link to="/" style={{
-          color: CYAN, textDecoration: 'none', fontSize: 17, fontWeight: 800,
-          letterSpacing: '-0.02em', pointerEvents: 'auto',
-          textShadow: `0 0 16px ${CYAN}88`,
-        }}>
-          ⚡ Zeus Beats
-        </Link>
+        <div style={{ pointerEvents: 'auto' }}>
+          <ZeusClipsWordmark to="/" word="BEATS" size={17} />
+        </div>
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', pointerEvents: 'auto' }}>
-          {/* Mute toggle */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', pointerEvents: 'auto' }}>
+          {/* Speaker toggle — same small control as Clips */}
           <button
             onClick={toggleMute}
+            aria-label={muted ? 'Tap to hear' : 'Sound on'}
             style={{
               background: muted ? 'rgba(255,255,255,0.08)' : `${CYAN}22`,
               border: `1px solid ${muted ? 'rgba(255,255,255,0.2)' : CYAN}`,
-              borderRadius: 20, padding: '5px 14px',
-              color: muted ? 'rgba(255,255,255,0.7)' : CYAN,
-              cursor: 'pointer', fontSize: 13, fontWeight: 600,
-              transition: 'all 0.2s',
+              borderRadius: 20, padding: '5px 10px', color: muted ? 'rgba(255,255,255,0.7)' : CYAN,
+              cursor: 'pointer', fontSize: 15,
               boxShadow: muted ? 'none' : `0 0 10px ${CYAN}44`,
             }}
           >
-            {muted ? '🔇 Tap to hear' : '🔊 On'}
+            {muted ? '🔇' : '🔊'}
           </button>
 
-          {/* Make Your Own CTA */}
-          <button
-            onClick={() => navigate('/register')}
-            style={{
-              background: CYAN,
-              color: '#000',
-              fontFamily: 'Orbitron, sans-serif',
-              fontSize: '12px',
-              fontWeight: '700',
-              padding: '10px 16px',
-              borderRadius: '20px',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: `0 0 16px ${CYAN}66`,
-              letterSpacing: '0.02em',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            ⚡ Make Your Own
-          </button>
+          {token ? (
+            <button
+              onClick={() => navigate('/songs')}
+              style={{
+                background: 'rgba(10,10,20,0.6)', color: '#fff',
+                fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999,
+                border: `1px solid ${CYAN}55`, cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              ⚡ Make Your Own
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/register')}
+              style={{
+                background: `linear-gradient(90deg, ${CYAN}, ${PURPLE})`, color: '#000',
+                fontFamily: 'Orbitron, sans-serif', fontSize: 12, fontWeight: 800,
+                padding: '10px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                boxShadow: `0 0 16px ${CYAN}66, 0 0 28px ${PURPLE}55`,
+                letterSpacing: '0.02em', whiteSpace: 'nowrap',
+              }}
+            >
+              ⚡ Make Your Own
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Tab bar */}
+      {/* Tabs — the same pill tabs as Clips' New / Trending */}
       <div style={{
-        position: 'fixed', top: 54, left: 0, right: 0, zIndex: 199,
-        display: 'flex', justifyContent: 'center',
+        position: 'fixed', top: 62, left: 0, right: 0, zIndex: 199,
+        display: 'flex', justifyContent: 'center', gap: 10,
         pointerEvents: 'auto',
       }}>
         {[
-          ['trending', '🔥 Trending'],
+          ['trending', 'Trending'],
           // Signed out: shown deliberately. Tapping it raises the signup prompt
           // (handleTabChange checks !token first), which is a conversion touchpoint
           // worth keeping — there is no duplicate-feed problem for someone who
           // cannot load a personalised feed at all.
           // Signed in: hidden until there is history to personalise from, otherwise
           // For You returns the same recency-ordered songs as Trending.
-          ...((!token || forYouEligible) ? [['for_you', '✨ For You']] : []),
+          ...((!token || forYouEligible) ? [['for_you', 'For You']] : []),
         ].map(([tab, label]) => (
-          <button
-            key={tab}
-            onClick={() => handleTabChange(tab)}
-            style={{
-              background: 'none', border: 'none',
-              borderBottom: `2px solid ${shownTab === tab ? CYAN : 'transparent'}`,
-              color: shownTab === tab ? CYAN : 'rgba(255,255,255,0.45)',
-              fontSize: 13, fontWeight: 700, padding: '6px 22px',
-              cursor: 'pointer', transition: 'all 0.18s',
-              textShadow: shownTab === tab ? `0 0 10px ${CYAN}88` : 'none',
-            }}
-          >
+          <ClipsPillTab key={tab} active={shownTab === tab} onClick={() => handleTabChange(tab)}>
             {label}
-          </button>
+          </ClipsPillTab>
         ))}
       </div>
 
@@ -622,12 +539,15 @@ export default function DiscoverPage() {
             key={song.variant_id}
             song={song}
             idx={idx}
-            muted={muted}
+            isActive={activeIdx === idx}
             isLiked={liked.has(song.variant_id)}
             likeCount={counts[song.variant_id] || 0}
             isCopied={copied === song.variant_id}
+            canCreateClip={canCreateClip}
             onLike={() => handleLike(song.variant_id)}
             onShare={() => handleShare(song.variant_id)}
+            onRemix={() => handleRemix(song.variant_id)}
+            onCreateClip={() => handleCreateClip(song)}
             onSlideRef={el => { slideRefs.current[idx] = el; }}
             onVideoRef={el => { videoRefs.current[idx] = el; }}
             onAudioRef={el => { audioRefs.current[idx] = el; }}
@@ -664,7 +584,7 @@ export default function DiscoverPage() {
               onClick={() => navigate('/register')}
               style={{
                 padding: '12px 28px', borderRadius: 8,
-                background: `linear-gradient(90deg, ${CYAN}, ${PINK})`,
+                background: `linear-gradient(90deg, ${CYAN}, ${PURPLE})`,
                 color: '#000', fontWeight: 800, fontSize: 15,
                 border: 'none', cursor: 'pointer',
               }}
@@ -686,7 +606,7 @@ export default function DiscoverPage() {
               onClick={() => navigate('/register')}
               style={{
                 padding: '12px 28px', borderRadius: 8,
-                background: `linear-gradient(90deg, ${CYAN}, ${PINK})`,
+                background: `linear-gradient(90deg, ${CYAN}, ${PURPLE})`,
                 color: '#000', fontWeight: 800, fontSize: 15,
                 border: 'none', cursor: 'pointer',
                 boxShadow: `0 0 20px ${CYAN}44`,
@@ -698,17 +618,17 @@ export default function DiscoverPage() {
         )}
       </div>
 
-      {/* ── Playback controls bar ─────────────────────────────────────────── */}
+      {/* ── Playback controls bar (same controls, Clips styling) ──────────────── */}
       {activeAudioEl && (
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200,
           padding: '8px 16px 14px',
-          background: 'linear-gradient(to top, rgba(0,0,0,0.97) 60%, transparent 100%)',
+          background: 'linear-gradient(to top, rgba(0,0,0,0.97) 65%, transparent 100%)',
           pointerEvents: 'auto',
         }}>
           {/* Progress bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: CYAN, fontFamily: 'monospace', minWidth: 32, textAlign: 'right' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.75)', fontFamily: 'monospace', minWidth: 32, textAlign: 'right' }}>
               {formatTime(playState.currentTime)}
             </span>
             <input
@@ -718,41 +638,44 @@ export default function DiscoverPage() {
               step="0.1"
               value={playState.currentTime}
               onChange={handleSeek}
+              aria-label="Seek"
               style={{
                 flex: 1, height: 3, cursor: 'pointer', accentColor: CYAN,
                 background: playState.duration
-                  ? `linear-gradient(to right, ${CYAN} ${(playState.currentTime / playState.duration) * 100}%, rgba(0,240,255,0.15) ${(playState.currentTime / playState.duration) * 100}%)`
-                  : `rgba(0,240,255,0.15)`,
+                  ? `linear-gradient(to right, ${CYAN} 0%, ${PURPLE} ${(playState.currentTime / playState.duration) * 100}%, rgba(255,255,255,0.15) ${(playState.currentTime / playState.duration) * 100}%)`
+                  : 'rgba(255,255,255,0.15)',
                 borderRadius: 2, outline: 'none', border: 'none',
                 appearance: 'none', WebkitAppearance: 'none',
               }}
             />
-            <span style={{ fontSize: 10, fontWeight: 700, color: `${CYAN}66`, fontFamily: 'monospace', minWidth: 32 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.45)', fontFamily: 'monospace', minWidth: 32 }}>
               {formatTime(playState.duration)}
             </span>
           </div>
           {/* Control buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
             <button
               onClick={handleRewind}
-              style={{ background: 'none', border: 'none', color: `${CYAN}bb`, fontSize: 20, cursor: 'pointer', padding: 4 }}
-            >⏪</button>
+              aria-label="Back 10 seconds"
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: 800, cursor: 'pointer', padding: 6 }}
+            >↺ 10</button>
             <button
               onClick={handlePlayPause}
+              aria-label={playState.playing ? 'Pause' : 'Play'}
               style={{
-                width: 44, height: 44, borderRadius: '50%',
-                background: playState.playing ? `${CYAN}22` : 'rgba(0,0,0,0.6)',
-                border: `1.5px solid ${CYAN}`,
-                color: CYAN, fontSize: 18, cursor: 'pointer',
+                width: 46, height: 46, borderRadius: '50%',
+                background: `linear-gradient(135deg, ${CYAN}, ${PURPLE})`,
+                border: 'none', color: '#000', fontSize: 18, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: playState.playing ? `0 0 14px ${CYAN}55` : 'none',
-                transition: 'all 0.18s',
+                boxShadow: playState.playing ? `0 0 18px ${CYAN}88, 0 0 30px ${PURPLE}66` : `0 0 10px ${CYAN}44`,
+                transition: 'box-shadow 0.18s',
               }}
             >{playState.playing ? '⏸' : '▶'}</button>
             <button
               onClick={handleForward}
-              style={{ background: 'none', border: 'none', color: `${CYAN}bb`, fontSize: 20, cursor: 'pointer', padding: 4 }}
-            >⏩</button>
+              aria-label="Forward 10 seconds"
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: 800, cursor: 'pointer', padding: 6 }}
+            >10 ↻</button>
           </div>
         </div>
       )}
@@ -800,7 +723,7 @@ export default function DiscoverPage() {
                 width: '100%',
                 padding: '14px 0',
                 borderRadius: 10,
-                background: `linear-gradient(90deg, ${CYAN}, ${PINK})`,
+                background: `linear-gradient(90deg, ${CYAN}, ${PURPLE})`,
                 color: '#000',
                 fontWeight: 800,
                 fontSize: 15,

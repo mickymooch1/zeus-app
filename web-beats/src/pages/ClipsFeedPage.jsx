@@ -131,7 +131,7 @@ const ClipSlide = memo(function ClipSlide({
         <ClipSongBar
           coverUrl={song_cover_url}
           title={song_title}
-          artistName={artist_name}
+          artistName={clip.song_artist_name || artist_name}
           spinning={isPlaying}
           onUseSound={onRemix}
           progressBarRef={el => { if (el) onProgressRef(el); }}

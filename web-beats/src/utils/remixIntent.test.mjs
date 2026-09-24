@@ -93,3 +93,53 @@ test('arrivedViaRemix: ordinary visit', () => {
   assert.equal(arrivedViaRemix({ state: { prefillGenre: 'jazz' }, search: '?tab=all' }), false);
   assert.equal(arrivedViaRemix({ state: null, search: '?remix=abc' }), false);
 });
+
+// ── Song remix hand-off (2026-09-24, Discover "Remix") ───────────────────────
+// Same hand-off as a clip remix, keyed by song: ?remixSong=<id> in the URL +
+// {songId} in localStorage, landing on /discover/<id>/remix.
+import {
+  saveSongRemixIntent, remixTargetFromSearch, remixQuery, remixDestination,
+} from './remixIntent.js';
+
+test('song intent round-trips through localStorage', () => {
+  saveSongRemixIntent(42);
+  assert.deepEqual(readRemixIntent(), { songId: 42 });
+  clearRemixIntent();
+  assert.equal(readRemixIntent(), null);
+});
+
+test('saving a song intent replaces a clip intent (latest click wins)', () => {
+  saveRemixIntent(5);
+  saveSongRemixIntent(9);
+  assert.deepEqual(readRemixIntent(), { songId: 9 });
+  clearRemixIntent();
+});
+
+test('invalid song ids are not stored', () => {
+  saveSongRemixIntent('abc');
+  saveSongRemixIntent(-1);
+  assert.equal(readRemixIntent(), null);
+});
+
+test('remixTargetFromSearch reads either param', () => {
+  assert.deepEqual(remixTargetFromSearch('?remix=5'), { clipId: 5 });
+  assert.deepEqual(remixTargetFromSearch('?remixSong=7'), { songId: 7 });
+  assert.equal(remixTargetFromSearch('?remixSong=x'), null);
+  assert.equal(remixTargetFromSearch(''), null);
+});
+
+test('remixQuery builds the param to carry through login/register', () => {
+  assert.equal(remixQuery({ clipId: 5 }), '?remix=5');
+  assert.equal(remixQuery({ songId: 7 }), '?remixSong=7');
+  assert.equal(remixQuery(null), '');
+});
+
+test('remixDestination: clip → clip confirm page, song → Discover confirm page', () => {
+  assert.equal(remixDestination({ clipId: 5 }), '/clips/5/remix');
+  assert.equal(remixDestination({ songId: 7 }), '/discover/7/remix');
+  assert.equal(remixDestination(null), null);
+});
+
+test('arrivedViaRemix also recognises ?remixSong=', () => {
+  assert.equal(arrivedViaRemix({ state: null, search: '?remixSong=7' }), true);
+});

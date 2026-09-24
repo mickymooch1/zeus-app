@@ -95,11 +95,13 @@ def get_clip(db_path: pathlib.Path, clip_id: int, include_hidden: bool = False) 
     conn = _conn(db_path)
     try:
         sql = """SELECT c.*, l.title AS song_title, sv.genre_tag, sv.mp3_url, sv.image_url AS song_cover_url,
-                        u.artist_name, u.name AS user_name
+                        u.artist_name, u.name AS user_name,
+                        so.artist_name AS song_artist_name, so.name AS song_user_name
                  FROM clips c
                  JOIN song_variants sv ON sv.id = c.song_id
                  JOIN lyrics l ON l.id = sv.lyric_id
                  JOIN users u ON u.id = c.user_id
+                 JOIN users so ON so.id = sv.user_id
                  WHERE c.id = ?"""
         if not include_hidden:
             sql += " AND c.status = 'published'"
@@ -130,15 +132,16 @@ def set_clip_status(db_path: pathlib.Path, clip_id: int, status: str, reason: st
 def hide_clips_for_blocked_user(db_path: pathlib.Path, user_id: str) -> int:
     """Auto-hides every currently-published clip owned by this user — called
     when their account is blocked (see telegram_admin.py's _cmd_block_email).
-    Only touches 'published' clips (never an already-hidden or owner-deleted
-    one, and never overwrites an existing hidden_reason), so it composes
-    correctly with a clip an admin separately moderated. Idempotent to re-run.
-    Returns the count hidden."""
+    Touches 'published' clips, plus ones hidden only because their song went
+    private ('song_private') — the block takes those over, so the song being
+    made public again can't revive a blocked user's clip. Never an admin-
+    moderated or owner-deleted one. Idempotent to re-run. Returns the count hidden."""
     conn = db._conn(db_path)
     try:
         cur = conn.execute(
             "UPDATE clips SET status = 'hidden', hidden_reason = 'blocked_user' "
-            "WHERE user_id = ? AND status = 'published'",
+            "WHERE user_id = ? AND (status = 'published' "
+            "OR (status = 'hidden' AND hidden_reason = 'song_private'))",
             (user_id,),
         )
         conn.commit()
@@ -151,9 +154,19 @@ def restore_clips_hidden_for_reason(db_path: pathlib.Path, user_id: str, reason:
     """Reverses hide_clips_for_blocked_user — restores only clips hidden for
     the GIVEN reason, leaving one an admin separately hid (a different
     hidden_reason) untouched even if this same account is now unblocked.
-    Returns the count restored."""
+    A clip of SOMEONE ELSE'S song that is no longer public (private or deleted)
+    goes back to 'song_private' instead of published — the song-visibility
+    triggers (db.py) will publish it if that song is made public again.
+    Returns the count restored (published)."""
     conn = db._conn(db_path)
     try:
+        song_gone = ("NOT EXISTS (SELECT 1 FROM song_variants sv WHERE sv.id = clips.song_id "
+                     "AND (sv.is_public = 1 OR sv.user_id = clips.user_id))")
+        conn.execute(
+            "UPDATE clips SET hidden_reason = 'song_private' "
+            f"WHERE user_id = ? AND status = 'hidden' AND hidden_reason = ? AND {song_gone}",
+            (user_id, reason),
+        )
         cur = conn.execute(
             "UPDATE clips SET status = 'published', hidden_reason = NULL "
             "WHERE user_id = ? AND status = 'hidden' AND hidden_reason = ?",
@@ -391,18 +404,30 @@ def get_user_public_profile(db_path: pathlib.Path, handle: str) -> dict | None:
 
 
 def get_remix_prefill(db_path: pathlib.Path, clip_id: int) -> dict:
-    """What the prefilled create-flow needs to remix this clip: SANITIZED style descriptors
+    """Remix prefill for a clip — the prefill of the clip's source song (see
+    get_song_remix_prefill). {} for an unknown clip."""
+    conn = _conn(db_path)
+    try:
+        row = conn.execute("SELECT song_id FROM clips WHERE id = ?", (clip_id,)).fetchone()
+    finally:
+        conn.close()
+    return get_song_remix_prefill(db_path, row["song_id"]) if row else {}
+
+
+def get_song_remix_prefill(db_path: pathlib.Path, song_id: int) -> dict:
+    """What the prefilled create-flow needs to remix this song: SANITIZED style descriptors
     and a short theme — never the source song's lyrics_text (see the build brief's explicit
     "never pass the original lyrics"). Reuses the exact sanitizers the Search/"Inspired By"
     path already uses (songs.py), so the same artist-name/song-title stripping and length
-    caps apply here — one sanitization policy, not a second copy of it."""
+    caps apply here — one sanitization policy, not a second copy of it. Shared by the clip
+    remix (via get_remix_prefill) and the Discover song remix."""
     conn = _conn(db_path)
     try:
         row = conn.execute(
             """SELECT sv.genre_tag, sv.style_prompt, l.brief, l.title AS song_title
-               FROM clips c JOIN song_variants sv ON sv.id = c.song_id JOIN lyrics l ON l.id = sv.lyric_id
-               WHERE c.id = ?""",
-            (clip_id,),
+               FROM song_variants sv JOIN lyrics l ON l.id = sv.lyric_id
+               WHERE sv.id = ?""",
+            (song_id,),
         ).fetchone()
     finally:
         conn.close()
@@ -492,11 +517,13 @@ def list_feed(db_path: pathlib.Path, sort: str = "new", page: int = 0, page_size
     try:
         rows = conn.execute(
             """SELECT c.*, l.title AS song_title, sv.genre_tag, sv.mp3_url, sv.image_url AS song_cover_url,
-                      u.artist_name, u.name AS user_name
+                      u.artist_name, u.name AS user_name,
+                      so.artist_name AS song_artist_name, so.name AS song_user_name
                FROM clips c
                JOIN song_variants sv ON sv.id = c.song_id
                JOIN lyrics l ON l.id = sv.lyric_id
                JOIN users u ON u.id = c.user_id
+               JOIN users so ON so.id = sv.user_id
                WHERE c.status = 'published'
                ORDER BY c.created_at DESC"""
         ).fetchall()
@@ -514,7 +541,7 @@ def list_feed(db_path: pathlib.Path, sort: str = "new", page: int = 0, page_size
 def log_event(db_path: pathlib.Path, event_name: str, user_id: str | None = None, anon_id: str | None = None,
              clip_id: int | None = None, song_id: int | None = None, now: datetime | None = None,
              utm_source: str | None = None, utm_medium: str | None = None,
-             utm_campaign: str | None = None) -> None:
+             utm_campaign: str | None = None, is_own_song: bool | None = None) -> None:
     """utm_* (2026-09-23): the caller's first-touch attribution, if it has any to
     give — see utils/utmAttribution.js on the frontend. Optional/keyword-only so
     every existing call site (including remix_completed above, which has no
@@ -523,9 +550,9 @@ def log_event(db_path: pathlib.Path, event_name: str, user_id: str | None = None
     try:
         conn.execute(
             "INSERT INTO clip_events (event_name, user_id, anon_id, clip_id, song_id, created_at, "
-            "utm_source, utm_medium, utm_campaign) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "utm_source, utm_medium, utm_campaign, is_own_song) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (event_name, user_id, anon_id, clip_id, song_id, (now or _now()).isoformat(),
-             utm_source, utm_medium, utm_campaign),
+             utm_source, utm_medium, utm_campaign, None if is_own_song is None else int(bool(is_own_song))),
         )
         conn.commit()
     finally:
