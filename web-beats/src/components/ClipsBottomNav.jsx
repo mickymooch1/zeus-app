@@ -11,7 +11,7 @@ const PURPLE = '#7c3aed';
 const RAISE = 26;
 
 /**
- * Zeus Clips bottom nav — Feed · (+) Create · My Clips — styled like the
+ * Zeus Clips bottom nav — Songs · Feed · (+) Create · My Clips — styled like the
  * mockups' glass bar with a raised glowing "+" in the middle. Mounted once in
  * App and shown only on isClipsNavPath pages.
  *
@@ -66,12 +66,23 @@ export default function ClipsBottomNav() {
       style={{
         position: 'fixed', left: 0, right: 0, bottom: `var(${COOKIE_BANNER_H_VAR}, 0px)`, zIndex: 9000,
         display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around',
-        padding: '8px 24px calc(8px + env(safe-area-inset-bottom))',
+        padding: '8px 8px calc(8px + env(safe-area-inset-bottom))',
         background: 'rgba(8,8,18,0.88)',
         backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
         borderTop: `1px solid ${CYAN}33`, boxShadow: `0 -6px 24px rgba(0,0,0,0.5), 0 -1px 12px ${CYAN}14`,
       }}
     >
+      {/* Back to the main app — the song library (account-only, so a visitor goes
+          to login first, like Create / My Clips). */}
+      <Link to="/songs" style={item(false)}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M9 18V5l12-2v13" />
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="18" cy="16" r="3" />
+        </svg>
+        Songs
+      </Link>
+
       <Link to="/clips" style={item(feedActive)} aria-current={feedActive ? 'page' : undefined}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />

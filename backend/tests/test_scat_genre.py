@@ -70,11 +70,28 @@ def test_scat_registered_in_ios_app():
     assert "'vocaljazz','scat','swing'" in s
 
 
+# The player, playlist and share pages used to each carry their own copy of the
+# genre label map, so every new genre had to be added to all three. Since
+# 2026-09-24 they all use the shared gLabel in utils/genres.js — that is now the
+# one map a new genre's label must be in (see test_display_pages_use_the_shared_genre_labels).
+_DISPLAY_LABEL_SOURCES = ["web-beats/src/utils/genres.js"]
+_DISPLAY_PAGES = ["web-beats/src/components/NowPlayingBar.jsx",
+                  "web-beats/src/pages/PlaylistPage.jsx",
+                  "web-beats/src/pages/SongSharePage.jsx"]
+
+
+def test_display_pages_use_the_shared_genre_labels():
+    """Guards the move above: a page that brings back its own local map would
+    silently drift again (and the label tests below would no longer cover it)."""
+    for rel in _DISPLAY_PAGES:
+        s = (_ROOT / rel).read_text(encoding="utf-8")
+        assert "import { gLabel } from '../utils/genres'" in s, rel
+        assert "const GENRE_LABEL" not in s, f"{rel} has its own genre map again"
+
+
 def test_scat_label_present_in_display_maps():
     """Otherwise the player/playlist/share pages render a raw genre key."""
-    for rel in ["web-beats/src/components/NowPlayingBar.jsx",
-                "web-beats/src/pages/PlaylistPage.jsx",
-                "web-beats/src/pages/SongSharePage.jsx"]:
+    for rel in _DISPLAY_LABEL_SOURCES:
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert "scat:" in s, rel
 
@@ -123,9 +140,7 @@ def test_opera_registered_in_ios_app():
 
 
 def test_opera_label_present_in_display_maps():
-    for rel in ["web-beats/src/components/NowPlayingBar.jsx",
-                "web-beats/src/pages/PlaylistPage.jsx",
-                "web-beats/src/pages/SongSharePage.jsx"]:
+    for rel in _DISPLAY_LABEL_SOURCES:
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert "opera:'Opera'" in s, rel
         assert s.count("opera:'Opera'") == 1, f"duplicate key in {rel}"
@@ -184,9 +199,7 @@ def test_dancehall_registered_in_both_apps():
 
 
 def test_dancehall_label_in_display_maps():
-    for rel in ["web-beats/src/components/NowPlayingBar.jsx",
-                "web-beats/src/pages/PlaylistPage.jsx",
-                "web-beats/src/pages/SongSharePage.jsx"]:
+    for rel in _DISPLAY_LABEL_SOURCES:
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert s.count("dancehall:'Dancehall'") == 1, rel
 
@@ -238,9 +251,7 @@ def test_celticpunk_registered_in_both_apps():
 
 
 def test_celticpunk_label_in_display_maps():
-    for rel in ["web-beats/src/components/NowPlayingBar.jsx",
-                "web-beats/src/pages/PlaylistPage.jsx",
-                "web-beats/src/pages/SongSharePage.jsx"]:
+    for rel in _DISPLAY_LABEL_SOURCES:
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert s.count("celticpunk:'Celtic Punk'") == 1, rel
 
@@ -313,9 +324,7 @@ def test_countryballad_registered_in_both_apps():
 
 
 def test_countryballad_label_in_display_maps():
-    for rel in ["web-beats/src/components/NowPlayingBar.jsx",
-                "web-beats/src/pages/PlaylistPage.jsx",
-                "web-beats/src/pages/SongSharePage.jsx"]:
+    for rel in _DISPLAY_LABEL_SOURCES:
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert s.count("countryballad:'Country Ballad'") == 1, rel
 
@@ -365,8 +374,6 @@ def test_outlawcountry_registered_in_both_apps():
 
 
 def test_outlawcountry_label_in_display_maps():
-    for rel in ["web-beats/src/components/NowPlayingBar.jsx",
-                "web-beats/src/pages/PlaylistPage.jsx",
-                "web-beats/src/pages/SongSharePage.jsx"]:
+    for rel in _DISPLAY_LABEL_SOURCES:
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert s.count("outlawcountry:'Dark Outlaw Country'") == 1, rel
