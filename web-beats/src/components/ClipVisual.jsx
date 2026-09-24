@@ -73,3 +73,12 @@ export default function ClipVisual({
   }
   return <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 100%)' }} />;
 }
+
+// Centre of the framed-cover box — where the tap-to-pause icon sits, so it lands
+// on the picture (not under the caption) on every page that uses ClipVisual.
+export function frameCenter(frameTop = 142, frameBottom = 330) {
+  return {
+    top: `calc((${frameTop}px + 100svh - ${frameBottom}px - var(--cookie-banner-h, 0px) - var(--clips-nav-h, 0px)) / 2)`,
+    left: `calc((${FRAME_LEFT}px + 100% - ${FRAME_RIGHT}px) / 2)`,
+  };
+}

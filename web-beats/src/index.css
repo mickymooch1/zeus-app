@@ -920,3 +920,16 @@ body {
   box-shadow: 0 0 15px rgba(0,240,255,0.5);
   transform: scale(1.05);
 }
+
+/* ── Tap-to-pause (Clips feed, clip page, Discover) ───────────────────────── */
+/* The big icon that flashes where you tapped the picture: in, then fades over
+   ~0.8s. Positioned by its centre (translate -50%/-50%). */
+@keyframes tapFlash {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+  18%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.15); }
+}
+.tap-flash { animation: tapFlash 0.8s ease-out forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .tap-flash { animation-duration: 0.8s; animation-name: none; opacity: 0; }
+}

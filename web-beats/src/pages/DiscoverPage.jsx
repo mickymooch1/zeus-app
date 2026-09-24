@@ -9,7 +9,8 @@ import { deriveClipHandle } from '../utils/clipHandle';
 import { formatCount } from '../utils/formatCount';
 import { saveSongRemixIntent } from '../utils/remixIntent';
 import { discoverSongToClipSong } from '../utils/discoverSong';
-import ClipVisual from '../components/ClipVisual';
+import ClipVisual, { frameCenter } from '../components/ClipVisual';
+import TapToPause from '../components/TapToPause';
 import ClipActionBtn from '../components/ClipActionBtn';
 import { ZeusClipsWordmark, ClipsPillTab, ClipGenrePill } from '../components/ClipsBranding';
 
@@ -37,8 +38,8 @@ function formatTime(secs) {
  * buttons down the right. Deliberately NO big "Remix This Sound" button —
  * that stays the hero action in Clips only; here Remix is one small button. */
 const SongSlide = memo(function SongSlide({
-  song, idx, isActive, isLiked, likeCount, isCopied, canCreateClip,
-  onLike, onShare, onRemix, onCreateClip, onSlideRef, onVideoRef, onAudioRef,
+  song, idx, isActive, isPaused, isLiked, likeCount, isCopied, canCreateClip,
+  onLike, onShare, onRemix, onCreateClip, onTogglePause, onSlideRef, onVideoRef, onAudioRef,
 }) {
   const { variant_id, title, artist_name, genre_tag, mp3_url, cover_url, music_video_url } = song;
 
@@ -67,7 +68,7 @@ const SongSlide = memo(function SongSlide({
         <ClipVisual
           mediaType="cover"
           url={cover_url}
-          playing={isActive}
+          playing={isActive && !isPaused}
           duration={20}
           frameTop={112}
           frameBottom={FRAME_BOTTOM}
@@ -94,6 +95,10 @@ const SongSlide = memo(function SongSlide({
         background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)',
         pointerEvents: 'none',
       }} />
+
+      {/* Tap the picture to play/pause — the same control as the playback bar's ▶.
+          Under every control below (z-index 10). */}
+      <TapToPause paused={isActive && isPaused} onToggle={onTogglePause} center={frameCenter(112, FRAME_BOTTOM)} />
 
       {/* Song info — bottom left, Clips typography */}
       <div style={{ position: 'absolute', bottom: INFO_BOTTOM, left: 16, right: 76, zIndex: 10 }}>
@@ -333,12 +338,16 @@ export default function DiscoverPage() {
   const handlePlayPause = () => {
     const aud = activeAudioEl;
     if (!aud) return;
+    // An HD music video pauses and resumes with the song.
+    const vid = videoRefs.current[activeRef.current];
     if (aud.paused) {
       mutedRef.current = false;
       setMuted(false);
       audioManager.play(aud, activeSongs[activeRef.current]?.variant_id);
+      vid?.play().catch(() => {});
     } else {
       aud.pause();
+      vid?.pause();
     }
   };
 
@@ -540,6 +549,8 @@ export default function DiscoverPage() {
             song={song}
             idx={idx}
             isActive={activeIdx === idx}
+            isPaused={!playState.playing}
+            onTogglePause={handlePlayPause}
             isLiked={liked.has(song.variant_id)}
             likeCount={counts[song.variant_id] || 0}
             isCopied={copied === song.variant_id}

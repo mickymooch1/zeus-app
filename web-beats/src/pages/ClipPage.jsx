@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
-import { clipSeekTarget, clipInitialTime } from '../utils/clipPlayback';
+import { clipSeekTarget, clipResumeTime } from '../utils/clipPlayback';
 import { getClipAnonId } from '../utils/clipAnonId';
 import { saveRemixIntent } from '../utils/remixIntent';
 import { readUtmAttribution } from '../utils/utmAttribution';
@@ -12,8 +12,9 @@ import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
 import ClipActionBtn from '../components/ClipActionBtn';
-import ClipVisual, { FRAME_LEFT, FRAME_RIGHT } from '../components/ClipVisual';
-import { aboveBottomChrome, COOKIE_BANNER_H_VAR, CLIPS_NAV_H_VAR } from '../utils/clipsChrome';
+import ClipVisual, { frameCenter } from '../components/ClipVisual';
+import TapToPause from '../components/TapToPause';
+import { aboveBottomChrome } from '../utils/clipsChrome';
 import { ZeusClipsWordmark, ClipsAiBadge, ClipGenrePill } from '../components/ClipsBranding';
 
 // Zeus Beats' own electric-blue → purple pair (see RemixButton.jsx).
@@ -21,7 +22,7 @@ const CYAN = '#00f0ff';
 const PURPLE = '#7c3aed';
 
 // The box between the header and the caption block: ClipVisual frames a cover
-// in it and the play button is centred in it. FRAME_BOTTOM is above the bottom
+// in it and the tap-to-pause icon is centred in it. FRAME_BOTTOM is above the bottom
 // chrome (cookie banner + nav) and larger than the feed's — this page's
 // caption block also carries the big song title.
 const FRAME_TOP = 124;
@@ -42,6 +43,7 @@ export default function ClipPage() {
   const navigate = useNavigate();
   const { token } = useAuth();
   const audioRef = useRef(null);
+  const videoRef = useRef(null);
   const viewedRef = useRef(false);
   const progressBarRef = useRef(null);
 
@@ -125,13 +127,20 @@ export default function ClipPage() {
     };
   }, [clip]);
 
+  // Pause/resume the clip's sound AND its video visual together (the Ken Burns
+  // zoom and visualiser follow `playing`). Resuming continues from where it
+  // paused — the first play starts at the clip's start point.
   const togglePlay = () => {
     const a = audioRef.current;
     if (!a || !clip) return;
-    if (playing) { a.pause(); setPlaying(false); }
+    if (playing) { a.pause(); videoRef.current?.pause(); setPlaying(false); }
     else {
-      a.currentTime = clipInitialTime(clip.clip_start_time, clip.clip_duration);
-      a.play().then(() => setPlaying(true)).catch(() => {});
+      a.currentTime = clipResumeTime(a.currentTime, clip.clip_start_time, clip.clip_duration);
+      videoRef.current?.play().catch(() => {});
+      // Optimistic, so the icon / zoom / visualiser react on the tap itself;
+      // reverted if the browser refuses to play.
+      setPlaying(true);
+      a.play().catch(() => { setPlaying(false); videoRef.current?.pause(); });
     }
   };
 
@@ -202,6 +211,7 @@ export default function ClipPage() {
         mediaType={clip.media_type}
         url={visualUrl}
         playing={playing}
+        videoRef={videoRef}
         duration={clip.clip_duration}
         alt={clip.song_title}
         frameTop={FRAME_TOP}
@@ -235,26 +245,10 @@ export default function ClipPage() {
         </div>
       </div>
 
-      {/* Centered play/pause — this page has no autoplay (reached via a direct
-          link/share, not a scrolling feed), so it needs its own explicit control. */}
-      <button
-        onClick={togglePlay}
-        aria-label={playing ? 'Pause' : 'Play'}
-        style={{
-          // Centred in the space between the header and the caption block (the
-          // same box ClipVisual frames a cover in) — plain 50% put it under
-          // the caption once the bottom nav pushed that block up.
-          position: 'absolute', transform: 'translate(-50%, -50%)', zIndex: 25,
-          left: `calc((${FRAME_LEFT}px + 100% - ${FRAME_RIGHT}px) / 2)`,
-          top: `calc((${FRAME_TOP}px + 100svh - ${FRAME_BOTTOM}px - var(${COOKIE_BANNER_H_VAR}, 0px) - var(${CLIPS_NAV_H_VAR}, 0px)) / 2)`,
-          width: 64, height: 64, borderRadius: '50%', border: `2px solid ${CYAN}`,
-          background: playing ? `${CYAN}18` : 'rgba(0,0,0,0.45)', color: CYAN, fontSize: 22, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 24px ${CYAN}44`,
-          opacity: playing ? 0 : 1, transition: 'opacity 0.2s',
-        }}
-      >
-        {playing ? '⏸' : '▶'}
-      </button>
+      {/* Tap the picture to play/pause — this page has no autoplay (reached via a
+          direct link/share), so it starts paused with the play icon showing. The
+          layer sits under every control (they're z-index 20). */}
+      <TapToPause paused={!playing} onToggle={togglePlay} center={frameCenter(FRAME_TOP, FRAME_BOTTOM)} />
 
       {/* Right-side action column — like, remix count, share (same as the feed) */}
       <div style={{

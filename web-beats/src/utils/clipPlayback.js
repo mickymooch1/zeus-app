@@ -17,3 +17,9 @@ export function clipSeekTarget(currentTime, clipStartTime, clipDuration) {
 export function clipInitialTime(clipStartTime, clipDuration) {
   return clipStartTime;
 }
+
+// Where a paused clip resumes: the paused point if it's inside the clip window,
+// otherwise the window's start (e.g. the first play, before anything has loaded).
+export function clipResumeTime(currentTime, clipStartTime, clipDuration) {
+  return clipSeekTarget(currentTime, clipStartTime, clipDuration) === null ? currentTime : clipStartTime;
+}

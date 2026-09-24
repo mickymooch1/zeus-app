@@ -12,7 +12,8 @@ import RemixButton from '../components/RemixButton';
 import ClipSongBar from '../components/ClipSongBar';
 import ClipMoreMenu from '../components/ClipMoreMenu';
 import ClipActionBtn from '../components/ClipActionBtn';
-import ClipVisual from '../components/ClipVisual';
+import ClipVisual, { frameCenter } from '../components/ClipVisual';
+import TapToPause from '../components/TapToPause';
 import { aboveBottomChrome } from '../utils/clipsChrome';
 import { ZeusClipsWordmark, ClipsAiBadge, ClipsPillTab, ClipGenrePill, BackToBeatsLink } from '../components/ClipsBranding';
 
@@ -27,8 +28,8 @@ const BG     = '#000';
  * SOURCE SONG's mp3 clamped to clip_start_time..+clip_duration as the audio —
  * two separate media elements kept in sync. */
 const ClipSlide = memo(function ClipSlide({
-  clip, idx, isLiked, likeCount, isCopied, token, isPlaying, isActive,
-  onLike, onShare, onRemix, onRequireAuth, onSlideRef, onVideoRef, onAudioRef, onProgressRef,
+  clip, idx, isLiked, likeCount, isCopied, token, isPlaying, isActive, isPaused,
+  onLike, onShare, onRemix, onRequireAuth, onTogglePause, onSlideRef, onVideoRef, onAudioRef, onProgressRef,
 }) {
   const { media_type, media_url, song_cover_url, song_title, artist_name, genre_tag,
           caption, clip_start_time, clip_duration, mp3_url, remix_count } = clip;
@@ -55,7 +56,7 @@ const ClipSlide = memo(function ClipSlide({
       <ClipVisual
         mediaType={media_type}
         url={visualUrl}
-        playing={isActive}
+        playing={isActive && !isPaused}
         duration={clip_duration}
         videoRef={onVideoRef}
       />
@@ -86,6 +87,9 @@ const ClipSlide = memo(function ClipSlide({
         background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)',
         pointerEvents: 'none',
       }} />
+
+      {/* Tap the picture to pause/play — under every control below (z-index 10). */}
+      <TapToPause paused={isActive && isPaused} onToggle={onTogglePause} center={frameCenter()} />
 
       {/* Right-side action column — like, remix count, share, report (⋯) */}
       <div style={{
@@ -154,6 +158,10 @@ export default function ClipsFeedPage() {
   const [hasMore, setHasMore] = useState(true);
   const [sort, setSort]       = useState('new'); // 'new' | 'trending'
   const [activeIdx, setActiveIdx] = useState(null); // which slide is current — drives the song-bar disc spin
+  // Tap-to-pause: pauses the active clip's video + sound (and with them the Ken
+  // Burns zoom and visualiser). Cleared whenever a new clip comes on screen.
+  const [paused, setPaused]   = useState(false);
+  const pausedRef             = useRef(false);
 
   const pageRef            = useRef(0);
   const loadingRef         = useRef(false);
@@ -226,6 +234,8 @@ export default function ClipsFeedPage() {
           }
           activeRef.current = idx;
           setActiveIdx(idx);
+          pausedRef.current = false;   // a newly shown clip always plays, from its start point
+          setPaused(false);
 
           if (vid) { vid.muted = true; vid.play().catch(() => {}); }
           if (aud) {
@@ -304,8 +314,32 @@ export default function ClipsFeedPage() {
         aud.muted = nm;
         if (!nm) aud.play().catch(() => {});
       }
+      // Turning the sound on while paused means "play" — never unmute into silence.
+      if (!nm && pausedRef.current) {
+        pausedRef.current = false;
+        setPaused(false);
+        videoRefs.current[idx]?.play().catch(() => {});
+      }
     }
   };
+
+  const togglePause = useCallback(() => {
+    const idx = activeRef.current;
+    if (idx === null) return;
+    const vid = videoRefs.current[idx];
+    const aud = audioRefs.current[idx];
+    if (pausedRef.current) {
+      pausedRef.current = false;
+      setPaused(false);
+      vid?.play().catch(() => {});
+      if (aud && !mutedRef.current) aud.play().catch(() => {});
+    } else {
+      pausedRef.current = true;
+      setPaused(true);
+      vid?.pause();
+      aud?.pause();
+    }
+  }, []);
 
   const handleLike = useCallback(async (clipId) => {
     if (!token) { navigate('/register'); return; }
@@ -406,8 +440,10 @@ export default function ClipsFeedPage() {
             isLiked={liked.has(clip.id)}
             likeCount={counts[clip.id] || 0}
             isCopied={copied === clip.id}
-            isPlaying={activeIdx === idx && !muted}
+            isPlaying={activeIdx === idx && !muted && !paused}
             isActive={activeIdx === idx}
+            isPaused={paused}
+            onTogglePause={togglePause}
             onLike={() => handleLike(clip.id)}
             onShare={() => handleShare(clip.id)}
             onRemix={() => handleRemix(clip.id)}
