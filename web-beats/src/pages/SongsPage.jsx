@@ -30,6 +30,7 @@ import {
 import { readRemixIntent, arrivedViaRemix, remixTargetFromSearch, remixDestination } from '../utils/remixIntent';
 import RemixStartedNotice from '../components/RemixStartedNotice';
 import { freeSongsLine } from '../utils/freeSongs';
+import { apiErrorMessage, ROAST_DETAILS_MAX } from '../utils/apiErrorMessage';
 
 // Set once the post-first-song name prompt has been answered OR skipped, so a
 // user who isn't interested is never asked twice.
@@ -1146,7 +1147,7 @@ export default function SongsPage() {
           setVerifyBlock({ message: det.message, email: det.email, bounced: !!det.bounced, bounceOrigin: det.bounce_origin || null, roastSaved: isRoastMode });
           return;   // `finally` clears the spinner; the form is intentionally kept
         }
-        throw new Error((typeof det === 'string' ? det : det?.message) || 'Generation failed');
+        throw new Error(apiErrorMessage(det, 'Generation failed'));
       }
       const _storyUrl = d.story_audio_url
         ? (d.story_audio_url.startsWith('http') ? d.story_audio_url : `${BACKEND_URL}${d.story_audio_url}`)
@@ -2191,8 +2192,17 @@ export default function SongsPage() {
                   onChange={(e) => setRoastDetails(e.target.value)}
                   placeholder="Funny habits, legendary stories, what they&apos;re known for... (optional but the more you give us, the better the roast!)"
                   rows={3}
-                  style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.30)', borderRadius: 10, padding: '10px 14px', color: '#f0eeff', fontSize: 14, resize: 'vertical', fontFamily: 'inherit', outline: 'none', marginBottom: 14, transition: 'border-color 0.2s' }}
+                  maxLength={ROAST_DETAILS_MAX}
+                  aria-describedby="roast-details-count"
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.30)', borderRadius: 10, padding: '10px 14px', color: '#f0eeff', fontSize: 14, resize: 'vertical', fontFamily: 'inherit', outline: 'none', marginBottom: 4, transition: 'border-color 0.2s', display: 'block' }}
                 />
+                <p
+                  id="roast-details-count"
+                  data-testid="roast-details-count"
+                  style={{ fontSize: 11, textAlign: 'right', margin: '0 0 14px', color: roastDetails.length >= ROAST_DETAILS_MAX ? '#f87171' : 'rgba(240,238,255,0.45)' }}
+                >
+                  {roastDetails.length}/{ROAST_DETAILS_MAX}
+                </p>
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>
                   Pick the Vibe
                 </p>

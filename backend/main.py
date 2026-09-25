@@ -26,6 +26,8 @@ import time
 from collections import defaultdict, deque
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.exception_handlers import request_validation_exception_handler as _default_request_validation_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
@@ -612,6 +614,34 @@ def _ws_check_rate(user_id: str, limit: int = 60, window: int = 60) -> bool:
         return False
     q.append(now)
     return True
+
+
+_VALIDATION_LIMIT_KEYS = ("max_length", "min_length", "le", "ge", "lt", "gt", "expected")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Logs WHY a request was rejected with 422 — which field, which rule, which
+    limit — then returns FastAPI's standard 422 body unchanged (the frontend reads
+    it to show the real message). Added 2026-09-25 after a roast generation 422'd
+    four times with nothing in the logs but the status line.
+
+    Never logs the rejected input itself: pydantic's error dicts carry it
+    ("input"), and fields like roast_details / custom_lyrics can be personal."""
+    user = "anonymous"
+    authz = request.headers.get("authorization", "")
+    if authz.lower().startswith("bearer "):
+        payload = auth.verify_token(authz[7:].strip())
+        user = (payload or {}).get("sub") or "invalid-token"
+    reasons = []
+    for err in exc.errors():
+        field = ".".join(str(p) for p in err.get("loc", ()))
+        ctx = err.get("ctx") or {}
+        limits = ", ".join(f"{k}={ctx[k]}" for k in _VALIDATION_LIMIT_KEYS if k in ctx)
+        reasons.append(f"{field}: {err.get('type')}" + (f" ({limits})" if limits else ""))
+    log.warning("422 request validation failed on %s %s user=%s — %s",
+                request.method, request.url.path, user, "; ".join(reasons) or "no details")
+    return await _default_request_validation_handler(request, exc)
 
 
 @app.exception_handler(Exception)
