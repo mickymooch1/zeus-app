@@ -1634,32 +1634,21 @@ def _cmd_refund_failures() -> str:
         if not rows:
             return "✅ No unrefunded failures in the last 24h"
 
+        # Through the single once-only gate: songs the automatic paths already
+        # refunded, free retries and uncharged (admin) songs pay out nothing
+        # (2026-09-27 — this used to add a refund on top of the automatic one).
         per_user: dict[str, int] = {}
         per_user_email: dict[str, str] = {}
-        variant_ids: list[int] = []
         for row in rows:
-            uid = row["user_id"]
-            per_user[uid] = per_user.get(uid, 0) + 1
-            per_user_email[uid] = row["email"] or uid
-            variant_ids.append(row["id"])
+            if _db.refund_song_credit_once(db_path, row["id"], "admin_refund_failures"):
+                uid = row["user_id"]
+                per_user[uid] = per_user.get(uid, 0) + 1
+                per_user_email[uid] = row["email"] or uid
 
-        for uid, count in per_user.items():
-            _db.increment_song_credits(db_path, uid, count)
+        if not per_user:
+            return "✅ No unrefunded failures in the last 24h"
 
-        # Mark refunded so a re-run is a no-op
-        conn = sqlite3.connect(str(db_path))
-        try:
-            placeholders = ",".join("?" for _ in variant_ids)
-            conn.execute(
-                f"UPDATE song_variants SET refunded_at = datetime('now') "
-                f"WHERE id IN ({placeholders})",
-                variant_ids,
-            )
-            conn.commit()
-        finally:
-            conn.close()
-
-        total_failures = len(variant_ids)
+        total_failures = sum(per_user.values())
         n_users = len(per_user)
         log.info(
             "refund failures: refunded %d credits to %d users for %d failed songs",

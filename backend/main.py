@@ -3086,9 +3086,9 @@ async def songs_generate(
                 _sv_conn.execute("UPDATE song_credits SET balance = balance - 1 WHERE user_id = ?", (user_id,))
             _sv_conn.execute(
                 "INSERT INTO song_variants "
-                "(lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover, mp3_url, subtitles_url) "
-                "VALUES (?, ?, 'kids_story', 'kids_story', 'complete', 1, 0, ?, ?)",
-                (lyric_id, user_id, story_audio_url, subtitles_url),
+                "(lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover, mp3_url, subtitles_url, credit_charged) "
+                "VALUES (?, ?, 'kids_story', 'kids_story', 'complete', 1, 0, ?, ?, ?)",
+                (lyric_id, user_id, story_audio_url, subtitles_url, 0 if _is_admin_story else 1),
             )
             _sv_id = _sv_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             _sv_conn.commit()
@@ -3128,9 +3128,9 @@ async def songs_generate(
             if not _is_admin_sfx:
                 _sfx_conn.execute("UPDATE song_credits SET balance = balance - 1 WHERE user_id = ?", (user_id,))
             _sfx_conn.execute(
-                "INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover) "
-                "VALUES (?, ?, ?, ?, 'pending', 1, 0)",
-                (lyric_id, user_id, _sfx_mod.sfx_prompt(_sfx_genre, body.brief or ""), _sfx_genre),
+                "INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover, credit_charged) "
+                "VALUES (?, ?, ?, ?, 'pending', 1, 0, ?)",
+                (lyric_id, user_id, _sfx_mod.sfx_prompt(_sfx_genre, body.brief or ""), _sfx_genre, 0 if _is_admin_sfx else 1),
             )
             _sfx_vid = _sfx_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             _sfx_conn.commit()
@@ -3143,7 +3143,9 @@ async def songs_generate(
             log.exception("SFX generation FAILED variant_id=%d genre=%r", _sfx_vid, _sfx_genre)
             _fc = sqlite3.connect(str(db_path))
             try:
-                _fc.execute("UPDATE song_variants SET status='failed' WHERE id=?", (_sfx_vid,))
+                _fc.execute("UPDATE song_variants SET status='failed', "
+                            "refunded_at = CASE WHEN credit_charged = 1 THEN CURRENT_TIMESTAMP ELSE refunded_at END "
+                            "WHERE id=?", (_sfx_vid,))
                 if not _is_admin_sfx:
                     _fc.execute("UPDATE song_credits SET balance = balance + 1 WHERE user_id = ?", (user_id,))
                 _fc.commit()
@@ -3434,8 +3436,8 @@ async def songs_generate(
                     raise HTTPException(status_code=402, detail="No song credits available. Top up to continue.")
                 _p_cur.execute("UPDATE song_credits SET balance = balance - 1 WHERE user_id = ?", (user_id,))
             _p_cur.execute(
-                "INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover) VALUES (?, ?, ?, ?, 'pending', 1, ?)",
-                (lyric_id, user_id, _p_style, _p_genre, 1 if body.animate_cover else 0),
+                "INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status, take_number, animate_cover, credit_charged) VALUES (?, ?, ?, ?, 'pending', 1, ?, ?)",
+                (lyric_id, user_id, _p_style, _p_genre, 1 if body.animate_cover else 0, 0 if is_admin else 1),
             )
             _p_variant_id = _p_cur.lastrowid
             _p_conn.commit()
@@ -3461,7 +3463,9 @@ async def songs_generate(
             try:
                 if not is_admin:
                     _fail_conn.execute("UPDATE song_credits SET balance = balance + 1 WHERE user_id = ?", (user_id,))
-                _fail_conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (_p_variant_id,))
+                _fail_conn.execute("UPDATE song_variants SET status = 'failed', "
+                                   "refunded_at = CASE WHEN credit_charged = 1 THEN CURRENT_TIMESTAMP ELSE refunded_at END "
+                                   "WHERE id = ?", (_p_variant_id,))
                 _fail_conn.commit()
             finally:
                 _fail_conn.close()
@@ -5974,8 +5978,8 @@ async def upload_mix(
         mp3_url = f"/files/songs/{filename}"
         cur.execute(
             """INSERT INTO song_variants
-               (lyric_id, user_id, style_prompt, genre_tag, status, mp3_url, take_number, completed_at)
-               VALUES (?, ?, 'DJ Mix', 'mix', 'complete', ?, 1, CURRENT_TIMESTAMP)""",
+               (lyric_id, user_id, style_prompt, genre_tag, status, mp3_url, take_number, completed_at, credit_charged)
+               VALUES (?, ?, 'DJ Mix', 'mix', 'complete', ?, 1, CURRENT_TIMESTAMP, 0)""",
             (lyric_id, user_id, mp3_url),
         )
         variant_id = cur.lastrowid
@@ -7212,8 +7216,8 @@ async def cover_song(
         )
         lyric_id = cur.lastrowid
         cur.execute(
-            """INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status)
-               VALUES (?, ?, ?, ?, 'pending')""",
+            """INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status, credit_charged)
+               VALUES (?, ?, ?, ?, 'pending', 1)""",
             (lyric_id, user_id, source.get("style_prompt", ""), source.get("genre_tag", "")),
         )
         new_variant_id = cur.lastrowid

@@ -12,8 +12,8 @@ string), which avoids re-parsing incidents.py's human-readable format.
 
 Every action requires an explicit "yes" from TELEGRAM_ADMIN_USER_ID within
 _OFFER_TTL_MINUTES of the offer -- nothing here ever executes automatically.
-Offers live in memory only (same tradeoff as zeus_ops_agent's _retry_attempted
-/_retry_map and alerts.py's digest counters: resets on redeploy, acceptable
+Offers live in memory only (same tradeoff as alerts.py's digest counters:
+resets on redeploy, acceptable
 because a lost offer just means re-diagnosing next time the category recurs,
 never a silently-executed action).
 

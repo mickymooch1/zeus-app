@@ -37,13 +37,16 @@ def _db(tmp_path, variants):
     """variants: list of (id, status, age_minutes)."""
     p = tmp_path / "sweep.db"
     c = sqlite3.connect(str(p))
+    # refunded_at / credit_charged / retry_of: the refund goes through
+    # db.refund_song_credit_once, which needs them (NULL credit_charged = charged).
     c.execute("""CREATE TABLE song_variants
-                 (id INTEGER PRIMARY KEY, user_id TEXT, status TEXT, created_at TEXT)""")
+                 (id INTEGER PRIMARY KEY, user_id TEXT, status TEXT, created_at TEXT,
+                  refunded_at TIMESTAMP, credit_charged INTEGER, retry_of INTEGER)""")
     c.execute("CREATE TABLE song_credits (user_id TEXT PRIMARY KEY, balance INTEGER)")
     c.execute("INSERT INTO song_credits VALUES ('u', 10)")
     for vid, status, age in variants:
         c.execute(
-            "INSERT INTO song_variants VALUES (?, 'u', ?, datetime('now', ?))",
+            "INSERT INTO song_variants (id, user_id, status, created_at) VALUES (?, 'u', ?, datetime('now', ?))",
             (vid, status, f"-{age} minutes"),
         )
     c.commit()

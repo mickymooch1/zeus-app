@@ -20,8 +20,10 @@ Scheduled jobs (registered in scheduler.py):
 
 Event hooks (called from main.py / webhooks.py):
   on_new_signup(user_id, email)  — send welcome email via Resend
-  on_song_failed(variant_id)     — retry once for free; on retry failure refund credit
-                                   and email user "sorry, credit refunded"
+  on_song_failed(variant_id, error_msg) — retry once for free; refund the credit (once)
+                                   when the retry fails too, or straight away for a
+                                   content-policy refusal (never retried), and email
+                                   the user. Refunds: db.refund_song_credit_once.
 
 NO automatic song generation — this agent never creates songs on its own.
 """
@@ -42,13 +44,26 @@ _DB_PATH_ENV = "DB_PATH"
 _DB_DEFAULT  = "/data/zeus.db"
 
 # ── Retry tracking ────────────────────────────────────────────────────────────
-# In-memory only; resets on redeploy. The 30-min dedup window in alerts.py
-# ensures we don't spam Michael if the process restarts mid-retry.
-#
-# _retry_attempted  — original variant_ids we have already retried once
-# _retry_map        — {retry_variant_id: original_variant_id}
-_retry_attempted: set[int] = set()
-_retry_map: dict[int, int] = {}
+# Persistent: a retry row carries song_variants.retry_of = <original id>. This
+# used to be two in-memory sets, lost on every redeploy, and a duplicate failed
+# webhook re-ran the retry logic from scratch (2026-09-27).
+
+# Provider refusals of the request itself. Retrying resubmits the same lyrics and
+# style, so these cannot succeed — refund straight away instead. Matched on the
+# provider's error text, lower-cased.
+_CONTENT_REFUSAL_MARKERS = (
+    "copyright",
+    "inappropriate",
+    "sensitive word",
+    "content policy",
+    "violates",
+    "artist name",
+)
+
+
+def is_content_refusal(error_msg: str | None) -> bool:
+    msg = (error_msg or "").lower()
+    return any(m in msg for m in _CONTENT_REFUSAL_MARKERS)
 
 
 def _db() -> str:
@@ -64,6 +79,7 @@ def _fix_stuck_songs() -> list[str]:
     """
     warnings: list[str] = []
     try:
+        import db as _dbmod
         conn = sqlite3.connect(_db())
         conn.row_factory = sqlite3.Row
         try:
@@ -72,27 +88,27 @@ def _fix_stuck_songs() -> list[str]:
                    WHERE status IN ('pending', 'generating')
                    AND created_at <= datetime('now', '-15 minutes')"""
             ).fetchall()
-            if not stuck:
-                return []
-            for row in stuck:
-                conn.execute(
-                    "UPDATE song_variants SET status = 'failed' WHERE id = ?",
-                    (row["id"],),
-                )
-                conn.execute(
-                    "UPDATE song_credits SET balance = balance + 1 WHERE user_id = ?",
-                    (row["user_id"],),
-                )
-                log.warning(
-                    "ops_agent: auto-failed stuck variant %d (user=%s) — credit refunded",
-                    row["id"], row["user_id"],
-                )
-            conn.commit()
-            warnings.append(
-                f"⏳ Auto-failed {len(stuck)} stuck song(s) (pending >15 min) — credits refunded"
-            )
         finally:
             conn.close()
+        if not stuck:
+            return []
+        failed = refunded = 0
+        for row in stuck:
+            # Claim first: a late webhook may have failed/completed it meanwhile.
+            if not _dbmod.claim_variant_failed(_db(), row["id"]):
+                continue
+            failed += 1
+            # A stuck retry refunds its original; an uncharged song refunds nothing.
+            did = _dbmod.refund_song_credit_once(_db(), row["id"], "stuck")
+            refunded += int(did)
+            log.warning(
+                "ops_agent: auto-failed stuck variant %d (user=%s) — %s",
+                row["id"], row["user_id"], "credit refunded" if did else "no refund due",
+            )
+        if failed:
+            warnings.append(
+                f"⏳ Auto-failed {failed} stuck song(s) (pending >15 min) — {refunded} credit(s) refunded"
+            )
     except Exception:
         log.exception("ops_agent: _fix_stuck_songs raised")
     return warnings
@@ -613,7 +629,8 @@ def on_new_signup(user_id: str, email: str, name: str = "") -> None:
 
 # ── Song failure retry ────────────────────────────────────────────────────────
 
-def _send_failure_email(email: str, variant_id: int, name: str = "") -> None:
+def _send_failure_email(email: str, variant_id: int, name: str = "",
+                        reason: str = "retry_failed", provider_msg: str = "") -> None:
     try:
         api_key = os.environ.get("RESEND_API_KEY", "").strip()
         if not api_key:
@@ -622,14 +639,26 @@ def _send_failure_email(email: str, variant_id: int, name: str = "") -> None:
         subject = "Your Zeus Beats song credit has been refunded"
         first_name = (name or "").strip().split(" ")[0]
         opener = f"Sorry {first_name} — your song" if first_name else "Sorry — your song"
-        body = (
-            f"{opener} failed to generate this time.\n\n"
-            "We automatically retried but hit the same error, so we've refunded your credit "
-            "and you can try again straight away.\n\n"
-            "This is usually a temporary blip with our music AI. Just head back to Zeus Beats "
-            "and give it another go — it normally works first time!\n\n"
-            "If it keeps happening, reply to this email and we'll sort it out personally."
-        )
+        if reason == "content_refusal":
+            # Not a blip and not retried — retrying the same words can't work.
+            said = f'\n\nThe message we got back was: "{provider_msg.strip()}"' if provider_msg.strip() else ""
+            body = (
+                f"{opener} couldn't be made: our music AI refused the request, usually because "
+                "the lyrics or style include copyrighted lyrics, an artist's name, or words it "
+                f"won't sing.{said}\n\n"
+                "We've refunded your credit. Change the lyrics (write your own words rather than "
+                "an existing song's) and try again.\n\n"
+                "If you think this is a mistake, reply to this email and we'll take a look."
+            )
+        else:
+            body = (
+                f"{opener} failed to generate this time.\n\n"
+                "We automatically retried but hit the same error, so we've refunded your credit "
+                "and you can try again straight away.\n\n"
+                "This is usually a temporary blip with our music AI. Just head back to Zeus Beats "
+                "and give it another go — it normally works first time!\n\n"
+                "If it keeps happening, reply to this email and we'll sort it out personally."
+            )
         _send_one_email(email, subject, body, api_key)
         log.info("ops_agent: failure email sent to %s (variant %d)", email, variant_id)
     except Exception:
@@ -664,14 +693,16 @@ def _retry_song(variant_id: int) -> int | None:
         finally:
             conn.close()
 
-        # Insert new variant row — no credit deduction (covered by the original)
+        # Insert new variant row — no credit deduction (covered by the original).
+        # retry_of makes any refund for this row land on the charged original.
         conn = sqlite3.connect(_db())
         try:
             cur = conn.cursor()
             cur.execute(
-                """INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status, take_number)
-                   VALUES (?, ?, ?, ?, 'pending', 1)""",
-                (v["lyric_id"], v["user_id"], v["style_prompt"], v["genre_tag"]),
+                """INSERT INTO song_variants (lyric_id, user_id, style_prompt, genre_tag, status, take_number,
+                                              credit_charged, retry_of)
+                   VALUES (?, ?, ?, ?, 'pending', 1, 0, ?)""",
+                (v["lyric_id"], v["user_id"], v["style_prompt"], v["genre_tag"], variant_id),
             )
             new_vid = cur.lastrowid
             conn.commit()
@@ -723,71 +754,83 @@ def _retry_song(variant_id: int) -> int | None:
         return None
 
 
-def _refund_and_notify(variant_id: int) -> None:
-    """Refund the song credit for the user of variant_id and email them."""
+def _refund_and_notify(variant_id: int, reason: str = "retry_failed", provider_msg: str = "") -> bool:
+    """Refund the credit behind variant_id (once — see db.refund_song_credit_once)
+    and email the user. No email when nothing was refunded: it says "refunded"."""
     try:
+        import db as _dbmod
+        refunded = _dbmod.refund_song_credit_once(_db(), variant_id, reason)
+        if not refunded:
+            log.info("ops_agent: variant %d — no refund due (uncharged or already refunded)", variant_id)
+            return False
         conn = sqlite3.connect(_db())
         conn.row_factory = sqlite3.Row
         try:
             row = conn.execute(
-                """SELECT sv.user_id, u.email, u.name
-                   FROM song_variants sv JOIN users u ON u.id = sv.user_id
+                """SELECT u.email, u.name FROM song_variants sv JOIN users u ON u.id = sv.user_id
                    WHERE sv.id = ?""",
                 (variant_id,),
             ).fetchone()
-            if not row:
-                log.warning("ops_agent: _refund_and_notify: variant %d not found", variant_id)
-                return
-            conn.execute(
-                "UPDATE song_credits SET balance = balance + 1 WHERE user_id = ?",
-                (row["user_id"],),
-            )
-            conn.commit()
-            log.info("ops_agent: refunded credit for user %s (variant %d)", row["user_id"], variant_id)
         finally:
             conn.close()
-        _send_failure_email(row["email"], variant_id, name=row["name"] or "")
+        log.info("ops_agent: refunded credit for variant %d (%s)", variant_id, reason)
+        if row:
+            _send_failure_email(row["email"], variant_id, name=row["name"] or "",
+                                reason=reason, provider_msg=provider_msg)
+        return True
     except Exception:
         log.exception("ops_agent: _refund_and_notify raised for variant %d", variant_id)
+        return False
 
 
-def on_song_failed(variant_id: int) -> None:
-    """Called whenever a song variant is marked failed.
+def on_song_failed(variant_id: int, error_msg: str | None = None) -> None:
+    """Called ONCE per failed variant — callers claim the failure first with
+    db.claim_variant_failed, so a duplicate provider notice never gets here.
 
-    First failure  → retry once (new variant, no extra credit deducted).
-    Retry failure  → refund original credit + email user.
+    Failed retry           → refund the charged original (once) + email.
+    Content-policy refusal → no retry (it can't succeed); refund + email now.
+    First ordinary failure → retry once for free; NO refund yet — if the retry
+                             succeeds the user has their song.
 
-    Never raises — all errors are logged and swallowed.
+    Never raises — all errors are logged; if something breaks mid-way the credit
+    is refunded rather than left held (refunding is idempotent, so that's safe).
     """
     try:
-        # Is this the failure of a retry we launched?
-        if variant_id in _retry_map:
-            original_id = _retry_map.pop(variant_id)
-            _retry_attempted.discard(original_id)
+        conn = sqlite3.connect(_db())
+        try:
+            row = conn.execute("SELECT retry_of FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
+            already_retried = conn.execute(
+                "SELECT 1 FROM song_variants WHERE retry_of = ? LIMIT 1", (variant_id,)
+            ).fetchone()
+        finally:
+            conn.close()
+        if row is None:
+            log.warning("ops_agent: on_song_failed(%d) — variant not found", variant_id)
+            return
+
+        if row[0] is not None:
             log.warning(
                 "ops_agent: retry variant %d also failed (original=%d) — refunding",
-                variant_id, original_id,
+                variant_id, row[0],
             )
-            _refund_and_notify(original_id)
+            _refund_and_notify(variant_id)
             return
 
-        # Have we already retried this variant? (shouldn't happen, but guard it)
-        if variant_id in _retry_attempted:
-            log.debug("ops_agent: on_song_failed(%d) — already in retry set, ignoring", variant_id)
+        if is_content_refusal(error_msg):
+            log.info("ops_agent: variant %d refused by provider (%r) — refunding, not retrying",
+                     variant_id, (error_msg or "")[:200])
+            _refund_and_notify(variant_id, reason="content_refusal", provider_msg=error_msg or "")
             return
 
-        # First failure — attempt retry
-        _retry_attempted.add(variant_id)
+        if already_retried:
+            log.info("ops_agent: variant %d already retried — ignoring repeat failure", variant_id)
+            return
+
         log.info("ops_agent: first failure for variant %d — attempting retry", variant_id)
-
-        new_vid = _retry_song(variant_id)
-        if new_vid:
-            _retry_map[new_vid] = variant_id
-        else:
-            # Retry submission itself failed — refund immediately
-            _retry_attempted.discard(variant_id)
+        if _retry_song(variant_id) is None:
             log.warning("ops_agent: retry submission failed for variant %d — refunding immediately", variant_id)
             _refund_and_notify(variant_id)
 
     except Exception:
-        log.exception("ops_agent: on_song_failed(%d) raised unexpectedly", variant_id)
+        log.exception("ops_agent: on_song_failed(%d) raised unexpectedly — refunding", variant_id)
+        _refund_and_notify(variant_id)

@@ -745,19 +745,11 @@ async def apiframe_webhook(request: Request):
     if event == "failed" or job_status == "FAILED":
         error_msg = body.get("error") or body.get("message") or body.get("error_message") or "unknown error"
         logger.error("Apiframe FAILED variant_id=%d error=%s", variant_id, error_msg)
-        conn = sqlite3.connect(DB_PATH)
-        try:
-            cur = conn.cursor()
-            _ref_row = cur.execute("SELECT user_id, status FROM song_variants WHERE id = ?", (variant_id,)).fetchone()
-            cur.execute(
-                "UPDATE song_variants SET status = 'failed' WHERE id = ?",
-                (variant_id,),
-            )
-            conn.commit()
-        finally:
-            conn.close()
-        if _ref_row and _ref_row[1] != 'failed' and _ref_row[0]:
-            _refund_song_credit(variant_id, _ref_row[0], "FAILED")
+        # Only the delivery that flips the row to failed handles it; Apiframe does
+        # re-send failure webhooks (variant 2139, 2026-09-27).
+        if not _db.claim_variant_failed(DB_PATH, variant_id):
+            logger.info("Duplicate/late FAILED webhook ignored: variant_id=%d", variant_id)
+            return {"ok": True, "status": "failed"}
         try:
             import alerts as _alerts
             _ec = sqlite3.connect(DB_PATH)
@@ -777,11 +769,9 @@ async def apiframe_webhook(request: Request):
                 _ec.close()
         except Exception:
             pass
-        try:
-            import zeus_ops_agent as _ops
-            _ops.on_song_failed(variant_id)
-        except Exception:
-            pass
+        # No refund here: the ops agent retries first (refunding only if the free
+        # retry fails too) or, for a content refusal, refunds straight away.
+        _hand_failure_to_ops(variant_id, error_msg)
         return {"ok": True, "status": "failed"}
 
     # Progress: ignore for now (we only subscribed to completed + failed)
@@ -923,19 +913,8 @@ async def apiframe_webhook(request: Request):
             "Apiframe webhook: take 1 MP3 suspiciously small (%d bytes) for variant_id=%d — marking failed",
             os.path.getsize(local_path1), variant_id,
         )
-        conn = sqlite3.connect(DB_PATH)
-        try:
-            conn.execute("UPDATE song_variants SET status = 'failed' WHERE id = ?", (variant_id,))
-            conn.commit()
-        finally:
-            conn.close()
-        if orig and orig[1]:
-            _refund_song_credit(variant_id, orig[1], "small_file")
-        try:
-            import zeus_ops_agent as _ops
-            _ops.on_song_failed(variant_id)
-        except Exception:
-            pass
+        if _db.claim_variant_failed(DB_PATH, variant_id):
+            _hand_failure_to_ops(variant_id, "mp3_too_small")
         return {"ok": True, "status": "failed", "reason": "mp3_too_small"}
     _apply_fade_out(local_path1, variant_id, duration1)
     permanent_url1 = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
@@ -1039,8 +1018,8 @@ async def apiframe_webhook(request: Request):
                 cur.execute(
                     """INSERT INTO song_variants
                        (lyric_id, user_id, style_prompt, genre_tag, provider_job_id,
-                        take_number, status, duration_seconds, completed_at)
-                       SELECT ?, ?, ?, ?, ?, 2, 'complete', ?, CURRENT_TIMESTAMP
+                        take_number, status, duration_seconds, completed_at, credit_charged)
+                       SELECT ?, ?, ?, ?, ?, 2, 'complete', ?, CURRENT_TIMESTAMP, 0
                        WHERE NOT EXISTS (
                            SELECT 1 FROM song_variants
                            WHERE provider_job_id = ? AND take_number = 2
@@ -1282,11 +1261,25 @@ async def telegram_admin_webhook(request: Request):
 
 
 def _refund_song_credit(variant_id: int, user_id: str, reason: str) -> None:
+    """Refund through the single once-only gate (db.refund_song_credit_once):
+    a duplicate delivery, a free retry or an uncharged song pays out nothing.
+    user_id is kept for the call sites' signature; the gate reads the owner itself."""
     try:
-        _db.increment_song_credits(DB_PATH, user_id, 1)
-        logger.info("Credit refunded: variant_id=%d user_id=%s reason=%s", variant_id, user_id, reason)
+        if not _db.refund_song_credit_once(DB_PATH, variant_id, reason):
+            logger.info("No refund due: variant_id=%d reason=%s (uncharged or already refunded)", variant_id, reason)
     except Exception:
         logger.exception("Failed to refund credit: variant_id=%d user_id=%s", variant_id, user_id)
+
+
+def _hand_failure_to_ops(variant_id: int, error_msg: str | None) -> None:
+    """The ops agent decides retry vs refund. If it can't even be reached, refund
+    now rather than leave the credit held — the gate makes that safe to repeat."""
+    try:
+        import zeus_ops_agent as _ops
+        _ops.on_song_failed(variant_id, error_msg)
+    except Exception:
+        logger.exception("ops agent unavailable for failed variant_id=%d — refunding directly", variant_id)
+        _refund_song_credit(variant_id, "", "FAILED")
 
 
 @router.post("/webhooks/cometapi")
