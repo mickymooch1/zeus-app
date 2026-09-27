@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../../utils/apiErrorMessage';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -255,7 +256,7 @@ export default function KidsLanguagePage() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.detail || 'Could not load lesson');
+        throw new Error(apiErrorMessage(d.detail, 'Could not load lesson'));
       }
       const data = await res.json();
       setLesson({ audioUrl: data.audio_url, words: data.words });

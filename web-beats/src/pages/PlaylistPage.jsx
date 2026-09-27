@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNowPlaying } from '../contexts/NowPlayingContext';
@@ -359,7 +360,7 @@ export default function PlaylistPage() {
         body: JSON.stringify({ prompt: aiPrompt.trim() }),
       });
       const data = await r.json();
-      if (!r.ok) { setAiError(data.detail || 'Something went wrong'); return; }
+      if (!r.ok) { setAiError(apiErrorMessage(data.detail, 'Something went wrong')); return; }
       // Merge song_count from response into playlist object for immediate display
       setPlaylists(prev => [{ ...data.playlist, song_count: data.song_count }, ...prev]);
       setAiOpen(false);

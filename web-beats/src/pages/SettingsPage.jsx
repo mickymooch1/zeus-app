@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
@@ -46,7 +47,7 @@ export default function SettingsPage() {
         body: fd,
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || 'Voice cloning failed');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Voice cloning failed'));
       setStatus('✅ Your voice is ready! Pick "🎙️ My Voice" as the narrator in Zeus Little Beats.');
       if (refreshUser) await refreshUser();
     } catch (e) {

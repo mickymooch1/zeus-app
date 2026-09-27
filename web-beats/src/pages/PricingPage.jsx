@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BeatsNavbar } from '../components/BeatsNavbar';
@@ -78,7 +79,7 @@ export default function PricingPage() {
         body: JSON.stringify({ plan: planKey }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to create checkout');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Failed to create checkout'));
       window.location.href = data.url;
     } catch (err) {
       setError(err.message);

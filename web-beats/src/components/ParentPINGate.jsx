@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useState } from 'react';
 import { BACKEND_URL } from '../brand';
 import '../kids.css';
@@ -71,7 +72,7 @@ export default function ParentPINGate({ token, hasPIN = false, action = 'enter',
         if (res.status === 403) {
           setError('School accounts access Kids Beats directly — no PIN needed');
         } else {
-          setError(d.detail || 'Could not save PIN — try again');
+          setError(apiErrorMessage(d.detail, 'Could not save PIN — try again'));
         }
         setPin('');
         setFirstPin('');
@@ -103,7 +104,7 @@ export default function ParentPINGate({ token, hasPIN = false, action = 'enter',
         if (res.status === 403) {
           setError('School accounts access Kids Beats directly — no PIN needed');
         } else {
-          setError(d.detail || 'Incorrect PIN — try again');
+          setError(apiErrorMessage(d.detail, 'Incorrect PIN — try again'));
         }
         setPin('');
         setTimeout(() => setShake(false), 500);

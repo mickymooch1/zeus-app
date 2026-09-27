@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { BACKEND_URL } from '../brand';
 import { PLATFORM } from '../utils/platform';
@@ -123,7 +124,7 @@ export function AuthProvider({ children }) {
 
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.detail || 'Login failed');
+      throw new Error(apiErrorMessage(data.detail, 'Login failed'));
     }
 
     localStorage.setItem(TOKEN_KEY, data.token);
@@ -149,7 +150,7 @@ export function AuthProvider({ children }) {
 
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.detail || 'Registration failed');
+      throw new Error(apiErrorMessage(data.detail, 'Registration failed'));
     }
 
     localStorage.setItem(TOKEN_KEY, data.token);
