@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -141,7 +142,7 @@ export default function ClipCreatorPage() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
-        setUploadError((typeof d.detail === 'string' ? d.detail : d.detail?.message) || 'Upload failed.');
+        setUploadError(apiErrorMessage(d.detail, 'Upload failed.'));
         return;
       }
       setUploadedUrl(d.media_url);
@@ -178,7 +179,7 @@ export default function ClipCreatorPage() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
-        setError((typeof d.detail === 'string' ? d.detail : d.detail?.message) || 'Could not publish this clip.');
+        setError(apiErrorMessage(d.detail, 'Could not publish this clip.'));
         return;
       }
       navigate(`/clips/${d.id}`, { replace: true });

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -52,7 +53,7 @@ export default function LyricWorkshop({ onUseLyrics, backendUrl, token }) {
         let detail = '';
         try {
           const j = await r.json();
-          detail = typeof j.detail === 'string' ? j.detail : (j.detail?.message || '');
+          detail = apiErrorMessage(j.detail, '');
         } catch { /* non-JSON error body */ }
         throw new Error(detail || t('workshop.errorGeneric'));
       }
