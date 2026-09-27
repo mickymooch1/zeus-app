@@ -1221,7 +1221,7 @@ export default function SongsPage() {
         body: JSON.stringify({ pack }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.detail || 'Checkout failed');
+      if (!r.ok) throw new Error(apiErrorMessage(d.detail, 'Checkout failed'));
       window.location.href = d.url;
     } catch (e) {
       setError(e.message);
@@ -1238,7 +1238,7 @@ export default function SongsPage() {
         body: JSON.stringify({ pack }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.detail || 'Checkout failed');
+      if (!r.ok) throw new Error(apiErrorMessage(d.detail, 'Checkout failed'));
       window.location.href = d.url;
     } catch (e) {
       setError(e.message);
@@ -1289,7 +1289,7 @@ export default function SongsPage() {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Regenerate failed');
+    if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Regenerate failed'));
     setCredits((p) => ({ ...p, balance: Math.max(0, p.balance - 1) }));
     setActiveJob({
       lyric_id: data.lyric_id,
@@ -1361,7 +1361,7 @@ export default function SongsPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await r.json();
-      if (!r.ok) { alert(data.detail || 'Could not start stem separation'); return; }
+      if (!r.ok) { alert(apiErrorMessage(data.detail, 'Could not start stem separation')); return; }
       setStemsData(prev => ({ ...prev, [variantId]: data }));
       if (data.stems_status === 'pending') {
         const intervalId = setInterval(async () => {
@@ -1408,7 +1408,7 @@ export default function SongsPage() {
           lockToastTimer.current = setTimeout(() => setLockToast(''), 4000);
           return;
         }
-        throw new Error(data.detail || 'Failed to lock sound');
+        throw new Error(apiErrorMessage(data.detail, 'Failed to lock sound'));
       }
       setSoundPersona(data);
       clearTimeout(lockToastTimer.current);
@@ -1470,7 +1470,7 @@ export default function SongsPage() {
         body: JSON.stringify({ lyrics: coverLyrics.trim(), title: coverTitle.trim() || undefined }),
       });
       const data = await r.json();
-      if (!r.ok) { setCoverError(data.detail || 'Something went wrong'); return; }
+      if (!r.ok) { setCoverError(apiErrorMessage(data.detail, 'Something went wrong')); return; }
       setCoverModal(null);
       setCoverLyrics('');
       setCoverTitle('');
@@ -1527,7 +1527,7 @@ export default function SongsPage() {
       let d = {};
       try { d = await r.json(); } catch (_) {}
       if (r.status === 401) { fetchCredits(); throw new Error('YouTube session expired — please reconnect your account'); }
-      if (!r.ok) throw new Error(d.detail || `Upload failed (HTTP ${r.status})`);
+      if (!r.ok) throw new Error(apiErrorMessage(d.detail, `Upload failed (HTTP ${r.status})`));
       setYtStatus((prev) => ({ ...prev, [vId]: 'done' }));
       setYtUrls((prev) => ({ ...prev, [vId]: d.youtube_url }));
     } catch (err) {
@@ -1551,12 +1551,12 @@ export default function SongsPage() {
         // the backend refuses without explicit confirmation. Surface its own
         // message (not a re-typed copy) so the two can never drift apart.
         const d = await r.json().catch(() => ({}));
-        setQrDeleteConfirm({ variantId, message: d.detail || null });
+        setQrDeleteConfirm({ variantId, message: apiErrorMessage(d.detail, '') || null });
         return;
       }
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
-        throw new Error(d.detail || 'Delete failed');
+        throw new Error(apiErrorMessage(d.detail, 'Delete failed'));
       }
       setLibrary((prev) => prev.filter((v) => v.variant_id !== variantId));
       setActiveJob((prev) => {
@@ -1603,7 +1603,7 @@ export default function SongsPage() {
       body: form,
     });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.detail || 'Upload failed');
+    if (!r.ok) throw new Error(apiErrorMessage(data.detail, 'Upload failed'));
     // share_token now exists (or already did) — refresh the library row so the
     // QR feature can start preferring it for this variant.
     setLibrary(prev => prev.map(v => v.variant_id === variantId ? { ...v, share_token: data.share_token } : v));
@@ -1627,7 +1627,7 @@ export default function SongsPage() {
       body: JSON.stringify({ occasion, occasion_name: occasionName }),
     });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.detail || 'Could not save');
+    if (!r.ok) throw new Error(apiErrorMessage(data.detail, 'Could not save'));
     setLibrary(prev => prev.map(v => v.variant_id === variantId
       ? { ...v, occasion: data.occasion, occasion_name: data.occasion_name }
       : v));
@@ -1640,7 +1640,7 @@ export default function SongsPage() {
       body: JSON.stringify({ photo_id: photoId }),
     });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.detail || 'Could not save');
+    if (!r.ok) throw new Error(apiErrorMessage(data.detail, 'Could not save'));
     setLibrary(prev => prev.map(v => v.variant_id === variantId
       ? { ...v, cover_photo_id: data.cover_photo_id, image_url: data.image_url }
       : v));
@@ -1662,7 +1662,7 @@ export default function SongsPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: 'Remake failed' }));
-        throw new Error(err.detail || 'Remake failed');
+        throw new Error(apiErrorMessage(err.detail, 'Remake failed'));
       }
       const data = await res.json();
       setRemakeModal(null);
