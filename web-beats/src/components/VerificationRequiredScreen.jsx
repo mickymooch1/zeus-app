@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useState } from 'react';
 import { BACKEND_URL } from '../brand';
 
@@ -110,7 +111,7 @@ export default function VerificationRequiredScreen({
           return;
         }
         setChangeStatus('error');
-        setChangeError((typeof data.detail === 'string' ? data.detail : data.detail?.message) || 'Could not update your email.');
+        setChangeError(apiErrorMessage(data.detail, 'Could not update your email.'));
         return;
       }
       setChangeStatus('sent');

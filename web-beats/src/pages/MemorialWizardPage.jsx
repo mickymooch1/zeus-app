@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -154,13 +155,12 @@ export default function MemorialWizardPage() {
       if (resp.status === 402) {
         setSongStatus('failed');
         setError(
-          (typeof data.detail === 'string' && data.detail) ||
-            'No memorial credits available — please purchase a Memorial Package.'
+          apiErrorMessage(data.detail, 'No memorial credits available — please purchase a Memorial Package.')
         );
         return;
       }
       if (!resp.ok) {
-        throw new Error((typeof data.detail === 'string' && data.detail) || 'Generation failed to start');
+        throw new Error(apiErrorMessage(data.detail, 'Generation failed to start'));
       }
 
       const firstVariant = data.variants[0];
@@ -217,7 +217,7 @@ export default function MemorialWizardPage() {
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) {
-        throw new Error((typeof data.detail === 'string' && data.detail) || 'Photo upload failed');
+        throw new Error(apiErrorMessage(data.detail, 'Photo upload failed'));
       }
       setPhotos((p) => [...p, { photo_id: data.photo_id, url: data.url }]);
       if (data.share_token) setShareToken(data.share_token);

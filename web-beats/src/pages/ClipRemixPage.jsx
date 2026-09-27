@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -91,7 +92,7 @@ export default function ClipRemixPage() {
           return;
         }
         if (r.status === 402) { setError('Not enough song credits for a remix.'); return; }
-        setError((typeof det === 'string' ? det : det?.message) || 'Could not start the remix — please try again.');
+        setError(apiErrorMessage(det, 'Could not start the remix — please try again.'));
         return;
       }
       // remixStarted: SongsPage skips its first-visit welcome and shows a

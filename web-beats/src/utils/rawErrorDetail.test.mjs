@@ -28,3 +28,19 @@ test('no file passes a raw .detail into an error message', () => {
   }
   assert.deepEqual(raw, [], `raw detail fallbacks:\n${raw.join('\n')}`);
 });
+
+// The older hand-rolled "string or .message" check is safe from [object Object]
+// but silently drops a 422 list, so the user sees a generic message instead of
+// which field was wrong. apiErrorMessage() handles all three shapes.
+test('no file hand-rolls the string-or-message detail check', () => {
+  const handRolled = [];
+  for (const file of sourceFiles(SRC)) {
+    if (file.endsWith('apiErrorMessage.js')) continue;
+    readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+      if (/typeof\s+[\w.?]*\b(detail|det)\s*===\s*'string'/.test(line)) {
+        handRolled.push(`${relative(SRC, file)}:${i + 1}: ${line.trim()}`);
+      }
+    });
+  }
+  assert.deepEqual(handRolled, [], `hand-rolled detail checks:\n${handRolled.join('\n')}`);
+});
