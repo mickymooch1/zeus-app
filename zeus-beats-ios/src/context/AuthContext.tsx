@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { API, TOKEN_KEY } from '../constants/api';
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 
 interface User {
   id: string;
@@ -55,8 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ email: email.trim(), password }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Login failed');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail ? apiErrorMessage(data.detail, res.status) : 'Login failed');
     await SecureStore.setItemAsync(TOKEN_KEY, data.token);
     setToken(data.token);
     setUser(data.user);

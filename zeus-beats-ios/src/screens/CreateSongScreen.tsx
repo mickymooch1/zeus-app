@@ -12,6 +12,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { COLORS, RADIUS } from '../constants/theme';
 import { BACKEND_URL, API, TOKEN_KEY } from '../constants/api';
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 
 // ─── Vibe presets ─────────────────────────────────────────────────────────────
 
@@ -167,7 +168,9 @@ export function CreateSongScreen() {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || `Error ${res.status}`);
+        // detail can be an object (e.g. the 403 email_unverified gate) or a
+        // 422 list — never hand it to Error() raw, that renders "[object Object]".
+        throw new Error(apiErrorMessage(body.detail, res.status));
       }
 
       const data = await res.json();
