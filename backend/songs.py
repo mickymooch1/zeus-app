@@ -528,10 +528,10 @@ def generate_song_variant(
         cur.execute(
             """INSERT INTO song_variants
                (lyric_id, user_id, style_prompt, genre_tag, status, take_number,
-                animate_cover, platform)
-               VALUES (?, ?, ?, ?, 'pending', 1, ?, ?)""",
+                animate_cover, platform, credit_charged)
+               VALUES (?, ?, ?, ?, 'pending', 1, ?, ?, ?)""",
             (lyric_id, user_id, style_prompt, genre_tag,
-             1 if animate_cover else 0, platform),
+             1 if animate_cover else 0, platform, 0 if is_admin else 1),
         )
         variant_id = cur.lastrowid
         conn.commit()
@@ -597,8 +597,11 @@ def generate_song_variant(
             cur = conn.cursor()
             if not is_admin:
                 _refund_credit(cur, user_id)
+            # refunded_at: this refund counts — no later path may pay it again.
             cur.execute(
-                "UPDATE song_variants SET status = 'failed' WHERE id = ?",
+                "UPDATE song_variants SET status = 'failed', "
+                "refunded_at = CASE WHEN credit_charged = 1 THEN CURRENT_TIMESTAMP ELSE refunded_at END "
+                "WHERE id = ?",
                 (variant_id,),
             )
             conn.commit()

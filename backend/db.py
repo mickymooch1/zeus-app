@@ -473,6 +473,14 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_variants ADD COLUMN cover_photo_id INTEGER",
             "ALTER TABLE users ADD COLUMN memorial_credits_available INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE song_variants ADD COLUMN tribute_message TEXT",
+            # Refund-exactly-once (2026-09-27) — see refund_song_credit_once().
+            # credit_charged: 1 = a song credit paid for this row, 0 = free (admin,
+            # ops-agent retry, second take, DJ mix). NULL = row from before this
+            # column existed, treated as charged (what every refund path assumed).
+            # retry_of: the variant an ops-agent retry re-submits; its failure
+            # refunds THAT original, never the retry itself.
+            "ALTER TABLE song_variants ADD COLUMN credit_charged INTEGER",
+            "ALTER TABLE song_variants ADD COLUMN retry_of INTEGER",
             # Abuse blocklist (2026-09-14): hard-blocks a specific email (canonical
             # form) from registering OR logging in; ip/device_fp entries are a SOFT
             # signal only -- deliberately never rejected outright (a device/network
@@ -2195,6 +2203,83 @@ def consume_memorial_credit(db_path: pathlib.Path, user_id: str) -> bool:
             "WHERE id = ? AND memorial_credits_available >= 1", (user_id,))
         conn.commit()
         return cur.rowcount == 1
+    finally:
+        conn.close()
+
+
+def claim_variant_failed(db_path, variant_id: int) -> bool:
+    """Mark a variant failed. True only for the call that actually made the change.
+
+    Failure notices arrive more than once (Apiframe re-sends webhooks; the stuck
+    sweeper can race a late webhook). Whoever gets True handles the failure —
+    retry or refund — and everyone else does nothing. A completed song is never
+    turned into a failed one.
+    """
+    conn = sqlite3.connect(str(db_path), timeout=30)
+    try:
+        cur = conn.execute(
+            "UPDATE song_variants SET status = 'failed' "
+            "WHERE id = ? AND status NOT IN ('failed', 'complete')",
+            (variant_id,),
+        )
+        conn.commit()
+        return cur.rowcount == 1
+    finally:
+        conn.close()
+
+
+def refund_song_credit_once(db_path, variant_id: int, reason: str) -> bool:
+    """Give back the song credit that paid for this variant — at most once, ever.
+
+    Every automatic and admin refund path goes through here (2026-09-27: one
+    failed song could be refunded three times, see tests/test_refund_exactly_once.py).
+
+    * A retry (retry_of set) was never charged: the refund goes to the charged
+      original it re-submitted.
+    * credit_charged = 0 → nothing was paid, nothing is refunded.
+      NULL (rows from before the column) counts as charged.
+    * song_variants.refunded_at is the gate. Claiming it and crediting the balance
+      happen in one IMMEDIATE transaction, so concurrent callers pay out once.
+
+    Returns True only if this call refunded a credit.
+    """
+    conn = sqlite3.connect(str(db_path), timeout=30, isolation_level=None)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        target = variant_id
+        for _ in range(10):   # follow retry → original; bounded against a bad cycle
+            row = conn.execute("SELECT retry_of FROM song_variants WHERE id = ?", (target,)).fetchone()
+            if row is None:
+                conn.execute("ROLLBACK")
+                _log.warning("refund_song_credit_once: variant %d not found (from %d)", target, variant_id)
+                return False
+            if row[0] is None:
+                break
+            target = row[0]
+        cur = conn.execute(
+            "UPDATE song_variants SET refunded_at = CURRENT_TIMESTAMP "
+            "WHERE id = ? AND refunded_at IS NULL AND COALESCE(credit_charged, 1) = 1",
+            (target,),
+        )
+        if cur.rowcount != 1:
+            conn.execute("ROLLBACK")
+            return False
+        user_id = conn.execute("SELECT user_id FROM song_variants WHERE id = ?", (target,)).fetchone()[0]
+        upd = conn.execute("UPDATE song_credits SET balance = balance + 1 WHERE user_id = ?", (user_id,))
+        if upd.rowcount == 0:
+            conn.execute("INSERT INTO song_credits (user_id, balance) VALUES (?, 1)", (user_id,))
+        conn.execute("COMMIT")
+        _log.info(
+            "Credit refunded: variant_id=%d (charged variant %d) user_id=%s reason=%s",
+            variant_id, target, user_id, reason,
+        )
+        return True
+    except Exception:
+        try:
+            conn.execute("ROLLBACK")
+        except Exception:
+            pass
+        raise
     finally:
         conn.close()
 
