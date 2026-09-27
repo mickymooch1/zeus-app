@@ -5,6 +5,7 @@ export const API = {
   me:           `${BACKEND_URL}/auth/me`,
   logout:       `${BACKEND_URL}/auth/logout`,
   generate:     `${BACKEND_URL}/api/songs/generate`,
+  resendVerification: `${BACKEND_URL}/api/auth/resend-verification`,
   variants:     (lyricId: number) => `${BACKEND_URL}/api/lyrics/${lyricId}/variants`,
 };
 

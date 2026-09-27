@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useState } from 'react';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 
@@ -116,7 +117,7 @@ export default function ContactPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to send message');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Failed to send message'));
       setStatus('success');
     } catch (err) {
       setErrorMsg(err.message);

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -157,7 +158,7 @@ export default function BillingPage() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.detail || 'Save failed');
+        throw new Error(apiErrorMessage(d.detail, 'Save failed'));
       }
       setAnSuccess(t('billing.artistNameSaved'));
     } catch (err) {
@@ -175,7 +176,7 @@ export default function BillingPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to open billing portal');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Failed to open billing portal'));
       window.location.href = data.url;
     } catch (err) {
       setError(err.message);
@@ -193,7 +194,7 @@ export default function BillingPage() {
         body: JSON.stringify({ plan }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to create checkout');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Failed to create checkout'));
       window.location.href = data.url;
     } catch (err) {
       setError(err.message);
@@ -225,7 +226,7 @@ export default function BillingPage() {
         body: JSON.stringify({ pack }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to create checkout');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Failed to create checkout'));
       window.location.href = data.url;
     } catch (err) {
       setError(err.message);
@@ -241,7 +242,7 @@ export default function BillingPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Cancellation failed');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Cancellation failed'));
       setCancelResult(data);
       setShowCancelConfirm(false);
       setStatus((prev) => prev ? { ...prev, cancel_at: data.cancel_at } : prev);
@@ -266,7 +267,7 @@ export default function BillingPage() {
         body: JSON.stringify({ current_password: cpCurrent, new_password: cpNew }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to change password');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Failed to change password'));
       setCpSuccess('Password changed successfully.');
       setCpCurrent(''); setCpNew(''); setCpConfirm('');
     } catch (err) {
@@ -311,7 +312,7 @@ export default function BillingPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Request failed');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Request failed'));
       setDeleteSuccess(true);
       setShowDeleteConfirm(false);
     } catch (err) {

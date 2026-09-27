@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
@@ -68,7 +69,7 @@ export default function SearchPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: 'Search failed' }));
-        throw new Error(err.detail || 'Search failed');
+        throw new Error(apiErrorMessage(err.detail, 'Search failed'));
       }
       const data = await res.json();
       setResult(data);

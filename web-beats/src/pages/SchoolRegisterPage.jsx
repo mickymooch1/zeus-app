@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BACKEND_URL } from '../brand';
@@ -38,7 +39,7 @@ export default function SchoolRegisterPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Registration failed');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Registration failed'));
 
       localStorage.setItem('zeus_token', data.token);
       window.location.href = '/kids';

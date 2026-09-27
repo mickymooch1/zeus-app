@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BRAND, BACKEND_URL } from '../brand';
@@ -14,7 +15,7 @@ export default function ResetPINPage() {
     fetch(`${BACKEND_URL}/api/user/reset-pin?token=${encodeURIComponent(token)}`)
       .then(async (res) => {
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Reset failed');
+        if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Reset failed'));
         localStorage.setItem('zeus_explicit_pin', '1234');
         setStatus('done');
       })

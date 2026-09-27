@@ -13,6 +13,7 @@ import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { COLORS, RADIUS } from '../constants/theme';
 import { BACKEND_URL, API, TOKEN_KEY } from '../constants/api';
 import { apiErrorMessage } from '../utils/apiErrorMessage';
+import { unverifiedEmail, resendOutcome, RESEND_BODY, ResendKind } from '../utils/verification';
 
 // ─── Vibe presets ─────────────────────────────────────────────────────────────
 
@@ -114,6 +115,11 @@ export function CreateSongScreen() {
   const [vocalMode,    setVocalMode]    = useState<VocalMode>('full');
   const [phase,        setPhase]        = useState<Phase>('idle');
   const [errorMsg,     setErrorMsg]     = useState('');
+  // Set when generate hit the email-verification gate: the address to verify
+  // ('' if the server didn't say). null = a normal error, no resend offered.
+  const [unverifiedTo, setUnverifiedTo] = useState<string | null>(null);
+  const [resendState,  setResendState]  = useState<'idle' | 'loading' | ResendKind>('idle');
+  const [resendMsg,    setResendMsg]    = useState('');
   const [result,       setResult]       = useState<SongResult | null>(null);
 
   const { isPlaying, togglePlay, stop: stopAudio } = useAudioPlayer();
@@ -168,6 +174,7 @@ export function CreateSongScreen() {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
+        setUnverifiedTo(unverifiedEmail(body.detail));
         // detail can be an object (e.g. the 403 email_unverified gate) or a
         // 422 list — never hand it to Error() raw, that renders "[object Object]".
         throw new Error(apiErrorMessage(body.detail, res.status));
@@ -215,9 +222,28 @@ export function CreateSongScreen() {
     catch (e: any) { Alert.alert('Playback error', e.message); }
   }
 
+  async function handleResend() {
+    setResendState('loading'); setResendMsg('');
+    let status = 0;
+    let data: any = null;
+    try {
+      const res = await fetch(API.resendVerification, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify(RESEND_BODY),
+      });
+      status = res.status;
+      data = await res.json().catch(() => ({}));
+    } catch { /* network error → falls through to the 'error' outcome */ }
+    const outcome = resendOutcome(status, data, unverifiedTo || '');
+    setResendState(outcome.kind);
+    setResendMsg(outcome.message);
+  }
+
   function reset() {
     clearPoll(); stopAudio();
     setPhase('idle'); setResult(null); setErrorMsg('');
+    setUnverifiedTo(null); setResendState('idle'); setResendMsg('');
     setVocalMode('full');
   }
 
@@ -271,6 +297,25 @@ export function CreateSongScreen() {
               ? 'This is taking longer than expected.\nCheck your library soon.'
               : errorMsg || 'Something went wrong.'}
           </Text>
+          {phase === 'error' && unverifiedTo !== null && (
+            <View style={s.resendBox}>
+              <TouchableOpacity
+                style={[s.resendBtn, resendState === 'loading' && s.createBtnDisabled]}
+                onPress={handleResend}
+                disabled={resendState === 'loading'}
+                accessibilityRole="button"
+              >
+                {resendState === 'loading'
+                  ? <ActivityIndicator color={COLORS.white} />
+                  : <Text style={s.resendBtnText}>Resend verification email</Text>}
+              </TouchableOpacity>
+              {!!resendMsg && (
+                <Text style={[s.resendMsg, resendState === 'sent' || resendState === 'already' ? s.resendMsgOk : null]}>
+                  {resendMsg}
+                </Text>
+              )}
+            </View>
+          )}
           <TouchableOpacity style={s.secondaryBtn} onPress={reset}>
             <Text style={s.secondaryBtnText}>Try again</Text>
           </TouchableOpacity>
@@ -570,6 +615,22 @@ const s = StyleSheet.create({
     color: COLORS.errorText, fontSize: 15, textAlign: 'center',
     lineHeight: 24, marginBottom: 24,
   },
+
+  // ── Email-verification gate (resend)
+  resendBox: { alignItems: 'center', marginBottom: 20, paddingHorizontal: 24 },
+  resendBtn: {
+    backgroundColor: COLORS.purple,
+    borderRadius: RADIUS.md,
+    paddingVertical: 14, paddingHorizontal: 32,
+    minWidth: 260, minHeight: 48,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  resendBtnText: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
+  resendMsg: {
+    color: COLORS.errorText, fontSize: 14, textAlign: 'center',
+    lineHeight: 21, marginTop: 12,
+  },
+  resendMsgOk: { color: COLORS.textPrimary },
 
   // ── Complete screen
   cover: { width: 220, height: 220, borderRadius: RADIUS.lg, marginBottom: 20 },

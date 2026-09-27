@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../../utils/apiErrorMessage';
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -164,7 +165,7 @@ export default function KidsStoryMode() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.detail || 'Could not make the story');
+        throw new Error(apiErrorMessage(d.detail, 'Could not make the story'));
       }
       navigate('/kids/songs');
     } catch (e) {

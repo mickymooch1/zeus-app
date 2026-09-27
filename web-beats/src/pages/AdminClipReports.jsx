@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
@@ -36,7 +37,7 @@ export default function AdminClipReports() {
     if (!token) return;
     setLoading(true);
     fetch(`${BACKEND_URL}/admin/clips/reported`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail || 'Failed')))
+      .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(apiErrorMessage(e.detail, 'Failed'))))
       .then(data => setReports(data.reports ?? []))
       .catch(e => setError(typeof e === 'string' ? e : 'Failed to load reports'))
       .finally(() => setLoading(false));

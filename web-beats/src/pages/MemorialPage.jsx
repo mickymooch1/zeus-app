@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -268,7 +269,7 @@ export default function MemorialPage() {
         }),
       });
       const json = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(json.detail || 'Could not save');
+      if (!r.ok) throw new Error(apiErrorMessage(json.detail, 'Could not save'));
       setData((d) => (d ? { ...d, occasion_name: json.occasion_name, tribute_message: json.tribute_message } : d));
       setEditSaved(true);
       setTimeout(() => setEditSaved(false), 2000);
@@ -290,7 +291,7 @@ export default function MemorialPage() {
         method: 'POST', headers: { Authorization: `Bearer ${authToken}` }, body: form,
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.detail || 'Photo upload failed');
+      if (!r.ok) throw new Error(apiErrorMessage(j.detail, 'Photo upload failed'));
       setPhotos((p) => [...p, { photo_id: j.photo_id, url: j.url }]);
     } catch (err) {
       setPhotoError(err.message || 'Photo upload failed');
@@ -363,7 +364,7 @@ export default function MemorialPage() {
       body: JSON.stringify({ occasion, occasion_name: occasionName, tribute_message: data?.tribute_message ?? null }),
     });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.detail || 'Could not save');
+    if (!r.ok) throw new Error(apiErrorMessage(j.detail, 'Could not save'));
     setFullVariant((v) => (v ? { ...v, occasion: j.occasion, occasion_name: j.occasion_name } : v));
     setData((d) => (d ? { ...d, occasion: j.occasion, occasion_name: j.occasion_name } : d));
     if (j.occasion_name != null) setEditName(j.occasion_name);
@@ -376,7 +377,7 @@ export default function MemorialPage() {
       body: JSON.stringify({ photo_id: photoId }),
     });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.detail || 'Could not save');
+    if (!r.ok) throw new Error(apiErrorMessage(j.detail, 'Could not save'));
     setFullVariant((v) => (v ? { ...v, cover_photo_id: j.cover_photo_id, image_url: j.image_url } : v));
   }
 
@@ -444,7 +445,7 @@ export default function MemorialPage() {
         method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
       });
       const j = await r.json();
-      if (!r.ok) { alert(j.detail || 'Could not start stem separation'); return; }
+      if (!r.ok) { alert(apiErrorMessage(j.detail, 'Could not start stem separation')); return; }
       setStemsData(j);
       if (j.stems_status === 'pending') {
         stemsPollRef.current = setInterval(async () => {
@@ -489,7 +490,7 @@ export default function MemorialPage() {
         body: JSON.stringify({ variant_id: variant.variant_id }),
       });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.detail || 'Failed to lock sound');
+      if (!r.ok) throw new Error(apiErrorMessage(j.detail, 'Failed to lock sound'));
       clearTimeout(soundToastTimer.current);
       setSoundToast(`Your Sound locked to "${j.sound_persona_title}" 🔒`);
       soundToastTimer.current = setTimeout(() => setSoundToast(''), 4000);
@@ -534,7 +535,7 @@ export default function MemorialPage() {
       });
       let j = {};
       try { j = await r.json(); } catch { /* non-JSON error body — j stays {} */ }
-      if (!r.ok) throw new Error(j.detail || `Upload failed (HTTP ${r.status})`);
+      if (!r.ok) throw new Error(apiErrorMessage(j.detail, `Upload failed (HTTP ${r.status})`));
       setYtStatus('done'); setYtUrl(j.youtube_url);
     } catch (err) {
       setYtError(err.message || 'Upload failed — network or server error');
@@ -552,7 +553,7 @@ export default function MemorialPage() {
         body: JSON.stringify({ lyrics: lyrics.trim() }),
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) { alert(j.detail || 'Something went wrong'); return; }
+      if (!r.ok) { alert(apiErrorMessage(j.detail, 'Something went wrong')); return; }
       alert('Cover started — check your Songs library shortly.');
     } catch {
       alert('Network error. Try again.');
@@ -572,7 +573,7 @@ export default function MemorialPage() {
       });
       if (r.status === 409) {
         const j = await r.json().catch(() => ({}));
-        const confirmed = window.confirm(`${j.detail || 'A QR code was generated for this song.'} Delete anyway?`);
+        const confirmed = window.confirm(`${apiErrorMessage(j.detail, 'A QR code was generated for this song.')} Delete anyway?`);
         if (!confirmed) { setDeleting(false); return; }
         r = await fetch(`${BACKEND_URL}/api/songs/variants/${variantId}?confirm_qr_delete=true`, {
           method: 'DELETE', headers: { Authorization: `Bearer ${authToken}` },

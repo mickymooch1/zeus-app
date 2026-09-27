@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BRAND, BACKEND_URL } from '../brand';
@@ -18,7 +19,7 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email, app: 'beats' }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Request failed');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Request failed'));
       setStatus('sent');
     } catch (err) {
       setError(err.message);

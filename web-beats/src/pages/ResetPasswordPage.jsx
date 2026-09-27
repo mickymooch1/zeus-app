@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BRAND, BACKEND_URL } from '../brand';
@@ -25,7 +26,7 @@ export default function ResetPasswordPage() {
         body: JSON.stringify({ token, new_password: password }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Reset failed');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Reset failed'));
       setStatus('done');
     } catch (err) {
       setError(err.message);

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BRAND, BACKEND_URL } from '../brand';
@@ -18,7 +19,7 @@ export default function VerifyEmailPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) { setStatus('success'); setMessage(data.message); }
-        else { setStatus('error'); setMessage(data.detail || 'Verification failed.'); }
+        else { setStatus('error'); setMessage(apiErrorMessage(data.detail, 'Verification failed.')); }
       })
       .catch(() => { setStatus('error'); setMessage('Network error. Please try again.'); });
   }, [token]);

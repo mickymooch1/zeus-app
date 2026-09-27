@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BeatsNavbar } from '../components/BeatsNavbar';
@@ -31,7 +32,7 @@ export default function MemorialsLandingPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || 'Failed to start checkout');
+      if (!res.ok) throw new Error(apiErrorMessage(data.detail, 'Failed to start checkout'));
       window.location.href = data.url;
     } catch (err) {
       setError(err.message || 'Something went wrong — please try again.');
