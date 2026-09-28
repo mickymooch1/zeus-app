@@ -28,8 +28,8 @@ const BG     = '#000';
  * SOURCE SONG's mp3 clamped to clip_start_time..+clip_duration as the audio —
  * two separate media elements kept in sync. */
 const ClipSlide = memo(function ClipSlide({
-  clip, idx, isLiked, likeCount, isCopied, token, isPlaying, isActive, isPaused,
-  onLike, onShare, onRemix, onRequireAuth, onTogglePause, onSlideRef, onVideoRef, onAudioRef, onProgressRef,
+  clip, idx, isLiked, likeCount, isCopied, token, user, isPlaying, isActive, isPaused,
+  onLike, onShare, onRemix, onRequireAuth, onDeleted, onTogglePause, onSlideRef, onVideoRef, onAudioRef, onProgressRef,
 }) {
   const { media_type, media_url, song_cover_url, song_title, artist_name, genre_tag,
           caption, clip_start_time, clip_duration, mp3_url, remix_count } = clip;
@@ -109,7 +109,7 @@ const ClipSlide = memo(function ClipSlide({
             <ClipActionBtn onClick={onLike} icon="❤️" label={formatCount(likeCount)} active={isLiked} activeColor={PURPLE} />
             <ClipActionBtn icon="🔁" label={formatCount(remix_count)} />
             <ClipActionBtn onClick={onShare} icon={isCopied ? '✓' : '🔗'} label={isCopied ? 'Copied' : 'Share'} active={isCopied} activeColor={CYAN} />
-            <ClipMoreMenu clipId={clip.id} token={token} onRequireAuth={onRequireAuth} />
+            <ClipMoreMenu clip={clip} token={token} user={user} onRequireAuth={onRequireAuth} onDeleted={onDeleted} />
           </div>
         </div></div>
 
@@ -155,7 +155,7 @@ const ClipSlide = memo(function ClipSlide({
 
 /* ── Main page ──────────────────────────────────────────────────────────── */
 export default function ClipsFeedPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
   const [clips, setClips]     = useState([]);
   const [muted, setMuted]     = useState(true);
@@ -449,6 +449,7 @@ export default function ClipsFeedPage() {
             clip={clip}
             idx={idx}
             token={token}
+            user={user}
             isLiked={liked.has(clip.id)}
             likeCount={counts[clip.id] || 0}
             isCopied={copied === clip.id}
@@ -460,6 +461,7 @@ export default function ClipsFeedPage() {
             onShare={() => handleShare(clip.id)}
             onRemix={() => handleRemix(clip.id)}
             onRequireAuth={() => navigate('/register')}
+            onDeleted={id => setClips(prev => prev.filter(c => c.id !== id))}
             onSlideRef={el => { slideRefs.current[idx] = el; }}
             onVideoRef={el => { videoRefs.current[idx] = el; }}
             onAudioRef={el => { audioRefs.current[idx] = el; }}

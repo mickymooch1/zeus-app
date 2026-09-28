@@ -34,7 +34,7 @@ function removeMetaTag(property, attr = 'property') {
 export default function ClipPage() {
   const { clipId } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const audioRef = useRef(null);
   const videoRef = useRef(null);
   const viewedRef = useRef(false);
@@ -238,7 +238,8 @@ export default function ClipPage() {
             <Link to="/clips" className="clip-oneline" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: 13, fontWeight: 600, justifySelf: 'start' }}>← Clips</Link>
             <ZeusClipsWordmark />
             <div style={{ justifySelf: 'end' }}>
-              <ClipMoreMenu clipId={clipId} token={token} onRequireAuth={() => navigate('/register')} />
+              <ClipMoreMenu clip={clip} token={token} user={user} onRequireAuth={() => navigate('/register')}
+                onDeleted={() => navigate('/clips', { replace: true })} />
             </div>
           </div>
           <div className="clips-ai-badge" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
