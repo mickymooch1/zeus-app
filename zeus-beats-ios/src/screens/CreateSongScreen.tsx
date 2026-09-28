@@ -34,11 +34,11 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'uk_street',  label: '🎤 UK Street & Hip Hop', color: '#00f0ff',
     genres: ['grime','ukdrill','afroswing','bassline','ukgarage','niche','drumandbass','jungle','deeprotbassline','ukstreetsoul','triphop'] },
   { id: 'soul',       label: '🎵 Soul & Blues',        color: '#fb923c',
-    genres: ['soul','bluessoul','southemsoul','soulrnb','orchestralsoul','motown','classicsoul','classicfunk','gogo','synthfunk','boogie','gospel','hymns','trapsoul','vocaljazz','scat','swing','rnb','blues','deepsoulblues','chicagoblues','deltablues','swampblues'] },
+    genres: ['soul','bluessoul','southemsoul','soulrnb','orchestralsoul','motown','classicsoul','classicfunk','gogo','synthfunk','boogie','gospel','hymns','trapsoul','vocaljazz','scat','swing','rnb','blues','deepsoulblues','chicagoblues','deltablues','swampblues','southernblues'] },
   { id: 'rock',       label: '🎸 Rock & Metal',        color: '#f87171',
     genres: ['rock','hardrock','metal','punkrock','rocknroll','traditionalpop','bluesrock','indie','britpop','indierock','rockney'] },
   { id: 'country_folk', label: '🤠 Country & Folk',    color: '#d97706',
-    genres: ['country','traditionalcountry','bluegrass','countryamericana','countrypop','countryballad','outlawcountry','outlawcountryrap','countryrap','folk','acousticballad','folkblues','roots','acousticblues','celticpunk'] },
+    genres: ['country','traditionalcountry','bluegrass','countryamericana','countrypop','countryballad','outlawcountry','outlawcountryrap','countryrap','countrysoul','folk','acousticballad','folkblues','roots','acousticblues','celticpunk'] },
   { id: 'electronic', label: '🎹 Electronic & Dance',  color: '#4ade80',
     genres: ['house','technhouse','deephouse','dancehouse','purebassline','synthwave','driftphonk','brazilianphonk','techno','trance','edm','electronicfunk','dubstep','jerseyclub','hyperpop','syntheticpop','disco','nudisco','futurebass'] },
   { id: 'world',      label: '🌍 World & Urban',       color: '#fbbf24',
@@ -52,7 +52,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
 ];
 
 const GENRE_LABEL: Record<string, string> = {
-  bluegrass:'Bluegrass', countryballad:'Country Ballad', outlawcountry:'Dark Outlaw Country', outlawcountryrap:'Outlaw Country Rap', countryrap:'Country Rap',
+  bluegrass:'Bluegrass', countryballad:'Country Ballad', outlawcountry:'Dark Outlaw Country', outlawcountryrap:'Outlaw Country Rap', countryrap:'Country Rap', countrysoul:'Country Soul',
   britpop:'Britpop', indierock:'Indie Rock', folk:'Folk', acousticballad:'Acoustic Ballad', folkblues:'Folk Blues', roots:'Roots', acousticblues:'Acoustic Blues', patriotic:'Patriotic',
   hiphop:'Hip-Hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', celticpunk:'Celtic Punk',
   rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage',
@@ -75,7 +75,7 @@ const GENRE_LABEL: Record<string, string> = {
   blues:'Blues', soul:'Soul', reggae:'Reggae', pop:'Pop',
   psychedelicguitar:'Psychedelic Guitar', saxophone:'Saxophone', pianosolo:'Piano', violinsolo:'Violin',
   electricbluesguitar:'Blues Guitar', trumpet:'Trumpet', flamencoguitar:'Flamenco Guitar',
-  chicagoblues:'Chicago Blues', deltablues:'Delta Blues', swampblues:'Swamp Blues',
+  chicagoblues:'Chicago Blues', deltablues:'Delta Blues', swampblues:'Swamp Blues', southernblues:'Southern Blues',
   dixieland:'New Orleans Jazz', brassband:'Brass Band', harlemstride:'Harlem Stride Piano', neworleansbounce:'New Orleans Bounce',
   synthfunk:'Synth Funk', boogie:'Boogie', motown:'Motown',
   disco:'Disco', nudisco:'Nu Disco', bollywood:'Bollywood', boombap:'Boom Bap', citypop:'City Pop', futurebass:'Future Bass', gqom:'Gqom', gogo:'Go-Go', traditionalcountry:'Traditional Country', classicsoul:'Classic Soul',
