@@ -339,8 +339,19 @@ def test_og_helper_returns_none_for_unknown_identifier(app_client):
 # because they call the helper directly and never render through serve_spa,
 # so they never see the final HTML a crawler actually parses.
 
-def test_whatsapp_crawler_gets_song_og_tags_without_duplicates(app_client):
+def test_whatsapp_crawler_gets_song_og_tags_without_duplicates(app_client, tmp_path, monkeypatch):
     client, _db, _main, db_path, _, _ = app_client
+    # serve_spa 404s when web-beats-dist/ doesn't exist, and that's a build
+    # output (not committed) — so without a local `vite build` this test used
+    # to fail on a clean checkout. Serve the committed source template instead:
+    # it carries the same static <title>/og:*/twitter:* tags as the built file
+    # (only the script/asset lines differ), which is exactly what this
+    # regression is about.
+    dist = tmp_path / "beats-dist"
+    dist.mkdir()
+    template = pathlib.Path(__file__).resolve().parents[2] / "web-beats" / "index.html"
+    (dist / "index.html").write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setattr(_main, "_beats_dist", dist)
     client.post("/api/songs/variants/100/occasion", json={"occasion": "memorial", "occasion_name": "Alex"})
     token = _db.get_or_create_share_token(db_path, 100)
 
