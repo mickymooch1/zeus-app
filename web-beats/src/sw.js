@@ -44,7 +44,9 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(request)
         .then(response => {
-          if (response.ok) {
+          // Server-rendered landing pages (X-Zeus-Page: landing) aren't the app
+          // shell — storing one under '/' would open it instead of the app offline.
+          if (response.ok && response.headers.get('X-Zeus-Page') !== 'landing') {
             // Always store under '/' so any SPA route resolves to the same shell
             caches.open(CACHE_NAME).then(cache => cache.put('/', response.clone()));
           }

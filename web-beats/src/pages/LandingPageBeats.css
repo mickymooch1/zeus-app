@@ -818,6 +818,20 @@
   transition: color 0.2s;
 }
 .lp .footer-links a:hover { color: #00f0ff; }
+.lp .footer-guides {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+}
+.lp .footer-guides a {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.lp .footer-guides a:hover { color: #00f0ff; }
 
 /* ─── RESPONSIVE ─── */
 @media (max-width: 900px) {

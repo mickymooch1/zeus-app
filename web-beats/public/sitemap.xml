@@ -7,4 +7,10 @@
   <url><loc>https://zeusbeats.com/contact</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
   <url><loc>https://zeusbeats.com/privacy</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
   <url><loc>https://zeusbeats.com/terms</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://zeusbeats.com/ai-music-generator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://zeusbeats.com/ai-country-song-generator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://zeusbeats.com/ai-memorial-song-generator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://zeusbeats.com/ai-youtube-song-maker</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://zeusbeats.com/commercial-use-ai-music</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://zeusbeats.com/suno-alternative</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
 </urlset>

@@ -1,3 +1,11 @@
 User-agent: *
 Disallow: /songs/share/
+
+# OpenAI's search crawler (ChatGPT search). Already allowed by the wildcard
+# group above; listed explicitly so the permission is unambiguous. A named
+# group replaces the wildcard group for this bot, so it repeats the Disallow.
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /songs/share/
+
 Sitemap: https://zeusbeats.com/sitemap.xml
