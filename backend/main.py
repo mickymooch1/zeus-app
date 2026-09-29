@@ -2676,7 +2676,16 @@ async def songs_generate(
     # net effect on the song credit balance is zero. Rolled back in the
     # except blocks below if generation fails.
     _memorial_temp_credit_granted = False
-    if body.is_memorial:
+    if body.is_memorial and current_user.get("is_admin"):
+        # Admin bypass (2026-09-29): lets an admin test the full memorial flow
+        # without buying a Memorial Package each time — the same way admins
+        # already skip song-credit charges below. No memorial credit is taken
+        # and no temp song credit is granted (admins are never charged one), so
+        # this path is net-zero on every balance and ledger. is_admin comes from
+        # the users row (auth.get_current_user), not from the JWT.
+        log.info("memorial gate: ADMIN BYPASS user=%s email=%s — no memorial credit consumed",
+                 user_id, current_user.get("email"))
+    elif body.is_memorial:
         # Atomic check-and-decrement — a read-then-decrement here would let
         # two concurrent requests both read balance=1, both pass, and both
         # deduct (decrement_memorial_credits floors at 0, so the second

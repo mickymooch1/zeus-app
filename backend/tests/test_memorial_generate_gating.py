@@ -190,3 +190,65 @@ def test_consume_memorial_credit_false_when_already_zero(app_client):
 
     assert _db.consume_memorial_credit(db_path, user["id"]) is False
     assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 0
+
+
+# ── Admin bypass (2026-09-29) ────────────────────────────────────────────────
+# Admins can test the full memorial flow without buying a Memorial Package,
+# the same way they already skip song-credit charges. Customers are unchanged
+# (see the 402 / consume tests above). is_admin must come from the users row.
+
+def _make_admin(_db, db_path, user):
+    _db.update_user(db_path, user["id"], is_admin=1)
+
+
+def test_admin_memorial_generate_without_credits_succeeds_and_is_net_zero(app_client):
+    client, _db, _main, db_path, user, token = app_client
+    _make_admin(_db, db_path, user)
+    _db.upsert_song_credits(db_path, user["id"], balance=0, monthly_allowance=0)
+
+    with patch("songs._submit_to_apiframe", return_value="fake-job-id"):
+        resp = client.post("/api/songs/generate", json={**_BODY, "is_memorial": True},
+                            headers=_headers(token))
+
+    assert resp.status_code == 200, resp.text
+    assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 0
+    assert _db.get_song_credits(db_path, user["id"])["balance"] == 0
+
+
+def test_admin_memorial_generate_does_not_spend_existing_memorial_credit(app_client):
+    client, _db, _main, db_path, user, token = app_client
+    _make_admin(_db, db_path, user)
+    _db.increment_memorial_credits(db_path, user["id"], 1)
+    _db.upsert_song_credits(db_path, user["id"], balance=3, monthly_allowance=0)
+
+    with patch("songs._submit_to_apiframe", return_value="fake-job-id"):
+        resp = client.post("/api/songs/generate", json={**_BODY, "is_memorial": True},
+                            headers=_headers(token))
+
+    assert resp.status_code == 200, resp.text
+    assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 1
+    assert _db.get_song_credits(db_path, user["id"])["balance"] == 3
+
+
+def test_admin_memorial_generate_failure_leaves_balances_untouched(app_client):
+    client, _db, _main, db_path, user, token = app_client
+    _make_admin(_db, db_path, user)
+    _db.upsert_song_credits(db_path, user["id"], balance=0, monthly_allowance=0)
+
+    body = {**_BODY, "genres": ["not_a_real_genre"], "is_memorial": True}
+    resp = client.post("/api/songs/generate", json=body, headers=_headers(token))
+
+    assert resp.status_code == 400, resp.text
+    assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 0
+    assert _db.get_song_credits(db_path, user["id"])["balance"] == 0
+
+
+def test_admin_claim_in_token_alone_does_not_bypass_memorial_paywall(app_client):
+    """A JWT minted with is_admin=True for a NON-admin users row must still 402 —
+    the bypass reads is_admin from the database, never from the token."""
+    client, _db, _main, db_path, user, _token = app_client
+    forged = _main.auth.create_token(user["id"], user["email"], is_admin=True)
+    resp = client.post("/api/songs/generate", json={**_BODY, "is_memorial": True},
+                        headers=_headers(forged))
+    assert resp.status_code == 402
+    assert _db.get_user_by_id(db_path, user["id"])["memorial_credits_available"] == 0

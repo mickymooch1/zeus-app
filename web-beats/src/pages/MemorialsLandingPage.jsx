@@ -21,7 +21,9 @@ export default function MemorialsLandingPage() {
       return;
     }
     setError('');
-    if ((user.memorial_credits_available || 0) > 0) {
+    // Admins skip checkout: the backend memorial gate lets an admin generate
+    // without a Memorial Package credit (test access). Customers are unchanged.
+    if (user.is_admin || (user.memorial_credits_available || 0) > 0) {
       navigate('/memorials/create');
       return;
     }
