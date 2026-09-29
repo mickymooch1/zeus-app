@@ -279,7 +279,7 @@
     "heroTitle2": "originale",
     "heroTitle3": "KI-Musik.",
     "heroTagline": "Deine Musik. Auf deine Weise.",
-    "heroSub": "{{brand}} verwandelt deine Ideen in vollständige Originalsongs — Texte von KI geschrieben, Audio von Suno produziert. In Minuten auf YouTube veröffentlichen.",
+    "heroSub": "{{brand}} verwandelt deine Ideen in vollständige Originalsongs — Text und Audio von KI erstellt. In Minuten auf YouTube veröffentlichen.",
     "startCreating": "Loslegen",
     "seeHow": "So funktioniert's",
     "featuresLabel": "Hauptfunktionen",
@@ -291,8 +291,8 @@
     "howTitle2": "In Minuten.",
     "step1Title": "Beschreibe deine Spur",
     "step1Desc": "Gib ein Brief ein — Genre, Stimmung, Thema. \"Düsterer Hip-Hop, späte Nacht, Motivation\" reicht {{brand}}.",
-    "step2Title": "Zeus schreibt, Suno generiert",
-    "step2Desc": "Claude AI schreibt Text und Struktur. Suno generiert das Audio. Cover wird automatisch erstellt.",
+    "step2Title": "Zeus schreibt und produziert",
+    "step2Desc": "Zeus schreibt Text und Struktur und generiert das Audio. Cover wird automatisch erstellt.",
     "step3Title": "Anhören und herunterladen",
     "step3Desc": "Vorschau im Browser. Audio herunterladen oder öffentlichen Link teilen.",
     "step4Title": "Überall veröffentlichen",
@@ -336,7 +336,7 @@
       "cards": {
         "songGenerator": {
           "title": "KI-Songgenerator",
-          "desc": "Aus einem kurzen Text wird ein kompletter Originalsong — Text von Claude AI, Audio von Suno. Voller Text und Gesang in 60 Sekunden."
+          "desc": "Aus einem kurzen Text wird ein kompletter Originalsong — Text und Audio werden für dich erstellt. Voller Text und Gesang in 60 Sekunden."
         },
         "genres": {
           "title": "{{count}}+ Genres",
@@ -388,7 +388,7 @@
         },
         "modelSelector": {
           "title": "Modellauswahl",
-          "desc": "Wähle dein Suno-Modell — V4, V5 oder V5.5 für die neueste Klangqualität und Features."
+          "desc": "Wähle dein KI-Musikmodell — V4, V5 oder V5.5 für die neueste Klangqualität und Features."
         },
         "vocalGender": {
           "title": "Geschlecht der Stimme",

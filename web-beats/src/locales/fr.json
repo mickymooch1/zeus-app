@@ -279,7 +279,7 @@
     "heroTitle2": "de la musique",
     "heroTitle3": "IA originale.",
     "heroTagline": "Votre musique. À votre façon.",
-    "heroSub": "{{brand}} transforme vos idées en chansons originales — paroles écrites par IA, audio produit par Suno. Publiez sur YouTube en quelques minutes.",
+    "heroSub": "{{brand}} transforme vos idées en chansons originales — paroles et audio créés par IA. Publiez sur YouTube en quelques minutes.",
     "startCreating": "Commencer à créer",
     "seeHow": "Voir comment ça marche",
     "featuresLabel": "Fonctionnalités principales",
@@ -291,8 +291,8 @@
     "howTitle2": "En quelques minutes.",
     "step1Title": "Décrivez votre titre",
     "step1Desc": "Tapez un brief — genre, ambiance, thème. \"Hip-hop sombre, nuit tardive, motivation\" suffit à {{brand}} pour démarrer.",
-    "step2Title": "Zeus écrit, Suno génère",
-    "step2Desc": "Claude AI écrit les paroles et la structure. Suno génère l'audio. La pochette est créée automatiquement.",
+    "step2Title": "Zeus écrit et produit",
+    "step2Desc": "Zeus écrit les paroles et la structure, puis génère l'audio. La pochette est créée automatiquement.",
     "step3Title": "Écoutez et téléchargez",
     "step3Desc": "Prévisualisez votre titre dans le navigateur. Téléchargez l'audio ou partagez un lien public.",
     "step4Title": "Publiez partout",
@@ -336,7 +336,7 @@
       "cards": {
         "songGenerator": {
           "title": "Générateur de chansons IA",
-          "desc": "Transformez un brief textuel en chanson originale complète — paroles par Claude AI, audio par Suno. Paroles et voix en 60 secondes."
+          "desc": "Transformez un brief textuel en chanson originale complète — paroles et audio créés pour vous. Paroles et voix en 60 secondes."
         },
         "genres": {
           "title": "{{count}}+ genres",
@@ -388,7 +388,7 @@
         },
         "modelSelector": {
           "title": "Sélecteur de modèle",
-          "desc": "Choisissez votre modèle Suno — V4, V5 ou V5.5 pour la meilleure qualité sonore et les dernières fonctionnalités."
+          "desc": "Choisissez votre modèle musical IA — V4, V5 ou V5.5 pour la meilleure qualité sonore et les dernières fonctionnalités."
         },
         "vocalGender": {
           "title": "Genre vocal",
