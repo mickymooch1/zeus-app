@@ -335,7 +335,7 @@
       "cards": {
         "songGenerator": {
           "title": "AI歌曲生成器",
-          "desc": "一段文字描述，就能生成完整的原创歌曲 — 歌词由Claude AI创作，音频由Suno生成。60秒内拿到完整歌词和人声。"
+          "desc": "一段文字描述，就能生成完整的原创歌曲 — 歌词和音频都由AI为你创作。60秒内拿到完整歌词和人声。"
         },
         "genres": {
           "title": "{{count}}+种风格",
@@ -387,7 +387,7 @@
         },
         "modelSelector": {
           "title": "模型选择",
-          "desc": "自由选择Suno模型 — V4、V5或V5.5，享受最新的音质与功能。"
+          "desc": "自由选择AI音乐模型 — V4、V5或V5.5，享受最新的音质与功能。"
         },
         "vocalGender": {
           "title": "人声性别",

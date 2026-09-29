@@ -157,7 +157,7 @@ export default function LandingPage() {
               <div className="chat-msg user">Create a dark hip-hop track — late night vibes, hustling, motivational</div>
               <div className="chat-msg zeus">
                 <span className="zeus-label">⚡ {BRAND.name}</span>
-                Writing lyrics now — midnight hustle theme, anthemic hook. Sending to Suno for audio...
+                Writing lyrics now — midnight hustle theme, anthemic hook. Producing the audio...
                 <div className="chat-progress">
                   <div className="progress-bar"><div className="progress-fill" /></div>
                   <span className="progress-text">Generating audio... ✓ "Midnight Drive" ready — 3:42</span>

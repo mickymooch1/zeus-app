@@ -336,7 +336,7 @@
       "cards": {
         "songGenerator": {
           "title": "AI Song Generator",
-          "desc": "Turn a text brief into a full original song — lyrics by Claude AI, audio by Suno. Full lyrics and vocals in 60 seconds."
+          "desc": "Turn a text brief into a full original song — lyrics and audio created for you. Full lyrics and vocals in 60 seconds."
         },
         "genres": {
           "title": "{{count}}+ Genres",
@@ -388,7 +388,7 @@
         },
         "modelSelector": {
           "title": "Model Selector",
-          "desc": "Choose your Suno model — V4, V5, or V5.5 for the latest sound quality and features."
+          "desc": "Choose your AI music model — V4, V5, or V5.5 for the latest sound quality and features."
         },
         "vocalGender": {
           "title": "Vocal Gender",

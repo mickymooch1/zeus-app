@@ -279,7 +279,7 @@
     "heroTitle2": "música",
     "heroTitle3": "IA original.",
     "heroTagline": "Sua música. Do seu jeito.",
-    "heroSub": "{{brand}} transforma suas ideias em músicas originais completas — letra escrita por IA, áudio produzido pelo Suno. Publique no YouTube em minutos.",
+    "heroSub": "{{brand}} transforma suas ideias em músicas originais completas — letra e áudio criados por IA. Publique no YouTube em minutos.",
     "startCreating": "Começar a criar",
     "seeHow": "Veja como funciona",
     "featuresLabel": "Recursos principais",
@@ -291,8 +291,8 @@
     "howTitle2": "Em minutos.",
     "step1Title": "Descreva sua faixa",
     "step1Desc": "Digite um briefing — gênero, humor, tema. \"Hip-hop sombrio, noite tardia, motivação\" é tudo que o {{brand}} precisa.",
-    "step2Title": "Zeus escreve, Suno gera",
-    "step2Desc": "Claude AI escreve a letra e a estrutura. Suno gera o áudio. A arte de capa é criada automaticamente.",
+    "step2Title": "Zeus escreve e produz",
+    "step2Desc": "Zeus escreve a letra e a estrutura e gera o áudio. A arte de capa é criada automaticamente.",
     "step3Title": "Ouça e baixe",
     "step3Desc": "Prévia da faixa no navegador. Baixe o áudio ou compartilhe um link público.",
     "step4Title": "Publique em todo lugar",
@@ -336,7 +336,7 @@
       "cards": {
         "songGenerator": {
           "title": "Gerador de músicas IA",
-          "desc": "Transforme um briefing de texto em uma música original completa — letra por Claude AI, áudio por Suno. Letra e vocais em 60 segundos."
+          "desc": "Transforme um briefing de texto em uma música original completa — letra e áudio criados para você. Letra e vocais em 60 segundos."
         },
         "genres": {
           "title": "{{count}}+ gêneros",
@@ -388,7 +388,7 @@
         },
         "modelSelector": {
           "title": "Seletor de modelo",
-          "desc": "Escolha seu modelo Suno — V4, V5 ou V5.5 para a mais recente qualidade de som e recursos."
+          "desc": "Escolha seu modelo de música com IA — V4, V5 ou V5.5 para a mais recente qualidade de som e recursos."
         },
         "vocalGender": {
           "title": "Gênero vocal",

@@ -336,7 +336,7 @@
       "cards": {
         "songGenerator": {
           "title": "AI-nummergenerator",
-          "desc": "Maak van een korte beschrijving een volledig origineel nummer — tekst van Claude AI, audio van Suno. Volledige tekst en zang in 60 seconden."
+          "desc": "Maak van een korte beschrijving een volledig origineel nummer — tekst en audio voor je gemaakt. Volledige tekst en zang in 60 seconden."
         },
         "genres": {
           "title": "{{count}}+ genres",
@@ -388,7 +388,7 @@
         },
         "modelSelector": {
           "title": "Modelkeuze",
-          "desc": "Kies je Suno-model — V4, V5 of V5.5 voor de nieuwste geluidskwaliteit en functies."
+          "desc": "Kies je AI-muziekmodel — V4, V5 of V5.5 voor de nieuwste geluidskwaliteit en functies."
         },
         "vocalGender": {
           "title": "Stem geslacht",

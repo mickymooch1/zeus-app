@@ -336,7 +336,7 @@
       "cards": {
         "songGenerator": {
           "title": "Generatore di canzoni AI",
-          "desc": "Trasforma un brief di testo in una canzone originale completa — testi di Claude AI, audio di Suno. Testi e voce in 60 secondi."
+          "desc": "Trasforma un brief di testo in una canzone originale completa — testi e audio creati per te. Testi e voce in 60 secondi."
         },
         "genres": {
           "title": "{{count}}+ generi",
@@ -388,7 +388,7 @@
         },
         "modelSelector": {
           "title": "Selettore del modello",
-          "desc": "Scegli il tuo modello Suno — V4, V5 o V5.5 per la qualità del suono e le funzioni più recenti."
+          "desc": "Scegli il tuo modello musicale IA — V4, V5 o V5.5 per la qualità del suono e le funzioni più recenti."
         },
         "vocalGender": {
           "title": "Genere vocale",
