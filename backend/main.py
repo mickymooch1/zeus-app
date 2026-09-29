@@ -6671,8 +6671,10 @@ async def sitemap(request: Request):
             ("/schools", "weekly", "0.8"),
             ("/terms", "yearly", "0.4"),
             ("/privacy", "yearly", "0.4"),
-            ("/refund", "yearly", "0.4"),
+            ("/refund-policy", "yearly", "0.4"),
         ]
+        import seo_landing_pages as _seo_pages
+        urls += [(f"/{slug}", "monthly", "0.8") for slug in _seo_pages.PAGES]
     else:
         base = "https://zeusaidesign.com"
         urls = [
@@ -8029,6 +8031,15 @@ async def serve_spa(full_path: str, request: Request):
     host = request.headers.get("host", "")
     is_beats = "zeusbeats" in host
 
+    # Server-rendered SEO landing pages (see seo_landing_pages.py) — full HTML,
+    # so crawlers that don't run JS still get the content. zeusbeats.com only.
+    if is_beats:
+        import seo_landing_pages as _seo_pages
+        import song_genres as _song_genres
+        landing_html = _seo_pages.render(full_path, len(_song_genres.GENRE_PRESETS))
+        if landing_html is not None:
+            return HTMLResponse(landing_html, headers=dict([_seo_pages.LANDING_HEADER]))
+
     dist = _beats_dist if (is_beats and _beats_dist.exists()) else _dist
     if not dist.exists():
         return HTMLResponse("<h1>Not found</h1>", status_code=404)
@@ -8217,7 +8228,7 @@ async def serve_spa(full_path: str, request: Request):
             r'<title>[^<]*</title>.*?(?=<link rel="canonical")',
             (
                 f'<title>Zeus Beats — Create AI Music in Seconds | {genre_count}+ Genres</title>\n'
-                f'    <meta name="description" content="Create original AI songs in {genre_count}+ genres including Soul, Grime, Afrobeats, D&amp;B, Jazz and more. Animated cover art, YouTube upload. 3 free songs on signup. No studio needed.">\n'
+                f'    <meta name="description" content="Create original AI songs in {genre_count}+ genres including Soul, Grime, Afrobeats, D&amp;B, Jazz and more. AI cover art, YouTube upload. 3 free songs on signup. No studio needed.">\n'
                 '    <meta name="keywords" content="AI music generator, create AI songs, grime AI, afrobeats generator, UK music AI, AI beats maker, zeus beats">\n'
                 '    <meta property="og:title" content="Zeus Beats — AI Music Creator">\n'
                 f'    <meta property="og:description" content="Create original songs in seconds. {genre_count}+ genres. Free to start.">\n'

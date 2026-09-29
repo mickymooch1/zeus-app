@@ -616,6 +616,16 @@ export default function LandingPage() {
             <Link to="/data-deletion">{t('landing.footerDataDeletion')}</Link>
             <Link to="/contact">{t('landing.footerContact')}</Link>
           </div>
+          {/* Server-rendered SEO landing pages — plain <a> (not <Link>) so the
+              browser fetches them from the server instead of the SPA router. */}
+          <nav className="footer-guides" aria-label="Guides">
+            <a href="/ai-music-generator">AI Music Generator</a>
+            <a href="/ai-country-song-generator">AI Country Songs</a>
+            <a href="/ai-memorial-song-generator">AI Memorial Songs</a>
+            <a href="/ai-youtube-song-maker">AI YouTube Songs</a>
+            <a href="/commercial-use-ai-music">Commercial Use</a>
+            <a href="/suno-alternative">AI Music Generator Alternative</a>
+          </nav>
           <a
             href="https://t.me/zeusbeatsmusic"
             target="_blank"
