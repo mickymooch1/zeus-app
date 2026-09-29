@@ -38,7 +38,7 @@ const STEP_LABELS = {
 export default function MemorialWizardPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { token, refreshUser } = useAuth();
+  const { user, token, refreshUser } = useAuth();
 
   const [confirmingPurchase, setConfirmingPurchase] = useState(false);
 
@@ -337,8 +337,10 @@ export default function MemorialWizardPage() {
             {songStatus === 'idle' && (
               <>
                 <p style={{ opacity: 0.75 }}>
-                  We'll create a gentle instrumental tribute song for {name.trim() || 'your loved one'}. This uses
-                  one of your Memorial Package credits.
+                  We'll create a gentle instrumental tribute song for {name.trim() || 'your loved one'}.{' '}
+                  {user?.is_admin
+                    ? 'Admin test — no Memorial Package credit is used.'
+                    : 'This uses one of your Memorial Package credits.'}
                 </p>
                 {confirmingPurchase && (
                   <p style={{ opacity: 0.7, fontSize: 14 }}>Confirming your purchase…</p>
