@@ -80,6 +80,17 @@ export function arrivedViaRemix({ state, search, hasStoredIntent = false }) {
   return remixTargetFromSearch(search) !== null;
 }
 
+// Navigation state with the one-shot `remixStarted` flag removed (null when
+// nothing else is left). React Router keeps navigation state in the browser
+// history entry, so a flag left there survives reloads, Back and the service
+// worker's post-deploy reload — each of which re-showed RemixStartedNotice.
+// SongsPage reads the flag once, then replaces the entry with this.
+export function withoutRemixStarted(state) {
+  if (!state || typeof state !== 'object') return null;
+  const { remixStarted, ...rest } = state; // eslint-disable-line no-unused-vars
+  return Object.keys(rest).length > 0 ? rest : null;
+}
+
 // The remix target carried in a URL's query string (?remix= clip, ?remixSong= song).
 export function remixTargetFromSearch(search) {
   const params = new URLSearchParams(search || '');

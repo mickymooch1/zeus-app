@@ -143,3 +143,20 @@ test('remixDestination: clip → clip confirm page, song → Discover confirm pa
 test('arrivedViaRemix also recognises ?remixSong=', () => {
   assert.equal(arrivedViaRemix({ state: null, search: '?remixSong=7' }), true);
 });
+
+import { withoutRemixStarted } from './remixIntent.js';
+
+test('withoutRemixStarted: drops the one-shot flag, keeps other state', () => {
+  assert.deepEqual(withoutRemixStarted({ remixStarted: true, prefillGenre: 'jazz' }), { prefillGenre: 'jazz' });
+});
+
+test('withoutRemixStarted: nothing left -> null (no stale state in history)', () => {
+  assert.equal(withoutRemixStarted({ remixStarted: true }), null);
+  assert.equal(withoutRemixStarted(null), null);
+  assert.equal(withoutRemixStarted(undefined), null);
+});
+
+test('withoutRemixStarted: stripped state no longer counts as arriving via remix', () => {
+  const after = withoutRemixStarted({ remixStarted: true });
+  assert.equal(arrivedViaRemix({ state: after, search: '' }), false);
+});
