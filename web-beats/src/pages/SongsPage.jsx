@@ -27,7 +27,7 @@ import {
   readRoastDraft, clearRoastDraft,
   savePostVerifyDraft, readPostVerifyDraft, clearPostVerifyDraft,
 } from '../utils/roastDraft';
-import { readRemixIntent, arrivedViaRemix, remixTargetFromSearch, remixDestination } from '../utils/remixIntent';
+import { readRemixIntent, arrivedViaRemix, remixTargetFromSearch, remixDestination, withoutRemixStarted } from '../utils/remixIntent';
 import RemixStartedNotice from '../components/RemixStartedNotice';
 import { freeSongsLine } from '../utils/freeSongs';
 import { apiErrorMessage, ROAST_DETAILS_MAX } from '../utils/apiErrorMessage';
@@ -485,6 +485,20 @@ export default function SongsPage() {
 
   // Not after a remix — RemixStartedNotice covers that landing instead.
   const [showWelcome, setShowWelcome] = useState(() => !viaRemix && !!user?.is_new_user);
+
+  // "Your remix is being made" — shown once per remix hand-off. The flag arrives
+  // as navigation state, which React Router stores in the history entry, so it
+  // is read once here and then stripped from the entry: left in place, every
+  // reload, Back to this page or post-deploy SW reload re-showed the notice,
+  // which looked like a toast that never cleared.
+  const [showRemixNotice] = useState(() => !!location.state?.remixStarted);
+  useEffect(() => {
+    if (!location.state?.remixStarted) return;
+    navigate(
+      { pathname: location.pathname, search: location.search, hash: location.hash },
+      { replace: true, state: withoutRemixStarted(location.state) },
+    );
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "What should we call you?" — asked once, AFTER the first song lands, for
   // users who skipped the optional name field at signup. Fully skippable.
@@ -1740,7 +1754,7 @@ export default function SongsPage() {
 
   return (
     <>
-      {location.state?.remixStarted && <RemixStartedNotice />}
+      {showRemixNotice && <RemixStartedNotice />}
 
       {showExploreFirst && (
         <ExploreFirstWelcome
