@@ -2314,6 +2314,56 @@ async def admin_patch_user(
     return {"ok": True}
 
 
+# ── Admin panel "Delete account" (2026-09-29) ────────────────────────────────
+# Preview first (changes nothing), then DELETE with the typed email. Rails and
+# file cleanup live in account_deletion.py; the row deletion itself is the
+# existing db.delete_user_account engine (shared with Porick's delete_user).
+
+class AdminDeleteUserRequest(BaseModel):
+    confirm_email: str
+    acknowledge_warnings: bool = False
+
+
+@app.get("/admin/users/{user_id}/delete-preview")
+async def admin_delete_user_preview(user_id: str, current_user: dict = Depends(auth.get_current_user)):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    import account_deletion
+    preview = account_deletion.build_preview(db.get_db_path(), user_id)
+    if preview is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user_id == current_user["id"]:
+        preview["blockers"].append("You can't delete your own account here.")
+    return preview
+
+
+@app.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, body: AdminDeleteUserRequest,
+                            current_user: dict = Depends(auth.get_current_user)):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    import account_deletion
+    db_path = db.get_db_path()
+    try:
+        result = account_deletion.delete_from_admin_panel(
+            db_path, user_id, actor=current_user,
+            confirm_email=body.confirm_email, acknowledge_warnings=body.acknowledge_warnings,
+        )
+    except account_deletion.DeletionRefused as exc:
+        log.warning("admin_delete_user: REFUSED target=%s by admin=%s — %s", user_id, current_user.get("email"), exc)
+        raise HTTPException(status_code=409, detail=str(exc))
+    except db.AdminAccountProtectedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except RuntimeError as exc:
+        log.error("admin_delete_user: engine did not verify clean for %s: %s", user_id, exc)
+        raise HTTPException(status_code=500, detail="Deletion did not verify as clean — rolled back, nothing was deleted.")
+    files = result["files"]
+    log.info("admin_delete_user: DELETED %s (%s) by admin=%s rows=%s files_removed=%d shared_kept=%d failed=%d",
+             result["email"], result["user_id"], current_user.get("email"), result["deleted"],
+             len(files["removed"]), len(files["shared"]), len(files["failed"]))
+    return result
+
+
 @app.get("/admin/tasks")
 async def admin_list_tasks(current_user: dict = Depends(auth.get_current_user)):
     if not current_user.get("is_admin"):

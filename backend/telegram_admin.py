@@ -1926,10 +1926,13 @@ def _cmd_confirm_delete_user(email: str) -> str:
     db.delete_user_account). Refuses outright for an is_admin account, or if
     no such user exists — either way, no changes are made."""
     import db as _db
+    import account_deletion
 
     db_path = _db.get_db_path()
     try:
-        result = _db.delete_user_account(db_path, email)
+        # Same engine as before (db.delete_user_account) plus the user's files
+        # on the volume, which it used to leave behind (2026-09-29).
+        result = account_deletion.delete_account_and_files(db_path, email)
     except _db.AdminAccountProtectedError as exc:
         return f"❌ {_esc(str(exc))}"
     except ValueError as exc:
@@ -1938,14 +1941,25 @@ def _cmd_confirm_delete_user(email: str) -> str:
         log.error("delete_user confirm: %s", exc)
         return f"❌ Cleanup did not verify as clean — rolled back, nothing was deleted. {_esc(str(exc))}"
 
-    log.info("delete_user confirm: deleted user_id=%s email=%s tables=%s",
-              result["user_id"], result["email"], result["deleted"])
+    files = result["files"]
+    log.info("delete_user confirm: deleted user_id=%s email=%s tables=%s files_removed=%d shared_kept=%d failed=%d",
+              result["user_id"], result["email"], result["deleted"],
+              len(files["removed"]), len(files["shared"]), len(files["failed"]))
+    try:
+        account_deletion.log_deletion(db_path, source="porick", result=result, acknowledged=[])
+    except Exception as exc:  # the delete already committed — never report it as failed
+        log.error("delete_user confirm: admin_action_log write failed: %s", exc)
     lines = [f"✅ Deleted <code>{_esc(result['email'])}</code> (id <code>{_esc(result['user_id'])}</code>)"]
     for t in sorted(result["deleted"]):
         if t == "users":
             continue
         lines.append(f"• {_esc(t)}: {result['deleted'][t]} row(s)")
     lines.append("• users: 1 row")
+    lines.append(f"• files removed: {len(files['removed'])} ({files['bytes_freed'] // 1024} KB)")
+    if files["shared"]:
+        lines.append(f"• files kept (still used by another account): {len(files['shared'])}")
+    if files["failed"]:
+        lines.append(f"⚠️ files that could not be removed: {_esc(', '.join(files['failed'])[:500])}")
     return "\n".join(lines)[:3900]
 
 

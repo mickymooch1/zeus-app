@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
+import AdminDeleteUserDialog from '../components/AdminDeleteUserDialog';
+import { showDeleteButton, formatBytes } from '../utils/adminDelete';
 
 const PLAN_COLORS = {
   enterprise:    { bg: 'rgba(234,179,8,0.15)',   text: '#fbbf24' },
@@ -27,6 +29,8 @@ export default function AdminBeats() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sortKey, setSortKey] = useState('created_at');
+  const [deleting, setDeleting] = useState(null);   // row whose delete dialog is open
+  const [deletedNote, setDeletedNote] = useState('');
 
   useEffect(() => {
     if (user && !user.is_admin) {
@@ -93,6 +97,12 @@ export default function AdminBeats() {
           </div>
         )}
 
+        {deletedNote && (
+          <div role="status" style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 8, padding: '10px 14px', color: '#86efac', fontSize: 13, marginBottom: 20 }}>
+            {deletedNote}
+          </div>
+        )}
+
         {error && (
           <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', color: '#fca5a5', fontSize: 13, marginBottom: 20 }}>
             {error}
@@ -123,6 +133,7 @@ export default function AdminBeats() {
                       {c.label}{sortKey === c.key ? ' ↓' : ''}
                     </th>
                   ))}
+                  <th style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }} aria-label="Actions" />
                 </tr>
               </thead>
               <tbody>
@@ -151,6 +162,18 @@ export default function AdminBeats() {
                       <td style={{ padding: '10px 14px', color: '#ccc', textAlign: 'right' }}>{u.credits_remaining ?? 0}</td>
                       <td style={{ padding: '10px 14px', color: '#555', whiteSpace: 'nowrap' }}>{fmt(u.last_song_at)}</td>
                       <td style={{ padding: '10px 14px', color: '#555', whiteSpace: 'nowrap' }}>{fmt(u.created_at)}</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right' }}>
+                        {showDeleteButton(u, user) && (
+                          <button
+                            type="button"
+                            onClick={() => { setDeletedNote(''); setDeleting(u); }}
+                            style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
+                                     background: 'transparent', color: '#f87171', border: '1px solid rgba(248,113,113,0.4)', whiteSpace: 'nowrap' }}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -159,6 +182,26 @@ export default function AdminBeats() {
           </div>
         )}
       </div>
+
+      {deleting && (
+        <AdminDeleteUserDialog
+          row={deleting}
+          token={token}
+          onClose={() => setDeleting(null)}
+          onDeleted={(result) => {
+            const files = result.files || {};
+            const rows = Object.values(result.deleted || {}).reduce((a, b) => a + b, 0);
+            setUsers(prev => prev.filter(x => x.id !== result.user_id));
+            setDeletedNote(
+              `Deleted ${result.email} — ${rows} database row(s), ${(files.removed || []).length} file(s) removed ` +
+              `(${formatBytes(files.bytes_freed)})` +
+              ((files.shared || []).length ? `, ${files.shared.length} shared file(s) kept` : '') +
+              ((files.failed || []).length ? `. ⚠️ ${files.failed.length} file(s) could not be removed — check the server log.` : '.')
+            );
+            setDeleting(null);
+          }}
+        />
+      )}
     </div>
   );
 }
