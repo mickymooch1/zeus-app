@@ -6958,6 +6958,23 @@ from fastapi.staticfiles import StaticFiles as _StaticFiles
 from fastapi.staticfiles import StaticFiles
 
 
+def _register_static_mime_types() -> None:
+    """Make every static mount serve .webp as image/webp (2026-09-30).
+
+    Production runs Python 3.12, where `.webp` is only in mimetypes' NON-strict
+    table, so Starlette's strict guess_type() returned None and the first WebP
+    assets the site shipped (the memorial "Heavenly" backgrounds) went out as
+    application/octet-stream. Browsers sniff images so they still rendered, but
+    the header was wrong and would break under `X-Content-Type-Options: nosniff`.
+    Python 3.13+ already knows the type, which is why local runs looked fine.
+    """
+    import mimetypes
+    mimetypes.add_type("image/webp", ".webp")
+
+
+_register_static_mime_types()
+
+
 class _LongCacheStaticFiles(StaticFiles):
     """StaticFiles that adds a Cache-Control header. Default is long-lived + immutable —
     only safe for a mount whose filenames never get overwritten with different content
