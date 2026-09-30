@@ -473,6 +473,10 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE song_variants ADD COLUMN cover_photo_id INTEGER",
             "ALTER TABLE users ADD COLUMN memorial_credits_available INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE song_variants ADD COLUMN tribute_message TEXT",
+            # Background preset for the memorial/share page (2026-09-30). NULL =
+            # the original "classic" look (warm cream, or dark on a dark-mode
+            # device) — every existing page renders exactly as before.
+            "ALTER TABLE song_variants ADD COLUMN page_theme TEXT",
             # Refund-exactly-once (2026-09-27) — see refund_song_credit_once().
             # credit_charged: 1 = a song credit paid for this row, 0 = free (admin,
             # ops-agent retry, second take, DJ mix). NULL = row from before this

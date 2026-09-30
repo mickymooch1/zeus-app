@@ -4274,6 +4274,9 @@ async def get_song_variant_public(identifier: str):
         # route (susceptible to sequential-ID enumeration) — only the
         # unguessable share_token route may expose it.
         "tribute_message": None if identifier.isdigit() else variant.get("tribute_message"),
+        # Presentation only (which background preset the owner picked) — not
+        # personal content, so it is safe on both routes like `occasion` is.
+        "page_theme": variant.get("page_theme") or "classic",
     }
 
 
@@ -5346,6 +5349,12 @@ class SetOccasionRequest(BaseModel):
     occasion: str | None = None
     occasion_name: str | None = None
     tribute_message: str | None = None
+    page_theme: str | None = None
+
+
+# Background presets for the memorial page. "classic" (stored as NULL) is the
+# original warm cream / dark look; the frontend owns what each one looks like.
+_ALLOWED_PAGE_THEMES = {"classic", "heavenly"}
 
 
 @app.post("/api/songs/variants/{variant_id}/occasion")
@@ -5383,6 +5392,11 @@ async def set_variant_occasion(
         if tribute_message and len(tribute_message) > 1000:
             raise HTTPException(status_code=400, detail="Tribute message must be 1000 characters or fewer")
         updates["tribute_message"] = tribute_message
+    if "page_theme" in provided:
+        page_theme = (body.page_theme or "").strip().lower() or "classic"
+        if page_theme not in _ALLOWED_PAGE_THEMES:
+            raise HTTPException(status_code=400, detail="Invalid page theme")
+        updates["page_theme"] = None if page_theme == "classic" else page_theme
 
     if updates:
         db.update_song_variant(db_path, variant_id, **updates)
@@ -5393,6 +5407,7 @@ async def set_variant_occasion(
         "occasion": updated.get("occasion"),
         "occasion_name": updated.get("occasion_name"),
         "tribute_message": updated.get("tribute_message"),
+        "page_theme": updated.get("page_theme") or "classic",
     }
 
 
