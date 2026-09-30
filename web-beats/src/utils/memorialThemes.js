@@ -1,7 +1,7 @@
 // Background presets for the memorial page (2026-09-30). The backend stores
 // only the id (song_variants.page_theme; NULL = "classic") and validates it
 // against the same two ids — what each preset looks like lives here and in
-// MemorialPage.jsx / HeavenlyBackdrop.jsx.
+// MemorialPage.jsx / HeavenlyBackdrop.jsx (artwork: scripts/generate_heavenly_bg.py).
 
 export const PAGE_THEMES = [
   {
@@ -35,19 +35,4 @@ export function waveColors(theme, prefersDark) {
   return prefersDark
     ? { waveColor: 'rgba(237,231,222,0.25)', progressColor: '#d98a6f' }
     : { waveColor: 'rgba(43,38,34,0.18)', progressColor: '#a8593f' };
-}
-
-// The stairway's steps, bottom (wide, near) to top (narrow, far), in the
-// backdrop's 1600×1600 viewBox, centred on x=800. They sit in the top of the
-// scene so they show above the memorial card. Pure geometry, unit-tested.
-export function stairSteps(count = 14) {
-  const steps = [];
-  for (let i = 0; i < count; i++) {
-    const t0 = i / count;
-    const t1 = (i + 1) / count;
-    const y = (t) => 680 - 418 * (1 - Math.pow(1 - t, 1.55)); // rises fast near, slow far
-    const half = (t) => 280 - 222 * Math.pow(t, 0.82);        // narrows toward the light
-    steps.push({ yBottom: y(t0), yTop: y(t1), halfBottom: half(t0), halfTop: half(t1), depth: t0 });
-  }
-  return steps;
 }

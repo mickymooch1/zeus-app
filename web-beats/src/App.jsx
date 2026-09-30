@@ -5,6 +5,7 @@ import { NowPlayingProvider, useNowPlaying } from './contexts/NowPlayingContext'
 import { useAuth } from './contexts/AuthContext';
 import { ProtectedRoute, SchoolSafeRoute } from './components/ProtectedRoute';
 import CookieBanner from './components/CookieBanner';
+import { isStandalonePublicPage } from './utils/standalonePages';
 import ClipsBottomNav from './components/ClipsBottomNav';
 import { isClipsNavPath } from './utils/clipsChrome';
 import NowPlayingBar from './components/NowPlayingBar';
@@ -145,7 +146,10 @@ function AppInner() {
   // and the app loads no analytics/tracking scripts anywhere that this
   // banner's consent actually gates — only Google Fonts, which isn't
   // cookie-gated by this banner regardless of route.
-  const isSharePage = location.pathname.startsWith('/songs/share/');
+  // /memorial/:token is the same standalone page family (added later, at a
+  // different path) — it was never covered by this check, so the banner sat
+  // over the memorial card and its photos. isStandalonePublicPage covers both.
+  const isSharePage = isStandalonePublicPage(location.pathname);
   return (
     <>
       {!isSharePage && <CookieBanner />}

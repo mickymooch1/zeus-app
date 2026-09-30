@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
 import { gLabel } from '../utils/genres';
-import HeavenlyBackdrop, { FloralDivider } from '../components/HeavenlyBackdrop';
+import HeavenlyBackdrop from '../components/HeavenlyBackdrop';
 import { PAGE_THEMES, normalizeTheme, waveColors } from '../utils/memorialThemes';
 
 // Share tokens are generated via secrets.token_urlsafe(24) (backend/db.py,
@@ -63,12 +63,16 @@ const PAGE_CSS = `
 }
 .zb-theme-heavenly .zb-share-content, .zb-theme-heavenly .zb-owner-panel {
   box-sizing: border-box; padding: 24px 20px; border-radius: 20px;
-  background: rgba(255,252,244,0.76); -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
-  border: 1px solid rgba(255,255,255,0.7); box-shadow: 0 10px 40px rgba(120,90,40,0.18);
+  background: rgba(255,251,242,0.62); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+  border: 1px solid rgba(255,255,255,0.75); box-shadow: 0 10px 40px rgba(120,90,40,0.16);
 }
-/* Start the card below the light and the top of the stairway, so the stairs
-   appear to rise from it. */
-.zb-theme-heavenly .zb-share-content { margin-top: clamp(150px, 26vh, 240px); }
+/* Start the card well below the light, so the top of the stairway and the
+   glowing doorway are in clear view above it; the rest of the stairway shows
+   either side of the card (wide screens) and softly through it. */
+.zb-theme-heavenly .zb-share-content { margin-top: clamp(200px, 38vh, 380px); }
+@media (min-aspect-ratio: 1/1) {
+  .zb-theme-heavenly .zb-share-content { margin-top: clamp(180px, 30vh, 320px); }
+}
 .zb-theme-btn {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; cursor: pointer;
   padding: 10px 12px; border-radius: 10px; border: 1px solid var(--sp-border);
@@ -721,7 +725,6 @@ export default function MemorialPage() {
               {subheading}
             </div>
           )}
-          {theme === 'heavenly' && <FloralDivider />}
 
           {/* Tribute message */}
           {data.tribute_message && (
