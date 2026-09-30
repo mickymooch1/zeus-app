@@ -10,6 +10,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
 import { gLabel } from '../utils/genres';
+import HeavenlyBackdrop from '../components/HeavenlyBackdrop';
+import { PAGE_THEMES, normalizeTheme, waveColors } from '../utils/memorialThemes';
 
 // Share tokens are generated via secrets.token_urlsafe(24) (backend/db.py,
 // get_or_create_share_token) — urlsafe base64, no padding, 32 chars for 24
@@ -51,6 +53,33 @@ const PAGE_CSS = `
     --sp-mat: #2b2724; --sp-border: rgba(237,231,222,0.14); --sp-shadow: rgba(0,0,0,0.45);
   }
 }
+/* "Heavenly" background preset (owner-selectable). Always a light scene, so it
+   overrides the dark-mode variables above; the artwork itself is
+   HeavenlyBackdrop. The translucent panels keep text readable over it. */
+.zb-share-page.zb-theme-heavenly {
+  --sp-bg: #fdf1d6; --sp-text: #43362a; --sp-muted: #75644f; --sp-accent: #8a5f1e;
+  --sp-mat: rgba(255,253,248,0.92); --sp-border: rgba(138,95,30,0.24); --sp-shadow: rgba(120,90,40,0.22);
+  isolation: isolate; color-scheme: light;
+}
+.zb-theme-heavenly .zb-share-content, .zb-theme-heavenly .zb-owner-panel {
+  box-sizing: border-box; padding: 24px 20px; border-radius: 20px;
+  background: rgba(255,251,242,0.62); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+  border: 1px solid rgba(255,255,255,0.75); box-shadow: 0 10px 40px rgba(120,90,40,0.16);
+}
+/* Start the card well below the light, so the top of the stairway and the
+   glowing doorway are in clear view above it; the rest of the stairway shows
+   either side of the card (wide screens) and softly through it. */
+.zb-theme-heavenly .zb-share-content { margin-top: clamp(200px, 38vh, 380px); }
+@media (min-aspect-ratio: 1/1) {
+  .zb-theme-heavenly .zb-share-content { margin-top: clamp(180px, 30vh, 320px); }
+}
+.zb-theme-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; cursor: pointer;
+  padding: 10px 12px; border-radius: 10px; border: 1px solid var(--sp-border);
+  background: transparent; color: var(--sp-text); font-family: inherit;
+}
+.zb-theme-btn[aria-pressed="true"] { border-color: var(--sp-accent); box-shadow: 0 0 0 1px var(--sp-accent) inset; }
+.zb-theme-btn:disabled { cursor: default; opacity: 0.7; }
 .zb-share-content { animation: memFadeInUp 0.4s ease both; }
 .zb-share-btn { background: transparent; border: 1px solid var(--sp-border); color: var(--sp-text); cursor: pointer; transition: border-color 0.2s, color 0.2s; }
 .zb-share-btn:hover { border-color: var(--sp-accent); color: var(--sp-accent); }
@@ -103,6 +132,8 @@ export default function MemorialPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editSaved, setEditSaved] = useState(false);
   const [editError, setEditError] = useState('');
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeError, setThemeError] = useState('');
 
   // ── Owner photo management (separate, simpler panel than SongCard's own —
   // deliberate duplication, same as the brief's YAGNI note for Task 13: a
@@ -231,8 +262,7 @@ export default function MemorialPage() {
     const ws = WaveSurfer.create({
       container: waveRef.current,
       url: data.mp3_url,
-      waveColor: isDark ? 'rgba(237,231,222,0.25)' : 'rgba(43,38,34,0.18)',
-      progressColor: isDark ? '#d98a6f' : '#a8593f',
+      ...waveColors(data.page_theme, isDark),
       height: 44, barWidth: 2, barGap: 2, barRadius: 2, cursorWidth: 0,
       normalize: true, interact: true,
     });
@@ -242,7 +272,17 @@ export default function MemorialPage() {
     ws.on('finish', () => setPlaying(false));
     wsRef.current = ws;
     return () => { ws.destroy(); wsRef.current = null; setWsReady(false); setPlaying(false); };
-  }, [data?.mp3_url]);
+  // data.page_theme is read for the INITIAL colours only and is deliberately
+  // not a dependency — the effect below recolours on a theme change without
+  // destroying the player.
+  }, [data?.mp3_url]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Recolour the waveform when the owner switches background preset — without
+  // recreating the player (which would stop playback).
+  useEffect(() => {
+    const isDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    wsRef.current?.setOptions(waveColors(data?.page_theme, isDark));
+  }, [data?.page_theme]);
 
   const handlePlay = () => {
     if (!wsRef.current || !wsReady) return;
@@ -277,6 +317,31 @@ export default function MemorialPage() {
       setEditError(err.message || 'Could not save');
     } finally {
       setEditSaving(false);
+    }
+  }
+
+  // ── Owner: background preset. Sends ONLY page_theme — the endpoint is a
+  // partial update, so name/tribute are left untouched. Applied immediately
+  // and rolled back if the save fails. ──
+  async function saveTheme(themeId) {
+    if (!fullVariant || themeSaving || themeId === normalizeTheme(data?.page_theme)) return;
+    const previous = data.page_theme;
+    setThemeSaving(true); setThemeError('');
+    setData((d) => (d ? { ...d, page_theme: themeId } : d));
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/songs/variants/${fullVariant.variant_id}/occasion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ page_theme: themeId }),
+      });
+      const json = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(apiErrorMessage(json.detail, 'Could not save the background'));
+      setData((d) => (d ? { ...d, page_theme: json.page_theme } : d));
+    } catch (err) {
+      setData((d) => (d ? { ...d, page_theme: previous } : d));
+      setThemeError(err.message || 'Could not save the background');
+    } finally {
+      setThemeSaving(false);
     }
   }
 
@@ -623,11 +688,13 @@ export default function MemorialPage() {
   const occasionCopy = data.occasion ? OCCASION_COPY[data.occasion] : null;
   const heading = occasionCopy ? occasionCopy.heading(data.occasion_name, data.title) : data.title;
   const subheading = occasionCopy?.subheading;
+  const theme = normalizeTheme(data.page_theme);
 
   return (
     <>
       <style>{PAGE_CSS}</style>
-      <div className="zb-share-page" style={{ background: 'var(--sp-bg)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 20px 64px', color: 'var(--sp-text)', fontFamily: SANS }}>
+      <div className={`zb-share-page${theme === 'heavenly' ? ' zb-theme-heavenly' : ''}`} style={{ background: 'var(--sp-bg)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 20px 64px', color: 'var(--sp-text)', fontFamily: SANS }}>
+        {theme === 'heavenly' && <HeavenlyBackdrop />}
         <div className="zb-share-content" style={{ width: '100%', maxWidth: 420, textAlign: 'center' }}>
           {/* Cover art / photos */}
           {photos.length > 1 ? (
@@ -704,9 +771,29 @@ export default function MemorialPage() {
 
         {/* Owner-only management */}
         {ownerChecked && isOwner && fullVariant && (
-          <div style={{ width: '100%', maxWidth: 420, marginTop: 44, textAlign: 'left' }}>
+          <div className="zb-owner-panel" style={{ width: '100%', maxWidth: 420, marginTop: 44, textAlign: 'left' }}>
             <h2 style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, marginBottom: 4 }}>Manage this memorial</h2>
             <p style={{ fontSize: 13, color: 'var(--sp-muted)', marginBottom: 18 }}>Only visible to you.</p>
+
+            <div style={{ background: 'var(--sp-mat)', border: '1px solid var(--sp-border)', borderRadius: 12, padding: 18, marginBottom: 18 }}>
+              <div id="zb-theme-label" style={{ fontSize: 12, color: 'var(--sp-muted)', marginBottom: 10 }}>Page background</div>
+              <div role="group" aria-labelledby="zb-theme-label" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {PAGE_THEMES.map((t) => (
+                  <button
+                    key={t.id} type="button" className="zb-theme-btn"
+                    aria-pressed={theme === t.id} disabled={themeSaving}
+                    onClick={() => saveTheme(t.id)}
+                  >
+                    <span aria-hidden="true" style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 8, background: t.swatch, border: '1px solid var(--sp-border)' }} />
+                    <span>
+                      <span style={{ display: 'block', fontSize: 14, fontWeight: 600 }}>{t.label}{theme === t.id ? ' ✓' : ''}</span>
+                      <span style={{ display: 'block', fontSize: 12, color: 'var(--sp-muted)' }}>{t.hint}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {themeError && <p style={{ color: '#c0392b', fontSize: 12, marginTop: 8 }}>{themeError}</p>}
+            </div>
 
             <div style={{ background: 'var(--sp-mat)', border: '1px solid var(--sp-border)', borderRadius: 12, padding: 18, marginBottom: 18 }}>
               <label style={{ display: 'block', fontSize: 12, color: 'var(--sp-muted)', marginBottom: 6 }}>Name</label>

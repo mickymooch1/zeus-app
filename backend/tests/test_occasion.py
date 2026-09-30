@@ -99,7 +99,8 @@ def test_set_occasion_accepts_each_allowed_value(app_client, occasion):
     resp = client.post("/api/songs/variants/100/occasion",
                         json={"occasion": occasion, "occasion_name": "Alex"})
     assert resp.status_code == 200
-    assert resp.json() == {"variant_id": 100, "occasion": occasion, "occasion_name": "Alex", "tribute_message": None}
+    assert resp.json() == {"variant_id": 100, "occasion": occasion, "occasion_name": "Alex",
+                           "tribute_message": None, "page_theme": "classic"}
     variant = _db.get_song_variant_by_id(db_path, 100)
     assert variant["occasion"] == occasion
     assert variant["occasion_name"] == "Alex"
@@ -159,6 +160,54 @@ def test_tribute_message_over_1000_chars_rejected(app_client):
         "occasion": "memorial", "tribute_message": "x" * 1001,
     })
     assert resp.status_code == 400
+
+
+# ── Page theme (memorial page background preset, 2026-09-30) ────────────────
+
+def test_page_theme_defaults_to_classic_everywhere(app_client):
+    client, _db, _main, db_path, _, _ = app_client
+    assert _db.get_song_variant_by_id(db_path, 100).get("page_theme") is None
+    assert client.get("/api/songs/variants/100/public").json()["page_theme"] == "classic"
+
+
+def test_set_page_theme_heavenly_persists_and_is_public_on_both_routes(app_client):
+    client, _db, _main, db_path, _, _ = app_client
+    resp = client.post("/api/songs/variants/100/occasion", json={"page_theme": "heavenly"})
+    assert resp.status_code == 200 and resp.json()["page_theme"] == "heavenly"
+    assert _db.get_song_variant_by_id(db_path, 100)["page_theme"] == "heavenly"
+    assert client.get("/api/songs/variants/100/public").json()["page_theme"] == "heavenly"
+    token = _db.get_or_create_share_token(db_path, 100)
+    assert client.get(f"/api/songs/variants/{token}/public").json()["page_theme"] == "heavenly"
+
+
+def test_set_page_theme_classic_stores_null(app_client):
+    client, _db, _main, db_path, _, _ = app_client
+    client.post("/api/songs/variants/100/occasion", json={"page_theme": "heavenly"})
+    resp = client.post("/api/songs/variants/100/occasion", json={"page_theme": "classic"})
+    assert resp.json()["page_theme"] == "classic"
+    assert _db.get_song_variant_by_id(db_path, 100)["page_theme"] is None
+
+
+def test_set_page_theme_rejects_unknown_value(app_client):
+    client, _db, _main, db_path, _, _ = app_client
+    resp = client.post("/api/songs/variants/100/occasion", json={"page_theme": "neon-disco"})
+    assert resp.status_code == 400
+    assert _db.get_song_variant_by_id(db_path, 100).get("page_theme") is None
+
+
+def test_page_theme_and_other_fields_do_not_clobber_each_other(app_client):
+    """Partial update both ways: setting the theme must not touch name/tribute,
+    and saving name/tribute (no page_theme key) must not reset the theme."""
+    client, _db, _main, db_path, _, _ = app_client
+    client.post("/api/songs/variants/100/occasion", json={
+        "occasion": "memorial", "occasion_name": "Alex", "tribute_message": "Loved."})
+    client.post("/api/songs/variants/100/occasion", json={"page_theme": "heavenly"})
+    v = _db.get_song_variant_by_id(db_path, 100)
+    assert (v["occasion"], v["occasion_name"], v["tribute_message"], v["page_theme"]) == ("memorial", "Alex", "Loved.", "heavenly")
+    client.post("/api/songs/variants/100/occasion", json={
+        "occasion": "memorial", "occasion_name": "Alexander", "tribute_message": "Loved."})
+    v = _db.get_song_variant_by_id(db_path, 100)
+    assert (v["occasion_name"], v["page_theme"]) == ("Alexander", "heavenly")
 
 
 def test_set_occasion_404s_for_nonexistent_variant(app_client):
