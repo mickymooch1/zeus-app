@@ -3198,6 +3198,8 @@ async def songs_generate(
         try:
             _sfx_out = os.path.join(_storage, f"{_sfx_vid}.mp3")
             _sfx_dur = _sfx_mod.generate_looped_sfx(_sfx_genre, body.brief or "", _sfx_out)
+            import audio_tags as _audio_tags
+            _audio_tags.retag_song_file(_sfx_out, _sfx_vid, db_path)
         except Exception as exc:
             log.exception("SFX generation FAILED variant_id=%d genre=%r", _sfx_vid, _sfx_genre)
             _fc = sqlite3.connect(str(db_path))
