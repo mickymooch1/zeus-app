@@ -168,6 +168,19 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
 
 _DEFAULT_COVER_PROMPT = "professional album cover art, cinematic, high quality"
 
+
+def cover_prompt_for(genre_tag: str | None) -> str:
+    """Flux prompt for a song's genre_tag. A blend is stored as "first__second"
+    (songs.py / main.py) and has no entry of its own, so it used to fall through
+    to the generic default; use the first genre's prompt, then the second's."""
+    tag = genre_tag or ""
+    if tag in GENRE_COVER_PROMPTS:
+        return GENRE_COVER_PROMPTS[tag]
+    for part in tag.split("__"):
+        if part in GENRE_COVER_PROMPTS:
+            return GENRE_COVER_PROMPTS[part]
+    return _DEFAULT_COVER_PROMPT
+
 KIDS_COVER_PROMPT = (
     "colourful children's book illustration style, bright cheerful colours, cute cartoon characters, "
     "friendly and fun, no adult themes, child-friendly artwork, Disney Pixar inspired, "
@@ -217,7 +230,7 @@ def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = ""
     if "children's" in style_prompt.lower() or genre_tag == 'kids_story':
         prompt = KIDS_COVER_PROMPT
     else:
-        prompt = GENRE_COVER_PROMPTS.get(genre_tag or "", _DEFAULT_COVER_PROMPT)
+        prompt = cover_prompt_for(genre_tag)
     logger.info(
         "Starting Flux cover art for variant_id=%d genre=%r FAL_KEY_len=%d prompt=%.80r",
         variant_id, genre_tag, len(_img.FAL_API_KEY) if _img.FAL_API_KEY else 0, prompt,
