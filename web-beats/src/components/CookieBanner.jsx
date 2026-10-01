@@ -47,8 +47,12 @@ export default function CookieBanner() {
       left: 0,
       right: 0,
       zIndex: 9999,
-      background: 'rgba(15, 12, 41, 0.97)',
-      borderTop: '1px solid rgba(167, 139, 250, 0.25)',
+      background: 'rgba(11, 18, 34, 0.97)',
+      borderTop: '1px solid #1f5f8a',
+      boxShadow: '0 -8px 32px rgba(22, 200, 255, 0.12)',
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
+      fontFamily: "Barlow, 'Segoe UI', system-ui, sans-serif",
       padding: compact ? '8px 12px' : '14px 24px',
       display: 'flex',
       alignItems: 'center',
@@ -57,7 +61,7 @@ export default function CookieBanner() {
       flexWrap: compact ? 'nowrap' : 'wrap',
     }}>
       <p style={{
-        color: '#e2d9f3', fontSize: compact ? '11px' : '13px', lineHeight: compact ? 1.35 : 1.5,
+        color: '#c9d6ea', fontSize: compact ? '11px' : '13px', lineHeight: compact ? 1.35 : 1.5,
         flex: 1, minWidth: compact ? 0 : '220px', ...(compact ? { margin: 0 } : {}),
       }}>
         {/* Trans, not t() — the Privacy Policy link sits mid-sentence and languages
@@ -65,7 +69,7 @@ export default function CookieBanner() {
         <Trans
           i18nKey="cookies.message"
           components={{
-            privacy: <Link to="/privacy" style={{ color: '#a78bfa', textDecoration: 'underline' }} />,
+            privacy: <Link to="/privacy" style={{ color: '#16c8ff', textDecoration: 'underline' }} />,
           }}
         />
       </p>
@@ -76,10 +80,11 @@ export default function CookieBanner() {
             to="/privacy"
             style={{
               padding: '7px 16px',
-              borderRadius: '6px',
+              borderRadius: '999px',
               fontSize: '13px',
-              color: '#a78bfa',
-              border: '1px solid rgba(167, 139, 250, 0.35)',
+              fontWeight: 600,
+              color: '#16c8ff',
+              border: '1px solid rgba(22, 200, 255, 0.45)',
               background: 'transparent',
               textDecoration: 'none',
               whiteSpace: 'nowrap',
@@ -92,11 +97,12 @@ export default function CookieBanner() {
           onClick={accept}
           style={{
             padding: compact ? '6px 14px' : '7px 20px',
-            borderRadius: '6px',
+            borderRadius: '999px',
             fontSize: compact ? '12px' : '13px',
-            fontWeight: 600,
-            background: 'linear-gradient(135deg, #a78bfa, #60a5fa)',
-            color: '#fff',
+            fontWeight: 700,
+            fontFamily: 'inherit',
+            background: '#16c8ff',
+            color: '#031018',
             border: 'none',
             cursor: 'pointer',
             whiteSpace: 'nowrap',
