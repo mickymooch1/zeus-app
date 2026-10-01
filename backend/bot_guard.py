@@ -398,7 +398,11 @@ class Guard:
 
     # ── request hooks ──
     def is_blocked(self, ip: str) -> bool:
-        return self.cache.is_blocked(ip)
+        # A protected IP is never denied, even with an active block row: adding an
+        # address to SECURITY_IP_ALLOWLIST must also lift a block that already
+        # exists (rows reload on every restart). The cache check comes first so the
+        # env parse only runs for addresses that are actually blocked.
+        return self.cache.is_blocked(ip) and not is_protected_ip(ip)
 
     def count_denied(self, ip: str) -> None:
         with self._lock:

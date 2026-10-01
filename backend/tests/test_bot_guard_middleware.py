@@ -230,6 +230,22 @@ def test_allowlisted_ip_is_never_blocked(env, monkeypatch):
     assert store.active_blocked(env.path) == []
 
 
+def test_allowlisting_an_already_blocked_ip_lets_it_through(env, monkeypatch):
+    # 2026-10-01: the owner's IP was auto-blocked, then allowlisted — and stayed
+    # blocked, because the block row reloads on every restart. The allowlist must
+    # win over an existing block, not just prevent new ones.
+    monkeypatch.setenv("SECURITY_ENFORCE", "1")
+    store.add_blocked_ip(env.path, BAD, "20 not-found requests in 60s")
+    env.guard.init(env.path)
+    assert status(call(env, "/roast")) == 403
+    monkeypatch.setenv("SECURITY_IP_ALLOWLIST", BAD)
+    assert status(call(env, "/roast")) == 200
+    assert env.served == ["/roast"]
+    flush(env)
+    (row,) = store.active_blocked(env.path)
+    assert row["denied_requests"] == 1          # the allowed request isn't counted as denied
+
+
 def test_the_canary_header_exempts_the_scans_own_probes(env):
     env.routes["/.git/config"] = (404, False)
     hdr = [(b"x-security-canary", bot_guard.canary_token().encode())]
