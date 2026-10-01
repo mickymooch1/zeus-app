@@ -15,7 +15,6 @@
   --zb-text: #eef6ff;
   --zb-muted: #9fb0c8;
   --zb-on-cyan: #031018;
-  --zb-side-w: 236px;
   background: var(--zb-bg);
   color: var(--zb-text);
   font-family: Barlow, 'Segoe UI', system-ui, sans-serif;
@@ -27,39 +26,6 @@
 .zb-neon .zb-display { font-family: 'Bebas Neue', Impact, sans-serif; font-weight: 400; letter-spacing: 1px; line-height: 0.95; }
 .zb-neon .zb-marker { font-family: 'Permanent Marker', 'Comic Sans MS', cursive; font-weight: 400; }
 .zb-neon .zb-muted { color: var(--zb-muted); }
-
-/* ── Desktop sidebar (≥1024px); the existing top header stays on smaller screens ── */
-.zb-side { display: none; }
-@media (min-width: 1024px) {
-  .zb-neon .dashboard-header { display: none; }
-  .zb-neon { padding-left: var(--zb-side-w); }   /* the page's own wrappers centre with inline margin:auto */
-  .zb-side {
-    display: flex; flex-direction: column; position: fixed; inset: 0 auto 0 0; z-index: 50;
-    width: var(--zb-side-w); padding: 22px 14px 18px; box-sizing: border-box;
-    background: linear-gradient(180deg, #060a14 0%, #04060c 100%);
-    border-right: 1px solid #14223a; overflow-y: auto;
-  }
-}
-.zb-side-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--zb-text); padding: 0 10px 22px; }
-.zb-side-logo span { font-family: 'Bebas Neue', Impact, sans-serif; font-size: 28px; letter-spacing: 1.5px; line-height: 1; color: var(--zb-text); }
-.zb-side-logo span b { color: var(--zb-cyan); font-weight: 400; }
-.zb-side nav { display: flex; flex-direction: column; gap: 2px; }
-.zb-side-link {
-  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
-  color: #c4d2e6 !important; text-decoration: none; font-size: 15px; font-weight: 500;
-  border: 1px solid transparent; transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.zb-side-link svg { flex-shrink: 0; color: #7d93b3; transition: color 0.15s; }
-.zb-side-link:hover { background: rgba(22,200,255,0.06); color: #ffffff !important; }
-.zb-side-link:hover svg { color: var(--zb-cyan); }
-.zb-side-link--active {
-  background: rgba(22,200,255,0.12); border-color: rgba(22,200,255,0.35);
-  color: #ffffff !important; box-shadow: inset 3px 0 0 var(--zb-cyan);
-}
-.zb-side-link--active svg { color: var(--zb-cyan); }
-.zb-side-badge { margin-left: auto; min-width: 20px; padding: 1px 6px; border-radius: 999px; background: var(--zb-cyan); color: var(--zb-on-cyan); font-size: 11px; font-weight: 700; text-align: center; }
-.zb-side-foot { margin-top: auto; padding-top: 16px; border-top: 1px solid #14223a; display: flex; flex-direction: column; gap: 10px; }
-.zb-side-account { font-size: 13px; color: var(--zb-muted) !important; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 12px; }
 
 /* ── Hero header ─────────────────────────────────────────────────────────── */
 .zb-hero { position: relative; min-height: 270px; margin: 4px 0 26px; }
@@ -169,3 +135,58 @@
 .zb-generate:hover:not(:disabled) { box-shadow: 0 0 40px rgba(22,200,255,0.8); transform: translateY(-1px); }
 .zb-generate:disabled { background: #13233a; color: #6a809e; box-shadow: none; cursor: default; }
 @media (max-width: 640px) { .zb-generate { height: 56px; font-size: 25px; } }
+
+/* ── Mode cards (Kids Beats, Kids Story, Roast), panels, roast fields ────── */
+.zb-neon .zb-mode {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 10px;
+  border-radius: 14px; border: 1px solid var(--zb-border); background: var(--zb-input); color: var(--zb-text);
+  text-align: left; font-family: inherit; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.zb-neon .zb-mode:hover { border-color: rgba(22,200,255,0.6); }
+.zb-neon .zb-mode[aria-pressed="true"] { border-color: var(--zb-cyan); background: rgba(22,200,255,0.06); box-shadow: 0 0 16px rgba(22,200,255,0.22); }
+.zb-mode-icon { font-size: 22px; line-height: 1; width: 28px; text-align: center; flex-shrink: 0; }
+.zb-mode-title { display: block; font-family: 'Bebas Neue', Impact, sans-serif; font-size: 22px; letter-spacing: 1px; line-height: 1; color: #ffffff; }
+.zb-mode-sub { display: block; margin-top: 3px; font-size: 13px; color: var(--zb-muted); }
+.zb-mode-go { margin-left: auto; font-size: 26px; line-height: 1; color: var(--zb-cyan); }
+.zb-switch { margin-left: auto; flex-shrink: 0; position: relative; width: 42px; height: 24px; border-radius: 999px; background: #13233a; transition: background 0.15s; }
+.zb-switch::after { content: ''; position: absolute; top: 4px; left: 4px; width: 16px; height: 16px; border-radius: 50%; background: #6a809e; transition: transform 0.15s, background 0.15s; }
+.zb-mode[aria-pressed="true"] .zb-switch { background: rgba(22,200,255,0.35); }
+.zb-mode[aria-pressed="true"] .zb-switch::after { transform: translateX(18px); background: var(--zb-cyan); box-shadow: 0 0 8px rgba(22,200,255,0.8); }
+.zb-neon .zb-panel { background: rgba(22,200,255,0.03); border: 1px solid var(--zb-border-glow); border-radius: 16px; padding: 18px; margin-bottom: 18px; }
+.zb-neon .zb-field-label { display: block; font-size: 15px; font-weight: 600; color: #ffffff; margin: 0 0 8px; }
+.zb-neon .zb-vibe {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--zb-border); background: var(--zb-input); color: var(--zb-text); text-align: left; cursor: pointer;
+  font-family: inherit; transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.zb-neon .zb-vibe:hover { border-color: rgba(22,200,255,0.6); }
+.zb-neon .zb-vibe[aria-pressed="true"] { border-color: var(--zb-cyan); background: rgba(22,200,255,0.10); box-shadow: 0 0 14px rgba(22,200,255,0.3); }
+.zb-vibe-label { font-size: 14px; font-weight: 700; color: #ffffff; }
+.zb-vibe-desc { font-size: 12px; color: var(--zb-muted); line-height: 1.3; }
+
+/* ── Library: song packs ─────────────────────────────────────────────────── */
+.zb-neon .zb-pack {
+  padding: 11px 20px; border-radius: 999px; border: 1px solid rgba(22,200,255,0.55); background: rgba(22,200,255,0.06);
+  color: #ffffff; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.zb-neon .zb-pack:hover:not(:disabled) { background: rgba(22,200,255,0.16); border-color: var(--zb-cyan); }
+.zb-neon .zb-pack:disabled { opacity: 0.6; cursor: default; }
+
+/* ── Advanced options ───────────────────────────────────────────────────── */
+.zb-mode-more { margin-left: auto; flex-shrink: 0; color: var(--zb-cyan); font-size: 13px; font-weight: 700; }
+.zb-mode[aria-expanded="true"] { border-color: var(--zb-cyan); background: rgba(22,200,255,0.06); }
+.zb-neon .zb-mini-label { font-size: 12px; font-weight: 700; color: #9fd8f0; letter-spacing: 0.8px; text-transform: uppercase; margin: 0 0 8px; }
+
+/* Form controls don't inherit the page font by default. */
+:where(.zb-neon) :where(button, input, select, textarea) { font-family: inherit; }
+
+/* Floating Discover shortcut (phones). Not a glowing pill — Generate is the only one. */
+.zb-fab {
+  position: fixed; right: 16px; bottom: calc(16px + var(--cookie-banner-h, 0px)); z-index: 100;
+  display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 999px;
+  background: rgba(11,18,34,0.94); border: 1.5px solid rgba(22,200,255,0.7); color: #16c8ff !important;
+  font-family: Barlow, 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 15px; text-decoration: none;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+@media (min-width: 1024px) { body.zb-has-sidebar .zb-fab { display: none; } }

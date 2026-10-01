@@ -17,3 +17,8 @@ android.keystore
 *.idsig
 .gradle/
 build/
+
+# Design reference pack (2026-10-01): only DESIGN.md is committed; the posters,
+# mockups and screenshots stay local.
+web-beats/design-ref/*
+!web-beats/design-ref/DESIGN.md

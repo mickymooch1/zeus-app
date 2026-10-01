@@ -444,7 +444,7 @@ export default function DiscoverPage() {
           then the tabs. One block whose live height is published as
           --discover-header-h, so each slide's layout starts below it. */}
       <div ref={headerRef} style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200,
+        position: 'fixed', top: 0, left: 'var(--zb-side-offset, 0px)', right: 0, zIndex: 200,
         padding: 'max(10px, env(safe-area-inset-top)) 14px 8px',
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.55) 70%, transparent 100%)',
         pointerEvents: 'none',
@@ -647,7 +647,7 @@ export default function DiscoverPage() {
       {/* ── Playback controls bar (same controls, Clips styling) ──────────────── */}
       {activeAudioEl && (
         <div ref={barRef} style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200,
+          position: 'fixed', bottom: 0, left: 'var(--zb-side-offset, 0px)', right: 0, zIndex: 200,
           padding: '8px 16px 14px',
           background: 'linear-gradient(to top, rgba(0,0,0,0.97) 65%, transparent 100%)',
           pointerEvents: 'auto',

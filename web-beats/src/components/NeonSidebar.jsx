@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -5,12 +6,14 @@ import { LanguageSelector } from './LanguageSelector';
 import { useDiscoverBadge } from '../hooks/useDiscoverBadge';
 import { useClipsEnabled } from '../hooks/useClipsEnabled';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
+import './NeonSidebar.css';
 
 /**
  * Desktop navigation for the neon restyle (2026-10-01, design-ref/DESIGN.md):
- * a left sidebar with line icons instead of the emoji top bar. Shown only at
- * ≥1024px (songsNeon.css); below that the existing BeatsDashboardHeader and its
- * hamburger stay. Same destinations, labels, badge and gating as that header —
+ * a left sidebar with line icons instead of the emoji top bars. Rendered once
+ * by App for every logged-in app page (utils/appNav.js) and shown only at
+ * ≥1024px (NeonSidebar.css); below that each page's own header and hamburger
+ * stay. Same destinations, labels, badge and gating as BeatsDashboardHeader —
  * only the presentation differs.
  */
 
@@ -48,6 +51,12 @@ export function NeonSidebar() {
   const { t } = useTranslation();
   const newOnDiscover = useDiscoverBadge(user);
   const clipsVisible = useClipsEnabled(user);
+
+  // While mounted, the page shifts right to make room (NeonSidebar.css).
+  useEffect(() => {
+    document.body.classList.add('zb-has-sidebar');
+    return () => document.body.classList.remove('zb-has-sidebar');
+  }, []);
 
   const links = [
     { to: '/songs', icon: 'songs', label: t('nav.songs') },

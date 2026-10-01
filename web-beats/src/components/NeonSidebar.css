@@ -1,0 +1,45 @@
+/* Neon desktop sidebar (2026-10-01) — global, because it appears on every
+   logged-in app page (see utils/appNav.js). Only at ≥1024px; below that each
+   page keeps its own header with the hamburger menu. While it is mounted the
+   body carries .zb-has-sidebar, which shifts the page over and exposes
+   --zb-side-offset for fixed bars that would otherwise run underneath it. */
+
+:root { --zb-side-w: 236px; --zb-side-offset: 0px; }
+
+.zb-side { display: none; }
+
+@media (min-width: 1024px) {
+  body.zb-has-sidebar { padding-left: var(--zb-side-w); --zb-side-offset: var(--zb-side-w); }
+  /* The sidebar replaces the app's top nav bars on desktop. */
+  body.zb-has-sidebar .dashboard-header,
+  body.zb-has-sidebar .navbar { display: none; }
+  .zb-side {
+    display: flex; flex-direction: column; position: fixed; inset: 0 auto 0 0; z-index: 9990;
+    width: var(--zb-side-w); padding: 22px 14px 18px; box-sizing: border-box;
+    background: linear-gradient(180deg, #060a14 0%, #04060c 100%);
+    border-right: 1px solid #14223a; overflow-y: auto;
+    font-family: Barlow, 'Segoe UI', system-ui, sans-serif;
+  }
+}
+
+.zb-side-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; color: #eef6ff; padding: 0 10px 22px; }
+.zb-side-logo span { font-family: 'Bebas Neue', Impact, sans-serif; font-size: 28px; letter-spacing: 1.5px; line-height: 1; color: #eef6ff; }
+.zb-side-logo span b { color: #16c8ff; font-weight: 400; }
+.zb-side nav { display: flex; flex-direction: column; gap: 2px; }
+.zb-side-link {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
+  color: #c4d2e6 !important; text-decoration: none; font-size: 15px; font-weight: 500;
+  border: 1px solid transparent; transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.zb-side-link svg { flex-shrink: 0; color: #7d93b3; transition: color 0.15s; }
+.zb-side-link:hover { background: rgba(22,200,255,0.06); color: #ffffff !important; }
+.zb-side-link:hover svg { color: #16c8ff; }
+.zb-side-link:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+.zb-side-link--active {
+  background: rgba(22,200,255,0.12); border-color: rgba(22,200,255,0.35);
+  color: #ffffff !important; box-shadow: inset 3px 0 0 #16c8ff;
+}
+.zb-side-link--active svg { color: #16c8ff; }
+.zb-side-badge { margin-left: auto; min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #16c8ff; color: #031018; font-size: 11px; font-weight: 700; text-align: center; }
+.zb-side-foot { margin-top: auto; padding-top: 16px; border-top: 1px solid #14223a; display: flex; flex-direction: column; gap: 10px; }
+.zb-side-account { font-size: 13px; color: #9fb0c8 !important; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 12px; }

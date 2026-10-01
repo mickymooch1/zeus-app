@@ -11,6 +11,7 @@ Run from web-beats/:
   FAL_KEY=... py scripts/generate_genre_tiles.py --generate --only grime,jazz,opera
   FAL_KEY=... py scripts/generate_genre_tiles.py --generate          # all missing tiles
 Existing tiles are skipped (resumable); --force regenerates.
+--out DIR writes candidates to DIR for review (live tiles and manifest untouched).
 """
 from __future__ import annotations
 
@@ -32,7 +33,11 @@ MANIFEST = ROOT / "src" / "utils" / "genreTiles.manifest.json"
 MODEL_URL = "https://fal.run/fal-ai/flux/dev"
 COST_PER_IMAGE_USD = 0.025                                      # fal flux/dev, 1 MP (1024×1024)
 
+# The no-text and night/neon instructions lead because Flux has no negative prompt
+# and weights early words most: lettering and warm sunsets crept into the first batch.
 STYLE = (
+    "no text, no letters, no signs, no lettering anywhere, plain unmarked walls and surfaces, "
+    "night-time scene lit only by electric cyan and violet neon light, no sunset, no daylight, "
     "square music genre artwork, dark navy background (#04060c), electric cyan neon glow (#16c8ff) "
     "with small violet accents (#7b5cff), cinematic rim lighting, high contrast, moody, glossy, "
     "centered subject, ultra detailed, no text, no letters, no words, no logos, no watermark"
@@ -73,8 +78,43 @@ def backend_prompts() -> dict[str, str]:
     return {}
 
 
+# Tile-only subjects. The song-cover prompts these genres borrow from ask for neon
+# signs, sunsets or warm golden light, which Flux follows over the shared STYLE —
+# so the tiles came out with garbled lettering or off-palette. Used only here; the
+# song covers themselves are untouched.
+TILE_SUBJECTS = {
+    "chicagoblues": "harmonica player and electric guitarist on a small stage in a smoky blues club, "
+                    "bare dark brick walls, blue stage spotlights, vintage microphone",
+    "rocknroll": "rock and roll singer with a quiff and electric guitar at a chrome vintage microphone, "
+                 "glowing jukebox, checkered dance floor, dark ballroom",
+    "brazilianphonk": "lowered car on a wet hillside favela street at night, bass speakers in the open boot, "
+                      "glowing cyan underglow, mist",
+    "ukgarage": "stylish MC in designer clothes holding a microphone beside stacked speakers and a sleek "
+                "unbranded sports car, plain wet street at night with bare dark brick walls, no shops, "
+                "no shopfronts, no windows with displays",
+    "corridos": "Mexican corridos musician with a twelve-string guitar sitting on a wooden crate, "
+                "cacti silhouettes in a desert under a starry cyan night sky",
+    "country": "cowboy with an acoustic guitar standing on a desert road at night, "
+               "canyon silhouettes under a cyan moonlit sky",
+    "countryamericana": "lone cowboy beside a vintage pickup truck on an empty highway at night, "
+                        "headlights glowing, moonlit sky",
+    "countryballad": "lone figure with a guitar walking down a long empty country road at night, "
+                     "telephone poles, cyan moonlight",
+    "countrypop": "country pop singer in a cowboy hat with an acoustic guitar on a stage strung with cyan "
+                  "fairy lights, wildflowers in front",
+    "countryrap": "rapper in a cap and chain sitting on the tailgate of a pickup truck in a field at night, "
+                  "glowing cyan tail lights",
+    "countrysoul": "acoustic guitar leaning on a porch rocking chair of a wooden farmhouse at night, "
+                   "fireflies, moonlit fields",
+    "traditionalcountry": "acoustic guitar leaning against an old wooden barn at night, "
+                          "split-rail fence, moonlit prairie",
+    "christmas": "Christmas tree lit with cyan and violet lights in a snowy village street at night, "
+                 "gifts under the tree, falling snow",
+}
+
+
 def prompt_for(genre: str, label: str, backend: dict[str, str]) -> str:
-    subject = backend.get(genre, "")
+    subject = TILE_SUBJECTS.get(genre) or backend.get(genre, "")
     for pat in SCRUB:
         subject = re.sub(pat, "", subject, flags=re.IGNORECASE)
     subject = re.sub(r"\s+", " ", subject)
@@ -102,9 +142,13 @@ def main() -> None:
     rows = [r for r in genres_and_labels() if only is None or r[0] in only]
     backend = backend_prompts()
     OUT.mkdir(parents=True, exist_ok=True)
-    todo = [r for r in rows if "--force" in args or not (OUT / f"{r[0]}.webp").exists()]
+    out = OUT
+    if "--out" in args:                       # candidates for review: never touch live tiles/manifest
+        out = pathlib.Path(args[args.index("--out") + 1])
+        out.mkdir(parents=True, exist_ok=True)
+    todo = [r for r in rows if "--force" in args or not (out / f"{r[0]}.webp").exists()]
 
-    print(f"genres: {len(rows)}  ·  to generate: {len(todo)}  ·  "
+    print(f"genres: {len(rows)}  |  to generate: {len(todo)}  |  "
           f"est. cost ${len(todo) * COST_PER_IMAGE_USD:.2f} (at ${COST_PER_IMAGE_USD}/image)")
     print(f"backend prompt available for {sum(1 for r in rows if r[0] in backend)}/{len(rows)}; the rest use a generic subject")
     if "--generate" not in args:
@@ -121,17 +165,23 @@ def main() -> None:
     for g, label, _ in todo:
         prompt = prompt_for(g, label, backend)
         for attempt in range(3):
+            # Only the paid API call and the save are retried — a retry costs money,
+            # so nothing else (e.g. console output) may raise inside this block.
             try:
                 img = Image.open(io.BytesIO(generate(prompt, key))).convert("RGB").resize((512, 512), Image.LANCZOS)
-                img.save(OUT / f"{g}.webp", "WEBP", quality=86, method=6)
-                done += 1
-                print(f"✓ {g}")
-                break
+                img.save(out / f"{g}.webp", "WEBP", quality=86, method=6)
             except Exception as exc:                      # rate limit / transient — back off and retry
                 print(f"  retry {g} ({exc})")
                 time.sleep(5 * (attempt + 1))
+                continue
+            done += 1
+            print(f"ok  {g}")
+            break
         else:
-            print(f"✗ {g} failed after 3 attempts")
+            print(f"FAILED {g} after 3 attempts")
+    if out != OUT:
+        print(f"generated {done} candidate(s) in {out}; live tiles and manifest untouched")
+        return
     available = sorted(p.stem for p in OUT.glob("*.webp"))
     MANIFEST.write_text(json.dumps(available) + "\n", encoding="utf-8")
     print(f"generated {done}; {len(available)} tiles available ({MANIFEST.name} updated)")
