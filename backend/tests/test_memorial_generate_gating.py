@@ -22,6 +22,11 @@ def app_client(tmp_path, monkeypatch):
     _db.update_user(db_path, user["id"], email_verified=1)
     import main as _main
     importlib.reload(_main)
+    # The setdefaults above only help if this file is first to import cometapi; in a
+    # full run an earlier file imports it with no key, the endpoint's fail-fast config
+    # check then 503s, and the persona-failure test never reaches its patched call.
+    monkeypatch.setattr("cometapi.COMETAPI_API_KEY", "test-comet-key")
+    monkeypatch.setattr(_main, "COMETAPI_WEBHOOK_URL", "https://zeusaidesign.com/webhooks/cometapi")
     client = TestClient(_main.app)
     token = _main.auth.create_token(user["id"], user["email"], is_admin=False)
     return client, _db, _main, db_path, user, token
