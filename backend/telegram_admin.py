@@ -75,6 +75,11 @@ Just talk to me naturally, mate! Examples:
 <code>unblock EMAIL</code> — reverse a block, restore the clips it auto-hid
 <code>delete_user EMAIL</code> — dry run: lists every row that would be deleted, per table
 <code>delete_user EMAIL confirm</code> — actually deletes the account and every referencing row, in one transaction; refuses on any admin account
+<code>mp3tags dryrun</code> — song MP3 metadata clean-up: what would change (nothing is modified)
+<code>mp3tags test N</code> — back up N songs (max 10), retag them, show before/after + audio-unchanged check
+<code>mp3tags backup</code> — back up every MP3 that would change (runs in background, reports when done)
+<code>mp3tags run all confirm</code> — retag every backed-up MP3 (background); refuses until the backup is complete
+<code>mp3tags restore ID[,ID…]</code> — put songs back from the backup
 <code>reset_clip_remixes CLIP_ID</code> — recounts remix_count from the real clip_remixes rows (not just zeroing it)
 <code>yes</code> / <code>no</code> — reply to a pending fix-it offer (30 min window)
 <code>help</code>"""
@@ -1963,6 +1968,111 @@ def _cmd_confirm_delete_user(email: str) -> str:
     return "\n".join(lines)[:3900]
 
 
+# ── mp3tags — one-off song MP3 metadata clean-up (2026-10-01) ────────────────
+# Drives mp3_retag.py in owner-approved stages: dryrun → test N → backup →
+# run all confirm. backup/run are long, so they run in a background thread and
+# report back with alerts._send_telegram (no dedup) when finished.
+
+def _mb(n: int) -> str:
+    return f"{n / 2**20:,.0f} MB"
+
+
+def _cmd_mp3tags_dryrun() -> str:
+    import db as _db
+    import mp3_retag
+    items = mp3_retag.plan(_db.get_db_path())
+    s = mp3_retag.summary(items)
+    lines = [
+        "🔎 <b>MP3 tags — DRY RUN</b> (nothing changed)",
+        f"Song MP3s on disk: {s['files']}",
+        f"Would change: {s['to_change']}  ·  carry the provider mark: {s['provider_marked']}  ·  already clean: {s['already_clean']}",
+        f"Backed up so far: {s['backed_up']}/{s['to_change']}",
+        f"Backup needs {_mb(s['bytes_to_back_up'])}; free {_mb(s['free_bytes'])} → "
+        + ("✅ enough space" if s["enough_space"] else "❌ NOT enough space (500 MB margin)"),
+        f"Backup folder: <code>{_esc(s['backup_dir'])}</code>",
+        "",
+        "<b>Examples</b> (current tags → after: title + artist \"Zeus Beats\")",
+    ]
+    for it in [i for i in items if not i["clean"]][:8]:
+        lines.append(f"• #{it['variant_id']} {_esc(it['title'][:40])}: {_esc('; '.join(it['tags'])[:160]) or '(no tags)'}")
+    lines += ["", "Next: <code>mp3tags test 5</code>"]
+    return "\n".join(lines)[:3900]
+
+
+def _cmd_mp3tags_test(n: int) -> str:
+    import db as _db
+    import mp3_retag
+    n = max(1, min(n, 10))
+
+    def job():
+        items = mp3_retag.pick_test(mp3_retag.plan(_db.get_db_path()), n)
+        b = mp3_retag.backup(items)
+        return items, b, mp3_retag.apply(items)
+    try:
+        items, b, r = mp3_retag.run_locked(job)
+    except RuntimeError as exc:
+        return f"❌ {_esc(str(exc))}"
+    base = os.environ.get("SONG_PUBLIC_BASE_URL", "").rstrip("/")
+    lines = [f"🧪 <b>MP3 tags — TEST on {len(items)} song(s)</b>",
+             f"Backed up: {b['copied']} new, {b['already_backed_up']} already"]
+    for d in r["retagged"]:
+        lines += [f"\n<b>#{d['variant_id']}</b> {_esc(d['title'][:50])}",
+                  f"  before: {_esc('; '.join(d['before'])[:220]) or '(none)'}",
+                  f"  after:  {_esc('; '.join(d['after']))}",
+                  f"  audio unchanged: ✅  ·  listen: {_esc(base)}/{d['variant_id']}.mp3"]
+    if r["restored_after_failed_check"]:
+        lines.append(f"\n⚠️ check failed → restored from backup: {r['restored_after_failed_check']}")
+    if r["not_backed_up"]:
+        lines.append(f"⚠️ skipped (no verified backup): {r['not_backed_up']}")
+    lines.append("\nUndo: <code>mp3tags restore " + ",".join(str(d["variant_id"]) for d in r["retagged"]) + "</code>")
+    return "\n".join(lines)[:3900]
+
+
+def _start_mp3tags_job(kind: str, chat_id: str) -> str:
+    import threading
+    import db as _db
+    import mp3_retag
+    import alerts as _alerts
+
+    def worker():
+        try:
+            def job():
+                items = mp3_retag.plan(_db.get_db_path())
+                if kind == "backup":
+                    return mp3_retag.backup(items), mp3_retag.summary(items)
+                s = mp3_retag.summary(items)
+                if s["backed_up"] < s["to_change"]:
+                    raise RuntimeError(f"backup incomplete ({s['backed_up']}/{s['to_change']}) — run <code>mp3tags backup</code> first; nothing was changed")
+                return mp3_retag.apply(items), s
+            result, s = mp3_retag.run_locked(job)
+            if kind == "backup":
+                msg = (f"✅ <b>MP3 backup done</b>: copied {result['copied']}, already there {result['already_backed_up']}. "
+                       f"Now backed up {s['backed_up'] + result['copied']}/{s['to_change']}.\nNext: <code>mp3tags run all confirm</code>")
+            else:
+                msg = (f"✅ <b>MP3 retag done</b>: retagged {len(result['retagged'])}, already clean {result['skipped_clean']}, "
+                       f"no backup (skipped) {len(result['not_backed_up'])}, failed check → restored {len(result['restored_after_failed_check'])}"
+                       + (f"\nRestored ids: {result['restored_after_failed_check'][:30]}" if result["restored_after_failed_check"] else ""))
+        except Exception as exc:
+            log.exception("mp3tags %s failed", kind)
+            msg = f"❌ <b>mp3tags {kind} stopped</b>: {_esc(str(exc))[:500]}"
+        _alerts._send_telegram(msg)
+        if chat_id:
+            _db_log_action(chat_id, f"mp3tags_{kind}", msg[:400])
+
+    threading.Thread(target=worker, name=f"mp3tags-{kind}", daemon=True).start()
+    return f"⏳ mp3tags {kind} started in the background — I'll message you when it finishes."
+
+
+def _cmd_mp3tags_restore(ids_text: str) -> str:
+    import mp3_retag
+    try:
+        ids = [int(x) for x in ids_text.replace(" ", "").split(",") if x]
+    except ValueError:
+        return "❌ ids must be numbers, e.g. <code>mp3tags restore 12,345</code>"
+    r = mp3_retag.restore(ids)
+    return f"↩️ Restored from backup: {r['restored'] or 'none'}" + (f"\n⚠️ no backup for: {r['no_backup']}" if r["no_backup"] else "")
+
+
 def _cmd_recount_clip_remixes(clip_id_str: str) -> str:
     """reset_clip_remixes CLIP_ID — recounts remix_count from the actual
     clip_remixes rows (clips.recount_clip_remix_count), rather than just
@@ -2933,6 +3043,30 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
         result = _cmd_unblock_ip(m.group(1))
         if chat_id and result.startswith("✅"):
             _db_log_action(chat_id, "unblock_ip", f"Unblocked IP {m.group(1)}")
+        return result
+
+    # mp3tags … — staged song MP3 metadata clean-up (see _cmd_mp3tags_*).
+    # Exact match only, every run logged (destructive stages need "confirm").
+    if re.match(r'^(?:porick\s+)?mp3tags\s+dryrun$', t, re.IGNORECASE):
+        result = _cmd_mp3tags_dryrun()
+        if chat_id:
+            _db_log_action(chat_id, "mp3tags_dryrun", result[:300])
+        return result
+    m = re.match(r'^(?:porick\s+)?mp3tags\s+test\s+(\d+)$', t, re.IGNORECASE)
+    if m:
+        result = _cmd_mp3tags_test(int(m.group(1)))
+        if chat_id:
+            _db_log_action(chat_id, "mp3tags_test", result[:400])
+        return result
+    if re.match(r'^(?:porick\s+)?mp3tags\s+backup$', t, re.IGNORECASE):
+        return _start_mp3tags_job("backup", chat_id)
+    if re.match(r'^(?:porick\s+)?mp3tags\s+run\s+all\s+confirm$', t, re.IGNORECASE):
+        return _start_mp3tags_job("run", chat_id)
+    m = re.match(r'^(?:porick\s+)?mp3tags\s+restore\s+([\d,\s]+)$', t, re.IGNORECASE)
+    if m:
+        result = _cmd_mp3tags_restore(m.group(1))
+        if chat_id:
+            _db_log_action(chat_id, "mp3tags_restore", result[:300])
         return result
 
     # delete_user EMAIL [confirm] — account-deletion cleanup tool (built

@@ -3198,6 +3198,8 @@ async def songs_generate(
         try:
             _sfx_out = os.path.join(_storage, f"{_sfx_vid}.mp3")
             _sfx_dur = _sfx_mod.generate_looped_sfx(_sfx_genre, body.brief or "", _sfx_out)
+            import audio_tags as _audio_tags
+            _audio_tags.retag_song_file(_sfx_out, _sfx_vid, db_path)
         except Exception as exc:
             log.exception("SFX generation FAILED variant_id=%d genre=%r", _sfx_vid, _sfx_genre)
             _fc = sqlite3.connect(str(db_path))
@@ -8127,6 +8129,10 @@ async def serve_spa(full_path: str, request: Request):
     if is_beats:
         import seo_landing_pages as _seo_pages
         import song_genres as _song_genres
+        legacy = _seo_pages.LEGACY_REDIRECTS.get(full_path.strip("/"))
+        if legacy:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(f"/{legacy}", status_code=301)
         landing_html = _seo_pages.render(full_path, len(_song_genres.GENRE_PRESETS))
         if landing_html is not None:
             return HTMLResponse(landing_html, headers=dict([_seo_pages.LANDING_HEADER]))

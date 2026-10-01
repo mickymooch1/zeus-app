@@ -262,7 +262,7 @@ def upload_song_to_youtube(
         tags = (
             ["ai music", "zeus beats", "zeusbeats", "ai generated"]
             if site == "beats"
-            else ["ai music", "zeus ai", "suno", "ai generated"]
+            else ["ai music", "zeus ai", "zeus beats", "ai generated"]
         )
         body = {
             "snippet": {

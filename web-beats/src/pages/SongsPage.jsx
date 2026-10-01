@@ -2729,7 +2729,7 @@ export default function SongsPage() {
                 {/* ── Sub-mode toggle ── */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
                   {[
-                    ['song',  '🎵', 'Song Mode',  'Suno sings a fun children\'s song'],
+                    ['song',  '🎵', 'Song Mode',  'Sings a fun children\'s song'],
                     ['story', '📖', 'Story Mode', 'Story narrated with gentle music'],
                   ].map(([val, emoji, label, desc]) => {
                     const isStoryDisabled = val === 'story' && !storyModeEnabled;
