@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BeatsDashboardHeader } from '../components/BeatsDashboardHeader';
+import GenreTileGrid from '../components/GenreTileGrid';
+import './songsNeon.css';
 import { EmailVerificationBanner } from '../components/EmailVerificationBanner';
 import { BACKEND_URL } from '../brand';
 import OnboardingTour from '../components/OnboardingTour';
@@ -115,7 +117,7 @@ const PAGE_CSS = `
   to   { opacity: 1; transform: translateY(0);   }
 }
 .song-card-anim { animation: fadeInUp 0.3s ease both; }
-.songs-textarea:focus { border-color: rgba(167,139,250,0.4) !important; }
+.songs-textarea:focus { border-color: rgba(22,200,255,0.4) !important; }
 .genre-pill:not(.genre-pill--sel):hover { background: var(--pill-hover-bg, rgba(255,255,255,0.13)) !important; border-color: var(--pill-color, rgba(255,255,255,0.65)) !important; color: var(--pill-color, #fff) !important; }
 .genre-pill--sel:hover { opacity: 0.88 !important; }
 @keyframes favToastFade { 0% { opacity:0 } 10% { opacity:1 } 70% { opacity:1 } 100% { opacity:0 } }
@@ -137,29 +139,29 @@ const PAGE_CSS = `
 }
 .mic-btn-listening { animation: micPulse 1s ease-in-out infinite !important; }
 .songs-search-input { outline: none; }
-.songs-search-input:focus { border-color: #00f0ff !important; box-shadow: 0 0 0 2px rgba(0,240,255,0.18), 0 0 14px rgba(0,240,255,0.12) !important; }
+.songs-search-input:focus { border-color: #16c8ff !important; box-shadow: 0 0 0 2px rgba(22,200,255,0.18), 0 0 14px rgba(22,200,255,0.12) !important; }
 .songs-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
 @media (min-width: 640px)  { .songs-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 1024px) { .songs-grid { grid-template-columns: repeat(3, 1fr); } }
 .song-card-anim { transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.28s ease, border-color 0.2s ease; }
-.song-card-anim:hover { transform: translateY(-5px); box-shadow: 0 16px 48px rgba(0,0,0,0.55), 0 0 24px rgba(0,240,255,0.14); border-color: rgba(0,240,255,0.25) !important; }
-.dl-btn:hover { box-shadow: 0 0 16px rgba(124,58,237,0.5) !important; }
+.song-card-anim:hover { transform: translateY(-5px); box-shadow: 0 16px 48px rgba(0,0,0,0.55), 0 0 24px rgba(22,200,255,0.14); border-color: rgba(22,200,255,0.25) !important; }
+.dl-btn:hover { box-shadow: 0 0 16px rgba(22,200,255,0.5) !important; }
 .fav-star-btn:hover { transform: scale(1.2); }
 .cover-video { transition: filter 0.2s; }
 .cover-video:hover { filter: brightness(1.12); }
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 15px rgba(0,240,255,0.3), inset 0 0 15px rgba(0,240,255,0.03); border-color: #00f0ff; }
-  50%       { box-shadow: 0 0 28px rgba(0,240,255,0.55), inset 0 0 20px rgba(0,240,255,0.06); border-color: #66f9ff; }
+  0%, 100% { box-shadow: 0 0 15px rgba(22,200,255,0.3), inset 0 0 15px rgba(22,200,255,0.03); border-color: #16c8ff; }
+  50%       { box-shadow: 0 0 28px rgba(22,200,255,0.55), inset 0 0 20px rgba(22,200,255,0.06); border-color: #66f9ff; }
 }
 .topup-section { animation: pulse-glow 3s ease-in-out infinite; }
 @keyframes advancedTogglePulse {
-  0%, 100% { box-shadow: 0 0 10px rgba(0,240,255,0.25); }
-  50%       { box-shadow: 0 0 26px rgba(0,240,255,0.65), 0 0 10px rgba(244,114,182,0.35); }
+  0%, 100% { box-shadow: 0 0 10px rgba(22,200,255,0.25); }
+  50%       { box-shadow: 0 0 26px rgba(22,200,255,0.65), 0 0 10px rgba(244,114,182,0.35); }
 }
 /* Finite — 3 iterations, then it stops on its own. This is a first-visit nudge,
    not an ongoing glow like .topup-section above; it must not run "infinite". */
 .adv-toggle-pulse { animation: advancedTogglePulse 1.4s ease-in-out 3; }
-.topup-btn:hover { background: linear-gradient(135deg, rgba(0,240,255,0.22) 0%, rgba(0,191,255,0.22) 100%) !important; box-shadow: 0 0 14px rgba(0,240,255,0.45) !important; transform: translateY(-1px) !important; }
+.topup-btn:hover { background: linear-gradient(135deg, rgba(22,200,255,0.22) 0%, rgba(0,191,255,0.22) 100%) !important; box-shadow: 0 0 14px rgba(22,200,255,0.45) !important; transform: translateY(-1px) !important; }
 @media (max-width: 599px) { .topup-section .topup-btn { width: 100% !important; justify-content: center !important; } }
 @media (max-width: 360px) {
   .genre-pill { padding: 4px 8px !important; font-size: 11px !important; }
@@ -173,8 +175,8 @@ const playBtnStyle = (active, ready) => ({
   height: 32,
   borderRadius: '50%',
   border: 'none',
-  background: active ? '#7c3aed' : 'rgba(167,139,250,0.12)',
-  color: '#c4b5fd',
+  background: active ? '#16c8ff' : 'rgba(22,200,255,0.12)',
+  color: active ? '#031018' : '#bfefff',
   cursor: ready ? 'pointer' : 'default',
   display: 'flex',
   alignItems: 'center',
@@ -291,8 +293,8 @@ const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }
               position: 'absolute', bottom: 8, left: 8,
               width: 40, height: 40, borderRadius: '50%',
               border: '1.5px solid rgba(255,255,255,0.7)',
-              background: playing ? 'rgba(124,58,237,0.85)' : 'rgba(0,0,0,0.6)',
-              color: '#fff', fontSize: 16, cursor: 'pointer',
+              background: playing ? 'rgba(22,200,255,0.9)' : 'rgba(0,0,0,0.6)',
+              color: playing ? '#031018' : '#fff', fontSize: 16, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               backdropFilter: 'blur(6px)', transition: 'all 0.2s', flexShrink: 0,
             }}
@@ -304,11 +306,11 @@ const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }
       <div style={S.cardBody}>
         <div style={{ ...S.cardTitle, fontSize: 15, fontWeight: 700 }}>{title || `Story #${variant.variant_id}`}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-          <span style={{ ...S.pill, color: '#a78bfa', borderColor: 'rgba(167,139,250,0.35)', background: 'rgba(167,139,250,0.1)' }}>🧒 Kids Story</span>
+          <span style={{ ...S.pill, color: '#16c8ff', borderColor: 'rgba(22,200,255,0.35)', background: 'rgba(22,200,255,0.1)' }}>🧒 Kids Story</span>
         </div>
         {audioUrl && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#a78bfa', minWidth: 28, textAlign: 'right', fontFamily: 'monospace' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#16c8ff', minWidth: 28, textAlign: 'right', fontFamily: 'monospace' }}>
               {formatStoryTime(currentTime)}
             </span>
             <input
@@ -319,14 +321,14 @@ const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }
               value={currentTime}
               onChange={handleSeek}
               style={{
-                flex: 1, height: 4, cursor: 'pointer', accentColor: '#a855f7',
+                flex: 1, height: 4, cursor: 'pointer', accentColor: '#16c8ff',
                 background: duration
-                  ? `linear-gradient(to right, #a855f7 ${(currentTime / duration) * 100}%, rgba(167,139,250,0.2) ${(currentTime / duration) * 100}%)`
-                  : 'rgba(167,139,250,0.2)',
+                  ? `linear-gradient(to right, #16c8ff ${(currentTime / duration) * 100}%, rgba(22,200,255,0.2) ${(currentTime / duration) * 100}%)`
+                  : 'rgba(22,200,255,0.2)',
                 borderRadius: 2, outline: 'none', border: 'none', appearance: 'none', WebkitAppearance: 'none',
               }}
             />
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(167,139,250,0.6)', minWidth: 28, fontFamily: 'monospace' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(22,200,255,0.6)', minWidth: 28, fontFamily: 'monospace' }}>
               {formatStoryTime(duration)}
             </span>
           </div>
@@ -339,8 +341,8 @@ const StoryCard = memo(function StoryCard({ variant, title, onDelete, deleting }
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 width: '100%', minHeight: 44, borderRadius: 7,
-                background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
-                color: '#fff', fontSize: 12, fontWeight: 600,
+                background: '#16c8ff',
+                color: '#031018', fontSize: 12, fontWeight: 700,
                 cursor: 'pointer', textDecoration: 'none', boxSizing: 'border-box',
                 transition: 'all 0.2s ease',
               }}
@@ -429,18 +431,6 @@ export default function SongsPage() {
   const [genreBlend, setGenreBlend]       = useState(false);
   const [genreB, setGenreB]               = useState('');
   const [blendRatio, setBlendRatio]       = useState(50);
-  // Collapsible genre categories — all collapsed by default, except any category
-  // that already contains a (prefilled) selection so the choice stays visible.
-  const [openCats, setOpenCats] = useState(() => {
-    const open = new Set();
-    GENRE_CATEGORIES.forEach(cat => { if (cat.genres.some(g => selGenres.has(g))) open.add(cat.id); });
-    return open;
-  });
-  const toggleCat = (id) => setOpenCats(prev => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
   const [remakeOpenCats, setRemakeOpenCats] = useState(() => new Set());
   const toggleRemakeCat = (id) => setRemakeOpenCats(prev => {
     const next = new Set(prev);
@@ -1720,7 +1710,7 @@ export default function SongsPage() {
 
   const { balance, monthly_allowance: allowance } = credits;
   const pct      = isAdmin ? 100 : (allowance > 0 ? Math.min(100, (balance / allowance) * 100) : 0);
-  const barColor = isAdmin ? '#a78bfa' : (pct > 30 ? '#a78bfa' : pct > 10 ? '#fbbf24' : '#f87171');
+  const barColor = isAdmin ? '#16c8ff' : (pct > 30 ? '#16c8ff' : pct > 10 ? '#fbbf24' : '#f87171');
 
   const activeLyricId   = activeJob?.lyric_id;
   const displayLibrary  = isOnline ? library : savedSongs;
@@ -1813,8 +1803,7 @@ export default function SongsPage() {
       )}
 
       <style>{PAGE_CSS}</style>
-      <div style={{ background: '#0b0b14', minHeight: '100vh', color: '#f0eeff', overflowX: 'hidden' }}>
-
+      <div className="zb-neon">
         <BeatsDashboardHeader />
         <EmailVerificationBanner user={user} token={token} app="beats" hasSongs={library.length > 0} />
 
@@ -1846,10 +1835,10 @@ export default function SongsPage() {
         </div>
 
         {!isAdmin && !credits.plan && !isIOSWebView && (
-          <div style={{ background: 'rgba(0,240,255,0.04)', borderBottom: '1px solid rgba(0,240,255,0.08)', padding: '8px 24px', textAlign: 'center' }}>
+          <div style={{ background: 'rgba(22,200,255,0.04)', borderBottom: '1px solid rgba(22,200,255,0.08)', padding: '8px 24px', textAlign: 'center' }}>
             <span style={{ fontSize: 12, color: '#cccccc' }}>
               {t('songs.upgradeBanner')}{' '}
-              <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>→ {t('songs.viewPlans')}</Link>
+              <Link to="/billing" style={{ color: '#16c8ff', fontWeight: 600 }}>→ {t('songs.viewPlans')}</Link>
             </span>
           </div>
         )}
@@ -1858,9 +1847,9 @@ export default function SongsPage() {
         )}
 
         {!isAdmin && balance <= 0 && (
-          <div style={{ borderBottom: '1px solid rgba(0,240,255,0.12)', padding: '16px 24px' }}>
-            <div className="topup-section" style={{ maxWidth: 880, margin: '0 auto', padding: '20px 24px', borderRadius: 14, border: '1px solid #00f0ff', background: 'rgba(0,240,255,0.03)' }}>
-              <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 13, fontWeight: 700, color: '#00f0ff', marginBottom: 14, letterSpacing: '0.5px' }}>
+          <div style={{ borderBottom: '1px solid rgba(22,200,255,0.12)', padding: '16px 24px' }}>
+            <div className="topup-section" style={{ maxWidth: 880, margin: '0 auto', padding: '20px 24px', borderRadius: 14, border: '1px solid #16c8ff', background: 'rgba(22,200,255,0.03)' }}>
+              <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 13, fontWeight: 700, color: '#16c8ff', marginBottom: 14, letterSpacing: '0.5px' }}>
                 ⚡ Buy More Songs
               </h3>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -1870,7 +1859,7 @@ export default function SongsPage() {
                     className="topup-btn"
                     onClick={() => handleTopup(pack)}
                     disabled={topupLoading !== null}
-                    style={{ padding: '11px 22px', borderRadius: 10, border: '1px solid rgba(0,240,255,0.5)', background: 'linear-gradient(135deg, rgba(0,240,255,0.1) 0%, rgba(0,191,255,0.08) 100%)', color: '#00f0ff', fontSize: 13, fontWeight: 700, cursor: topupLoading ? 'default' : 'pointer', transition: 'all 0.2s', letterSpacing: '0.3px' }}
+                    style={{ padding: '11px 22px', borderRadius: 10, border: '1px solid rgba(22,200,255,0.5)', background: 'linear-gradient(135deg, rgba(22,200,255,0.1) 0%, rgba(0,191,255,0.08) 100%)', color: '#16c8ff', fontSize: 13, fontWeight: 700, cursor: topupLoading ? 'default' : 'pointer', transition: 'all 0.2s', letterSpacing: '0.3px' }}
                   >
                     {topupLoading === pack ? t('songs.redirecting') : `${label} — ${price}`}
                   </button>
@@ -1884,9 +1873,9 @@ export default function SongsPage() {
         )}
 
         {!isAdmin && !isFreeTier && credits.premium_credits === 0 && (
-          <div style={{ borderBottom: '1px solid rgba(167,139,250,0.12)', padding: '16px 24px' }}>
-            <div style={{ maxWidth: 880, margin: '0 auto', padding: '20px 24px', borderRadius: 14, border: '1px solid rgba(167,139,250,0.4)', background: 'rgba(124,58,237,0.04)' }}>
-              <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 13, fontWeight: 700, color: '#c4b5fd', marginBottom: 14, letterSpacing: '0.5px' }}>
+          <div style={{ borderBottom: '1px solid rgba(123,92,255,0.12)', padding: '16px 24px' }}>
+            <div style={{ maxWidth: 880, margin: '0 auto', padding: '20px 24px', borderRadius: 14, border: '1px solid rgba(123,92,255,0.4)', background: 'rgba(123,92,255,0.04)' }}>
+              <h3 style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 13, fontWeight: 700, color: '#c9bcff', marginBottom: 14, letterSpacing: '0.5px' }}>
                 🎬 Buy Premium Credits
               </h3>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -1895,13 +1884,13 @@ export default function SongsPage() {
                     key={pack}
                     onClick={() => handlePremiumTopup(pack)}
                     disabled={topupLoading !== null}
-                    style={{ padding: '11px 22px', borderRadius: 10, border: '1px solid rgba(167,139,250,0.5)', background: 'linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(139,92,246,0.08) 100%)', color: '#c4b5fd', fontSize: 13, fontWeight: 700, cursor: topupLoading ? 'default' : 'pointer', transition: 'all 0.2s', letterSpacing: '0.3px' }}
+                    style={{ padding: '11px 22px', borderRadius: 10, border: '1px solid rgba(123,92,255,0.5)', background: 'linear-gradient(135deg, rgba(123,92,255,0.12) 0%, rgba(123,92,255,0.08) 100%)', color: '#c9bcff', fontSize: 13, fontWeight: 700, cursor: topupLoading ? 'default' : 'pointer', transition: 'all 0.2s', letterSpacing: '0.3px' }}
                   >
                     {topupLoading === pack ? t('songs.redirecting') : `${label} — ${price}`}
                   </button>
                 ))}
               </div>
-              <p style={{ fontSize: 11, color: '#7c3aed', marginTop: 12, marginBottom: 0 }}>
+              <p style={{ fontSize: 11, color: '#9d86ff', marginTop: 12, marginBottom: 0 }}>
                 Credits never expire · Use for stem separation
               </p>
             </div>
@@ -1909,14 +1898,14 @@ export default function SongsPage() {
         )}
 
         {showRetrigger && (
-          <div style={{ borderBottom: '1px solid rgba(0,240,255,0.1)', padding: '10px 24px', background: 'rgba(0,240,255,0.03)' }}>
+          <div style={{ borderBottom: '1px solid rgba(22,200,255,0.1)', padding: '10px 24px', background: 'rgba(22,200,255,0.03)' }}>
             <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', flex: 1 }}>
                 👋 Haven't made your first song yet? We'll help you get started ⚡
               </span>
               <button
                 onClick={() => { setShowRetrigger(false); setShowTour(true); localStorage.removeItem('zeus_onboarding_done'); }}
-                style={{ padding: '8px 18px', borderRadius: 8, background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.4)', color: '#00f0ff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                style={{ padding: '8px 18px', borderRadius: 8, background: 'rgba(22,200,255,0.12)', border: '1px solid rgba(22,200,255,0.4)', color: '#16c8ff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
               >
                 Show me how
               </button>
@@ -1931,20 +1920,20 @@ export default function SongsPage() {
           {showWelcome && creditsStatus === 'ready' && freeSongsLine(credits.balance) && (
             <div style={{
               background: 'rgba(0,0,0,0.6)',
-              border: '1px solid #00F0FF',
+              border: '1px solid #16c8ff',
               borderRadius: 10,
               padding: '14px 18px',
               marginBottom: 24,
               color: '#e0fffe',
               fontSize: 14,
-              boxShadow: '0 0 18px rgba(0,240,255,0.15)',
+              boxShadow: '0 0 18px rgba(22,200,255,0.15)',
               display: 'flex',
               alignItems: 'flex-start',
               gap: 12,
             }}>
               <span style={{ fontSize: 20, lineHeight: 1 }}>🎵</span>
               <div style={{ flex: 1 }}>
-                <strong style={{ color: '#00F0FF', display: 'block', marginBottom: 4 }}>
+                <strong style={{ color: '#16c8ff', display: 'block', marginBottom: 4 }}>
                   {user?.name?.trim()
                     ? `Welcome to Zeus Beats, ${user.name.trim().split(' ')[0]}!`
                     : 'Welcome to Zeus Beats!'}
@@ -1953,7 +1942,7 @@ export default function SongsPage() {
               </div>
               <button
                 onClick={() => setShowWelcome(false)}
-                style={{ background: 'none', border: 'none', color: '#00F0FF', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0 }}
+                style={{ background: 'none', border: 'none', color: '#16c8ff', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0 }}
                 aria-label="Dismiss"
               >×</button>
             </div>
@@ -2010,120 +1999,85 @@ export default function SongsPage() {
               custom-lyrics block the workshop hands off to is not rendered there at
               all, so offering the tab would lead to a dead end. */}
           {!isKidsMode && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <header className="zb-hero">
+              <div className="zb-hero-glow" aria-hidden="true" />
+              <div className="zb-hero-img" aria-hidden="true"><img src="/images/zeus-hero.jpg" alt="" /></div>
+              <div className="zb-hero-text">
+                <span className="zb-hero-tag zb-marker">{t('songs.heroTag')}</span>
+                <h1 className="zb-display">{t('songs.pageTitle')}</h1>
+                <svg className="zb-hero-underline" width="190" height="14" viewBox="0 0 190 14" aria-hidden="true">
+                  <path d="M3 10 C 60 3, 130 1, 186 5" stroke="#16c8ff" strokeWidth="5" fill="none" strokeLinecap="round" />
+                </svg>
+                <p>{useCustomLyrics ? t('songs.subtitleOwn') : t('songs.subtitleAI')}</p>
+              </div>
+            </header>
+          )}
+
+          {!isKidsMode && (
+            <div className="zb-tabs">
               {[['create', t('workshop.tabCreate')], ['lyrics', t('workshop.tabLyrics')]].map(([id, label]) => (
                 <button
                   key={id}
+                  className="zb-tab"
                   onClick={() => setCreatorTab(id)}
                   aria-pressed={creatorTab === id}
-                  style={{
-                    flex: 1,
-                    minHeight: 44,
-                    borderRadius: 10,
-                    border: creatorTab === id ? '1px solid rgba(124,58,237,0.9)' : '1px solid rgba(255,255,255,0.08)',
-                    background: creatorTab === id ? 'rgba(124,58,237,0.18)' : 'rgba(255,255,255,0.025)',
-                    color: '#ffffff',
-                    opacity: creatorTab === id ? 1 : 0.65,
-                    fontSize: 15,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'background 0.15s, opacity 0.15s',
-                  }}
                 >{label}</button>
               ))}
             </div>
           )}
 
           {!isKidsMode && (
-            <div style={{
+            <div className="zb-card" style={{
               // Hidden rather than unmounted, for the same reason as the creator card
               // below: unmounting would throw away the conversation, so handing lyrics
               // over and stepping back to refine them would silently start from zero.
               display: creatorTab === 'lyrics' ? 'block' : 'none',
-              background: 'rgba(255,255,255,0.025)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 16,
-              padding: '28px 20px 24px',
-              marginBottom: 12,
             }}>
-              <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f0eeff', marginBottom: 4 }}>
+              <h2 className="zb-label" style={{ marginTop: 0 }}>
                 {t('workshop.title')}
-              </h1>
+              </h2>
               <LyricWorkshop onUseLyrics={handleUseWorkshopLyrics} backendUrl={BACKEND_URL} token={token} />
             </div>
           )}
 
-          <div style={{
+          <div className="zb-card" style={{
             // Hidden rather than unmounted, so switching to the Lyrics tab and back
             // keeps the genre picks and Advanced settings the user already made.
             display: (!isKidsMode && creatorTab === 'lyrics') ? 'none' : 'block',
-            background: 'rgba(255,255,255,0.025)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 16,
-            padding: '28px 28px 24px',
-            marginBottom: 12,
           }}>
-            <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f0eeff', marginBottom: 4 }}>
-              {t('songs.pageTitle')}
-            </h1>
-            <p style={{ color: '#cccccc', fontSize: 14, marginBottom: 14 }}>
-              {useCustomLyrics ? t('songs.subtitleOwn') : t('songs.subtitleAI')}
-            </p>
+            {isKidsMode && (<>
+              <h1 className="zb-display" style={{ fontSize: 40, marginBottom: 6 }}>
+                {t('songs.pageTitle')}
+              </h1>
+              <p className="zb-card-sub">
+                {useCustomLyrics ? t('songs.subtitleOwn') : t('songs.subtitleAI')}
+              </p>
+            </>)}
 
             {!isKidsMode && !isRoastMode && (<>
             {/* Custom lyrics toggle */}
-            <div style={{ marginBottom: 14, display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => setUseCustomLyrics(false)}
-                style={{ padding: '6px 14px', borderRadius: 20, border: 'none', background: !useCustomLyrics ? '#7c3aed' : 'rgba(255,255,255,0.08)', color: !useCustomLyrics ? '#fff' : 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-              >{t('songs.modeAI')}</button>
-              <button
-                onClick={() => setUseCustomLyrics(true)}
-                style={{ padding: '6px 14px', borderRadius: 20, border: 'none', background: useCustomLyrics ? '#7c3aed' : 'rgba(255,255,255,0.08)', color: useCustomLyrics ? '#fff' : 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-              >{t('songs.modeOwn')}</button>
+            <div className="zb-seg" role="group">
+              <button onClick={() => setUseCustomLyrics(false)} aria-pressed={!useCustomLyrics}>{t('songs.modeAI')}</button>
+              <button onClick={() => setUseCustomLyrics(true)} aria-pressed={useCustomLyrics}>{t('songs.modeOwn')}</button>
             </div>
 
             {!useCustomLyrics && (
               <>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                <div className="zb-chips">
                   {SONG_TEMPLATES.map(({ emoji, label, value }) => (
-                    <button
-                      key={label}
-                      onClick={() => setBrief(value)}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: 20,
-                        border: '1px solid rgba(0,240,255,0.25)',
-                        background: 'rgba(0,240,255,0.04)',
-                        color: '#00f0ff',
-                        fontSize: 11,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s',
-                      }}
-                    >{emoji} {label}</button>
+                    <button key={label} type="button" className="zb-chip" onClick={() => setBrief(value)}>
+                      {emoji} {label}
+                    </button>
                   ))}
                 </div>
               <div style={{ position: 'relative', marginBottom: 12 }}>
                 <textarea
-                  className="songs-textarea"
+                  className="songs-textarea zb-input"
                   value={brief}
                   onChange={(e) => setBrief(e.target.value)}
                   placeholder={t('songs.briefPlaceholder')}
                   rows={3}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 10,
-                    padding: '12px 42px 12px 14px',
-                    color: '#f0eeff',
-                    fontSize: 15,
-                    resize: 'vertical',
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
+                  style={{ padding: '14px 46px 14px 16px', resize: 'vertical', lineHeight: 1.4 }}
                 />
                 {!!(window.SpeechRecognition || window.webkitSpeechRecognition) && (
                   <button
@@ -2132,14 +2086,14 @@ export default function SongsPage() {
                     title={listening ? t('songs.listenStop') : t('songs.listenStart')}
                     style={{
                       position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      width: 28,
-                      height: 28,
+                      top: 10,
+                      right: 10,
+                      width: 30,
+                      height: 30,
                       borderRadius: '50%',
                       border: 'none',
-                      background: listening ? '#ef4444' : 'rgba(0,240,255,0.12)',
-                      color: listening ? '#fff' : '#00f0ff',
+                      background: listening ? '#ef4444' : 'rgba(22,200,255,0.14)',
+                      color: listening ? '#fff' : '#16c8ff',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -2161,46 +2115,30 @@ export default function SongsPage() {
 
             {useCustomLyrics && (
               <textarea
-                className="songs-textarea"
+                className="songs-textarea zb-input"
                 value={customLyricsText}
                 onChange={(e) => setCustomLyricsText(e.target.value)}
                 placeholder={t('songs.lyricsPlaceholder')}
                 rows={10}
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 10,
-                  padding: '12px 14px',
-                  color: '#f0eeff',
-                  fontSize: 14,
-                  resize: 'vertical',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  marginBottom: 12,
-                  transition: 'border-color 0.2s',
-                }}
+                style={{ padding: '14px 16px', resize: 'vertical', lineHeight: 1.45, marginBottom: 12 }}
               />
             )}
             </>)}
 
             {isRoastMode && (
-              <div ref={roastSectionRef} style={{ marginBottom: 16 }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>
-                  🎤 Who&apos;s It About?
-                </p>
+              <div ref={roastSectionRef} className="zb-panel" style={{ marginBottom: 16 }}>
+                <label className="zb-field-label" htmlFor="zb-roast-name">Who are we roasting?</label>
                 <input
                   type="text"
                   value={roastName}
                   onChange={(e) => setRoastName(e.target.value)}
-                  placeholder="Name (e.g. Dave, Uncle Terry, Big Mike)"
+                  placeholder="Your mate's name (e.g. Dave, Uncle Terry, Big Mike)"
                   maxLength={60}
-                  style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.30)', borderRadius: 10, padding: '10px 14px', color: '#f0eeff', fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 12, transition: 'border-color 0.2s' }}
+                  id="zb-roast-name"
+                  className="zb-input"
+                  style={{ height: 52, padding: '0 16px', marginBottom: 14 }}
                 />
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>
-                  Tell Us About Them
-                </p>
+                <label className="zb-field-label" htmlFor="zb-roast-ammo">Give Zeus some ammo</label>
                 <textarea
                   value={roastDetails}
                   onChange={(e) => setRoastDetails(e.target.value)}
@@ -2208,18 +2146,18 @@ export default function SongsPage() {
                   rows={3}
                   maxLength={ROAST_DETAILS_MAX}
                   aria-describedby="roast-details-count"
-                  style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.30)', borderRadius: 10, padding: '10px 14px', color: '#f0eeff', fontSize: 14, resize: 'vertical', fontFamily: 'inherit', outline: 'none', marginBottom: 4, transition: 'border-color 0.2s', display: 'block' }}
+                  id="zb-roast-ammo"
+                  className="zb-input"
+                  style={{ padding: '14px 16px', resize: 'vertical', lineHeight: 1.4, marginBottom: 4, display: 'block' }}
                 />
                 <p
                   id="roast-details-count"
                   data-testid="roast-details-count"
-                  style={{ fontSize: 11, textAlign: 'right', margin: '0 0 14px', color: roastDetails.length >= ROAST_DETAILS_MAX ? '#f87171' : 'rgba(240,238,255,0.45)' }}
+                  style={{ fontSize: 12, textAlign: 'right', margin: '0 0 14px', color: roastDetails.length >= ROAST_DETAILS_MAX ? '#f87171' : '#7d8aa6' }}
                 >
                   {roastDetails.length}/{ROAST_DETAILS_MAX}
                 </p>
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>
-                  Pick the Vibe
-                </p>
+                <span className="zb-field-label">How hard?</span>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 4 }}>
                   {[
                     ['gentle',   '😄', 'Gentle Banter',     'Warm & affectionate'],
@@ -2227,16 +2165,10 @@ export default function SongsPage() {
                     ['birthday', '🎂', 'Birthday Piss-take', 'Happy birthday 😬'],
                     ['staghen',  '🍺', 'Stag / Hen Do',      'Raucous send-off'],
                   ].map(([val, emoji, label, desc]) => (
-                    <button key={val} onClick={() => setRoastVibe(val)} style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
-                      padding: '10px 12px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s', textAlign: 'left',
-                      border: `2px solid ${roastVibe === val ? '#f87171' : 'rgba(248,113,113,0.25)'}`,
-                      background: roastVibe === val ? 'rgba(248,113,113,0.15)' : 'rgba(248,113,113,0.04)',
-                      boxShadow: roastVibe === val ? '0 0 14px rgba(248,113,113,0.25)' : 'none',
-                    }}>
-                      <span style={{ fontSize: 18, lineHeight: 1, marginBottom: 2 }}>{emoji}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: roastVibe === val ? '#f87171' : 'rgba(248,113,113,0.7)' }}>{label}</span>
-                      <span style={{ fontSize: 10, color: 'rgba(248,113,113,0.5)', lineHeight: 1.3 }}>{desc}</span>
+                    <button key={val} type="button" className="zb-vibe" aria-pressed={roastVibe === val} onClick={() => setRoastVibe(val)}>
+                      <span style={{ fontSize: 18, lineHeight: 1, marginBottom: 2 }} aria-hidden="true">{emoji}</span>
+                      <span className="zb-vibe-label">{label}</span>
+                      <span className="zb-vibe-desc">{desc}</span>
                     </button>
                   ))}
                 </div>
@@ -2249,25 +2181,13 @@ export default function SongsPage() {
               onChange={(e) => setSongTitle(e.target.value)}
               placeholder={vocalMode === 'instrumental' ? t('songs.titlePlaceholderInstrumental') : t('songs.titlePlaceholderVocals')}
               maxLength={100}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 10,
-                padding: '10px 14px',
-                color: '#f0eeff',
-                fontSize: 14,
-                fontFamily: 'inherit',
-                outline: 'none',
-                marginBottom: 20,
-                transition: 'border-color 0.2s',
-              }}
+              className="zb-input"
+              style={{ height: 52, padding: '0 16px', marginBottom: 22 }}
             />
 
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>
+            <h2 className="zb-label">
               {t('songs.styleLabel')}
-            </p>
+            </h2>
 
             {/* Multi-select reads as "blend these styles" but each genre is a separate
                 take costing its own credit. People were picking several expecting one
@@ -2278,8 +2198,8 @@ export default function SongsPage() {
             {selGenres.size > 1 && (
               <p style={{
                 display: 'flex', gap: 8, alignItems: 'flex-start',
-                background: 'rgba(0,240,255,0.06)',
-                border: '1px solid rgba(0,240,255,0.22)',
+                background: 'rgba(22,200,255,0.06)',
+                border: '1px solid rgba(22,200,255,0.22)',
                 borderRadius: 10,
                 padding: '8px 11px',
                 margin: '0 0 12px',
@@ -2297,67 +2217,7 @@ export default function SongsPage() {
               </p>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
-              {GENRE_CATEGORIES.map(cat => {
-                const open = openCats.has(cat.id);
-                const selCount = cat.genres.reduce((n, g) => n + (selGenres.has(g) ? 1 : 0), 0);
-                return (
-                  <div key={cat.id}>
-                    <button
-                      type="button"
-                      onClick={() => toggleCat(cat.id)}
-                      aria-expanded={open}
-                      style={{
-                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-                        padding: '9px 12px', borderRadius: 10,
-                        border: `1.5px solid ${cat.color}${open ? 'aa' : '40'}`,
-                        background: open ? cat.color + '14' : 'transparent',
-                        cursor: 'pointer', transition: 'all 0.2s ease', fontFamily: 'inherit',
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <span style={{ fontSize: 11, color: cat.color, transition: 'transform 0.2s ease', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: cat.color, letterSpacing: '0.8px', textTransform: 'uppercase' }}>{cat.label}</span>
-                      </span>
-                      {selCount > 0 && (
-                        <span style={{ fontSize: 11, fontWeight: 800, color: '#000', background: cat.color, borderRadius: 10, padding: '1px 8px', minWidth: 20, textAlign: 'center' }}>{selCount}</span>
-                      )}
-                    </button>
-                    {open && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, padding: '10px 2px 4px' }}>
-                        {cat.genres.map(g => {
-                          const sel = selGenres.has(g);
-                          return (
-                            <button
-                              key={g}
-                              onClick={() => toggleGenre(g)}
-                              className={sel ? 'genre-pill genre-pill--sel' : 'genre-pill'}
-                              style={{
-                                '--pill-color': cat.color,
-                                '--pill-hover-bg': cat.color + '28',
-                                padding: '7px 15px',
-                                borderRadius: 20,
-                                border: sel ? `2px solid ${cat.color}` : `1.5px solid ${cat.color}55`,
-                                background: sel ? cat.color : 'transparent',
-                                color: sel ? '#000' : cat.color,
-                                fontSize: 13,
-                                fontWeight: sel ? 700 : 500,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                                boxShadow: sel ? `0 0 16px ${cat.color}, 0 0 30px ${cat.color}60` : 'none',
-                                transform: sel ? 'scale(1.05)' : 'scale(1)',
-                              }}
-                            >
-                              {gLabel(g)}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <GenreTileGrid selGenres={selGenres} toggleGenre={toggleGenre} gLabel={gLabel} />
 
             <div style={{ marginBottom: 18 }}>
               <div style={{ position: 'relative' }}>
@@ -2371,19 +2231,8 @@ export default function SongsPage() {
                   }}
                   onBlur={handleArtistLookup}
                   placeholder={t('songs.artistPlaceholder')}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 10,
-                    padding: '10px 14px',
-                    paddingRight: artistLoading ? 36 : 14,
-                    color: '#f0eeff',
-                    fontSize: 14,
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                  }}
+                  className="zb-input"
+                  style={{ height: 50, padding: '0 16px', paddingRight: artistLoading ? 38 : 16 }}
                 />
                 {artistLoading && (
                   <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#cccccc' }}>
@@ -2395,7 +2244,7 @@ export default function SongsPage() {
                 <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
                   <span style={{ fontSize: 11, color: '#444', fontWeight: 600, letterSpacing: '0.4px', textTransform: 'uppercase', flexShrink: 0 }}>{t('songs.styleTag')}</span>
                   {artistDescriptors.split(',').map((d, i) => (
-                    <span key={i} style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', color: '#9b8ec4', borderRadius: 12, padding: '2px 8px', fontSize: 11 }}>
+                    <span key={i} style={{ background: 'rgba(22,200,255,0.08)', border: '1px solid rgba(22,200,255,0.2)', color: '#9fb0c8', borderRadius: 12, padding: '2px 8px', fontSize: 11 }}>
                       {d.trim()}
                     </span>
                   ))}
@@ -2406,42 +2255,30 @@ export default function SongsPage() {
               {artistTheme && !artistLoading && (
                 <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
                   <span style={{ fontSize: 11, color: '#444', fontWeight: 600, letterSpacing: '0.4px', textTransform: 'uppercase', flexShrink: 0, marginTop: 2 }}>Theme</span>
-                  <span style={{ fontSize: 12, color: '#9b8ec4', lineHeight: 1.5 }}>{artistTheme}</span>
+                  <span style={{ fontSize: 12, color: '#9fb0c8', lineHeight: 1.5 }}>{artistTheme}</span>
                 </div>
               )}
             </div>
 
             <button
+              type="button"
               onClick={() => setShowAdvanced((v) => !v)}
-              className={showAdvancedPulse ? 'adv-toggle-pulse' : undefined}
-              style={{
-                width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5,
-                background: 'linear-gradient(135deg, rgba(0,240,255,0.16) 0%, rgba(244,114,182,0.09) 100%)',
-                border: '1.5px solid rgba(0,240,255,0.55)',
-                borderRadius: 12, padding: '13px 16px', cursor: 'pointer', marginBottom: 14,
-                minHeight: 44, boxSizing: 'border-box',
-              }}
+              className={`zb-mode${showAdvancedPulse ? ' adv-toggle-pulse' : ''}`}
+              aria-expanded={showAdvanced}
+              style={{ marginBottom: 12 }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 10 }}>
-                <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 13, fontWeight: 800, color: '#ffffff', letterSpacing: '0.06em' }}>⚡ {t('songs.advancedOptions')}</span>
-                <span style={{ marginLeft: 'auto', color: '#00f0ff', fontSize: 12, fontWeight: 700 }}>{showAdvanced ? t('songs.hideOptions') : t('songs.showOptions')}</span>
-              </div>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', textAlign: 'left' }}>
-                🎛️ {t('songs.advancedSubtitle')}
+              <span className="zb-mode-icon" aria-hidden="true">🎛️</span>
+              <span>
+                <span className="zb-mode-title">{t('songs.advancedOptions')}</span>
+                <span className="zb-mode-sub">{t('songs.advancedSubtitle')}</span>
               </span>
+              <span className="zb-mode-more">{showAdvanced ? t('songs.hideOptions') : t('songs.showOptions')}</span>
             </button>
 
             {showAdvanced && (
-              <div className="adv-grid" style={{
-                background: 'rgba(0,240,255,0.04)',
-                border: '1px solid #00f0ff',
-                borderRadius: 10,
-                padding: '18px 20px',
-                marginBottom: 18,
-                animation: 'advGlow 2.5s ease-in-out infinite',
-              }}>
+              <div className="adv-grid zb-panel">
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.vocalGenderLabel')}</p>
+                  <p className="zb-mini-label">{t('songs.vocalGenderLabel')}</p>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {[['', t('songs.vocalEither')], ['m', t('songs.vocalMale')], ['f', t('songs.vocalFemale')], ['duet', t('songs.vocalDuet')]].map(([val, label]) => (
                       <button
@@ -2449,9 +2286,9 @@ export default function SongsPage() {
                         onClick={() => setVocalGender(val)}
                         style={{
                           padding: '5px 12px', borderRadius: 6,
-                          border: `1px solid ${vocalGender === val ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`,
-                          background: vocalGender === val ? 'rgba(167,139,250,0.15)' : 'transparent',
-                          color: vocalGender === val ? '#c4b5fd' : '#cccccc',
+                          border: `1px solid ${vocalGender === val ? '#16c8ff' : 'rgba(255,255,255,0.08)'}`,
+                          background: vocalGender === val ? 'rgba(22,200,255,0.15)' : 'transparent',
+                          color: vocalGender === val ? '#bfefff' : '#cccccc',
                           fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
                         }}
                       >{label}</button>
@@ -2460,11 +2297,11 @@ export default function SongsPage() {
                 </div>
 
                 {!['meditation','healingfrequency'].some(g => selGenres.has(g)) && <div>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.accentLabel')}</p>
+                  <p className="zb-mini-label">{t('songs.accentLabel')}</p>
                   <select
                     value={accent}
                     onChange={(e) => setAccent(e.target.value)}
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: accent ? '#c4b5fd' : '#cccccc', fontSize: 13, outline: 'none' }}
+                    style={{ width: '100%', background: '#060b16', border: '1px solid #2a3b57', borderRadius: 6, padding: '6px 10px', color: accent ? '#bfefff' : '#cccccc', fontSize: 13, outline: 'none' }}
                   >
                     <option value="">🎤 Auto (matches your genre)</option>
                     {['British','American (Southern)','Irish','Scottish','Australian','Caribbean','French','Spanish','American Soul','Jamaican','D&B MC','UK Rave MC','British MC Grime','Jazz Vocal','American Hip-Hop','K-Pop','West African','South African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta','West Coast G-Funk','British Street Soul'].map((a) => (
@@ -2541,11 +2378,11 @@ export default function SongsPage() {
                 </div>}
 
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.modelLabel')}</p>
+                  <p className="zb-mini-label">{t('songs.modelLabel')}</p>
                   <select
                     value={modelVersion}
                     onChange={(e) => setModelVersion(e.target.value)}
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: '#c4b5fd', fontSize: 13, outline: 'none' }}
+                    style={{ width: '100%', background: '#060b16', border: '1px solid #2a3b57', borderRadius: 6, padding: '6px 10px', color: '#bfefff', fontSize: 13, outline: 'none' }}
                   >
                     {['V4.5', 'V4.5 Plus', 'V5', 'V5.5'].map((v) => (
                       <option key={v} value={v}>{v}</option>
@@ -2554,14 +2391,14 @@ export default function SongsPage() {
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>{t('songs.negativeTagsLabel')}</p>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: '#9fd8f0', letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: 6 }}>{t('songs.negativeTagsLabel')}</p>
                   <input
                     type="text"
                     maxLength={500}
                     value={negativeTags}
                     onChange={(e) => setNegativeTags(e.target.value)}
                     placeholder={t('songs.negativeTagsPlaceholder')}
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '7px 10px', color: '#c4b5fd', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', background: '#060b16', border: '1px solid #2a3b57', borderRadius: 6, padding: '7px 10px', color: '#bfefff', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
                   />
                   {negativeTags.length > 400 && <span style={{ fontSize: 10, color: '#f59e0b', float: 'right', marginTop: 3 }}>{500 - negativeTags.length} chars left</span>}
                 </div>
@@ -2571,18 +2408,18 @@ export default function SongsPage() {
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: genreBlend ? 14 : 0 }}>
                     <div
                       onClick={() => { setGenreBlend(v => !v); if (genreBlend) setGenreB(''); }}
-                      style={{ width: 36, height: 20, borderRadius: 10, background: genreBlend ? '#7c3aed' : 'rgba(255,255,255,0.08)', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}
+                      style={{ width: 36, height: 20, borderRadius: 10, background: genreBlend ? '#16c8ff' : 'rgba(255,255,255,0.08)', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}
                     >
                       <div style={{ position: 'absolute', top: 3, left: genreBlend ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
                     </div>
-                    <span style={{ fontSize: 12, color: genreBlend ? '#c4b5fd' : '#cccccc', fontWeight: 500 }}>Blend Genres</span>
+                    <span style={{ fontSize: 12, color: genreBlend ? '#bfefff' : '#cccccc', fontWeight: 500 }}>Blend Genres</span>
                     {genreBlend && genreB && selGenres.size > 0 && (
                       <span style={{
                         marginLeft: 'auto', padding: '3px 10px', borderRadius: 20,
-                        background: 'linear-gradient(90deg, #00f0ff22, #f472b622)',
-                        border: '1px solid #00f0ff44',
+                        background: 'linear-gradient(90deg, #16c8ff22, #f472b622)',
+                        border: '1px solid #16c8ff44',
                         fontSize: 11, fontWeight: 700,
-                        background: 'linear-gradient(90deg, rgba(0,240,255,0.15), rgba(244,114,182,0.15))',
+                        background: 'linear-gradient(90deg, rgba(22,200,255,0.15), rgba(244,114,182,0.15))',
                         color: '#e0f7ff',
                       }}>
                         {gLabel([...selGenres][0])} × {gLabel(genreB)}
@@ -2592,11 +2429,11 @@ export default function SongsPage() {
 
                   {genreBlend && (
                     <div style={{ paddingLeft: 46 }}>
-                      <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>Genre B</p>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#9fd8f0', letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: 6 }}>Genre B</p>
                       <select
                         value={genreB}
                         onChange={e => setGenreB(e.target.value)}
-                        style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 10px', color: genreB ? '#00f0ff' : '#cccccc', fontSize: 13, outline: 'none', marginBottom: genreB ? 14 : 0 }}
+                        style={{ width: '100%', background: '#060b16', border: '1px solid #2a3b57', borderRadius: 6, padding: '6px 10px', color: genreB ? '#16c8ff' : '#cccccc', fontSize: 13, outline: 'none', marginBottom: genreB ? 14 : 0 }}
                       >
                         <option value="">Pick a second genre…</option>
                         {GENRES.filter(g => !selGenres.has(g)).map(g => (
@@ -2607,7 +2444,7 @@ export default function SongsPage() {
                       {genreB && (
                         <>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                            <span style={{ fontSize: 12, color: '#00f0ff', fontWeight: 600 }}>{selGenres.size > 0 ? gLabel([...selGenres][0]) : 'Genre A'}</span>
+                            <span style={{ fontSize: 12, color: '#16c8ff', fontWeight: 600 }}>{selGenres.size > 0 ? gLabel([...selGenres][0]) : 'Genre A'}</span>
                             <span style={{ fontSize: 11, color: '#cccccc' }}>{100 - blendRatio}% / {blendRatio}%</span>
                             <span style={{ fontSize: 12, color: '#f472b6', fontWeight: 600 }}>{gLabel(genreB)}</span>
                           </div>
@@ -2623,7 +2460,7 @@ export default function SongsPage() {
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.tempoLabel')}</p>
+                  <p className="zb-mini-label">{t('songs.tempoLabel')}</p>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                     {[['', t('songs.tempoDefault')], ['slow', t('songs.tempoSlow')], ['medium', t('songs.tempoMedium')], ['fast', t('songs.tempoFast')], ['custom', t('songs.tempoCustom')]].map(([val, label]) => (
                       <button
@@ -2631,9 +2468,9 @@ export default function SongsPage() {
                         onClick={() => setTempo(val)}
                         style={{
                           padding: '5px 12px', borderRadius: 6,
-                          border: `1px solid ${tempo === val ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`,
-                          background: tempo === val ? 'rgba(167,139,250,0.15)' : 'transparent',
-                          color: tempo === val ? '#c4b5fd' : '#cccccc',
+                          border: `1px solid ${tempo === val ? '#16c8ff' : 'rgba(255,255,255,0.08)'}`,
+                          background: tempo === val ? 'rgba(22,200,255,0.15)' : 'transparent',
+                          color: tempo === val ? '#bfefff' : '#cccccc',
                           fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
                         }}
                       >{label}</button>
@@ -2642,7 +2479,7 @@ export default function SongsPage() {
                       <input
                         type="number" min={40} max={300} value={tempoBpm}
                         onChange={(e) => setTempoBpm(Number(e.target.value))}
-                        style={{ width: 72, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '5px 8px', color: '#c4b5fd', fontSize: 12, outline: 'none' }}
+                        style={{ width: 72, background: '#060b16', border: '1px solid #2a3b57', borderRadius: 6, padding: '5px 8px', color: '#bfefff', fontSize: 12, outline: 'none' }}
                       />
                     )}
                   </div>
@@ -2690,9 +2527,9 @@ export default function SongsPage() {
                         style={{
                           padding: '6px 14px',
                           borderRadius: 20,
-                          border: `1px solid ${vocalMode === value ? '#a78bfa' : 'rgba(255,255,255,0.08)'}`,
-                          background: vocalMode === value ? 'rgba(167,139,250,0.15)' : 'transparent',
-                          color: vocalMode === value ? '#c4b5fd' : '#cccccc',
+                          border: `1px solid ${vocalMode === value ? '#16c8ff' : 'rgba(255,255,255,0.08)'}`,
+                          background: vocalMode === value ? 'rgba(22,200,255,0.15)' : 'transparent',
+                          color: vocalMode === value ? '#bfefff' : '#cccccc',
                           fontSize: 12,
                           fontWeight: 500,
                           cursor: 'pointer',
@@ -2710,7 +2547,7 @@ export default function SongsPage() {
                     onClick={() => { setPinModalOpen(false); setPinError(''); }}
                   >
                     <div
-                      style={{ background: '#0f0f1e', border: '1px solid rgba(0,240,255,0.25)', borderRadius: 14, padding: '28px 24px', width: 280, textAlign: 'center' }}
+                      style={{ background: '#0f0f1e', border: '1px solid rgba(22,200,255,0.25)', borderRadius: 14, padding: '28px 24px', width: 280, textAlign: 'center' }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <p style={{ margin: '0 0 6px', fontWeight: 700, color: '#e2e8f0', fontSize: 15 }}>Enter PIN to enable explicit content</p>
@@ -2729,7 +2566,7 @@ export default function SongsPage() {
                       {pinError && <p style={{ color: '#f87171', fontSize: 12, margin: '8px 0 0' }}>{pinError}</p>}
                       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                         <button onClick={() => { setPinModalOpen(false); setPinError(''); setPinInput(''); }} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#cccccc', cursor: 'pointer', fontSize: 14 }}>Cancel</button>
-                        <button onClick={handlePinSubmit} style={{ flex: 1, padding: 10, borderRadius: 8, border: 'none', background: '#7c3aed', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>Unlock</button>
+                        <button onClick={handlePinSubmit} style={{ flex: 1, padding: 10, borderRadius: 8, border: 'none', background: '#16c8ff', color: '#031018', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>Unlock</button>
                       </div>
                     </div>
                   </div>
@@ -2741,11 +2578,11 @@ export default function SongsPage() {
                     <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                       <div
                         onClick={handleExplicitToggle}
-                        style={{ width: 36, height: 20, borderRadius: 10, background: explicit ? '#7c3aed' : 'rgba(255,255,255,0.08)', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}
+                        style={{ width: 36, height: 20, borderRadius: 10, background: explicit ? '#16c8ff' : 'rgba(255,255,255,0.08)', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}
                       >
                         <div style={{ position: 'absolute', top: 3, left: explicit ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
                       </div>
-                      <span style={{ fontSize: 12, color: explicit ? '#c4b5fd' : '#cccccc', fontWeight: 500 }}>{t('songs.explicitLabel')}</span>
+                      <span style={{ fontSize: 12, color: explicit ? '#bfefff' : '#cccccc', fontWeight: 500 }}>{t('songs.explicitLabel')}</span>
                     </label>
                     {explicit && (
                       <p style={{ fontSize: 11, color: '#f87171', marginTop: 8, lineHeight: 1.5 }}>
@@ -2837,35 +2674,35 @@ export default function SongsPage() {
 
             {/* ── Zeus Kids Beats ─────────────────────────────────── */}
             {user?.account_type !== 'school' && <button
+              type="button"
+              className="zb-mode"
               onClick={() => setShowKidsPinGate(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 16px', borderRadius: 20, cursor: 'pointer',
-                background: 'rgba(251,209,85,0.10)',
-                border: '1px solid rgba(251,209,85,0.5)',
-                color: '#fbbf24', fontSize: 13, fontWeight: 700,
-                transition: 'background 0.2s', marginBottom: 10, width: '100%',
-              }}
             >
-              ⚡ Zeus Kids Beats
+              <span className="zb-mode-icon" aria-hidden="true">⚡</span>
+              <span>
+                <span className="zb-mode-title">Zeus Kids Beats</span>
+                <span className="zb-mode-sub">The kids' space, behind your parent PIN</span>
+              </span>
+              <span className="zb-mode-go" aria-hidden="true">›</span>
             </button>}
 
             {/* ── Kids Story Mode ─────────────────────────────────── */}
             <button
               onClick={() => { setIsKidsMode(v => !v); setIsRoastMode(false); setKidsAccent(''); setKidsNarratorVoice('british'); setKidsChildVoice('younggirl'); setKidsCharacterVoice(''); setKidsSubMode('song'); setStoryLanguage('english'); }}
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                background: isKidsMode ? 'rgba(251,191,36,0.10)' : 'rgba(251,191,36,0.04)',
-                border: `1px solid ${isKidsMode ? 'rgba(251,191,36,0.70)' : 'rgba(251,191,36,0.25)'}`,
-                borderRadius: 8, padding: '9px 14px', cursor: 'pointer', marginBottom: 14,
-              }}
+              type="button"
+              className="zb-mode"
+              aria-pressed={isKidsMode}
             >
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🧒 Kids Story Mode</span>
-              <span style={{ marginLeft: 'auto', color: '#fbbf24', fontSize: 12, fontWeight: 600 }}>{isKidsMode ? '▲ On' : '▼ Off'}</span>
+              <span className="zb-mode-icon" aria-hidden="true">🧒</span>
+              <span>
+                <span className="zb-mode-title">Kids Story Mode</span>
+                <span className="zb-mode-sub">A children's song or a narrated story</span>
+              </span>
+              <span className="zb-switch" aria-hidden="true" />
             </button>
 
             {isKidsMode && (
-              <div style={{ background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.30)', borderRadius: 10, padding: '18px 18px', marginBottom: 18 }}>
+              <div className="zb-panel">
 
                 {/* ── Sub-mode toggle ── */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
@@ -2882,15 +2719,15 @@ export default function SongsPage() {
                           position: 'relative',
                           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                           padding: '12px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                          border: `2px solid ${kidsSubMode === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
-                          background: kidsSubMode === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
-                          boxShadow: kidsSubMode === val ? '0 0 14px rgba(251,191,36,0.30)' : 'none',
+                          border: `2px solid ${kidsSubMode === val ? '#16c8ff' : 'rgba(22,200,255,0.25)'}`,
+                          background: kidsSubMode === val ? 'rgba(22,200,255,0.18)' : 'rgba(22,200,255,0.04)',
+                          boxShadow: kidsSubMode === val ? '0 0 14px rgba(22,200,255,0.30)' : 'none',
                         }}
                       >
                         {isStoryDisabled && <ComingSoonBadge />}
                         <span style={{ fontSize: 22 }}>{emoji}</span>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: kidsSubMode === val ? '#fbbf24' : 'rgba(251,191,36,0.7)' }}>{label}</span>
-                        <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)', textAlign: 'center', lineHeight: 1.3 }}>{desc}</span>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: kidsSubMode === val ? '#16c8ff' : 'rgba(22,200,255,0.7)' }}>{label}</span>
+                        <span style={{ fontSize: 10, color: 'rgba(22,200,255,0.5)', textAlign: 'center', lineHeight: 1.3 }}>{desc}</span>
                       </button>
                     );
                   })}
@@ -2904,7 +2741,7 @@ export default function SongsPage() {
                 )}
 
                 {/* ── Shared fields: title, character, what happens ── */}
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>📖 {kidsSubMode === 'story' ? 'Story Title' : 'Song Title'}</p>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#16c8ff', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>📖 {kidsSubMode === 'story' ? 'Story Title' : 'Song Title'}</p>
                 <input
                   type="text"
                   value={songTitle}
@@ -2913,13 +2750,13 @@ export default function SongsPage() {
                   maxLength={80}
                   style={{
                     width: '100%', boxSizing: 'border-box',
-                    background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.30)',
-                    borderRadius: 10, padding: '10px 14px', color: '#f0eeff',
+                    background: 'rgba(22,200,255,0.06)', border: '1px solid rgba(22,200,255,0.30)',
+                    borderRadius: 10, padding: '10px 14px', color: '#eef6ff',
                     fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 14,
                   }}
                 />
 
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🦁 Main Character</p>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#16c8ff', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🦁 Main Character</p>
                 <input
                   type="text"
                   value={mainCharacter}
@@ -2928,13 +2765,13 @@ export default function SongsPage() {
                   maxLength={80}
                   style={{
                     width: '100%', boxSizing: 'border-box',
-                    background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.30)',
-                    borderRadius: 10, padding: '10px 14px', color: '#f0eeff',
+                    background: 'rgba(22,200,255,0.06)', border: '1px solid rgba(22,200,255,0.30)',
+                    borderRadius: 10, padding: '10px 14px', color: '#eef6ff',
                     fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 14,
                   }}
                 />
 
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>✨ What Happens?</p>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#16c8ff', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>✨ What Happens?</p>
                 <textarea
                   value={storyEvent}
                   onChange={(e) => setStoryEvent(e.target.value)}
@@ -2943,14 +2780,14 @@ export default function SongsPage() {
                   maxLength={200}
                   style={{
                     width: '100%', boxSizing: 'border-box',
-                    background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.30)',
-                    borderRadius: 10, padding: '10px 14px', color: '#f0eeff',
+                    background: 'rgba(22,200,255,0.06)', border: '1px solid rgba(22,200,255,0.30)',
+                    borderRadius: 10, padding: '10px 14px', color: '#eef6ff',
                     fontSize: 14, fontFamily: 'inherit', outline: 'none', resize: 'vertical', marginBottom: 16,
                   }}
                 />
 
                 {/* ── Age Range (both modes) ── */}
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>👶 Age Range</p>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#16c8ff', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>👶 Age Range</p>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
                   {[
                     ['tiny_tots',   '🍼', 'Tiny Tots',   '2–4'],
@@ -2960,20 +2797,20 @@ export default function SongsPage() {
                     <button key={val} onClick={() => setKidsAgeRange(val)} style={{
                       flex: 1, minWidth: 80, display: 'flex', flexDirection: 'column', alignItems: 'center',
                       padding: '10px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                      border: `1px solid ${kidsAgeRange === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
-                      background: kidsAgeRange === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
-                      boxShadow: kidsAgeRange === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                      border: `1px solid ${kidsAgeRange === val ? '#16c8ff' : 'rgba(22,200,255,0.25)'}`,
+                      background: kidsAgeRange === val ? 'rgba(22,200,255,0.18)' : 'rgba(22,200,255,0.04)',
+                      boxShadow: kidsAgeRange === val ? '0 0 10px rgba(22,200,255,0.25)' : 'none',
                     }}>
                       <span style={{ fontSize: 24, lineHeight: 1, marginBottom: 3 }}>{emoji}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: kidsAgeRange === val ? '#fbbf24' : 'rgba(251,191,36,0.7)' }}>{label}</span>
-                      <span style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)' }}>ages {ages}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: kidsAgeRange === val ? '#16c8ff' : 'rgba(22,200,255,0.7)' }}>{label}</span>
+                      <span style={{ fontSize: 10, color: 'rgba(22,200,255,0.5)' }}>ages {ages}</span>
                     </button>
                   ))}
                 </div>
 
                 {/* ── SONG MODE fields ── */}
                 {kidsSubMode === 'song' && (<>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎵 Music Style</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#16c8ff', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎵 Music Style</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginBottom: 16 }}>
                     {[
                       ['nursery',  '🎠', 'Nursery Rhyme'],
@@ -2985,22 +2822,22 @@ export default function SongsPage() {
                       <button key={val} onClick={() => setKidsMusicStyle(val)} style={{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                        border: `1px solid ${kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.20)'}`,
-                        background: kidsMusicStyle === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
-                        boxShadow: kidsMusicStyle === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                        border: `1px solid ${kidsMusicStyle === val ? '#16c8ff' : 'rgba(22,200,255,0.20)'}`,
+                        background: kidsMusicStyle === val ? 'rgba(22,200,255,0.18)' : 'rgba(22,200,255,0.04)',
+                        boxShadow: kidsMusicStyle === val ? '0 0 10px rgba(22,200,255,0.25)' : 'none',
                         minHeight: 66,
                       }}>
                         <span style={{ fontSize: 24, lineHeight: 1, marginBottom: 4 }}>{emoji}</span>
-                        <span style={{ fontSize: 10, fontWeight: kidsMusicStyle === val ? 700 : 500, textAlign: 'center', lineHeight: 1.2, color: kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.65)' }}>{label}</span>
+                        <span style={{ fontSize: 10, fontWeight: kidsMusicStyle === val ? 700 : 500, textAlign: 'center', lineHeight: 1.2, color: kidsMusicStyle === val ? '#16c8ff' : 'rgba(22,200,255,0.65)' }}>{label}</span>
                       </button>
                     ))}
                   </div>
 
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🎤 Singing Accent</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#16c8ff', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🎤 Singing Accent</p>
                   <select
                     value={kidsAccent}
                     onChange={(e) => setKidsAccent(e.target.value)}
-                    style={{ width: '100%', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: 8, padding: '8px 12px', color: kidsAccent ? '#fbbf24' : 'rgba(251,191,36,0.5)', fontSize: 13, outline: 'none', marginBottom: 4 }}
+                    style={{ width: '100%', background: 'rgba(22,200,255,0.06)', border: '1px solid rgba(22,200,255,0.35)', borderRadius: 8, padding: '8px 12px', color: kidsAccent ? '#16c8ff' : 'rgba(22,200,255,0.5)', fontSize: 13, outline: 'none', marginBottom: 4 }}
                   >
                     <option value="">🌟 Default</option>
                     {['British','Irish','Scottish','Australian','Caribbean','American Soul','Jamaican','French','Spanish'].map((a) => (
@@ -3012,7 +2849,7 @@ export default function SongsPage() {
                 {/* ── STORY MODE fields ── */}
                 {kidsSubMode === 'story' && (<>
                   {/* ── 📖 Narrator Voice ── */}
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>📖 Narrator Voice</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#16c8ff', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>📖 Narrator Voice</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
                     {(user?.custom_voice_id
                       ? [['my_voice', '🎙️', 'My Voice', 'Your voice'], ...STORY_NARRATOR_VOICES]
@@ -3024,15 +2861,15 @@ export default function SongsPage() {
                           style={{
                             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
                             padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                            border: `1px solid ${kidsNarratorVoice === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
-                            background: kidsNarratorVoice === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
-                            boxShadow: kidsNarratorVoice === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                            border: `1px solid ${kidsNarratorVoice === val ? '#16c8ff' : 'rgba(22,200,255,0.25)'}`,
+                            background: kidsNarratorVoice === val ? 'rgba(22,200,255,0.18)' : 'rgba(22,200,255,0.04)',
+                            boxShadow: kidsNarratorVoice === val ? '0 0 10px rgba(22,200,255,0.25)' : 'none',
                             width: '100%',
                           }}
                         >
                           <span style={{ fontSize: 20 }}>{emoji}</span>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: kidsNarratorVoice === val ? '#fbbf24' : 'rgba(251,191,36,0.8)' }}>{name}</span>
-                          <span style={{ fontSize: 9, color: 'rgba(251,191,36,0.5)' }}>{desc}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: kidsNarratorVoice === val ? '#16c8ff' : 'rgba(22,200,255,0.8)' }}>{name}</span>
+                          <span style={{ fontSize: 9, color: 'rgba(22,200,255,0.5)' }}>{desc}</span>
                         </button>
                         {val !== 'my_voice' && (
                         <button
@@ -3040,9 +2877,9 @@ export default function SongsPage() {
                           title="Preview voice"
                           style={{
                             position: 'absolute', top: 4, right: 4, width: 18, height: 18,
-                            borderRadius: '50%', border: '1px solid rgba(251,191,36,0.5)',
-                            background: previewingVoice === val ? 'rgba(251,191,36,0.7)' : 'rgba(0,0,0,0.45)',
-                            color: '#fbbf24', fontSize: 7, cursor: 'pointer',
+                            borderRadius: '50%', border: '1px solid rgba(22,200,255,0.5)',
+                            background: previewingVoice === val ? 'rgba(22,200,255,0.7)' : 'rgba(0,0,0,0.45)',
+                            color: '#16c8ff', fontSize: 7, cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             backdropFilter: 'blur(4px)', transition: 'all 0.15s', padding: 0,
                           }}
@@ -3158,7 +2995,7 @@ export default function SongsPage() {
                     ))}
                   </div>
 
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🌍 Story Language</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#16c8ff', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🌍 Story Language</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 16 }}>
                     {[
                       ['english',  '🇬🇧', 'English'],
@@ -3173,18 +3010,18 @@ export default function SongsPage() {
                         style={{
                           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
                           padding: '8px 4px 6px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s',
-                          border: `1px solid ${storyLanguage === val ? '#fbbf24' : 'rgba(251,191,36,0.25)'}`,
-                          background: storyLanguage === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
-                          boxShadow: storyLanguage === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                          border: `1px solid ${storyLanguage === val ? '#16c8ff' : 'rgba(22,200,255,0.25)'}`,
+                          background: storyLanguage === val ? 'rgba(22,200,255,0.18)' : 'rgba(22,200,255,0.04)',
+                          boxShadow: storyLanguage === val ? '0 0 10px rgba(22,200,255,0.25)' : 'none',
                         }}
                       >
                         <span style={{ fontSize: 18 }}>{flag}</span>
-                        <span style={{ fontSize: 9, fontWeight: storyLanguage === val ? 700 : 500, color: storyLanguage === val ? '#fbbf24' : 'rgba(251,191,36,0.7)', textAlign: 'center' }}>{label}</span>
+                        <span style={{ fontSize: 9, fontWeight: storyLanguage === val ? 700 : 500, color: storyLanguage === val ? '#16c8ff' : 'rgba(22,200,255,0.7)', textAlign: 'center' }}>{label}</span>
                       </button>
                     ))}
                   </div>
 
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎵 Background Music</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#16c8ff', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>🎵 Background Music</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginBottom: 4 }}>
                     {[
                       ['piano',    '🎹', 'Gentle Piano'],
@@ -3196,13 +3033,13 @@ export default function SongsPage() {
                       <button key={val} onClick={() => setKidsMusicStyle(val)} style={{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
-                        border: `1px solid ${kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.20)'}`,
-                        background: kidsMusicStyle === val ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.04)',
-                        boxShadow: kidsMusicStyle === val ? '0 0 10px rgba(251,191,36,0.25)' : 'none',
+                        border: `1px solid ${kidsMusicStyle === val ? '#16c8ff' : 'rgba(22,200,255,0.20)'}`,
+                        background: kidsMusicStyle === val ? 'rgba(22,200,255,0.18)' : 'rgba(22,200,255,0.04)',
+                        boxShadow: kidsMusicStyle === val ? '0 0 10px rgba(22,200,255,0.25)' : 'none',
                         minHeight: 66,
                       }}>
                         <span style={{ fontSize: 24, lineHeight: 1, marginBottom: 4 }}>{emoji}</span>
-                        <span style={{ fontSize: 10, fontWeight: kidsMusicStyle === val ? 700 : 500, textAlign: 'center', lineHeight: 1.2, color: kidsMusicStyle === val ? '#fbbf24' : 'rgba(251,191,36,0.65)' }}>{label}</span>
+                        <span style={{ fontSize: 10, fontWeight: kidsMusicStyle === val ? 700 : 500, textAlign: 'center', lineHeight: 1.2, color: kidsMusicStyle === val ? '#16c8ff' : 'rgba(22,200,255,0.65)' }}>{label}</span>
                       </button>
                     ))}
                   </div>
@@ -3214,15 +3051,17 @@ export default function SongsPage() {
             {/* ── Roast / Funny Song Mode ─────────────────────────── */}
             <button
               onClick={() => { setIsRoastMode(v => !v); setIsKidsMode(false); setRoastName(''); setRoastDetails(''); setRoastVibe('gentle'); }}
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                background: isRoastMode ? 'rgba(248,113,113,0.10)' : 'rgba(248,113,113,0.04)',
-                border: `1px solid ${isRoastMode ? 'rgba(248,113,113,0.70)' : 'rgba(248,113,113,0.25)'}`,
-                borderRadius: 8, padding: '9px 14px', cursor: 'pointer', marginBottom: 14,
-              }}
+              type="button"
+              className="zb-mode"
+              aria-pressed={isRoastMode}
+              style={{ marginBottom: 16 }}
             >
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#f87171', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🎤 Roast Mode — Funny Song</span>
-              <span style={{ marginLeft: 'auto', color: '#f87171', fontSize: 12, fontWeight: 600 }}>{isRoastMode ? '▲ On' : '▼ Off'}</span>
+              <span className="zb-mode-icon" aria-hidden="true">🔥</span>
+              <span>
+                <span className="zb-mode-title">Roast Mode</span>
+                <span className="zb-mode-sub">Turn jokes about a mate into a funny song</span>
+              </span>
+              <span className="zb-switch" aria-hidden="true" />
             </button>
 
             {cost > 0 && creditsUnknown ? (
@@ -3236,7 +3075,7 @@ export default function SongsPage() {
                       onClick={() => { setCreditsStatus('loading'); fetchCredits(); }}
                       style={{
                         background: 'none', border: 'none', padding: 0,
-                        color: '#00f0ff', fontSize: 13, fontWeight: 600,
+                        color: '#16c8ff', fontSize: 13, fontWeight: 600,
                         cursor: 'pointer', textDecoration: 'underline',
                       }}
                     >
@@ -3257,14 +3096,14 @@ export default function SongsPage() {
             )}
 
             {soundPersona && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, padding: '7px 12px', borderRadius: 8, background: 'rgba(0,240,255,0.07)', border: '1px solid rgba(0,240,255,0.25)' }}>
-                <span style={{ flex: 1, fontSize: 12, color: '#00f0ff', fontWeight: 600 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, padding: '7px 12px', borderRadius: 8, background: 'rgba(22,200,255,0.07)', border: '1px solid rgba(22,200,255,0.25)' }}>
+                <span style={{ flex: 1, fontSize: 12, color: '#16c8ff', fontWeight: 600 }}>
                   🔒 Your Sound Active — {soundPersona.sound_persona_title}
                 </span>
                 <button
                   onClick={handleResetSound}
                   aria-label="Reset Your Sound"
-                  style={{ background: 'none', border: 'none', color: 'rgba(0,240,255,0.6)', fontSize: 16, cursor: 'pointer', lineHeight: 1, padding: '2px 4px', flexShrink: 0 }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(22,200,255,0.6)', fontSize: 16, cursor: 'pointer', lineHeight: 1, padding: '2px 4px', flexShrink: 0 }}
                 >
                   ×
                 </button>
@@ -3273,24 +3112,26 @@ export default function SongsPage() {
             <button
               onClick={isOnline ? handleGenerate : () => showOfflineToast()}
               disabled={!generateEffective}
-              style={{
+              className={isKidsMode ? undefined : 'zb-generate'}
+              style={isKidsMode ? {
                 width: '100%',
                 padding: '14px',
                 borderRadius: 10,
                 border: 'none',
-                background: generateEffective
-                  ? isKidsMode
-                    ? 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)'
-                    : 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)'
-                  : 'rgba(255,255,255,0.05)',
-                color: generateEffective ? (isKidsMode ? '#1a0a00' : '#fff') : '#444',
-                fontSize: isKidsMode ? 16 : 15,
+                background: generateEffective ? 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' : 'rgba(255,255,255,0.05)',
+                color: generateEffective ? '#1a0a00' : '#444',
+                fontSize: 16,
                 fontWeight: 700,
                 cursor: generateEffective ? 'pointer' : 'default',
                 transition: 'all 0.2s',
                 letterSpacing: '0.2px',
-              }}
+              } : undefined}
             >
+              {!isKidsMode && !generating && (
+                <svg width="20" height="22" viewBox="0 0 20 22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M7 17V3l11-2v14" /><circle cx="4.5" cy="17" r="2.8" /><circle cx="15.5" cy="15" r="2.8" />
+                </svg>
+              )}
               {generating
                 ? (isKidsMode ? '✨ Creating your story song...' : t('songs.generatingBtn'))
                 : cost > 0 && creditsStatus === 'loading'
@@ -3308,46 +3149,23 @@ export default function SongsPage() {
           </div>
 
           {/* ── Top-up section ─────────────────────────────────────────── */}
-          <div className="topup-section" style={{
-            marginBottom: 44,
-            padding: '20px 24px',
-            borderRadius: 14,
-            border: '1px solid #00f0ff',
-            background: 'rgba(0,240,255,0.03)',
-          }}>
-            <h3 style={{
-              fontFamily: "'Orbitron', sans-serif",
-              fontSize: 13,
-              fontWeight: 700,
-              color: '#00f0ff',
-              marginBottom: 14,
-              letterSpacing: '0.5px',
-            }}>⚡ Buy More Songs</h3>
+          <div className="topup-section zb-panel" style={{ marginBottom: 44, padding: '20px 22px' }}>
+            <h3 className="zb-display" style={{ fontSize: 24, color: '#ffffff', marginBottom: 14 }}>
+              Buy more <span style={{ color: '#16c8ff' }}>songs</span>
+            </h3>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {SONG_PACKS.map(({ pack, label, price }) => (
                 <button
                   key={pack}
-                  className="topup-btn"
+                  className="topup-btn zb-pack"
                   onClick={() => handleTopup(pack)}
                   disabled={topupLoading !== null}
-                  style={{
-                    padding: '11px 22px',
-                    borderRadius: 10,
-                    border: '1px solid rgba(0,240,255,0.5)',
-                    background: 'linear-gradient(135deg, rgba(0,240,255,0.1) 0%, rgba(0,191,255,0.08) 100%)',
-                    color: '#00f0ff',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: topupLoading ? 'default' : 'pointer',
-                    transition: 'all 0.2s',
-                    letterSpacing: '0.3px',
-                  }}
                 >
                   {topupLoading === pack ? t('songs.redirecting') : `${label} — ${price}`}
                 </button>
               ))}
             </div>
-            <p style={{ fontSize: 11, color: '#4a9fb5', marginTop: 12, marginBottom: 0 }}>
+            <p style={{ fontSize: 13, color: '#9fb0c8', marginTop: 12, marginBottom: 0 }}>
               Credits never expire · No subscription needed
             </p>
           </div>
@@ -3355,8 +3173,8 @@ export default function SongsPage() {
           {isOnline && activeJob && (
             <section style={{ marginBottom: 48 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', margin: 0 }}>{activeJob.title}</h2>
-                <span style={{ background: 'rgba(167,139,250,0.1)', color: '#a78bfa', borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 500 }}>
+                <h2 className="zb-display" style={{ fontSize: 28, color: '#ffffff', margin: 0 }}>{activeJob.title}</h2>
+                <span style={{ background: 'rgba(22,200,255,0.1)', color: '#16c8ff', borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 500 }}>
                   {t('songs.generatingStatus')}
                 </span>
               </div>
@@ -3462,15 +3280,11 @@ export default function SongsPage() {
               {[['all', t('songs.tabs.all')], ['favourites', t('songs.tabs.favourites')], ['recent', t('songs.tabs.recent')]].map(([tab, label]) => (
                 <button
                   key={tab}
+                  type="button"
+                  className="zb-chip"
+                  aria-pressed={activeTab === tab}
                   onClick={() => setActiveTab(tab)}
-                  style={{
-                    padding: '6px 12px', borderRadius: 20, fontSize: 13, cursor: 'pointer', flexShrink: 0,
-                    border: `1px solid ${activeTab === tab ? 'rgba(0,240,255,0.5)' : 'rgba(255,255,255,0.1)'}`,
-                    background: activeTab === tab ? 'rgba(0,240,255,0.1)' : 'transparent',
-                    color: activeTab === tab ? '#00f0ff' : '#cccccc',
-                    fontWeight: activeTab === tab ? 600 : 400,
-                    transition: 'all 0.15s', whiteSpace: 'nowrap',
-                  }}
+                  style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
                 >{label}</button>
               ))}
             </div>
@@ -3479,38 +3293,26 @@ export default function SongsPage() {
           {filteredLibrary.length > 0 && (
             <section>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2d9f3', margin: 0 }}>{t('songs.yourSongs')}</h2>
-                <button
-                  onClick={() => setNewPlModal(true)}
-                  style={{
-                    background: 'none', border: '1px solid rgba(0,240,255,0.35)', borderRadius: 5,
-                    color: '#00f0ff', fontSize: 11, cursor: 'pointer', padding: '4px 12px',
-                    transition: 'all 0.15s',
-                  }}
-                >
+                <h2 className="zb-display" style={{ fontSize: 34, color: '#ffffff', margin: 0 }}>{t('songs.yourSongs')}</h2>
+                <button type="button" className="zb-chip" onClick={() => setNewPlModal(true)}>
                   + New Playlist
                 </button>
               </div>
 
               {/* Search bar */}
               <div style={{ position: 'relative', marginBottom: 18 }}>
-                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none', color: '#cccccc' }}>🔍</span>
+                <svg style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+                     width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7d93b3" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
+                </svg>
                 <input
-                  className="songs-search-input"
+                  className="songs-search-input zb-input"
                   type="text"
                   placeholder="Search songs, genres, descriptions…"
+                  aria-label="Search your songs"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  style={{
-                    width: '100%', boxSizing: 'border-box',
-                    padding: '10px 36px 10px 36px',
-                    borderRadius: 10,
-                    border: '1px solid rgba(0,240,255,0.2)',
-                    background: 'rgba(0,0,0,0.4)',
-                    color: '#e2d9f3',
-                    fontSize: 14,
-                    transition: 'border-color 0.2s, box-shadow 0.2s',
-                  }}
+                  style={{ height: 48, padding: '0 40px 0 42px' }}
                 />
                 {search && (
                   <button
@@ -3668,20 +3470,20 @@ export default function SongsPage() {
 
       {ytUpgradePrompt && (
         <div onClick={() => setYtUpgradePrompt(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#12121e', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 20, padding: '32px 28px 28px', width: '100%', maxWidth: 380, textAlign: 'center' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#0b1222', border: '1px solid rgba(22,200,255,0.3)', borderRadius: 20, padding: '32px 28px 28px', width: '100%', maxWidth: 380, textAlign: 'center' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>📺</div>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#e2d9f3', marginBottom: 10 }}>YouTube Upload is a Premium Feature</h3>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#eef6ff', marginBottom: 10 }}>YouTube Upload is a Premium Feature</h3>
             <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.6, marginBottom: 6 }}>
               Upload your songs straight to YouTube with one click.
             </p>
             <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.6, marginBottom: 24 }}>
-              Upgrade to <strong style={{ color: '#a78bfa' }}>Music Starter (£9/mo)</strong> or higher to unlock YouTube upload.
+              Upgrade to <strong style={{ color: '#16c8ff' }}>Music Starter (£9/mo)</strong> or higher to unlock YouTube upload.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setYtUpgradePrompt(false)} style={{ flex: 1, padding: '12px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#888', fontSize: 14, cursor: 'pointer' }}>Not now</button>
               <button
                 onClick={() => { setYtUpgradePrompt(false); window.location.href = '/billing'; }}
-                style={{ flex: 2, padding: '12px 0', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+                style={{ flex: 2, padding: '12px 0', borderRadius: 10, border: 'none', background: '#16c8ff', color: '#031018', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
               >
                 Upgrade →
               </button>
@@ -3692,14 +3494,14 @@ export default function SongsPage() {
 
       {ytModal && (
         <div onClick={() => setYtModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#12121e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '28px 28px 24px', width: '100%', maxWidth: 380 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2d9f3', marginBottom: 6 }}>{t('songs.ytModal.title')}</h3>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#0b1222', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '28px 28px 24px', width: '100%', maxWidth: 380 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#eef6ff', marginBottom: 6 }}>{t('songs.ytModal.title')}</h3>
             <p style={{ fontSize: 13, color: '#cccccc', marginBottom: 20 }}>{ytModal.title || `Song #${ytModal.variant_id}`}</p>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>{t('songs.ytModal.privacyLabel')}</label>
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#9fd8f0', letterSpacing: '0.8px', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>{t('songs.ytModal.privacyLabel')}</label>
             <select
               value={ytPrivacy}
               onChange={(e) => setYtPrivacy(e.target.value)}
-              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 12px', color: '#c4b5fd', fontSize: 14, outline: 'none', marginBottom: 24 }}
+              style={{ width: '100%', background: '#060b16', border: '1px solid #2a3b57', borderRadius: 8, padding: '10px 12px', color: '#bfefff', fontSize: 14, outline: 'none', marginBottom: 24 }}
             >
               <option value="unlisted">{t('songs.ytModal.unlisted')}</option>
               <option value="public">{t('songs.ytModal.public')}</option>
@@ -3707,7 +3509,7 @@ export default function SongsPage() {
             </select>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setYtModal(null)} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>{t('songs.ytModal.cancel')}</button>
-              <button onClick={handleYouTubeUpload} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t('songs.ytModal.upload')}</button>
+              <button onClick={handleYouTubeUpload} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: '#16c8ff', color: '#031018', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t('songs.ytModal.upload')}</button>
             </div>
           </div>
         </div>
@@ -3740,10 +3542,10 @@ export default function SongsPage() {
 
       {remakeModal && (
         <div onClick={() => { setRemakeModal(null); setRemakeGenre(''); setRemakeStyle(''); setRemakeError(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#0d0d14', border: '1px solid rgba(0,240,255,0.2)', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#f0eeff', marginBottom: 4 }}>{t('songs.remakeModal.title')}</h3>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#0d0d14', border: '1px solid rgba(22,200,255,0.2)', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#eef6ff', marginBottom: 4 }}>{t('songs.remakeModal.title')}</h3>
             <p style={{ fontSize: 13, color: '#cccccc', marginBottom: 22 }}>{remakeModal.title || `Song #${remakeModal.variantId}`}</p>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 10 }}>{t('songs.remakeModal.genreLabel')}</p>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#9fd8f0', letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: 10 }}>{t('songs.remakeModal.genreLabel')}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
               {GENRE_CATEGORIES.map(cat => {
                 const open = remakeOpenCats.has(cat.id);
@@ -3805,16 +3607,16 @@ export default function SongsPage() {
                 );
               })}
             </div>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 8 }}>{t('songs.remakeModal.styleNoteLabel')}</p>
+            <p className="zb-mini-label">{t('songs.remakeModal.styleNoteLabel')}</p>
             <input type="text" value={remakeStyle} onChange={(e) => setRemakeStyle(e.target.value)}
               placeholder={t('songs.remakeModal.stylePlaceholder')}
-              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 12px', color: '#f0eeff', fontSize: 13, fontFamily: 'inherit', outline: 'none', marginBottom: 20 }}
+              style={{ width: '100%', boxSizing: 'border-box', background: '#060b16', border: '1px solid #2a3b57', borderRadius: 8, padding: '10px 12px', color: '#eef6ff', fontSize: 13, fontFamily: 'inherit', outline: 'none', marginBottom: 20 }}
             />
             {!isAdmin && <p style={{ fontSize: 12, color: '#cccccc', marginBottom: 16 }}>{t('songs.remakeModal.creditInfo', { balance: credits.balance })}</p>}
             {remakeError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '8px 12px', color: '#fca5a5', fontSize: 12, marginBottom: 14 }}>{remakeError}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => { setRemakeModal(null); setRemakeGenre(''); setRemakeStyle(''); setRemakeError(''); }} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#666', fontSize: 14, cursor: 'pointer' }}>{t('songs.remakeModal.cancel')}</button>
-              <button onClick={handleRemake} disabled={!remakeGenre || remakeLoading} style={{ flex: 2, padding: '11px 0', borderRadius: 8, border: 'none', background: remakeLoading || !remakeGenre ? 'rgba(0,240,255,0.3)' : '#00f0ff', color: '#000', fontSize: 14, fontWeight: 700, cursor: remakeLoading || !remakeGenre ? 'not-allowed' : 'pointer' }}>
+              <button onClick={handleRemake} disabled={!remakeGenre || remakeLoading} style={{ flex: 2, padding: '11px 0', borderRadius: 8, border: 'none', background: remakeLoading || !remakeGenre ? 'rgba(22,200,255,0.3)' : '#16c8ff', color: '#000', fontSize: 14, fontWeight: 700, cursor: remakeLoading || !remakeGenre ? 'not-allowed' : 'pointer' }}>
                 {remakeLoading ? t('songs.remakeModal.generating') : t('songs.remakeModal.generate')}
               </button>
             </div>
@@ -3830,20 +3632,20 @@ export default function SongsPage() {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: '#12121e', border: '1px solid rgba(0,240,255,0.25)', borderRadius: 16, padding: '28px 24px', maxWidth: 480, width: '100%' }}
+            style={{ background: '#0b1222', border: '1px solid rgba(22,200,255,0.25)', borderRadius: 16, padding: '28px 24px', maxWidth: 480, width: '100%' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, background: 'linear-gradient(90deg,#00f0ff,#a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, background: 'linear-gradient(90deg,#16c8ff,#7b5cff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 ✏️ Edit Lyrics &amp; Remake
               </h2>
               <button onClick={() => { setCoverModal(null); setCoverTitle(''); }} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#cccccc', fontSize: 13, cursor: 'pointer', padding: '4px 9px' }}>✕</button>
             </div>
 
-            <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#cccccc', lineHeight: 1.5 }}>
+            <div style={{ background: 'rgba(22,200,255,0.05)', border: '1px solid rgba(22,200,255,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#cccccc', lineHeight: 1.5 }}>
               Edit the lyrics below, then hit remake. We'll keep the <strong style={{ color: '#e2e8f0' }}>same style and music direction</strong>, but this creates a <strong style={{ color: '#e2e8f0' }}>new recording</strong> — it may not sound 100% identical to the original.
             </div>
 
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#cccccc', letterSpacing: '0.6px', textTransform: 'uppercase', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#9fd8f0', letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: 6 }}>
               Title
             </label>
             <input
@@ -3852,7 +3654,7 @@ export default function SongsPage() {
               onChange={e => setCoverTitle(e.target.value)}
               placeholder="Name your remake"
               maxLength={100}
-              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e2e8f0', fontSize: 13, padding: '10px 12px', outline: 'none', fontFamily: 'inherit', marginBottom: 16 }}
+              style={{ width: '100%', boxSizing: 'border-box', background: '#060b16', border: '1px solid #2a3b57', borderRadius: 8, color: '#e2e8f0', fontSize: 13, padding: '10px 12px', outline: 'none', fontFamily: 'inherit', marginBottom: 16 }}
             />
 
             <textarea
@@ -3862,7 +3664,7 @@ export default function SongsPage() {
               disabled={coverLyricsLoading}
               rows={8}
               maxLength={3000}
-              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e2e8f0', fontSize: 13, padding: '10px 12px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8, opacity: coverLyricsLoading ? 0.6 : 1 }}
+              style={{ width: '100%', background: '#060b16', border: '1px solid #2a3b57', borderRadius: 8, color: '#e2e8f0', fontSize: 13, padding: '10px 12px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8, opacity: coverLyricsLoading ? 0.6 : 1 }}
             />
             <div style={{ fontSize: 11, color: '#cccccc', textAlign: 'right', marginBottom: 12 }}>{coverLyrics.length}/3000 · costs 1 song credit</div>
 
@@ -3871,7 +3673,7 @@ export default function SongsPage() {
             <button
               onClick={handleCoverSubmit}
               disabled={coverLoading || coverLyricsLoading || !coverLyrics.trim()}
-              style={{ width: '100%', padding: '11px 0', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 700, fontSize: 14, cursor: coverLoading || coverLyricsLoading || !coverLyrics.trim() ? 'not-allowed' : 'pointer', opacity: coverLoading || coverLyricsLoading || !coverLyrics.trim() ? 0.55 : 1, transition: 'opacity 0.2s' }}
+              style={{ width: '100%', padding: '11px 0', background: '#16c8ff', border: 'none', borderRadius: 8, color: '#031018', fontWeight: 700, fontSize: 14, cursor: coverLoading || coverLyricsLoading || !coverLyrics.trim() ? 'not-allowed' : 'pointer', opacity: coverLoading || coverLyricsLoading || !coverLyrics.trim() ? 0.55 : 1, transition: 'opacity 0.2s' }}
             >
               {coverLoading ? '🎵 Submitting…' : '✏️ Remake Song'}
             </button>
@@ -3887,7 +3689,7 @@ export default function SongsPage() {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: '#12121e', border: '1px solid rgba(0,240,255,0.25)', borderRadius: 16, padding: '24px 24px 28px', maxWidth: 420, width: '100%', textAlign: 'center' }}
+            style={{ background: '#0b1222', border: '1px solid rgba(22,200,255,0.25)', borderRadius: 16, padding: '24px 24px 28px', maxWidth: 420, width: '100%', textAlign: 'center' }}
           >
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={() => setUpgradeFeature(null)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#cccccc', fontSize: 13, cursor: 'pointer', padding: '4px 9px' }}>✕</button>
@@ -3900,14 +3702,14 @@ export default function SongsPage() {
               {UPGRADE_FEATURES[upgradeFeature].desc}
             </p>
             {isIOSWebView ? (
-              <p style={{ margin: 0, color: '#00f0ff', fontSize: 14, fontWeight: 600 }}>
+              <p style={{ margin: 0, color: '#16c8ff', fontSize: 14, fontWeight: 600 }}>
                 Visit zeusbeats.com to upgrade your plan.
               </p>
             ) : (
               <Link
                 to="/billing"
                 onClick={() => setUpgradeFeature(null)}
-                style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '13px 0', background: 'linear-gradient(135deg,#00c8d4,#00f0ff)', borderRadius: 10, color: '#000', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 0 18px rgba(0,240,255,0.3)' }}
+                style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '13px 0', background: 'linear-gradient(135deg,#00c8d4,#16c8ff)', borderRadius: 10, color: '#000', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 0 18px rgba(22,200,255,0.3)' }}
               >
                 Upgrade from £4.50 first month
               </Link>
@@ -3924,7 +3726,7 @@ export default function SongsPage() {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: '#12121e', border: '1px solid rgba(0,240,255,0.25)', borderRadius: 16, padding: '26px 24px 24px', maxWidth: 400, width: '100%', textAlign: 'center' }}
+            style={{ background: '#0b1222', border: '1px solid rgba(22,200,255,0.25)', borderRadius: 16, padding: '26px 24px 24px', maxWidth: 400, width: '100%', textAlign: 'center' }}
           >
             <div style={{ fontSize: 38, marginBottom: 8 }}>🎧</div>
             <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: '#e2e8f0' }}>
@@ -3941,12 +3743,12 @@ export default function SongsPage() {
               placeholder="First name"
               maxLength={60}
               autoFocus
-              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e2e8f0', fontSize: 15, padding: '11px 12px', outline: 'none', textAlign: 'center', marginBottom: 14, fontFamily: 'inherit' }}
+              style={{ width: '100%', boxSizing: 'border-box', background: '#060b16', border: '1px solid #2a3b57', borderRadius: 8, color: '#e2e8f0', fontSize: 15, padding: '11px 12px', outline: 'none', textAlign: 'center', marginBottom: 14, fontFamily: 'inherit' }}
             />
             <button
               onClick={saveNamePrompt}
               disabled={namePromptSaving || !namePromptValue.trim()}
-              style={{ width: '100%', padding: '12px 0', background: 'linear-gradient(135deg,#00c8d4,#00f0ff)', border: 'none', borderRadius: 10, color: '#000', fontWeight: 800, fontSize: 15, cursor: namePromptSaving || !namePromptValue.trim() ? 'not-allowed' : 'pointer', opacity: namePromptSaving || !namePromptValue.trim() ? 0.55 : 1, transition: 'opacity 0.2s' }}
+              style={{ width: '100%', padding: '12px 0', background: 'linear-gradient(135deg,#00c8d4,#16c8ff)', border: 'none', borderRadius: 10, color: '#000', fontWeight: 800, fontSize: 15, cursor: namePromptSaving || !namePromptValue.trim() ? 'not-allowed' : 'pointer', opacity: namePromptSaving || !namePromptValue.trim() ? 0.55 : 1, transition: 'opacity 0.2s' }}
             >
               {namePromptSaving ? 'Saving…' : 'That’s me'}
             </button>
@@ -3962,29 +3764,23 @@ export default function SongsPage() {
 
       {/* Remake success toast */}
       {coverToast && (
-        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,240,255,0.12)', border: '1px solid rgba(0,240,255,0.4)', borderRadius: 10, padding: '12px 24px', color: '#00f0ff', fontWeight: 600, fontSize: 14, zIndex: 2000, whiteSpace: 'nowrap' }}>
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: 'rgba(22,200,255,0.12)', border: '1px solid rgba(22,200,255,0.4)', borderRadius: 10, padding: '12px 24px', color: '#16c8ff', fontWeight: 600, fontSize: 14, zIndex: 2000, whiteSpace: 'nowrap' }}>
           ✏️ Your remake is generating! Check your library soon.
         </div>
       )}
       {lockToast && (
-        <div style={{ position: 'fixed', bottom: 90, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.92)', border: '1px solid rgba(0,240,255,0.35)', borderRadius: 10, padding: '12px 22px', color: '#00f0ff', fontSize: 13, fontWeight: 600, zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(0,240,255,0.12)' }}>
+        <div style={{ position: 'fixed', bottom: 90, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.92)', border: '1px solid rgba(22,200,255,0.35)', borderRadius: 10, padding: '12px 22px', color: '#16c8ff', fontSize: 13, fontWeight: 600, zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(22,200,255,0.12)' }}>
           {lockToast}
         </div>
       )}
 
       {/* Floating Discover button */}
-      <a
-        href="/discover"
-        style={{
-          position: 'fixed', bottom: 20, right: 20,
-          background: 'linear-gradient(135deg, #00f0ff, #ff0099)',
-          color: '#000', borderRadius: 50, padding: '12px 20px',
-          fontWeight: 700, fontSize: 14, textDecoration: 'none',
-          zIndex: 100, boxShadow: '0 0 20px rgba(0,240,255,0.5)',
-          fontFamily: "'Orbitron', sans-serif",
-        }}
-      >
-        🎵 Discover
+      {/* Phones only — on desktop the sidebar has Discover (songsNeon.css). */}
+      <a href="/discover" className="zb-fab">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2 5-5 2 2-5z" />
+        </svg>
+        Discover
       </a>
 
       {/* New Playlist modal */}
@@ -3999,13 +3795,13 @@ export default function SongsPage() {
         >
           <div
             style={{
-              background: '#12121e', border: '1px solid rgba(0,240,255,0.25)',
+              background: '#0b1222', border: '1px solid rgba(22,200,255,0.25)',
               borderRadius: 12, padding: 28, width: '90%', maxWidth: 360,
-              boxShadow: '0 0 40px rgba(0,240,255,0.15)',
+              boxShadow: '0 0 40px rgba(22,200,255,0.15)',
             }}
             onClick={e => e.stopPropagation()}
           >
-            <h3 style={{ color: '#e2d9f3', fontSize: 16, fontWeight: 700, margin: '0 0 18px' }}>
+            <h3 style={{ color: '#eef6ff', fontSize: 16, fontWeight: 700, margin: '0 0 18px' }}>
               New Playlist
             </h3>
             <form onSubmit={handleCreatePlaylist}>
@@ -4018,8 +3814,8 @@ export default function SongsPage() {
                 maxLength={80}
                 style={{
                   width: '100%', boxSizing: 'border-box',
-                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,240,255,0.25)',
-                  borderRadius: 7, color: '#e2d9f3', fontSize: 14, padding: '10px 12px',
+                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(22,200,255,0.25)',
+                  borderRadius: 7, color: '#eef6ff', fontSize: 14, padding: '10px 12px',
                   outline: 'none', marginBottom: 16,
                 }}
               />
@@ -4040,9 +3836,9 @@ export default function SongsPage() {
                   disabled={!newPlName.trim() || newPlLoading}
                   style={{
                     flex: 1, padding: '10px 0', borderRadius: 7, border: 'none',
-                    background: newPlName.trim() ? 'linear-gradient(135deg, rgba(0,240,255,0.2), rgba(0,191,255,0.2))' : 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(0,240,255,0.35)',
-                    color: newPlName.trim() ? '#00f0ff' : '#444',
+                    background: newPlName.trim() ? 'linear-gradient(135deg, rgba(22,200,255,0.2), rgba(0,191,255,0.2))' : 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(22,200,255,0.35)',
+                    color: newPlName.trim() ? '#16c8ff' : '#444',
                     fontSize: 14, fontWeight: 600, cursor: newPlName.trim() ? 'pointer' : 'default',
                   }}
                 >

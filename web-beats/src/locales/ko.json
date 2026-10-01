@@ -60,6 +60,7 @@
     }
   },
   "songs": {
+    "heroTag": "노래로 전하세요",
     "pageTitle": "노래 만들기",
     "subtitleAI": "노래를 설명하세요 — Zeus Beats가 가사를 쓰고 음악으로 만듭니다.",
     "subtitleOwn": "아래에 가사를 쓰고 스타일을 선택하세요.",

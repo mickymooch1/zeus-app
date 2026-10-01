@@ -60,6 +60,7 @@
     }
   },
   "songs": {
+    "heroTag": "Sag es mit einem Song",
     "pageTitle": "Song erstellen",
     "subtitleAI": "Beschreibe deinen Song — Zeus Beats schreibt den Text und macht daraus Musik.",
     "subtitleOwn": "Schreib deinen Text unten und wähle einen Stil.",

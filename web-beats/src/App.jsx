@@ -5,6 +5,8 @@ import { NowPlayingProvider, useNowPlaying } from './contexts/NowPlayingContext'
 import { useAuth } from './contexts/AuthContext';
 import { ProtectedRoute, SchoolSafeRoute } from './components/ProtectedRoute';
 import CookieBanner from './components/CookieBanner';
+import { NeonSidebar } from './components/NeonSidebar';
+import { showsAppSidebar } from './utils/appNav';
 import { isStandalonePublicPage } from './utils/standalonePages';
 import ClipsBottomNav from './components/ClipsBottomNav';
 import { isClipsNavPath } from './utils/clipsChrome';
@@ -125,6 +127,7 @@ const fallback = (
 function AppInner() {
   const { currentSong, isPlaying, pause } = useNowPlaying();
   const location = useLocation();
+  const { user } = useAuth();
   // Zeus Clips pages play their own clip audio and own the bottom of the
   // screen (song bar + bottom nav): pause the global player there and hide its
   // bar; the queue is kept, so the bar comes back (paused) on leaving.
@@ -152,6 +155,7 @@ function AppInner() {
   const isSharePage = isStandalonePublicPage(location.pathname);
   return (
     <>
+      {user && showsAppSidebar(location.pathname) && <NeonSidebar />}
       {!isSharePage && <CookieBanner />}
       <ClipsBottomNav />
       <UpdateToast />

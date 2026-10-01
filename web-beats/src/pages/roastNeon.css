@@ -1,0 +1,146 @@
+/* /roast landing page — neon restyle (2026-10-01). Tokens, sizes and glow from
+   design-ref/DESIGN.md and the approved roast mockups (desktop 1440 / mobile 390). */
+
+.zb-roast {
+  position: relative; min-height: 100vh; overflow: hidden; background: #04060c; color: #eef6ff;
+  font-family: Barlow, 'Segoe UI', system-ui, sans-serif;
+}
+.zb-roast a { color: #16c8ff; }
+:where(.zb-roast) :where(button, input, textarea) { font-family: inherit; }
+.zb-roast button:focus-visible, .zb-roast a:focus-visible { outline: 2px solid #ffffff; outline-offset: 3px; }
+.zb-roast .zb-marker { font-family: 'Permanent Marker', 'Comic Sans MS', cursive; font-weight: 400; }
+
+/* Zeus art + glow (behind everything) */
+.zb-roast-glow {
+  position: absolute; right: -120px; top: -40px; width: 1000px; height: 1000px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(22,200,255,0.30) 0%, rgba(123,92,255,0.16) 42%, rgba(4,6,12,0) 68%);
+}
+.zb-roast-hero-img { position: absolute; right: 110px; top: 80px; width: 470px; height: 832px; pointer-events: none; }
+.zb-roast-hero-img img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 25%, #000 80%, transparent 100%),
+                      linear-gradient(0deg, transparent 0%, #000 28%, #000 88%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 25%, #000 80%, transparent 100%),
+              linear-gradient(0deg, transparent 0%, #000 28%, #000 88%, transparent 100%);
+  mask-composite: intersect;
+}
+.zb-roast-corner {
+  position: absolute; right: 70px; top: 150px; font-size: 30px; line-height: 1.1; text-align: right;
+  transform: rotate(-8deg); color: #eef6ff;
+}
+
+.zb-roast-inner { position: relative; max-width: 1440px; margin: 0 auto; padding: 28px 80px 40px; box-sizing: border-box; }
+
+.zb-roast-top { display: flex; justify-content: space-between; align-items: center; min-height: 56px; }
+.zb-roast-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #eef6ff !important; }
+.zb-roast-logo span { font-family: 'Bebas Neue', Impact, sans-serif; font-size: 34px; letter-spacing: 1.5px; line-height: 1; color: #eef6ff; }
+.zb-roast-logo b { color: #16c8ff; font-weight: 400; }
+.zb-roast-textbtn {
+  background: none; border: none; cursor: pointer; padding: 12px 16px; font-size: 16px; font-weight: 600;
+  color: #16c8ff; text-decoration: none;
+}
+.zb-roast-account { display: flex; align-items: center; gap: 4px; max-width: 60%; }
+.zb-roast-account-name { color: #9fb0c8; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.zb-roast-head { width: 600px; max-width: 100%; margin-top: 56px; }
+.zb-roast-title {
+  font-size: 112px; line-height: 0.95; color: #ffffff; transform: rotate(-4deg); transform-origin: left;
+  text-shadow: 0 0 26px rgba(22,200,255,0.55);
+}
+.zb-roast-swoosh { display: block; width: 360px; height: 22px; margin: 10px 0 0 60px; }
+.zb-roast-h1 { margin: 22px 0 0; font-family: 'Bebas Neue', Impact, sans-serif; font-weight: 400; font-size: 72px; line-height: 0.95; letter-spacing: 1px; }
+.zb-roast-h1 span { color: #16c8ff; }
+.zb-roast-lede { margin: 14px 0 0; font-size: 21px; line-height: 1.45; color: #c9d6ea; width: 480px; max-width: 100%; }
+
+.zb-roast-card {
+  position: relative; width: 600px; max-width: 100%; box-sizing: border-box; margin-top: 36px; padding: 28px;
+  border-radius: 26px; background: #0b1222; border: 1.5px solid #1f5f8a; box-shadow: 0 0 40px rgba(22,200,255,0.22);
+  display: flex; flex-direction: column; gap: 20px;
+}
+.zb-roast-cardtag { position: absolute; right: 22px; top: -34px; font-size: 24px; color: #16c8ff; transform: rotate(-7deg); line-height: 1; }
+.zb-roast-field { display: flex; flex-direction: column; gap: 8px; }
+.zb-roast-field > label, .zb-roast-field > span { font-size: 16px; font-weight: 600; }
+.zb-roast-input {
+  border-radius: 12px; border: 1px solid #2a3b57; background: #060b16; color: #eef6ff; font-size: 16px;
+  padding: 14px 16px; box-sizing: border-box; outline: none; resize: none; line-height: 1.4;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input.zb-roast-input { height: 52px; padding: 0 16px; }
+.zb-roast-input::placeholder { color: #7d8aa6; }
+.zb-roast-input:focus { border-color: #16c8ff; box-shadow: 0 0 0 1px #16c8ff; }
+.zb-roast-vibes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.zb-roast-vibe {
+  min-height: 52px; padding: 6px 8px; border-radius: 12px; border: 1px solid #2a3b57; background: #060b16;
+  color: #c9d6ea; font-size: 15px; font-weight: 700; cursor: pointer; line-height: 1.2;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.zb-roast-vibe:hover { border-color: rgba(22,200,255,0.6); }
+.zb-roast-vibe[aria-pressed="true"] {
+  border: 2px solid #16c8ff; background: rgba(22,200,255,0.16); color: #ffffff; box-shadow: 0 0 14px rgba(22,200,255,0.45);
+}
+.zb-roast-submit { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.zb-roast-cta {
+  height: 60px; padding: 0 34px; border-radius: 999px; border: none; background: #16c8ff; color: #031018;
+  font-family: 'Bebas Neue', Impact, sans-serif; font-size: 28px; letter-spacing: 1px; cursor: pointer;
+  display: flex; align-items: center; gap: 12px; box-shadow: 0 0 28px rgba(22,200,255,0.6);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.zb-roast-cta:hover:not(:disabled) { box-shadow: 0 0 40px rgba(22,200,255,0.8); transform: translateY(-1px); }
+.zb-roast-cta:disabled { background: #13233a; color: #6a809e; box-shadow: none; cursor: default; }
+.zb-roast-note { font-size: 15px; color: #9fb0c8; }
+
+.zb-roast-examples { margin-top: 34px; width: 600px; max-width: 100%; }
+.zb-roast-examples-label { display: block; font-size: 14px; color: #9fb0c8; margin-bottom: 10px; }
+.zb-roast-examples-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.zb-roast-example { padding: 7px 14px; border-radius: 999px; border: 1px solid #1a2c46; background: #0b1222; font-size: 14px; font-weight: 600; color: #cfe4f7; }
+
+.zb-roast-feats { list-style: none; margin: 72px 0 0; padding: 0 60px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
+.zb-roast-feats li { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.zb-roast-feat-ring {
+  width: 92px; height: 92px; border-radius: 50%; border: 3px solid #16c8ff; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 24px rgba(22,200,255,0.55), inset 0 0 16px rgba(22,200,255,0.25);
+}
+.zb-roast-feat-label { font-family: 'Bebas Neue', Impact, sans-serif; font-size: 26px; line-height: 1; letter-spacing: 0.5px; }
+.zb-roast-foot { margin-top: 48px; font-size: 14px; letter-spacing: 3px; color: #9fb0c8; text-transform: uppercase; }
+
+/* Tablet: the art moves back, the form gets the width. */
+@media (max-width: 1100px) {
+  .zb-roast-inner { padding: 24px 32px 40px; }
+  .zb-roast-hero-img { right: -40px; opacity: 0.55; }
+  .zb-roast-corner { display: none; }
+  .zb-roast-feats { padding: 0; }
+}
+
+/* Mobile — the 390px mockup. */
+@media (max-width: 640px) {
+  .zb-roast-inner { padding: 18px 20px 32px; }
+  .zb-roast-glow { left: 120px; right: auto; top: 40px; width: 420px; height: 420px; background: radial-gradient(circle, rgba(22,200,255,0.35) 0%, rgba(123,92,255,0.18) 45%, rgba(4,6,12,0) 70%); }
+  .zb-roast-hero-img { right: 0; top: 64px; width: 236px; height: 418px; opacity: 1; }
+  .zb-roast-hero-img img {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 38%), linear-gradient(0deg, transparent 0%, #000 30%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 38%), linear-gradient(0deg, transparent 0%, #000 30%);
+  }
+  .zb-roast-top { min-height: 44px; }
+  .zb-roast-logo span { font-size: 26px; letter-spacing: 1px; }
+  .zb-roast-logo svg { width: 22px; height: 26px; }
+  .zb-roast-textbtn { padding: 10px 4px; font-size: 15px; }
+  .zb-roast-account-name { display: none; }
+  .zb-roast-head { margin-top: 70px; }
+  .zb-roast-title { font-size: 66px; width: 220px; transform: rotate(-5deg); text-shadow: 0 0 18px rgba(22,200,255,0.55); }
+  .zb-roast-swoosh { width: 170px; height: 16px; margin: 8px 0 0 18px; }
+  .zb-roast-h1 { margin-top: 26px; font-size: 46px; letter-spacing: 0.5px; width: 210px; }
+  .zb-roast-lede { font-size: 17px; line-height: 1.4; width: 200px; }
+  .zb-roast-card { margin-top: 58px; padding: 22px 18px; border-radius: 22px; gap: 18px; box-shadow: 0 0 32px rgba(22,200,255,0.22); }
+  .zb-roast-cardtag { right: 14px; top: -30px; font-size: 19px; transform: rotate(-8deg); }
+  .zb-roast-field > label, .zb-roast-field > span { font-size: 15px; }
+  input.zb-roast-input { height: 50px; padding: 0 14px; }
+  .zb-roast-vibes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .zb-roast-submit { flex-direction: column; align-items: stretch; gap: 10px; }
+  .zb-roast-cta { height: 56px; justify-content: center; font-size: 26px; padding: 0 20px; }
+  .zb-roast-note { text-align: center; font-size: 14px; }
+  .zb-roast-feats { margin-top: 48px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 12px; }
+  .zb-roast-feat-ring { width: 76px; height: 76px; }
+  .zb-roast-feat-label { font-size: 22px; }
+  .zb-roast-foot { text-align: center; margin-top: 36px; }
+}

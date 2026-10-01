@@ -60,6 +60,7 @@
     }
   },
   "songs": {
+    "heroTag": "Dis-le en chanson",
     "pageTitle": "Créer une chanson",
     "subtitleAI": "Décrivez votre chanson — Zeus Beats écrit les paroles et les transforme en musique.",
     "subtitleOwn": "Écrivez vos paroles ci-dessous, puis choisissez un style.",

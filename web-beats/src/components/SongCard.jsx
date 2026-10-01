@@ -13,8 +13,8 @@ import { useClipsEnabled } from '../hooks/useClipsEnabled';
 
 export const S = {
   card: {
-    background: '#12121e',
-    border: '1px solid rgba(255,255,255,0.07)',
+    background: '#0b1222',
+    border: '1px solid #1a2c46',
     borderRadius: 12,
     overflow: 'hidden',
     display: 'flex',
@@ -48,9 +48,9 @@ export const S = {
     marginTop: 4,
   },
   pill: {
-    background: 'rgba(167,139,250,0.15)',
-    color: '#c4b5fd',
-    border: '1px solid rgba(167,139,250,0.3)',
+    background: 'rgba(22,200,255,0.15)',
+    color: '#bfefff',
+    border: '1px solid rgba(22,200,255,0.3)',
     borderRadius: 20,
     padding: '2px 10px',
     fontSize: 11,
@@ -309,7 +309,7 @@ const SongCard = memo(function SongCard({
       container:     waveRef.current,
       url:           variant.mp3_url,
       waveColor:     '#252535',
-      progressColor: '#a78bfa',
+      progressColor: '#16c8ff',
       height:        40,
       barWidth:      2,
       barGap:        1,
@@ -486,8 +486,8 @@ const SongCard = memo(function SongCard({
               transform: 'none',
               width: 40, height: 40, borderRadius: '50%',
               border: '1.5px solid rgba(255,255,255,0.7)',
-              background: playing ? 'rgba(124,58,237,0.85)' : 'rgba(0,0,0,0.6)',
-              color: '#fff', fontSize: 16,
+              background: playing ? 'rgba(22,200,255,0.9)' : 'rgba(0,0,0,0.6)',
+              color: playing ? '#031018' : '#fff', fontSize: 16,
               cursor: (wsReady || !!onPlayOffline) ? 'pointer' : 'default',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               backdropFilter: 'blur(6px)',
@@ -496,7 +496,7 @@ const SongCard = memo(function SongCard({
               pointerEvents: (wsReady || !!onPlayOffline) ? 'auto' : 'none',
               flexShrink: 0,
             }}
-            onMouseEnter={(e) => { if (wsReady || !!onPlayOffline) e.currentTarget.style.boxShadow = '0 0 10px rgba(0,240,255,0.6)'; }}
+            onMouseEnter={(e) => { if (wsReady || !!onPlayOffline) e.currentTarget.style.boxShadow = '0 0 10px rgba(22,200,255,0.6)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
           >
             {playing ? '⏸' : '▶'}
@@ -519,7 +519,7 @@ const SongCard = memo(function SongCard({
               transition: 'all 0.2s',
               flexShrink: 0,
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 10px rgba(0,240,255,0.6)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 10px rgba(22,200,255,0.6)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
           >📜</button>
         )}
@@ -565,7 +565,7 @@ const SongCard = memo(function SongCard({
           <div ref={waveRef} style={{ flex: 1, height: 32, opacity: wsReady ? 1 : 0.15, transition: 'opacity 0.4s', minWidth: 0, marginBottom: 8 }} />
         )}
         <div style={{ ...S.cardTitle, fontSize: 15, fontWeight: 700 }}>{title || `Song #${variant.variant_id}`}</div>
-        {artistName && <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{artistName}</div>}
+        {artistName && <div style={{ fontSize: 11, color: '#16c8ff', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{artistName}</div>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
           <span style={{ ...S.pill, color: genreColor(variant.genre_tag), borderColor: genreColor(variant.genre_tag) + '55', background: genreColor(variant.genre_tag) + '14' }}>{gLabel(variant.genre_tag)}</span>
           {durStr && <span style={{ color: '#999', fontSize: 12 }}>{durStr}</span>}
@@ -601,8 +601,8 @@ const SongCard = memo(function SongCard({
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   width: '100%', minHeight: 44, borderRadius: 7, border: 'none',
-                  background: downloaded ? 'rgba(74,222,128,0.15)' : 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
-                  color: downloaded ? '#4ade80' : '#fff', fontSize: 12, fontWeight: 600,
+                  background: downloaded ? 'rgba(74,222,128,0.15)' : '#16c8ff',
+                  color: downloaded ? '#4ade80' : '#031018', fontSize: 12, fontWeight: 700,
                   cursor: downloaded ? 'default' : 'pointer',
                   textDecoration: 'none', boxSizing: 'border-box',
                   transition: 'all 0.2s ease', pointerEvents: downloaded ? 'none' : 'auto',
@@ -620,8 +620,8 @@ const SongCard = memo(function SongCard({
                 style={{
                   ...actionBtnStyle,
                   width:       '100%',
-                  color:       isSaved ? '#4ade80' : '#a78bfa',
-                  borderColor: isSaved ? 'rgba(74,222,128,0.5)' : 'rgba(167,139,250,0.5)',
+                  color:       isSaved ? '#4ade80' : '#16c8ff',
+                  borderColor: isSaved ? 'rgba(74,222,128,0.5)' : 'rgba(22,200,255,0.5)',
                   opacity:     isDownloading ? 0.6 : 1,
                   cursor:      isDownloading ? 'default' : 'pointer',
                 }}
@@ -671,18 +671,16 @@ const SongCard = memo(function SongCard({
                   ...actionBtnStyle,
                   width: '100%',
                   minHeight: 48,
-                  background: 'linear-gradient(135deg, #00f0ff, #ff0099)',
-                  color: '#000',
-                  border: 'none',
+                  background: isPublic ? 'rgba(22,200,255,0.14)' : 'transparent',
+                  color: isPublic ? '#ffffff' : '#16c8ff',
+                  border: '1px solid rgba(22,200,255,0.6)',
                   fontWeight: 700,
-                  boxShadow: '0 0 15px rgba(0,240,255,0.5)',
-                  opacity: isPublic ? 1 : 0.82,
                 }}
               >
                 {isPublic ? '🌐 Shared on Discover ✓' : '🌐 Share on Discover'}
               </button>
               {shareToast && (
-                <p style={{ color: shareToast === 'public' ? '#00f0ff' : '#9ca3af', fontSize: 11, marginTop: 4, marginBottom: 0, textAlign: 'center' }}>
+                <p style={{ color: shareToast === 'public' ? '#16c8ff' : '#9ca3af', fontSize: 11, marginTop: 4, marginBottom: 0, textAlign: 'center' }}>
                   {shareToast === 'public' ? 'Now visible on the Discover feed ✓' : 'Removed from Discover feed'}
                 </p>
               )}
@@ -704,11 +702,11 @@ const SongCard = memo(function SongCard({
                     minHeight: 44,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     textDecoration: 'none',
-                    background: 'linear-gradient(90deg, #00f0ff, #7c3aed)',
+                    background: 'linear-gradient(90deg, #16c8ff, #7b5cff)',
                     color: '#000',
                     border: 'none',
                     fontWeight: 700,
-                    boxShadow: '0 0 14px rgba(124,58,237,0.45)',
+                    boxShadow: '0 0 14px rgba(22,200,255,0.45)',
                   }}
                 >
                   🎬 Create Clip
@@ -724,13 +722,13 @@ const SongCard = memo(function SongCard({
             )}
             {/* Row 4: Remake + Regen */}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, flex: 1, color: '#f59e0b', borderColor: 'rgba(245,158,11,0.5)' }}>
+              <button onClick={() => onRemake(variant.variant_id, title)} style={{ ...actionBtnStyle, flex: 1, color: '#16c8ff', borderColor: 'rgba(22,200,255,0.5)' }}>
                 {t('songs.buttons.remake')}
               </button>
               <button
                 onClick={handleRegen}
                 disabled={regenLoading}
-                style={{ ...actionBtnStyle, flex: 1, color: '#4ade80', borderColor: 'rgba(74,222,128,0.5)', opacity: regenLoading ? 0.55 : 1 }}
+                style={{ ...actionBtnStyle, flex: 1, color: '#16c8ff', borderColor: 'rgba(22,200,255,0.5)', opacity: regenLoading ? 0.55 : 1 }}
               >
                 {regenLoading ? '…' : t('songs.buttons.regenerate')}
               </button>
@@ -742,7 +740,7 @@ const SongCard = memo(function SongCard({
               <div style={{ marginTop: 8 }}>
                 <button
                   onClick={() => onOpenCover(variant.variant_id, title, effectiveLyricId)}
-                  style={{ ...actionBtnStyle, width: '100%', color: '#00f0ff', borderColor: 'rgba(0,240,255,0.4)' }}
+                  style={{ ...actionBtnStyle, width: '100%', color: '#16c8ff', borderColor: 'rgba(22,200,255,0.4)' }}
                 >
                   ✏️ Edit Lyrics & Remake
                 </button>
@@ -759,12 +757,12 @@ const SongCard = memo(function SongCard({
                   <div style={{ marginTop: 8 }}>
                     <button
                       onClick={() => setStemsOpen(o => !o)}
-                      style={{ ...actionBtnStyle, width: '100%', color: '#a78bfa', borderColor: 'rgba(167,139,250,0.5)' }}
+                      style={{ ...actionBtnStyle, width: '100%', color: '#16c8ff', borderColor: 'rgba(22,200,255,0.5)' }}
                     >
                       🎵 Stems {stemsOpen ? '▲' : '▼'}
                     </button>
                     {stemsOpen && (
-                      <div style={{ marginTop: 8, background: 'rgba(167,139,250,0.05)', borderRadius: 8, border: '1px solid rgba(167,139,250,0.15)', overflow: 'hidden' }}>
+                      <div style={{ marginTop: 8, background: 'rgba(22,200,255,0.05)', borderRadius: 8, border: '1px solid rgba(22,200,255,0.15)', overflow: 'hidden' }}>
                         {[
                           { label: '🎤 Vocals',       url: stemsProp.stems_vocals_url },
                           { label: '🥁 Drums',        url: stemsProp.stems_drums_url },
@@ -772,11 +770,11 @@ const SongCard = memo(function SongCard({
                           { label: '🎹 Melody/Other', url: stemsProp.stems_other_url },
                         ].map(({ label, url }) => (
                           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                            <span style={{ fontSize: 12, color: '#c4b5fd', width: 100, flexShrink: 0 }}>{label}</span>
+                            <span style={{ fontSize: 12, color: '#bfefff', width: 100, flexShrink: 0 }}>{label}</span>
                             {url ? (
                               <>
                                 <audio controls src={url} style={{ flex: 1, height: 28, minWidth: 0 }} />
-                                <a href={url} download style={{ color: '#a78bfa', fontSize: 18, textDecoration: 'none', flexShrink: 0 }} title="Download">⬇</a>
+                                <a href={url} download style={{ color: '#16c8ff', fontSize: 18, textDecoration: 'none', flexShrink: 0 }} title="Download">⬇</a>
                               </>
                             ) : (
                               <span style={{ color: '#cccccc', fontSize: 12 }}>unavailable</span>
@@ -790,7 +788,7 @@ const SongCard = memo(function SongCard({
               }
               if (st === 'pending') {
                 return (
-                  <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 7, background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.2)', color: '#a78bfa', fontSize: 12, textAlign: 'center' }}>
+                  <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 7, background: 'rgba(22,200,255,0.06)', border: '1px solid rgba(22,200,255,0.2)', color: '#16c8ff', fontSize: 12, textAlign: 'center' }}>
                     ⏳ Separating stems… (check back in a minute)
                   </div>
                 );
@@ -810,8 +808,8 @@ const SongCard = memo(function SongCard({
                     title={premiumCredits === 0 ? 'Unlock stem separation' : 'Separate into vocals, drums, bass, melody (costs 1 premium credit)'}
                     style={{
                       ...actionBtnStyle, width: '100%',
-                      color: premiumCredits > 0 ? '#a78bfa' : '#7c6fb0',
-                      borderColor: premiumCredits > 0 ? 'rgba(167,139,250,0.4)' : 'rgba(167,139,250,0.18)',
+                      color: premiumCredits > 0 ? '#16c8ff' : '#5d7391',
+                      borderColor: premiumCredits > 0 ? 'rgba(22,200,255,0.4)' : 'rgba(22,200,255,0.18)',
                       opacity: premiumCredits === 0 ? 0.8 : 1,
                       cursor: 'pointer',
                     }}
@@ -837,24 +835,24 @@ const SongCard = memo(function SongCard({
               <div style={{ marginTop: 8 }}>
                 <button
                   onClick={() => setQrOpen(o => !o)}
-                  style={{ ...actionBtnStyle, width: '100%', color: '#00f0ff', borderColor: 'rgba(0,240,255,0.5)' }}
+                  style={{ ...actionBtnStyle, width: '100%', color: '#16c8ff', borderColor: 'rgba(22,200,255,0.5)' }}
                 >
                   📱 Create QR Code {qrOpen ? '▲' : '▼'}
                 </button>
                 {qrOpen && (
-                  <div style={{ marginTop: 8, padding: '16px 12px', background: 'rgba(0,240,255,0.05)', borderRadius: 8, border: '1px solid rgba(0,240,255,0.15)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                  <div style={{ marginTop: 8, padding: '16px 12px', background: 'rgba(22,200,255,0.05)', borderRadius: 8, border: '1px solid rgba(22,200,255,0.15)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                     <div ref={qrSvgWrapRef} style={{ padding: 10, background: '#ffffff', borderRadius: 10, lineHeight: 0 }}>
-                      <QRCodeSVG value={shareUrlForQr} size={160} bgColor="#ffffff" fgColor="#0b0b14" level="H" includeMargin={false} />
+                      <QRCodeSVG value={shareUrlForQr} size={160} bgColor="#ffffff" fgColor="#04060c" level="H" includeMargin={false} />
                     </div>
                     {/* Hidden — same value, rendered off-screen purely so a real <canvas> exists to export as PNG */}
                     <div ref={qrCanvasWrapRef} style={{ width: 0, height: 0, overflow: 'hidden' }}>
-                      <QRCodeCanvas value={shareUrlForQr} size={512} bgColor="#ffffff" fgColor="#0b0b14" level="H" includeMargin={false} />
+                      <QRCodeCanvas value={shareUrlForQr} size={512} bgColor="#ffffff" fgColor="#04060c" level="H" includeMargin={false} />
                     </div>
                     <div style={{ display: 'flex', gap: 8, width: '100%' }}>
-                      <button onClick={() => handleQrDownload('png')} style={{ ...actionBtnStyle, flex: 1, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.5)' }}>
+                      <button onClick={() => handleQrDownload('png')} style={{ ...actionBtnStyle, flex: 1, color: '#16c8ff', borderColor: 'rgba(22,200,255,0.5)' }}>
                         ⬇ PNG
                       </button>
-                      <button onClick={() => handleQrDownload('svg')} style={{ ...actionBtnStyle, flex: 1, color: '#00f0ff', borderColor: 'rgba(0,240,255,0.5)' }}>
+                      <button onClick={() => handleQrDownload('svg')} style={{ ...actionBtnStyle, flex: 1, color: '#16c8ff', borderColor: 'rgba(22,200,255,0.5)' }}>
                         ⬇ SVG
                       </button>
                     </div>
@@ -982,12 +980,12 @@ const SongCard = memo(function SongCard({
               <div style={{ marginTop: 8 }}>
                 <button
                   onClick={toggleOccasionPanel}
-                  style={{ ...actionBtnStyle, width: '100%', color: '#f472b6', borderColor: 'rgba(244,114,182,0.5)' }}
+                  style={{ ...actionBtnStyle, width: '100%', color: '#9d86ff', borderColor: 'rgba(123,92,255,0.5)' }}
                 >
                   🎀 Occasion {variant.occasion ? `(${OCCASION_OPTIONS.find(o => o.value === variant.occasion)?.label || variant.occasion})` : ''} {occasionOpen ? '▲' : '▼'}
                 </button>
                 {occasionOpen && (
-                  <div style={{ marginTop: 8, padding: '14px 12px', background: 'rgba(244,114,182,0.05)', borderRadius: 8, border: '1px solid rgba(244,114,182,0.2)' }}>
+                  <div style={{ marginTop: 8, padding: '14px 12px', background: 'rgba(123,92,255,0.05)', borderRadius: 8, border: '1px solid rgba(123,92,255,0.2)' }}>
                     <p style={{ margin: '0 0 10px', fontSize: 12, color: '#999', lineHeight: 1.5 }}>
                       Changes how the share page greets whoever opens the link — the song itself doesn't change.
                     </p>
@@ -996,7 +994,7 @@ const SongCard = memo(function SongCard({
                       onChange={(e) => setOccasionDraft(e.target.value)}
                       style={{
                         width: '100%', padding: '9px 10px', borderRadius: 8, marginBottom: occasionDraft ? 10 : 0,
-                        background: 'rgba(0,0,0,0.3)', color: '#e2e8f0', border: '1px solid rgba(244,114,182,0.3)', fontSize: 13,
+                        background: 'rgba(0,0,0,0.3)', color: '#e2e8f0', border: '1px solid rgba(123,92,255,0.3)', fontSize: 13,
                       }}
                     >
                       {OCCASION_OPTIONS.map(o => (
@@ -1012,7 +1010,7 @@ const SongCard = memo(function SongCard({
                         maxLength={80}
                         style={{
                           width: '100%', padding: '9px 10px', borderRadius: 8, marginBottom: 10, boxSizing: 'border-box',
-                          background: 'rgba(0,0,0,0.3)', color: '#e2e8f0', border: '1px solid rgba(244,114,182,0.3)', fontSize: 13,
+                          background: 'rgba(0,0,0,0.3)', color: '#e2e8f0', border: '1px solid rgba(123,92,255,0.3)', fontSize: 13,
                         }}
                       />
                     )}
@@ -1020,7 +1018,7 @@ const SongCard = memo(function SongCard({
                       onClick={handleSaveOccasion}
                       disabled={occasionSaving}
                       style={{
-                        ...actionBtnStyle, width: '100%', color: '#f472b6', borderColor: 'rgba(244,114,182,0.5)',
+                        ...actionBtnStyle, width: '100%', color: '#9d86ff', borderColor: 'rgba(123,92,255,0.5)',
                         opacity: occasionSaving ? 0.6 : 1, cursor: occasionSaving ? 'default' : 'pointer',
                       }}
                     >
@@ -1037,7 +1035,7 @@ const SongCard = memo(function SongCard({
             {variant.mp3_url && (
               <div style={{ marginTop: 6 }}>
                 {soundPersonaVariantId === variant.variant_id ? (
-                  <div style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(0,240,255,0.3)', background: 'rgba(0,240,255,0.06)', color: '#00f0ff', fontSize: 12, fontWeight: 700, textAlign: 'center' }}>
+                  <div style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(22,200,255,0.3)', background: 'rgba(22,200,255,0.06)', color: '#16c8ff', fontSize: 12, fontWeight: 700, textAlign: 'center' }}>
                     ✓ Your Sound
                   </div>
                 ) : (
@@ -1054,10 +1052,10 @@ const SongCard = memo(function SongCard({
             {lockedMsg && (
               <div style={{
                 marginTop: 8, padding: '8px 12px', borderRadius: 7,
-                background: 'rgba(18,18,30,0.96)', border: '1px solid rgba(0,240,255,0.15)',
-                fontSize: 11, color: '#c4b5fd', textAlign: 'center', lineHeight: 1.5,
+                background: 'rgba(18,18,30,0.96)', border: '1px solid rgba(22,200,255,0.15)',
+                fontSize: 11, color: '#bfefff', textAlign: 'center', lineHeight: 1.5,
               }}>
-                {lockedMsg === 'upgrade-yt' && <>{t('songs.locked.upgradeYT')} {!isIOSWebView && <Link to="/billing" style={{ color: '#00f0ff', fontWeight: 600 }}>{t('songs.locked.upgradeLink')}</Link>}</>}
+                {lockedMsg === 'upgrade-yt' && <>{t('songs.locked.upgradeYT')} {!isIOSWebView && <Link to="/billing" style={{ color: '#16c8ff', fontWeight: 600 }}>{t('songs.locked.upgradeLink')}</Link>}</>}
                 {lockedMsg === 'connect-yt' && <>{t('songs.locked.connectYT')}</>}
               </div>
             )}
@@ -1065,8 +1063,8 @@ const SongCard = memo(function SongCard({
             {addToast && (
               <div style={{
                 marginTop: 8, padding: '6px 12px', borderRadius: 6,
-                background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.25)',
-                fontSize: 11, color: '#00f0ff', textAlign: 'center',
+                background: 'rgba(22,200,255,0.08)', border: '1px solid rgba(22,200,255,0.25)',
+                fontSize: 11, color: '#16c8ff', textAlign: 'center',
               }}>
                 {addToast}
               </div>
@@ -1077,8 +1075,8 @@ const SongCard = memo(function SongCard({
                 <button
                   onClick={() => setAddMenuOpen(o => !o)}
                   style={{
-                    background: 'none', border: '1px solid rgba(0,240,255,0.35)', borderRadius: 5,
-                    color: '#00f0ff', fontSize: 11, cursor: 'pointer', padding: '3px 10px',
+                    background: 'none', border: '1px solid rgba(22,200,255,0.35)', borderRadius: 5,
+                    color: '#16c8ff', fontSize: 11, cursor: 'pointer', padding: '3px 10px',
                     transition: 'all 0.15s',
                   }}
                 >
@@ -1087,7 +1085,7 @@ const SongCard = memo(function SongCard({
                 {addMenuOpen && (
                   <div style={{
                     position: 'absolute', bottom: '110%', left: 0, zIndex: 200,
-                    background: '#18182a', border: '1px solid rgba(0,240,255,0.2)', borderRadius: 8,
+                    background: '#18182a', border: '1px solid rgba(22,200,255,0.2)', borderRadius: 8,
                     minWidth: 180, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                     overflow: 'hidden',
                   }}>
@@ -1097,10 +1095,10 @@ const SongCard = memo(function SongCard({
                         onClick={() => setAddMenuOpen(false)}
                         style={{
                           display: 'block', padding: '10px 14px', fontSize: 12,
-                          color: '#00f0ff', textDecoration: 'none',
+                          color: '#16c8ff', textDecoration: 'none',
                           background: 'none',
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.06)'}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(22,200,255,0.06)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                       >
                         + Create your first playlist
@@ -1116,7 +1114,7 @@ const SongCard = memo(function SongCard({
                               background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
                               color: '#e2e8f0', fontSize: 12, padding: '9px 14px', cursor: 'pointer',
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.06)'}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(22,200,255,0.06)'}
                             onMouseLeave={e => e.currentTarget.style.background = 'none'}
                           >
                             {pl.name}
@@ -1127,9 +1125,9 @@ const SongCard = memo(function SongCard({
                           onClick={() => setAddMenuOpen(false)}
                           style={{
                             display: 'block', padding: '8px 14px', fontSize: 11,
-                            color: '#00f0ff', textDecoration: 'none', borderTop: '1px solid rgba(0,240,255,0.1)',
+                            color: '#16c8ff', textDecoration: 'none', borderTop: '1px solid rgba(22,200,255,0.1)',
                           }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.06)'}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(22,200,255,0.06)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'none'}
                         >
                           Manage playlists →

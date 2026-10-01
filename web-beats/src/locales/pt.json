@@ -60,6 +60,7 @@
     }
   },
   "songs": {
+    "heroTag": "Diga com uma música",
     "pageTitle": "Criar uma música",
     "subtitleAI": "Descreva sua música — Zeus Beats escreve a letra e a transforma em música.",
     "subtitleOwn": "Escreva sua letra abaixo e escolha um estilo.",

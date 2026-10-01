@@ -60,6 +60,7 @@
     }
   },
   "songs": {
+    "heroTag": "歌で伝えよう",
     "pageTitle": "楽曲を作成",
     "subtitleAI": "楽曲を説明してください — Zeus Beatsが歌詞を書き、音楽に仕上げます。",
     "subtitleOwn": "以下に歌詞を書き、スタイルを選択してください。",
