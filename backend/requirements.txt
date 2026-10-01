@@ -26,4 +26,4 @@ Pillow>=10.0.0
 pillow-heif>=0.18.0
 slowapi>=0.1.9
 python-telegram-bot>=21.0
-
+mutagen==1.47.0

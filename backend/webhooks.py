@@ -10,6 +10,8 @@ import subprocess
 import textwrap
 import threading
 import requests
+
+import audio_tags
 import httpx
 import db as _db
 from PIL import Image, ImageDraw, ImageFont
@@ -560,6 +562,7 @@ async def apiframe_extend_webhook(request: Request) -> dict:
         local_path = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
         with open(local_path, "wb") as fh:
             fh.write(dl.content)
+        audio_tags.retag_song_file(local_path, variant_id, DB_PATH)  # our tags, not the provider's
         conn = sqlite3.connect(DB_PATH)
         try:
             conn.execute("UPDATE song_variants SET duration_seconds = ? WHERE id = ?", (new_duration, variant_id))
@@ -919,6 +922,7 @@ async def apiframe_webhook(request: Request):
             _hand_failure_to_ops(variant_id, "mp3_too_small")
         return {"ok": True, "status": "failed", "reason": "mp3_too_small"}
     _apply_fade_out(local_path1, variant_id, duration1)
+    audio_tags.retag_song_file(local_path1, variant_id, DB_PATH)  # our tags, not the provider's
     permanent_url1 = f"{PUBLIC_BASE_URL}/{variant_id}.mp3"
 
     permanent_image_url1 = None
@@ -1059,6 +1063,7 @@ async def apiframe_webhook(request: Request):
                     take2_variant_id = None
                 else:
                     _apply_fade_out(local_path2, take2_variant_id, duration2)
+                    audio_tags.retag_song_file(local_path2, take2_variant_id, DB_PATH)  # our tags, not the provider's
                     permanent_url2 = f"{PUBLIC_BASE_URL}/{take2_variant_id}.mp3"
 
                     permanent_image_url2 = None
@@ -1406,6 +1411,7 @@ async def cometapi_webhook(request: Request):
         local_path = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
         with open(local_path, "wb") as fh:
             fh.write(dl.content)
+        audio_tags.retag_song_file(local_path, variant_id, DB_PATH)  # our tags, not the provider's
     except Exception as _dl_exc:
         logger.exception("CometAPI webhook: MP3 download failed variant_id=%d url=%s: %s", variant_id, audio_url, _dl_exc)
         _fail_conn = sqlite3.connect(DB_PATH)
@@ -1573,6 +1579,7 @@ async def goapi_webhook(request: Request):
         local_path = os.path.join(STORAGE_PATH, f"{variant_id}.mp3")
         with open(local_path, "wb") as fh:
             fh.write(dl.content)
+        audio_tags.retag_song_file(local_path, variant_id, DB_PATH)  # our tags, not the provider's
     except Exception as _dl_exc:
         logger.exception("GoAPI webhook: MP3 download failed variant_id=%d: %s", variant_id, _dl_exc)
         _fail_conn = sqlite3.connect(DB_PATH)
