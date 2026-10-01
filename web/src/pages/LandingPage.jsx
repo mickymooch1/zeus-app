@@ -165,7 +165,7 @@ export default function LandingPage() {
           <div style={{ marginBottom: 8 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-1)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14, marginTop: 40 }}>🎛️ Advanced Controls</div>
             <div className="features-grid">
-              <div className="feat-card"><span className="feat-icon">🤖</span><h3>Model Selector</h3><p>Choose your Suno model — V4, V5, or V5.5 for the latest sound quality and features.</p></div>
+              <div className="feat-card"><span className="feat-icon">🤖</span><h3>Model Selector</h3><p>Choose your AI music model — V4, V5, or V5.5 for the latest sound quality and features.</p></div>
               <div className="feat-card"><span className="feat-icon">🎤</span><h3>Vocal Gender</h3><p>Male, Female, or Duet — control who sings your track.</p></div>
               <div className="feat-card"><span className="feat-icon">🗣️</span><h3>27+ Accents</h3><p>Punjabi, Jamaican, Grime MC, West African, Colombian, Puerto Rican, British, American Hip-Hop, Irish, Scottish and more.</p></div>
               <div className="feat-card"><span className="feat-icon">🔞</span><h3>Explicit Toggle</h3><p>Enable explicit content for grime, drill, and street genres — authentic language where it fits.</p></div>

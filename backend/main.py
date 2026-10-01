@@ -8127,6 +8127,10 @@ async def serve_spa(full_path: str, request: Request):
     if is_beats:
         import seo_landing_pages as _seo_pages
         import song_genres as _song_genres
+        legacy = _seo_pages.LEGACY_REDIRECTS.get(full_path.strip("/"))
+        if legacy:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(f"/{legacy}", status_code=301)
         landing_html = _seo_pages.render(full_path, len(_song_genres.GENRE_PRESETS))
         if landing_html is not None:
             return HTMLResponse(landing_html, headers=dict([_seo_pages.LANDING_HEADER]))

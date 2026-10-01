@@ -641,7 +641,7 @@ TOOLS = [
     {
         "name": "GenerateSongVariant",
         "description": (
-            "Submit lyrics to Suno via Apiframe to generate an MP3. Costs 1 song credit. "
+            "Submit lyrics to the Zeus Beats music engine to generate an MP3. Costs 1 song credit. "
             "Returns immediately with a variant_id — the MP3 is delivered asynchronously via webhook "
             "and will be ready in 30–90 seconds. Use GenerateLyrics first to get a lyric_id."
         ),

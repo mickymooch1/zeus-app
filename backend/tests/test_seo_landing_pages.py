@@ -32,7 +32,7 @@ SLUGS = [
     "ai-memorial-song-generator",
     "ai-youtube-song-maker",
     "commercial-use-ai-music",
-    "suno-alternative",
+    "ai-music-generator-alternative",
 ]
 REPO = pathlib.Path(__file__).parent.parent.parent
 
@@ -130,7 +130,7 @@ def test_titles_and_descriptions_are_unique_and_sensible_length(site):
 
 
 def test_trailing_slash_serves_same_page(site):
-    assert _body(_get("suno-alternative/")) == _body(_get("suno-alternative"))
+    assert _body(_get("ai-music-generator-alternative/")) == _body(_get("ai-music-generator-alternative"))
 
 
 def test_not_served_on_zeus_ai_design_host(site):
@@ -206,16 +206,27 @@ def test_homepage_structured_data_is_valid_and_has_no_unbacked_rating():
 @pytest.mark.parametrize("slug", SLUGS)
 def test_no_third_party_provider_named_in_copy_or_metadata(slug):
     """Customer-facing copy, metadata and JSON-LD name no model/API provider.
-    The /suno-alternative URL slug itself is the only allowed occurrence."""
+    Since 2026-10-01 that includes the URLs themselves — no exceptions."""
     html = seo.render(slug, 100)
-    html = html.replace("/suno-alternative", "/SLUG")
     for name in ("suno", "claude", "apiframe", "anthropic", "openai", "cometapi"):
         assert name not in html.lower(), (slug, name)
 
 
 def test_alternative_page_metadata():
-    html = seo.render("suno-alternative", 135)
+    html = seo.render("ai-music-generator-alternative", 135)
     assert "<title>AI Music Generator Alternative | Zeus Beats</title>" in html
     assert ('<meta name="description" content="Create AI songs with 135+ genre presets, '
             'YouTube tools, memorial songs and more with Zeus Beats.">') in html
     assert "better than" not in html.lower()
+
+
+def test_old_suno_alternative_url_permanently_redirects(site):
+    """Renamed 2026-10-01 so no URL names a provider; the old address must 301
+    to the new one (links and search rankings carry over), with or without a
+    trailing slash, and only on zeusbeats.com."""
+    for path in ("suno-alternative", "suno-alternative/"):
+        resp = _get(path)
+        assert resp.status_code == 301, path
+        assert resp.headers["location"] == "/ai-music-generator-alternative"
+    assert seo.render("suno-alternative", 100) is None
+    assert "x-zeus-page" not in _get("suno-alternative", host="zeusaidesign.com").headers

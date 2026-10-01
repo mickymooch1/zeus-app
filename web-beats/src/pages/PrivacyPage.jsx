@@ -150,9 +150,10 @@ export default function PrivacyPage() {
           </p>
           <ul>
             <li>
-              <strong>Suno (via Apiframe):</strong> Your song descriptions, style selections, and
-              generated lyrics are sent to generate the music audio for your tracks. Processed
-              under Suno's and Apiframe's own terms (suno.com, apiframe.ai).
+              <strong>Apiframe (AI music generation):</strong> Your song descriptions, style
+              selections, and generated lyrics are sent to Apiframe and the AI music model it
+              provides access to, to generate the music audio for your tracks. Processed under
+              Apiframe's own terms (apiframe.ai) and those of its model provider.
             </li>
             <li>
               <strong>ElevenLabs:</strong> Text you provide is sent to generate voice narration
