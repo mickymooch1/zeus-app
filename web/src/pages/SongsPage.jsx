@@ -1821,8 +1821,8 @@ export default function SongsPage() {
             </div>
             {!isRoastMode && <p style={{ color: '#555', fontSize: 14, marginBottom: 22 }}>
               {useCustomLyrics
-                ? 'Paste your own lyrics — Suno will turn them into music.'
-                : 'Describe your song — Zeus writes the lyrics, Suno turns them into music.'}
+                ? 'Paste your own lyrics — we\'ll turn them into music.'
+                : 'Describe your song — Zeus writes the lyrics and turns them into music.'}
             </p>}
 
             {/* Roast Mode fields */}
@@ -2636,7 +2636,7 @@ export default function SongsPage() {
               }}
             >
               {generating
-                ? (useCustomLyrics ? 'Sending to Suno…' : 'Generating lyrics…')
+                ? (useCustomLyrics ? 'Producing your song…' : 'Generating lyrics…')
                 : cost > 0
                   ? `Generate — ${cost} credit${cost !== 1 ? 's' : ''}`
                   : 'Select a style to generate'}

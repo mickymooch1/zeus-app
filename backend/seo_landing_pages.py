@@ -21,6 +21,12 @@ import re as _re
 
 BASE_URL = "https://zeusbeats.com"
 
+# Old landing-page URLs → their current slug. serve_spa answers these with a
+# permanent (301) redirect, so links and search rankings carry over.
+LEGACY_REDIRECTS = {
+    "suno-alternative": "ai-music-generator-alternative",
+}
+
 # Response header the service worker checks so it never stores one of these
 # pages as the offline app shell (it caches every other navigation under "/").
 LANDING_HEADER = ("X-Zeus-Page", "landing")
@@ -74,7 +80,7 @@ works on each plan before you publish.</p>"""),
              "Songs made on the Free plan are for personal, non-commercial use only. "
              "See <a href=\"/commercial-use-ai-music\">commercial use of AI music</a> for the details."),
         ],
-        "related": ["ai-country-song-generator", "ai-youtube-song-maker", "commercial-use-ai-music", "suno-alternative"],
+        "related": ["ai-country-song-generator", "ai-youtube-song-maker", "commercial-use-ai-music", "ai-music-generator-alternative"],
     },
 
     "ai-country-song-generator": {
@@ -213,7 +219,7 @@ for personal use only. Read <a href="/commercial-use-ai-music">commercial use of
             ("Do I need to disclose that the music is AI-generated?",
              "Where the law or a platform's policy requires it, yes. YouTube has its own rules for labelling AI-generated or altered content, so check them when you upload."),
         ],
-        "related": ["ai-music-generator", "commercial-use-ai-music", "suno-alternative"],
+        "related": ["ai-music-generator", "commercial-use-ai-music", "ai-music-generator-alternative"],
     },
 
     "commercial-use-ai-music": {
@@ -268,12 +274,13 @@ for personal use only. Read <a href="/commercial-use-ai-music">commercial use of
             ("Is my AI-generated song unique?",
              "It's generated fresh from your prompt, but uniqueness isn't guaranteed — similar outputs can come from similar prompts."),
         ],
-        "related": ["ai-youtube-song-maker", "ai-music-generator", "suno-alternative"],
+        "related": ["ai-youtube-song-maker", "ai-music-generator", "ai-music-generator-alternative"],
     },
 
-    "suno-alternative": {
-        # Slug kept as requested; the visible copy and metadata deliberately
-        # name no third-party provider and make no comparison claims.
+    "ai-music-generator-alternative": {
+        # The visible copy, metadata AND url name no third-party provider and
+        # make no comparison claims. (Was /suno-alternative until 2026-10-01 —
+        # see LEGACY_REDIRECTS.)
         "title": "AI Music Generator Alternative | Zeus Beats",
         "description": (
             "Create AI songs with {genres}+ genre presets, YouTube tools, memorial songs "
@@ -332,7 +339,7 @@ LINK_LABELS = {
     "ai-memorial-song-generator": "AI Memorial Song Generator",
     "ai-youtube-song-maker": "AI YouTube Song Maker",
     "commercial-use-ai-music": "Commercial Use of AI Music",
-    "suno-alternative": "AI Music Generator Alternative",
+    "ai-music-generator-alternative": "AI Music Generator Alternative",
 }
 
 _CSS = """

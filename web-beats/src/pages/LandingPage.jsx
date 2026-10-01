@@ -624,7 +624,7 @@ export default function LandingPage() {
             <a href="/ai-memorial-song-generator">AI Memorial Songs</a>
             <a href="/ai-youtube-song-maker">AI YouTube Songs</a>
             <a href="/commercial-use-ai-music">Commercial Use</a>
-            <a href="/suno-alternative">AI Music Generator Alternative</a>
+            <a href="/ai-music-generator-alternative">AI Music Generator Alternative</a>
           </nav>
           <a
             href="https://t.me/zeusbeatsmusic"
