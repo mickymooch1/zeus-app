@@ -1,0 +1,86 @@
+/* Neon restyle of the app top header (2026-10-01, design-ref/DESIGN.md). This is
+   the phone/tablet nav — at >=1024px NeonSidebar.css hides it in favour of the
+   sidebar. Colours, fonts and icons only: sizes and the per-width layout rules in
+   index.css are left as they are, since they were tuned for small phones. */
+
+.dashboard-header.zb-header {
+  /* backdrop-filter makes the header its own stacking context, so its dropdown
+     (z-index 300) can only rise as high as the header itself: lift the header
+     above page content such as the /songs hero art, or the open phone menu
+     renders underneath it. 150 keeps it below the app's overlays and drawers (200+),
+     the sidebar (9990) and the cookie banner (9999). */
+  position: relative;
+  z-index: 150;
+  background: rgba(4, 6, 12, 0.92);
+  border-bottom: 1px solid #1a2c46;
+  box-shadow: 0 1px 0 rgba(22, 200, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  font-family: Barlow, 'Segoe UI', system-ui, sans-serif;
+}
+
+.zb-header .dashboard-logo { gap: 7px; color: #eef6ff; }
+.zb-header-wordmark {
+  font-family: 'Bebas Neue', Impact, sans-serif;
+  font-size: 24px; line-height: 1; letter-spacing: 1.2px; color: #eef6ff; white-space: nowrap;
+}
+.zb-header-wordmark b { color: #16c8ff; font-weight: 400; }
+
+.zb-header .dashboard-header-link { color: #9fb0c8; font-family: inherit; }
+.zb-header .dashboard-header-link:hover { color: #eef6ff; background: rgba(22, 200, 255, 0.06); }
+.zb-header .dashboard-header-right .dashboard-header-link--active,
+.zb-header .dashboard-header-right .nav-primary-link.dashboard-header-link--active {
+  color: #16c8ff;
+  border-bottom: 2px solid #16c8ff;
+}
+.zb-header .dashboard-header-link--active:hover { background: rgba(22, 200, 255, 0.08); }
+
+/* Language button sits in the header with inline styles; give it the neon border. */
+.zb-header .dashboard-header-right button[aria-label="Select language"] {
+  border-color: #2a3b57 !important;
+  color: #9fb0c8 !important;
+  border-radius: 999px !important;
+  padding: 5px 10px !important;
+}
+
+.zb-header .nav-hamburger-btn { color: #eef6ff; padding: 0 4px 0 8px; }
+.zb-header .nav-hamburger-btn[aria-expanded="true"] { color: #16c8ff; }
+
+.zb-header .nav-overflow-menu {
+  background: rgba(11, 18, 34, 0.97);
+  border: 1px solid #1f5f8a;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 32px rgba(22, 200, 255, 0.18);
+  min-width: 220px;
+  padding: 6px;
+}
+.zb-header .nav-overflow-link {
+  gap: 12px;
+  border-bottom: none;
+  border-radius: 10px;
+  color: #c4d2e6;
+  font-weight: 600;
+  font-family: inherit;
+}
+.zb-header .nav-overflow-link svg { color: #9fb0c8; flex-shrink: 0; }
+.zb-header .nav-overflow-link:hover { color: #eef6ff; background: rgba(22, 200, 255, 0.08); }
+.zb-header .nav-overflow-link--active { color: #16c8ff; background: rgba(22, 200, 255, 0.1); }
+.zb-header .nav-overflow-link--active svg,
+.zb-header .nav-overflow-link:hover svg { color: #16c8ff; }
+
+/* Tablets (768–1023px): index.css only switches to the hamburger below 768px and
+   the sidebar only starts at 1024px, so in between all ten links sat in one row
+   and ran off the right edge (account, language and menu unreachable). Use the
+   phone layout until the sidebar takes over. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .zb-header .nav-hamburger-wrap { display: flex; align-items: center; }
+  .zb-header .nav-overflow-desktop { display: none !important; }
+}
+
+/* Very small phones: smaller wordmark so Songs / Search still fit beside it. */
+@media (max-width: 400px) {
+  .zb-header-wordmark { font-size: 20px; letter-spacing: 0.8px; }
+}
+@media (max-width: 340px) {
+  .zb-header-wordmark { display: none; }
+}

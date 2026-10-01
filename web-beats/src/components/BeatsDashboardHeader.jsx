@@ -7,6 +7,8 @@ import { LanguageSelector } from './LanguageSelector';
 import { useDiscoverBadge } from '../hooks/useDiscoverBadge';
 import { useClipsEnabled } from '../hooks/useClipsEnabled';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
+import { NavIcon, ZeusBolt } from './navIcons';
+import './neonHeader.css';
 
 function isActive(pathname, to) {
   return pathname === to || pathname.startsWith(to + '/');
@@ -55,34 +57,34 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
   ];
 
   const OVERFLOW_LINKS = [
-    { to: '/discover',  label: '🔍 Discover' },
+    { to: '/discover',  icon: 'discover',  label: 'Discover' },
     // Gated on CLIPS_ENABLED (admins always see it regardless — same
     // useClipsEnabled hook SongCard's "Create Clip" button and the creator
     // page use) rather than linked unconditionally, per the 2026-09-24
     // restyle brief: hidden from the main menu until the flag is on.
-    ...(clipsVisible ? [{ to: '/clips', label: '🎬 Clips' }] : []),
-    { to: '/playlists', label: '🎵 Playlists' },
-    { to: '/mixer',     label: `🎛️ ${t('nav.mixer')}` },
-    { to: '/billing',   label: `💳 ${t('nav.billing')}` },
-    { to: '/settings',  label: '🎙️ Voice' },
-    { to: '/tutorial',  label: '📖 Tutorial' },
-    { to: '/contact',   label: `✉️ ${t('nav.contact')}` },
+    ...(clipsVisible ? [{ to: '/clips', icon: 'clips', label: 'Clips' }] : []),
+    { to: '/playlists', icon: 'playlists', label: 'Playlists' },
+    { to: '/mixer',     icon: 'mixer',     label: t('nav.mixer') },
+    { to: '/billing',   icon: 'billing',   label: t('nav.billing') },
+    { to: '/settings',  icon: 'voice',     label: 'Voice' },
+    { to: '/tutorial',  icon: 'tutorial',  label: 'Tutorial' },
+    { to: '/contact',   icon: 'contact',   label: t('nav.contact') },
     // Quiet, non-promotional entry point — /memorials otherwise has no link
     // anywhere in the app. Kept last and understated, matching the calm tone
     // of the memorial product itself, same iOS gating as the rest of it.
-    ...(isIOSWebView ? [] : [{ to: '/memorials', label: '🕊️ Memorials' }]),
+    ...(isIOSWebView ? [] : [{ to: '/memorials', icon: 'memorials', label: 'Memorials' }]),
   ];
 
   return (
-    <header className="dashboard-header">
+    <header className="dashboard-header zb-header">
       {onMenuOpen && (
         <button className="hamburger-btn" onClick={onMenuOpen} aria-label={t('nav.openMenu')}>
           ☰
         </button>
       )}
-      <Link to="/songs" className="dashboard-logo">
-        <span className="zeus-icon">⚡</span>
-        <span className="zeus-title">{BRAND.name}</span>
+      <Link to="/songs" className="dashboard-logo" aria-label={BRAND.name}>
+        <ZeusBolt width={19} height={22} />
+        <span className="zb-header-wordmark" aria-hidden="true">ZEUS <b>BEATS</b></span>
       </Link>
       <nav className="dashboard-header-right">
         {/* Primary links — always visible on all screen sizes */}
@@ -114,7 +116,7 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
           <Link
             to="/admin"
             className={`dashboard-header-link${isActive(pathname, '/admin') ? ' dashboard-header-link--active' : ''}`}
-            style={{ color: '#00f0ff' }}
+            style={{ color: '#16c8ff' }}
           >
             {t('nav.admin')}
           </Link>
@@ -140,7 +142,7 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
               : 'More navigation options'}
             aria-expanded={overflowOpen}
           >
-            ☰
+            <NavIcon name="menu" size={24} />
             {/* Discover lives inside this menu on mobile, so a badge on the link
                 alone would be invisible at 375px until the menu is opened. The dot
                 is what makes the feature work on a phone. */}
@@ -148,13 +150,14 @@ export function BeatsDashboardHeader({ onMenuOpen }) {
           </button>
           {overflowOpen && (
             <div className="nav-overflow-menu">
-              {OVERFLOW_LINKS.map(({ to, label }) => (
+              {OVERFLOW_LINKS.map(({ to, icon, label }) => (
                 <Link
                   key={to}
                   to={to}
                   className={`nav-overflow-link${isActive(pathname, to) ? ' nav-overflow-link--active' : ''}`}
                   onClick={() => setOverflowOpen(false)}
                 >
+                  <NavIcon name={icon} />
                   {label}
                   {to === '/discover' && <NavBadge count={newOnDiscover} />}
                 </Link>
