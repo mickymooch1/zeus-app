@@ -706,6 +706,12 @@ _default_cwd = "/data/projects" if _railway else str(_safe_home() / "zeus-projec
 _CWD = os.environ.get("ZEUS_CWD", _default_cwd)
 pathlib.Path(_CWD).mkdir(parents=True, exist_ok=True)
 
+# Where multi-agent website builds are written and deployed from. Production keeps
+# the Railway volume path; tests point it at a temp dir (tests/conftest.py) — the
+# hard-coded "/data/projects" made every full test run write into C:\data\projects
+# on Windows.
+_PROJECTS_ROOT = os.environ.get("ZEUS_PROJECTS_ROOT", "/data/projects")
+
 
 def _resolve(path: str) -> pathlib.Path:
     p = pathlib.Path(path)
@@ -1144,7 +1150,7 @@ def _run_tool(name: str, inp: dict, history: "HistoryStore | None" = None) -> st
             if not netlify_token:
                 return "Error: NETLIFY_TOKEN not set in environment variables."
 
-            folder_path = f"/data/projects/{project_folder}"
+            folder_path = f"{_PROJECTS_ROOT}/{project_folder}"
             if not os.path.exists(folder_path):
                 return f"Error: Folder {folder_path} does not exist."
 
@@ -2287,7 +2293,7 @@ Be opinionated. Every decision should feel like it was made for THIS business, n
                 site_name = slug
             break
 
-    _build_dir = f"/data/projects/{site_name}"
+    _build_dir = f"{_PROJECTS_ROOT}/{site_name}"
     log.info(
         "run_multi_agent: site_name extraction — raw_line=%r  extracted=%r  build_dir=%r",
         _site_name_raw_line, site_name, _build_dir,

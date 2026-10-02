@@ -13,7 +13,17 @@ here, before collection, makes the outcome independent of file order.
 Tests that need the key to be missing (test_your_sound's
 test_generate_with_persona_no_api_key_raises) clear it themselves.
 """
+import atexit
 import os
+import shutil
+import tempfile
 
 os.environ.setdefault("COMETAPI_API_KEY", "test-comet-key")
 os.environ.setdefault("COMETAPI_WEBHOOK_URL", "https://zeusaidesign.com/webhooks/cometapi")
+
+# Website-builder tests run run_multi_agent for real (stages faked), which writes
+# netlify.toml / robots.txt / sitemap.xml into the build dir. Without this they went
+# to zeus_agent's production default /data/projects — C:\data\projects on Windows.
+_projects_tmp = tempfile.mkdtemp(prefix="zeus-test-projects-")
+os.environ.setdefault("ZEUS_PROJECTS_ROOT", _projects_tmp)
+atexit.register(shutil.rmtree, _projects_tmp, ignore_errors=True)
