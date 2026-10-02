@@ -377,3 +377,25 @@ def test_outlawcountry_label_in_display_maps():
     for rel in _DISPLAY_LABEL_SOURCES:
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert s.count("outlawcountry:'Dark Outlaw Country'") == 1, rel
+
+
+# ── Irish Rebel + Irish Ballad (2026-10-02) ──────────────────────────────────
+
+def test_irish_rebel_genres_exist_and_are_distinct():
+    import webhooks
+    for g in ("irishrebel", "irishballad"):
+        assert g in GENRE_PRESETS
+        assert g in webhooks.GENRE_COVER_PROMPTS
+        assert webhooks.GENRE_COVER_PROMPTS[g] != webhooks._DEFAULT_COVER_PROMPT
+        for other in ("irishfolk", "irishjig", "celticpunk"):
+            assert GENRE_PRESETS[g].lower() != GENRE_PRESETS[other].lower()
+    assert GENRE_PRESETS["irishrebel"] != GENRE_PRESETS["irishballad"]
+
+
+def test_irish_rebel_genres_registered_in_both_apps():
+    for rel in ("web-beats/src/utils/genres.js",
+                "zeus-beats-ios/src/screens/CreateSongScreen.tsx"):
+        s = (_ROOT / rel).read_text(encoding="utf-8")
+        assert s.count("irishrebel:'Irish Rebel'") == 1, rel
+        assert s.count("irishballad:'Irish Ballad'") == 1, rel
+        assert "'celticpunk','irishrebel','irishballad'" in s, f"{rel}: should sit in Country & Folk"

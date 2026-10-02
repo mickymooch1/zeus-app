@@ -38,7 +38,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   { id: 'rock',       label: '🎸 Rock & Metal',        color: '#f87171',
     genres: ['rock','hardrock','metal','punkrock','rocknroll','traditionalpop','bluesrock','indie','britpop','indierock','rockney'] },
   { id: 'country_folk', label: '🤠 Country & Folk',    color: '#d97706',
-    genres: ['country','traditionalcountry','bluegrass','countryamericana','countrypop','countryballad','outlawcountry','outlawcountryrap','countryrap','countrysoul','folk','acousticballad','folkblues','roots','acousticblues','celticpunk'] },
+    genres: ['country','traditionalcountry','bluegrass','countryamericana','countrypop','countryballad','outlawcountry','outlawcountryrap','countryrap','countrysoul','folk','acousticballad','folkblues','roots','acousticblues','celticpunk','irishrebel','irishballad'] },
   { id: 'electronic', label: '🎹 Electronic & Dance',  color: '#4ade80',
     genres: ['house','technhouse','deephouse','dancehouse','purebassline','synthwave','driftphonk','brazilianphonk','techno','trance','edm','electronicfunk','dubstep','jerseyclub','hyperpop','syntheticpop','disco','nudisco','futurebass'] },
   { id: 'world',      label: '🌍 World & Urban',       color: '#fbbf24',
@@ -54,7 +54,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
 const GENRE_LABEL: Record<string, string> = {
   bluegrass:'Bluegrass', countryballad:'Country Ballad', outlawcountry:'Dark Outlaw Country', outlawcountryrap:'Outlaw Country Rap', countryrap:'Country Rap', countrysoul:'Country Soul',
   britpop:'Britpop', indierock:'Indie Rock', folk:'Folk', acousticballad:'Acoustic Ballad', folkblues:'Folk Blues', roots:'Roots', acousticblues:'Acoustic Blues', patriotic:'Patriotic',
-  hiphop:'Hip-Hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', celticpunk:'Celtic Punk',
+  hiphop:'Hip-Hop', lofi:'Lo-Fi', edm:'EDM', irishjig:'Irish Jig', irishfolk:'Irish Folk', celticpunk:'Celtic Punk', irishrebel:'Irish Rebel', irishballad:'Irish Ballad',
   rnb:'R&B', bluessoul:'Blues Soul', drumandbass:'D&B', grime:'Grime', ukgarage:'UK Garage',
   jungle:'Jungle', bassline:'Bassline House', house:'House', deephouse:'Deep House', dancehouse:'Dance House',
   loversrock:'Lovers Rock', ukdrill:'UK Drill', kpop:'K-Pop', deepsoulblues:'Deep Soul Blues',
