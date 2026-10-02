@@ -1819,7 +1819,7 @@ export default function SongsPage() {
               }} />
             </div>
             <span style={{ fontSize: 13, color: '#666', whiteSpace: 'nowrap' }}>
-              {isAdmin ? t('songs.unlimited') : t('songs.songsBalance', { balance, allowance })}
+              {isAdmin ? t('songs.unlimited') : t('songs.songsLeft', { count: balance })}
             </span>
             {!isFreeTier && !isAdmin && credits.premium_monthly_allowance > 0 && (
               <span style={{ fontSize: 13, color: credits.premium_credits === 0 ? '#f87171' : '#666', whiteSpace: 'nowrap' }}>
