@@ -146,8 +146,12 @@ def test_internal_links_point_at_real_routes():
     hrefs = set(re.findall(r'href="(/[^"#]*)"', html))
     for slug in SLUGS:
         hrefs |= set(re.findall(r'href="(/[^"#]*)"', seo.render(slug, 100)))
-    static_files = {"/favicon.svg", "/icons/icon-192.png"}
-    for href in hrefs - static_files:
+    # Static assets must really exist in web-beats/public — a hard-coded allow-list
+    # here once let a link to a missing /favicon.svg through for months.
+    public = REPO / "web-beats" / "public"
+    for href in hrefs:
+        if (public / href.lstrip("/")).is_file():
+            continue
         assert href.strip("/") in seo.PAGES or href in spa_routes, href
 
 
