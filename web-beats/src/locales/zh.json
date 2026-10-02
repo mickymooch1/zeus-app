@@ -122,7 +122,7 @@
     "loadMore": "加载更多（剩余{{count}}首）",
     "emptySongs": "暂无歌曲 — 在上方创建您的第一首。",
     "unlimited": "无限",
-    "songsBalance": "{{balance}} / {{allowance}} 首歌",
+    "songsLeft_other": "剩余 {{count}} 首",
     "topUp": "充值 →",
     "topupSuccess": "支付成功 — 积分已添加。",
     "ytConnectedSuccess": "YouTube已连接 — 可直接上传歌曲到频道。",

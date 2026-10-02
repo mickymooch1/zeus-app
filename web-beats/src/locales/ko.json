@@ -122,7 +122,7 @@
     "loadMore": "더 불러오기 ({{count}}개 남음)",
     "emptySongs": "노래가 없습니다 — 위에서 첫 번째 곡을 만들어보세요.",
     "unlimited": "무제한",
-    "songsBalance": "{{balance}} / {{allowance}}곡",
+    "songsLeft_other": "{{count}}곡 남음",
     "topUp": "충전 →",
     "topupSuccess": "결제 완료 — 크레딧이 추가되었습니다.",
     "ytConnectedSuccess": "YouTube 연결됨 — 채널에 직접 업로드할 수 있습니다.",

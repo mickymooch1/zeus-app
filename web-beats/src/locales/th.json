@@ -122,7 +122,7 @@
     "loadMore": "โหลดเพิ่ม (เหลืออีก {{count}} เพลง)",
     "emptySongs": "ยังไม่มีเพลง — สร้างเพลงแรกของคุณด้านบน",
     "unlimited": "ไม่จำกัด",
-    "songsBalance": "{{balance}} / {{allowance}} เพลง",
+    "songsLeft_other": "เหลือ {{count}} เพลง",
     "topUp": "เติมเครดิต →",
     "topupSuccess": "ชำระเงินสำเร็จ — เพิ่มเครดิตเพลงของคุณแล้ว",
     "ytConnectedSuccess": "เชื่อมต่อ YouTube แล้ว — คุณสามารถอัปโหลดเพลงไปยังช่องของคุณได้โดยตรง",

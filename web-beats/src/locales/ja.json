@@ -122,7 +122,7 @@
     "loadMore": "もっと読み込む（残り{{count}}曲）",
     "emptySongs": "楽曲がありません — 上で最初の曲を作成してください。",
     "unlimited": "無制限",
-    "songsBalance": "{{balance}} / {{allowance}} 曲",
+    "songsLeft_other": "残り{{count}}曲",
     "topUp": "チャージ →",
     "topupSuccess": "支払い完了 — クレジットが追加されました。",
     "ytConnectedSuccess": "YouTubeが接続されました — チャンネルに直接アップロードできます。",
