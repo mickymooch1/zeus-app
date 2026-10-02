@@ -108,6 +108,17 @@ TILE_SUBJECTS = {
                    "fireflies, moonlit fields",
     "traditionalcountry": "acoustic guitar leaning against an old wooden barn at night, "
                           "split-rail fence, moonlit prairie",
+    # Close-up so no wall is in shot: pub walls kept growing garbled neon lettering,
+    # and "no signs" in the prompt made Flux paint more of them.
+    # Guinness drawn as plain black stout: naming the brand risks a garbled logo on the glass.
+    "irishrebel": "close-up of pints of black Irish stout with thick creamy white heads raised and "
+                  "clinking above a candlelit oak table carved with Celtic knots, a bodhran drum "
+                  "painted with a green shamrock, a tin whistle and a banjo on the table, Irish "
+                  "tricolour flag draped behind, singing crowd blurred in a dark smoky pub",
+    "irishballad": "lone figure with an acoustic guitar on a misty Irish hillside at night, "
+                   "rolling fields, dramatic moonlit sky",
+    "irishtradtechno": "tin whistle player silhouetted against laser beams above a festival crowd at night, "
+                       "ancient stone circle in the background",
     "christmas": "Christmas tree lit with cyan and violet lights in a snowy village street at night, "
                  "gifts under the tree, falling snow",
 }

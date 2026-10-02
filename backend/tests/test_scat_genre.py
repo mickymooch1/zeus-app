@@ -399,3 +399,14 @@ def test_irish_rebel_genres_registered_in_both_apps():
         assert s.count("irishrebel:'Irish Rebel'") == 1, rel
         assert s.count("irishballad:'Irish Ballad'") == 1, rel
         assert "'celticpunk','irishrebel','irishballad'" in s, f"{rel}: should sit in Country & Folk"
+
+
+def test_irishtradtechno_exists_and_sits_in_electronic():
+    import webhooks
+    assert "irishtradtechno" in GENRE_PRESETS
+    assert webhooks.GENRE_COVER_PROMPTS["irishtradtechno"] != webhooks._DEFAULT_COVER_PROMPT
+    for rel in ("web-beats/src/utils/genres.js",
+                "zeus-beats-ios/src/screens/CreateSongScreen.tsx"):
+        s = (_ROOT / rel).read_text(encoding="utf-8")
+        assert s.count("irishtradtechno:'Irish Trad Techno'") == 1, rel
+        assert "'futurebass','irishtradtechno'] }" in s, f"{rel}: should sit in Electronic & Dance"
