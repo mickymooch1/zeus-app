@@ -11,25 +11,11 @@ os.environ.setdefault("ANTHROPIC_API_KEY", "test-key-for-tests")
 import zeus_agent
 
 
-class TestZeusSystemPromptBookingFormInstruction:
-    def test_prompt_contains_booking_form_section(self):
-        assert "## Booking form" in zeus_agent.ZEUS_SYSTEM_PROMPT
-
-    def test_prompt_instructs_to_ask_before_build(self):
-        booking_section = zeus_agent.ZEUS_SYSTEM_PROMPT.split("## Booking form", 1)[1].lower()
-        # "before" must appear in the section
-        assert "before" in booking_section
-        # Both tool names must appear in the section
-        assert "multiagentbuild" in booking_section
-        assert "createbackgroundtask" in booking_section
-        # "before" must precede the tool names (Zeus must ask BEFORE calling them)
-        idx_before = booking_section.index("before")
-        idx_tool = booking_section.index("multiagentbuild")
-        assert idx_before < idx_tool
-
-    def test_prompt_instructs_to_ask_for_email(self):
-        booking_section = zeus_agent.ZEUS_SYSTEM_PROMPT.split("## Booking form", 1)[1].lower()
-        assert "email address" in booking_section
+# The chat-prompt instruction to ASK about a booking form before a build was
+# removed on purpose in 4b50bb7 (2026-05-13), when ZEUS_SYSTEM_PROMPT was trimmed
+# to ~250 tokens to cut per-message cost; its three tests were left behind and
+# failed ever since. Booking forms still work when the request asks for one —
+# that is what the pipeline tests below cover.
 
 
 class TestBookingFormPipeline:
@@ -103,8 +89,9 @@ class TestBookingFormPipeline:
         assert "formspree" not in captured_builder_system[0].lower()
 
     @pytest.mark.asyncio
-    async def test_booking_form_line_limit_is_600(self):
-        """With a booking form, the builder_system must say 600 lines, not 500."""
+    async def test_booking_form_line_limit_is_1200(self):
+        """With a booking form, the builder gets the higher limit (1200 lines; raised
+        from 600 in 500e36a for richer animations and Google Fonts)."""
         captured_builder_system = []
 
         async def fake_stage(stage_label, prompt, system_prompt, tools,
@@ -134,12 +121,13 @@ class TestBookingFormPipeline:
             )
 
         assert captured_builder_system
-        assert "600" in captured_builder_system[0]
-        assert "500" not in captured_builder_system[0]
+        assert "Maximum 1200 lines total" in captured_builder_system[0]
+        assert "under 1200 lines" in captured_builder_system[0]
 
     @pytest.mark.asyncio
-    async def test_no_booking_form_line_limit_is_500(self):
-        """Without a booking form, the builder_system must say 500 lines."""
+    async def test_no_booking_form_line_limit_is_1000(self):
+        """Without a booking form, the builder gets the standard limit (1000 lines;
+        raised from 500 in 500e36a)."""
         captured_builder_system = []
 
         async def fake_stage(stage_label, prompt, system_prompt, tools,
@@ -167,8 +155,8 @@ class TestBookingFormPipeline:
             )
 
         assert captured_builder_system
-        assert "500" in captured_builder_system[0]
-        assert "600" not in captured_builder_system[0]
+        assert "Maximum 1000 lines total" in captured_builder_system[0]
+        assert "1200 lines" not in captured_builder_system[0]
 
     @pytest.mark.asyncio
     async def test_booking_form_contains_all_required_fields(self):

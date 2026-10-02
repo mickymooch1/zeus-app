@@ -156,14 +156,20 @@ def test_sound_persona_free_user_gets_402():
     assert resp.json()["detail"] == "upgrade_required"
 
 
-def test_cometapi_webhook_failed_status_marks_variant_failed():
+def test_cometapi_webhook_failed_status_marks_variant_failed(monkeypatch):
     import sqlite3
     from fastapi.testclient import TestClient
     import main as _main
     import db as _db
     import cometapi as _comet
+    import webhooks as _webhooks
 
     db_path = _db.get_db_path()
+    # webhooks.DB_PATH is read once at import, and in a full run webhooks is imported
+    # (and its DB_PATH repointed) by earlier test files long before this file's
+    # DB_PATH alignment above runs — so the handler updated a different database and
+    # this row stayed 'pending'. Point the handler at the database this test reads.
+    monkeypatch.setattr(_webhooks, "DB_PATH", str(db_path))
     conn = sqlite3.connect(str(db_path))
     conn.execute(
         "INSERT OR IGNORE INTO song_variants (id, lyric_id, user_id, style_prompt, genre_tag, status) VALUES (9901, 1, 'uid', 'style', 'hiphop', 'pending')"
