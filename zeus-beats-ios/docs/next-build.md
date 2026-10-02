@@ -1,5 +1,14 @@
 # Changes waiting for the next iOS build
 
+## 2026-10-02 — New app icon and splash (version 1.1.0)
+
+- New Zeus Beats logo: `assets/icon.png` (1024, opaque), `assets/splash-icon.png`,
+  Android adaptive icons. The previous ones were Expo template placeholders.
+  Regenerate from `brand/zeus-logo.png` with `py web-beats/scripts/make_app_icons.py`.
+- Marketing version 1.0.0 -> 1.1.0 (build number auto-increments on EAS).
+- Check on a device: home-screen icon (ring clear of the rounded corners) and the
+  launch splash (logo centred on the dark background).
+
 Live build at time of writing: **ZeusBeats/17**. Everything below is merged to
 `master` but only reaches users once a new EAS build is submitted and approved.
 
