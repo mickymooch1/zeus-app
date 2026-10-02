@@ -24,7 +24,7 @@ def twaManifest = [
     applicationId: 'com.zeusbeats.app',
     hostName: 'zeusbeats.com', // The domain being opened in the TWA.
     launchUrl: '/', // The start path for the TWA. Must be relative to the domain.
-    name: 'Zeus Zeus Beats', // The application name.
+    name: 'Zeus Beats', // The application name.
     launcherName: 'Zeus Beats', // The name shown on the Android Launcher.
     themeColor: '#00F0FF', // The color used for the status bar.
     themeColorDark: '#000000', // The color used for the dark status bar.
