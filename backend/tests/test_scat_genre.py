@@ -409,4 +409,40 @@ def test_irishtradtechno_exists_and_sits_in_electronic():
                 "zeus-beats-ios/src/screens/CreateSongScreen.tsx"):
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert s.count("irishtradtechno:'Irish Trad Techno'") == 1, rel
-        assert "'futurebass','irishtradtechno'] }" in s, f"{rel}: should sit in Electronic & Dance"
+        assert "'futurebass','irishtradtechno'" in s, f"{rel}: should sit in Electronic & Dance"
+
+
+# ── Halloween genres (2026-10-05) ────────────────────────────────────────────
+
+_HALLOWEEN = {  # genre -> (label, category id it must sit in)
+    "spookypop": ("Spooky Pop", "pop"),
+    "creepykids": ("Creepy Kids", "kids"),
+    "darkcinematic": ("Dark Cinematic", "cinematic"),
+    "witchhouse": ("Witch House", "electronic"),
+    "gothicrock": ("Gothic Rock", "rock"),
+}
+
+
+def test_halloween_genres_have_style_and_cover():
+    import webhooks
+    for g in _HALLOWEEN:
+        assert g in GENRE_PRESETS, g
+        assert webhooks.GENRE_COVER_PROMPTS[g] != webhooks._DEFAULT_COVER_PROMPT, g
+
+
+def test_halloween_genres_registered_in_both_apps():
+    import re
+    for rel in ("web-beats/src/utils/genres.js",
+                "zeus-beats-ios/src/screens/CreateSongScreen.tsx"):
+        s = (_ROOT / rel).read_text(encoding="utf-8")
+        for g, (label, cat) in _HALLOWEEN.items():
+            assert s.count(f"{g}:'{label}'") == 1, f"{rel}: {g} label"
+            block = re.search(rf"id:\s*'{cat}'.*?genres:\s*\[(.*?)\]", s, re.S)
+            assert block and f"'{g}'" in block.group(1), f"{rel}: {g} not in {cat}"
+
+
+def test_darkcinematic_is_forced_instrumental():
+    """A no-vocals film score: no lyrics call, and it can't be remixed into."""
+    from songs import INSTRUMENTAL_GENRES, non_vocal_genres
+    assert "darkcinematic" in INSTRUMENTAL_GENRES
+    assert "darkcinematic" in non_vocal_genres()

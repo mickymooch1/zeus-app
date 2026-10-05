@@ -119,6 +119,18 @@ TILE_SUBJECTS = {
                    "rolling fields, dramatic moonlit sky",
     "irishtradtechno": "tin whistle player silhouetted against laser beams above a festival crowd at night, "
                        "ancient stone circle in the background",
+    # Halloween: cover prompts ask for orange/green light, cartoon or storybook styles,
+    # occult symbols and gravestones; symbols and gravestones grow garbled lettering.
+    "spookypop": "glowing carved jack-o-lanterns and dancing silhouettes in Halloween costumes at a "
+                 "party at night, confetti in the air",
+    "creepykids": "old music box with a tiny ballerina on a shelf in a dark vintage nursery at night, "
+                  "shadowy toys and a rocking horse, moonlight through the curtains",
+    "darkcinematic": "fog rolling across the stone floor of a vast gothic cathedral at night, moonlight "
+                     "through tall arched windows, a pipe organ in shadow",
+    "witchhouse": "circle of lit candles in a misty forest clearing at midnight, twisted bare trees, "
+                  "moonlight",
+    "gothicrock": "ravens perched on weathered stone crosses before tall iron cemetery gates at night, "
+                  "storm clouds, an electric guitar leaning against a cross",
     "christmas": "Christmas tree lit with cyan and violet lights in a snowy village street at night, "
                  "gifts under the tree, falling snow",
 }

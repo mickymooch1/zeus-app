@@ -9,7 +9,7 @@ import requests
 
 from style_assembly import assemble_variant_style
 
-INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency', 'naturesounds', 'whalesong', 'cracklingfire', 'thunderstorm', 'oceanwaves', 'forest', 'nightsounds', 'saxophone', 'pianosolo', 'violinsolo', 'trumpet', 'flamencoguitar', 'electricbluesguitar', 'psychedelicguitar'})
+INSTRUMENTAL_GENRES: frozenset[str] = frozenset({'meditation', 'healingfrequency', 'naturesounds', 'whalesong', 'cracklingfire', 'thunderstorm', 'oceanwaves', 'forest', 'nightsounds', 'saxophone', 'pianosolo', 'violinsolo', 'trumpet', 'flamencoguitar', 'electricbluesguitar', 'psychedelicguitar', 'darkcinematic'})
 
 
 def all_genres_instrumental(genres: list[str] | None) -> bool:
