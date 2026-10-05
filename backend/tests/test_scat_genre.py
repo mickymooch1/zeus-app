@@ -415,11 +415,11 @@ def test_irishtradtechno_exists_and_sits_in_electronic():
 # ── Halloween genres (2026-10-05) ────────────────────────────────────────────
 
 _HALLOWEEN = {  # genre -> (label, category id it must sit in)
-    "spookypop": ("Spooky Pop", "pop"),
-    "creepykids": ("Creepy Kids", "kids"),
-    "darkcinematic": ("Dark Cinematic", "cinematic"),
-    "witchhouse": ("Witch House", "electronic"),
-    "gothicrock": ("Gothic Rock", "rock"),
+    "spookypop": ("Spooky Pop", "spooky"),
+    "creepykids": ("Creepy Kids", "spooky"),
+    "darkcinematic": ("Dark Cinematic", "spooky"),
+    "witchhouse": ("Witch House", "spooky"),
+    "gothicrock": ("Gothic Rock", "spooky"),
 }
 
 
