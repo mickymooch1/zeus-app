@@ -84,6 +84,28 @@ def test_the_rejection_is_structured_not_a_raw_403():
     assert "verify" in detail["message"].lower()
 
 
+def test_message_tells_people_to_check_spam():
+    """The native iPhone app shows detail["message"] verbatim and has no spam box of
+    its own until a resend, so the server message itself must carry the hint."""
+    with patch("db.record_verification_gate_block"), \
+         patch("main._check_resend_suppression", return_value=None):
+        detail = _post_generate(verified=0).json()["detail"]
+    assert "spam or junk folder" in detail["message"]
+    # The website shows base_message plus its own big spam box — no hint twice.
+    assert "spam" not in detail["base_message"].lower()
+    assert detail["message"].startswith(detail["base_message"])
+
+
+def test_bounced_address_gets_no_spam_hint():
+    """'Check your spam' is wrong advice when the address is rejecting our mail."""
+    with patch("db.record_verification_gate_block"), \
+         patch("main._check_resend_suppression", return_value="bounce"):
+        detail = _post_generate(verified=0).json()["detail"]
+    assert detail["bounced"] is True
+    assert "spam" not in detail["message"].lower()
+    assert detail["message"] == detail["base_message"]
+
+
 def test_verified_user_is_not_blocked():
     """The whole point of 'existing verified users must not be affected'. The request
     goes on to fail for unrelated reasons in a test environment — what matters is

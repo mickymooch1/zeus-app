@@ -88,7 +88,7 @@ export default function ClipRemixPage() {
           // Re-arm the intent — verification opens in a NEW tab, and this page
           // will have already cleared it on mount above.
           if (isSong) saveSongRemixIntent(variantId); else saveRemixIntent(clipId);
-          setVerifyBlock({ message: det.message, email: det.email, bounced: !!det.bounced, bounceOrigin: det.bounce_origin || null });
+          setVerifyBlock({ message: det.base_message || det.message, email: det.email, bounced: !!det.bounced, bounceOrigin: det.bounce_origin || null });
           return;
         }
         if (r.status === 402) { setError('Not enough song credits for a remix.'); return; }

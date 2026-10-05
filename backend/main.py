@@ -162,6 +162,31 @@ def _send_via_resend(to: str, subject: str, html: str, text: str, api_key: str) 
         return False
 
 
+_SPAM_HINT = "Check your spam or junk folder — it often lands there."
+
+
+def _email_unverified_detail(current_user: dict, action: str) -> dict:
+    """403 detail for the email-verification gate.
+
+    `message` is what older clients show verbatim — notably the native iPhone app,
+    which has no spam warning of its own until the user taps Resend — so it carries
+    the spam-folder hint. `base_message` is the same text without it, for the
+    website, whose verification screen shows its own prominent spam box. No hint
+    for a bounced/suppressed address: "check your spam" is the wrong advice there.
+    """
+    bounce_origin = _check_resend_suppression(current_user.get("email", ""))
+    base = (f"Please verify your email address before {action}. "
+            "We sent you a verification link when you signed up.")
+    return {
+        "code": "email_unverified",
+        "message": base if bounce_origin else f"{base} {_SPAM_HINT}",
+        "base_message": base,
+        "email": current_user.get("email", ""),
+        "bounced": bool(bounce_origin),
+        "bounce_origin": bounce_origin,
+    }
+
+
 def _check_resend_suppression(email: str) -> str | None:
     """Look up whether Resend has this address on its suppression list — added
     automatically after a hard bounce or spam complaint, and mail submitted to
@@ -2665,20 +2690,7 @@ async def songs_generate(
             log.exception("verification gate: failed to record block for user=%s", user_id)
         log.info("verification gate: blocked generation for user=%s email=%s",
                  user_id, current_user.get("email"))
-        bounce_origin = _check_resend_suppression(current_user.get("email", ""))
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "code": "email_unverified",
-                "message": (
-                    "Please verify your email address before creating songs. "
-                    "We sent you a verification link when you signed up."
-                ),
-                "email": current_user.get("email", ""),
-                "bounced": bool(bounce_origin),
-                "bounce_origin": bounce_origin,
-            },
-        )
+        raise HTTPException(status_code=403, detail=_email_unverified_detail(current_user, "creating songs"))
 
     # Kids Story Mode kill switch — checked before ANY lyrics/credit work so a
     # disabled request can never reach the ElevenLabs narration block further
@@ -3696,20 +3708,7 @@ async def lyrics_workshop(
     # ungated workshop would be spend with no possible payoff — and this endpoint costs
     # real money per call.
     if not current_user.get("email_verified"):
-        bounce_origin = _check_resend_suppression(current_user.get("email", ""))
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "code": "email_unverified",
-                "message": (
-                    "Please verify your email address before writing lyrics. "
-                    "We sent you a verification link when you signed up."
-                ),
-                "email": current_user.get("email", ""),
-                "bounced": bool(bounce_origin),
-                "bounce_origin": bounce_origin,
-            },
-        )
+        raise HTTPException(status_code=403, detail=_email_unverified_detail(current_user, "writing lyrics"))
 
     # Keep only the trailing window. Slicing here rather than trusting the client means
     # a stale or hand-rolled caller cannot grow the prompt without bound.

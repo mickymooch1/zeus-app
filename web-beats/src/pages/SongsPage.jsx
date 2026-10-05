@@ -1148,7 +1148,7 @@ export default function SongsPage() {
           if (isRoastMode) {
             savePostVerifyDraft(roastName, roastDetails, roastVibe, Array.from(selGenres));
           }
-          setVerifyBlock({ message: det.message, email: det.email, bounced: !!det.bounced, bounceOrigin: det.bounce_origin || null, roastSaved: isRoastMode });
+          setVerifyBlock({ message: det.base_message || det.message, email: det.email, bounced: !!det.bounced, bounceOrigin: det.bounce_origin || null, roastSaved: isRoastMode });
           return;   // `finally` clears the spinner; the form is intentionally kept
         }
         throw new Error(apiErrorMessage(det, 'Generation failed'));
