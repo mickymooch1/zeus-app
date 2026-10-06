@@ -238,16 +238,22 @@ def test_celticpunk_has_its_own_cover_prompt():
     assert webhooks.GENRE_COVER_PROMPTS["celticpunk"] != webhooks._DEFAULT_COVER_PROMPT
 
 
+def _in_category(source: str, cat: str, genre: str) -> bool:
+    import re
+    block = re.search(rf"id:\s*'{cat}'.*?genres:\s*\[(.*?)\]", source, re.S)
+    return bool(block) and f"'{genre}'" in block.group(1)
+
+
 def test_celticpunk_registered_in_both_apps():
     # web-beats extracted its genre category/label data into utils/genres.js
     # (Task 14, to break a circular import) — read the data there.
     web = (_ROOT / "web-beats" / "src" / "utils" / "genres.js").read_text(encoding="utf-8")
     assert "'celticpunk'" in web
     assert web.count("celticpunk:'Celtic Punk'") == 1, "duplicate object key"
-    assert "'acousticblues','celticpunk'" in web, "should sit in Country & Folk"
+    assert _in_category(web, "irish", "celticpunk"), "should sit in Irish"
     ios = (_ROOT / "zeus-beats-ios" / "src" / "screens" / "CreateSongScreen.tsx").read_text(encoding="utf-8")
     assert ios.count("celticpunk:'Celtic Punk'") == 1
-    assert "'acousticblues','celticpunk'" in ios
+    assert _in_category(ios, "irish", "celticpunk")
 
 
 def test_celticpunk_label_in_display_maps():
@@ -398,7 +404,8 @@ def test_irish_rebel_genres_registered_in_both_apps():
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert s.count("irishrebel:'Irish Rebel'") == 1, rel
         assert s.count("irishballad:'Irish Ballad'") == 1, rel
-        assert "'celticpunk','irishrebel','irishballad'" in s, f"{rel}: should sit in Country & Folk"
+        for g in ("irishrebel", "irishballad"):
+            assert _in_category(s, "irish", g), f"{rel}: {g} should sit in Irish"
 
 
 def test_irishtradtechno_exists_and_sits_in_electronic():
@@ -409,7 +416,7 @@ def test_irishtradtechno_exists_and_sits_in_electronic():
                 "zeus-beats-ios/src/screens/CreateSongScreen.tsx"):
         s = (_ROOT / rel).read_text(encoding="utf-8")
         assert s.count("irishtradtechno:'Irish Trad Techno'") == 1, rel
-        assert "'futurebass','irishtradtechno'" in s, f"{rel}: should sit in Electronic & Dance"
+        assert _in_category(s, "irish", "irishtradtechno"), f"{rel}: should sit in Irish"
 
 
 # ── Halloween genres (2026-10-05) ────────────────────────────────────────────
