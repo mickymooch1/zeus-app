@@ -27,6 +27,8 @@ GENRE_COVER_PROMPTS: dict[str, str] = {
     "indierock":      "indie rock band album cover, underground aesthetic, raw authentic photography, indie cool, ultra detailed",
     "folk":           "folk musician album cover, warm countryside aesthetic, acoustic instruments, earthy natural tones, ultra detailed",
     "acousticballad": "singer songwriter album cover, intimate moody lighting, acoustic guitar, emotional aesthetic, ultra detailed",
+    "solopiano":      "A grand piano in a dimly lit room, single spotlight, warm amber glow, sheet music on the stand, intimate and emotional atmosphere, cinematic photography style, no text",
+    "sologuitar":     "A lone acoustic guitar resting against a wooden chair by a window, soft natural light, cosy and intimate, warm tones, singer-songwriter atmosphere, no text",
     "patriotic":      "patriotic music album cover, Union Jack or national flag, grand ceremonial aesthetic, brass instruments, ultra detailed",
     "blues":        "cinematic album cover, Black blues guitarist in foreground, worn guitar, Mississippi Delta landscape behind, warm sunset, dusty road, deep soulful atmosphere, ultra detailed professional music artwork, Black musician, NOT white, correct ethnicity",
     "chicagoblues": "dimly lit Chicago blues club, neon signs, microphone and harmonica, smoky atmosphere, 1950s urban feel",
