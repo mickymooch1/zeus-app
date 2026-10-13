@@ -2496,6 +2496,7 @@ class SongsGenerateRequest(BaseModel):
     tempo_bpm: int | None = None         # used when tempo == "custom"
     model_version: str | None = None     # "V4.5" | "V4.5 Plus" | "V5" | "V5.5"
     accent: str | None = None            # e.g. "British" → appended to style string
+    vocal_accent: str | None = Field(default=None, max_length=40)  # song_genres.ACCENT_STYLE_MAP key → style prefix; overrides genre default
     explicit: bool = False               # agency/enterprise only — loosens Suno content filter
     instrumental: bool = False           # skip lyrics; append instrumental style suffix
     intermittent_vocals: bool = False    # mostly instrumental with sparse vocal hooks/ad libs
@@ -3289,7 +3290,12 @@ async def songs_generate(
         style_suffix_parts.append(f"{max(40, min(300, body.tempo_bpm))} BPM")
     if body.vocal_gender == "duet":
         style_suffix_parts.append("male and female vocal duet, call and response, harmonising together, two voices intertwining")
-    if body.accent and not _is_story:
+    import song_genres as _song_genres_mod
+    from song_genres import ACCENT_STYLE_MAP as _ACCENT_STYLE_MAP, resolve_vocal_accent as _resolve_vocal_accent
+    _vocal_accent_key = _resolve_vocal_accent(body.vocal_accent)
+    if body.vocal_accent and not _vocal_accent_key:
+        log.info("accent: unknown vocal_accent=%r ignored", body.vocal_accent)
+    if body.accent and not _is_story and not _vocal_accent_key:
         # ── REGULAR MODE ACCENT — original working code, DO NOT MODIFY ──────────
         _ACCENT_DESCRIPTORS = {
             "British":              "strong unmistakable British RP brogue, thick received pronunciation, clipped precise consonants, pronounce words with heavy Queen's English inflection, distinctly posh British delivery that cuts through any genre",
@@ -3431,6 +3437,9 @@ async def songs_generate(
                 log.info("accent: rapid-fire → concise style descriptor (%d chars)", len(_accent_desc))
             style_suffix_parts.append(_accent_desc)
             log.info("accent: %s accent=%r → %r", "kids" if body.kids_story else "regular", body.accent, _accent_desc[:80])
+    if _vocal_accent_key and not _is_story:
+        style_suffix_parts.append(_ACCENT_STYLE_MAP[_vocal_accent_key])
+        log.info("accent: vocal_accent=%r applied", _vocal_accent_key)
     # Rapid Fire Rap: the concise style descriptor is added via _accent_desc above (so the
     # genre's core descriptors stay inside the 500-char budget). Here we ONLY set the
     # anti-loop negative tags — a separate Suno param that doesn't count against the style.
@@ -3588,6 +3597,10 @@ async def songs_generate(
             intermittent_vocals=bool(body.intermittent_vocals and not body.instrumental),
             vocal_gender=body.vocal_gender or None,
             platform=_detect_platform(request, body.platform),
+            use_genre_default_accent=_song_genres_mod.should_use_genre_default_accent(
+                vocal_accent_key=_vocal_accent_key, legacy_accent=body.accent or None,
+                instrumental=_effective_instrumental,
+                intermittent=bool(body.intermittent_vocals), is_story=_is_story),
         )
         log.info(
             "songs_generate: Apiframe submission ok user_id=%s lyric_id=%s variants=%r",

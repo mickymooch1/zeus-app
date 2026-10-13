@@ -194,3 +194,112 @@ def test_existing_callers_unchanged_by_default():
     """Callers that don't pass the flag (remix, zeus_agent) get no default."""
     style = _styles(["grime"], suffix_parts=[])["grime"]
     assert EXPECTED_DEFAULTS["grime"] not in style
+
+
+# ── Task 3: endpoint ─────────────────────────────────────────────────────────
+
+def _user():
+    return {"id": "accent-user", "email": "a@example.com", "subscription_status": "active",
+            "subscription_plan": "free", "password_hash": "x", "name": "A",
+            "is_admin": 0, "email_verified": 1}
+
+
+def _post(body):
+    """Drive /api/songs/generate; capture variant-builder and lyrics kwargs."""
+    import auth
+    import main as _main
+    from fastapi.testclient import TestClient
+
+    _main.app.dependency_overrides[auth.get_current_user] = _user
+    _main.limiter.enabled = False
+    try:
+        with patch("db.get_song_credits", return_value={"balance": 10, "monthly_allowance": 0}), \
+             patch("db.upsert_song_credits"), \
+             patch("lyrics.generate_lyrics",
+                   return_value={"lyric_id": 1, "lyrics": "[Verse 1]\nfake", "title": "Fake"}) as lyr, \
+             patch("songs.generate_multiple_variants",
+                   return_value={"variants": [{"variant_id": 1, "genre": "pop"}]}) as gmv:
+            with TestClient(_main.app) as client:
+                resp = client.post("/api/songs/generate", json=body,
+                                   headers={"Authorization": "Bearer fake"})
+        return resp, gmv, lyr
+    finally:
+        _main.app.dependency_overrides.pop(auth.get_current_user, None)
+
+
+def _kw(gmv):
+    assert gmv.called, "generate_multiple_variants was never reached"
+    return gmv.call_args.kwargs
+
+
+def test_vocal_accent_appends_snippet_and_disables_default():
+    resp, gmv, _ = _post({"brief": "x", "genres": ["pop"], "vocal_accent": "jamaican"})
+    assert resp.status_code == 200
+    kw = _kw(gmv)
+    assert EXPECTED_ACCENTS["jamaican"] in kw["suffix_parts"]
+    assert kw["use_genre_default_accent"] is False
+
+
+def test_no_accent_enables_default_and_adds_nothing():
+    resp, gmv, _ = _post({"brief": "x", "genres": ["grime"]})
+    kw = _kw(gmv)
+    assert kw["use_genre_default_accent"] is True
+    assert not any(s in kw["suffix_parts"] for s in EXPECTED_ACCENTS.values())
+
+
+def test_explicit_accent_overrides_grime_default():
+    _, gmv, _ = _post({"brief": "x", "genres": ["grime"], "vocal_accent": "scottish"})
+    kw = _kw(gmv)
+    assert EXPECTED_ACCENTS["scottish"] in kw["suffix_parts"]
+    assert kw["use_genre_default_accent"] is False
+
+
+def test_legacy_accent_still_works_and_suppresses_default():
+    """Old app builds still send accent="Irish"; it must keep its descriptor."""
+    _, gmv, _ = _post({"brief": "x", "genres": ["grime"], "accent": "Irish"})
+    kw = _kw(gmv)
+    assert any("Irish brogue" in s for s in kw["suffix_parts"])
+    assert kw["use_genre_default_accent"] is False
+
+
+def test_legacy_language_accent_overrides_default():
+    _, gmv, _ = _post({"brief": "x", "genres": ["grime"], "accent": "German"})
+    assert _kw(gmv)["use_genre_default_accent"] is False
+
+
+def test_instrumental_skips_default():
+    _, gmv, _ = _post({"brief": "x", "genres": ["grime"], "instrumental": True})
+    assert _kw(gmv)["use_genre_default_accent"] is False
+
+
+def test_intermittent_skips_default():
+    _, gmv, _ = _post({"brief": "x", "genres": ["grime"], "intermittent_vocals": True})
+    assert _kw(gmv)["use_genre_default_accent"] is False
+
+
+def test_unknown_vocal_accent_is_ignored_not_rejected():
+    resp, gmv, _ = _post({"brief": "x", "genres": ["grime"], "vocal_accent": "klingon"})
+    assert resp.status_code == 200
+    kw = _kw(gmv)
+    assert kw["use_genre_default_accent"] is True
+    assert not any("klingon" in s for s in kw["suffix_parts"])
+
+
+def test_vocal_accent_key_is_normalised():
+    _, gmv, _ = _post({"brief": "x", "genres": ["pop"], "vocal_accent": " Jamaican "})
+    assert EXPECTED_ACCENTS["jamaican"] in _kw(gmv)["suffix_parts"]
+
+
+def test_both_fields_vocal_accent_wins_style_accent_reaches_lyrics():
+    _, gmv, lyr = _post({"brief": "x", "genres": ["pop"],
+                         "vocal_accent": "jamaican", "accent": "German"})
+    parts = _kw(gmv)["suffix_parts"]
+    assert EXPECTED_ACCENTS["jamaican"] in parts
+    assert not any("German" in s for s in parts)
+    assert lyr.call_args.kwargs["accent"] == "German"
+
+
+def test_kids_song_mode_applies_vocal_accent():
+    _, gmv, _ = _post({"brief": "x", "genres": ["pop"], "kids_story": True,
+                       "kids_mode": "song", "vocal_accent": "australian"})
+    assert EXPECTED_ACCENTS["australian"] in _kw(gmv)["suffix_parts"]
