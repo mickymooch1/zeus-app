@@ -39,14 +39,16 @@ export default function KidsSongMode() {
   const { token } = useAuth();
   const navigate = useNavigate();
   const [theme, setTheme]           = useState(null);
-  const [musicStyle, setMusicStyle] = useState('funpop');
+  const [musicStyle, setMusicStyle] = useState(null);
   const [age, setAge]               = useState('little_ones');
   const [accent, setAccent]         = useState('');
   const [character, setCharacter]   = useState('');
+  const [happens, setHappens]       = useState('');
   const [generating, setGenerating] = useState(false);
   const [error, setError]           = useState('');
 
   const canGenerate = theme !== null;
+  // No style picked → the song gets Fun Pop's genre.
   const selectedStyle = MUSIC_STYLES.find(s => s.value === musicStyle) ?? MUSIC_STYLES[1];
 
   const handleGenerate = async () => {
@@ -56,6 +58,7 @@ export default function KidsSongMode() {
     try {
       const brief = [
         character.trim() && `Main character: ${character.trim()}`,
+        happens.trim()   && `What happens: ${happens.trim()}`,
         `Theme: ${THEMES[theme].label}`,
         age === 'tiny_tots'   && 'Age range: tiny tots aged 2-4',
         age === 'little_ones' && 'Age range: little ones aged 4-6',
@@ -111,7 +114,7 @@ export default function KidsSongMode() {
       <p style={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 10px' }}>🎵 Music Style</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 22 }}>
         {MUSIC_STYLES.map(s => (
-          <button key={s.value} onClick={() => setMusicStyle(s.value)} style={{
+          <button key={s.value} onClick={() => setMusicStyle(musicStyle === s.value ? null : s.value)} style={{
             ...selBtn(musicStyle === s.value, '#fbd155', 'rgba(251,209,85,0.2)'),
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             padding: '10px 4px 8px', gap: 4,
@@ -156,7 +159,22 @@ export default function KidsSongMode() {
         placeholder="e.g. Bella the bunny, Leo the lion..."
         value={character}
         onChange={e => setCharacter(e.target.value)}
-        style={{ marginBottom: 26 }}
+        style={{ marginBottom: 14 }}
+      />
+
+      {/* What happens */}
+      <p style={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px' }}>
+        ✨ What Happens?{' '}
+        <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 12, color: '#94a3b8' }}>(optional)</span>
+      </p>
+      <textarea
+        className="kids-input"
+        placeholder="e.g. goes on a big adventure to find the magic rainbow cake"
+        rows={2}
+        maxLength={200}
+        value={happens}
+        onChange={e => setHappens(e.target.value)}
+        style={{ marginBottom: 26, resize: 'vertical' }}
       />
 
       {error && <p style={{ color: '#ef4444', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>{error}</p>}
