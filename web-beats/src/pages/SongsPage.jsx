@@ -642,7 +642,7 @@ export default function SongsPage() {
   const [mainCharacter, setMainCharacter]   = useState('');
   const [storyEvent, setStoryEvent]         = useState('');
   const [kidsAgeRange, setKidsAgeRange]     = useState('little_ones');
-  const [kidsMusicStyle, setKidsMusicStyle] = useState('funpop');
+  const [kidsMusicStyle, setKidsMusicStyle] = useState(null);
 
   // Custom lyrics
   const [useCustomLyrics, setUseCustomLyrics]   = useState(false);
@@ -2820,7 +2820,7 @@ export default function SongsPage() {
                       ['piano',    '🎹', 'Happy Piano'],
                       ['reggae',   '🏝️', 'Reggae Fun'],
                     ].map(([val, emoji, label]) => (
-                      <button key={val} onClick={() => setKidsMusicStyle(val)} style={{
+                      <button key={val} onClick={() => setKidsMusicStyle(kidsMusicStyle === val ? null : val)} style={{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
                         border: `1px solid ${kidsMusicStyle === val ? '#16c8ff' : 'rgba(22,200,255,0.20)'}`,
@@ -3026,7 +3026,7 @@ export default function SongsPage() {
                       ['funpop',   '🎵', 'Light Pop'],
                       ['reggae',   '🏝️', 'Soft Reggae'],
                     ].map(([val, emoji, label]) => (
-                      <button key={val} onClick={() => setKidsMusicStyle(val)} style={{
+                      <button key={val} onClick={() => setKidsMusicStyle(kidsMusicStyle === val ? null : val)} style={{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         padding: '10px 6px 8px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
                         border: `1px solid ${kidsMusicStyle === val ? '#16c8ff' : 'rgba(22,200,255,0.20)'}`,
