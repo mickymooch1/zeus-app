@@ -24,3 +24,34 @@ test('accentPayload routes accent keys, legacy values and blank', () => {
   assert.deepEqual(accentPayload(''), {});
   assert.deepEqual(accentPayload(undefined), {});
 });
+
+import { readFileSync } from 'node:fs';
+const SONGS_PAGE = readFileSync(new URL('../pages/SongsPage.jsx', import.meta.url), 'utf8');
+const EN = JSON.parse(readFileSync(new URL('../locales/en.json', import.meta.url), 'utf8'));
+
+test('adult label text', () => {
+  assert.equal(EN.songs.accentLabel, "🎤 Singer's Accent (optional)");
+});
+
+test('adult picker sits right after the genre grid, outside Advanced', () => {
+  const grid = SONGS_PAGE.indexOf('<GenreTileGrid');
+  const picker = SONGS_PAGE.indexOf("t('songs.accentLabel')");
+  const adv = SONGS_PAGE.indexOf('{showAdvanced && (');
+  assert.ok(grid > 0 && picker > grid && picker < adv, 'picker must be between grid and Advanced');
+  assert.equal(SONGS_PAGE.split("t('songs.accentLabel')").length - 1, 1, 'exactly one adult picker');
+});
+
+test('three groups: accents, languages, vocal styles — nothing lost', () => {
+  assert.match(SONGS_PAGE, /🌐 Sing in another language/);
+  assert.match(SONGS_PAGE, /🎙 Vocal Style/);
+  for (const kept of ['Rapid Fire Rap', 'Deep Bass Voice', 'Classic Rock', 'Vocoder / Talk Box',
+                      'Cockney Grime', 'Bashment MC', 'UK Jungle MC', 'British MC Grime',
+                      'American Soul', 'Caribbean', 'Punjabi', 'Brazilian Portuguese', 'Yoruba'])
+    assert.ok(SONGS_PAGE.includes(kept), `lost option: ${kept}`);
+  assert.ok(!SONGS_PAGE.includes('Auto (matches your genre)'));
+});
+
+test('standard and roast requests route the picker via accentPayload', () => {
+  assert.equal(SONGS_PAGE.split('...accentPayload(accent)').length - 1, 2);
+  assert.ok(!/\n\s*accent: accent \|\| undefined,/.test(SONGS_PAGE), 'raw accent send left behind');
+});

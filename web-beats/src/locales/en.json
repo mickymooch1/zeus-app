@@ -87,7 +87,7 @@
     "vocalMale": "Male",
     "vocalFemale": "Female",
     "vocalDuet": "Duet",
-    "accentLabel": "Accent",
+    "accentLabel": "🎤 Singer's Accent (optional)",
     "accentDefault": "Default",
     "modelLabel": "Model",
     "creativityLabel": "Weirdness",
