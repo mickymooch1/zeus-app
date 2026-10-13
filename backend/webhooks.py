@@ -14,6 +14,7 @@ import requests
 import audio_tags
 import httpx
 import db as _db
+from song_genres import build_cover_prompt, resolve_cover_art_style, sanitize_cover_art_description
 from PIL import Image, ImageDraw, ImageFont
 from fastapi import APIRouter, Request, HTTPException
 
@@ -234,19 +235,51 @@ def _add_text_overlay(image_path: str, title: str, artist_name: str = "") -> Non
     img.convert("RGB").save(image_path, "JPEG", quality=95)
 
 
+def _cover_customisation(variant_id: int) -> tuple[str | None, str | None]:
+    """The Create-flow cover choices stored on this variant's lyric row; (None, None)
+    on any problem — a lookup failure must never cost a song its cover."""
+    try:
+        conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+        try:
+            row = conn.execute(
+                "SELECT l.cover_art_style, l.cover_art_description FROM song_variants sv "
+                "JOIN lyrics l ON l.id = sv.lyric_id WHERE sv.id = ?",
+                (variant_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+    except Exception:
+        return (None, None)
+    return (row[0], row[1]) if row else (None, None)
+
+
+def _is_cover_customised(variant_id: int) -> bool:
+    style, desc = _cover_customisation(variant_id)
+    return bool(resolve_cover_art_style(style) or sanitize_cover_art_description(desc))
+
+
 def _generate_flux_cover(variant_id: int, genre_tag: str | None, title: str = "", artist_name: str = "", style_prompt: str = "") -> str | None:
     """Generate a Flux cover image and save to song storage. Returns public URL or None."""
     import image_generator as _img
     if "children's" in style_prompt.lower() or genre_tag == 'kids_story':
-        prompt = KIDS_COVER_PROMPT
+        prompt = genre_prompt = KIDS_COVER_PROMPT
     else:
-        prompt = cover_prompt_for(genre_tag)
+        genre_prompt = cover_prompt_for(genre_tag)
+        prompt = build_cover_prompt(genre_prompt, *_cover_customisation(variant_id))
+    customised = prompt != genre_prompt
     logger.info(
         "Starting Flux cover art for variant_id=%d genre=%r FAL_KEY_len=%d prompt=%.80r",
         variant_id, genre_tag, len(_img.FAL_API_KEY) if _img.FAL_API_KEY else 0, prompt,
     )
     try:
-        flux_url = _img.submit_image_generation(prompt, "1:1")
+        if customised:
+            try:
+                flux_url = _img.submit_image_generation(prompt, "1:1", safety_check=True)
+            except _img.UnsafeImageError:
+                logger.warning("Custom cover flagged unsafe for variant_id=%d — retrying with the genre prompt", variant_id)
+                flux_url = _img.submit_image_generation(genre_prompt, "1:1")
+        else:
+            flux_url = _img.submit_image_generation(prompt, "1:1")
         job_id = flux_url.rsplit("/", 1)[-1].replace(".jpg", "")
         src = pathlib.Path("/data/images") / f"{job_id}.jpg"
         dst = pathlib.Path(STORAGE_PATH) / f"{variant_id}_cover.jpg"
@@ -1121,17 +1154,26 @@ async def apiframe_webhook(request: Request):
                     # Flux remains the FALLBACK here so take 2 is never left blank: if
                     # Suno sent no artwork, or the download above failed, we pay for one
                     # image rather than ship a song with no cover at all.
-                    if permanent_image_url2:
+                    # Exception: a customised cover (spec 2026-10-14) gets Flux on both takes.
+                    _take2_custom = _is_cover_customised(take2_variant_id)
+                    if permanent_image_url2 and not _take2_custom:
                         logger.info("Cover art for variant_id=%d (take2): using Suno artwork %s (no Flux call)",
                                     take2_variant_id, permanent_image_url2)
                     else:
-                        logger.info("Take 2 has no Suno artwork — falling back to Flux for variant_id=%d genre=%s",
-                                    take2_variant_id, genre_tag)
+                        if permanent_image_url2:
+                            logger.info("Take 2 cover is customised — generating Flux for variant_id=%d genre=%s",
+                                        take2_variant_id, genre_tag)
+                        else:
+                            logger.info("Take 2 has no Suno artwork — falling back to Flux for variant_id=%d genre=%s",
+                                        take2_variant_id, genre_tag)
                         flux_cover2 = _generate_flux_cover(take2_variant_id, genre_tag, song_title, artist_name, orig[2] if orig else "")
                         if flux_cover2:
                             logger.info("Cover art complete for variant_id=%d (take2, Flux fallback) url=%s",
                                         take2_variant_id, flux_cover2)
                             permanent_image_url2 = flux_cover2
+                        elif permanent_image_url2:
+                            logger.warning("Take 2 customised Flux failed — keeping Suno artwork for variant_id=%d",
+                                           take2_variant_id)
                         else:
                             logger.warning("Cover art FAILED for variant_id=%d (take2) — no Suno artwork and Flux failed",
                                            take2_variant_id)

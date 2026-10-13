@@ -42,13 +42,14 @@ def test_take_1_gets_flux_unconditionally():
 
 
 def test_take_2_uses_sunos_free_art_and_does_not_pay_for_flux():
-    """The cost fix: take 2 must not call Flux when Suno already sent a cover."""
+    """The cost fix: take 2 must not call Flux when Suno already sent a cover.
+    Customised covers (spec 2026-10-14) are the one deliberate exception."""
     assert "using Suno artwork %s (no Flux call)" in _SRC, \
         "take 2 should ship Suno's cover without paying fal.ai"
     # The take-2 Flux call must sit on the no-Suno-artwork branch, not run before it.
-    take2 = _SRC.split("Take 2 keeps Suno's own cover", 1)[1][:1500]
-    assert "if permanent_image_url2:" in take2, "take 2 must branch on Suno art being present"
-    assert take2.index("if permanent_image_url2:") < take2.index("_generate_flux_cover("), \
+    take2 = _SRC.split("Take 2 keeps Suno's own cover", 1)[1][:2500]
+    assert "if permanent_image_url2 and not _take2_custom:" in take2, "take 2 must branch on Suno art being present"
+    assert take2.index("if permanent_image_url2 and not _take2_custom:") < take2.index("_generate_flux_cover("), \
         "Flux must only be reached on the else branch (no Suno art)"
 
 

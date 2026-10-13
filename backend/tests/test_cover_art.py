@@ -233,3 +233,82 @@ def test_kids_request_stores_nothing():
                          "cover_art_style": "vibrant", "cover_art_description": "a castle"})
     assert resp.status_code == 200, resp.text
     store.assert_not_called()
+
+
+# ── Task 4: cover generation ─────────────────────────────────────────────────
+
+def _capture(monkeypatch, custom=(None, None), unsafe_first=False):
+    import image_generator
+    import webhooks
+    calls = []
+
+    def fake_submit(prompt, ratio, **kw):
+        calls.append((prompt, kw))
+        if unsafe_first and len(calls) == 1:
+            raise image_generator.UnsafeImageError("flagged")
+        raise RuntimeError("stop after capturing")   # _generate_flux_cover fails soft -> None
+
+    monkeypatch.setattr(image_generator, "submit_image_generation", fake_submit)
+    monkeypatch.setattr(webhooks, "_cover_customisation", lambda vid: custom, raising=False)
+    return webhooks, calls
+
+
+def test_uncustomised_cover_call_is_unchanged(monkeypatch):
+    wh, calls = _capture(monkeypatch)
+    assert wh._generate_flux_cover(1, "southernblues", title="t") is None
+    assert calls == [(wh.GENRE_COVER_PROMPTS["southernblues"], {})]
+
+
+def test_customised_cover_uses_built_prompt_with_safety(monkeypatch):
+    wh, calls = _capture(monkeypatch, custom=("dark_moody", "with a full moon outside"))
+    wh._generate_flux_cover(1, "southernblues", title="t")
+    prompt, kw = calls[0]
+    assert prompt == sg.build_cover_prompt(wh.GENRE_COVER_PROMPTS["southernblues"], "dark_moody", "with a full moon outside")
+    assert kw == {"safety_check": True}
+
+
+def test_unsafe_image_retries_with_plain_genre_prompt(monkeypatch):
+    wh, calls = _capture(monkeypatch, custom=("vibrant", "a castle"), unsafe_first=True)
+    wh._generate_flux_cover(1, "pop", title="t")
+    assert len(calls) == 2
+    assert calls[1] == (wh.cover_prompt_for("pop"), {})
+
+
+@pytest.mark.parametrize("genre,style_prompt", [("kids_story", ""), ("pop", "children's song, warm playful")])
+def test_kids_cover_ignores_customisation(monkeypatch, genre, style_prompt):
+    wh, calls = _capture(monkeypatch, custom=("dark_moody", "a skull"))
+    wh._generate_flux_cover(1, genre, title="t", style_prompt=style_prompt)
+    assert calls == [(wh.KIDS_COVER_PROMPT, {})]
+
+
+def test_customisation_lookup_fails_soft(monkeypatch, tmp_path):
+    import webhooks
+    monkeypatch.setattr(webhooks, "DB_PATH", str(tmp_path / "missing" / "nope.db"))
+    assert webhooks._cover_customisation(123) == (None, None)
+    assert webhooks._is_cover_customised(123) is False
+
+
+def test_customisation_lookup_reads_the_lyric_row(monkeypatch, tmp_path):
+    import db
+    import sqlite3
+    import webhooks
+    p = tmp_path / "z.db"
+    db.init_user_tables(p)
+    conn = sqlite3.connect(p)
+    conn.execute("INSERT INTO lyrics (id, user_id, brief, lyrics_text, title, cover_art_style, cover_art_description) "
+                 "VALUES (5, 'u', 'b', 'l', 't', 'vintage', 'a jukebox')")
+    conn.execute("INSERT INTO song_variants (id, lyric_id, user_id, style_prompt, genre_tag, status) "
+                 "VALUES (9, 5, 'u', 'pop', 'pop', 'complete')")
+    conn.commit()
+    monkeypatch.setattr(webhooks, "DB_PATH", str(p))
+    assert webhooks._cover_customisation(9) == ("vintage", "a jukebox")
+    assert webhooks._is_cover_customised(9) is True
+
+
+def test_take_2_gets_flux_only_when_customised():
+    src = (pathlib.Path(__file__).parent.parent / "webhooks.py").read_text(encoding="utf-8")
+    take2 = src.split("Take 2 keeps Suno's own cover", 1)[1][:2500]
+    assert "_take2_custom = _is_cover_customised(take2_variant_id)" in take2
+    assert "if permanent_image_url2 and not _take2_custom:" in take2
+    assert take2.index("if permanent_image_url2 and not _take2_custom:") < take2.index("_generate_flux_cover(")
+    assert "customised Flux failed — keeping Suno artwork" in take2
