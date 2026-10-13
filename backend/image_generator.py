@@ -41,11 +41,16 @@ _RATIO_TO_FAL_SIZE: dict[str, str] = {
 }
 
 
+class UnsafeImageError(RuntimeError):
+    """fal.ai's safety checker flagged the generated image."""
+
+
 def submit_image_generation(
     prompt: str,
     aspect_ratio: str,
     model: str = "flux",
     webhook_url: str = "",  # kept for caller compatibility, no longer used
+    safety_check: bool = False,  # custom cover art: ask fal to flag unsafe images
 ) -> str:
     """Generate an image synchronously via fal.ai. Downloads and returns public URL."""
     if not FAL_API_KEY:
@@ -58,6 +63,9 @@ def submit_image_generation(
     image_size = _RATIO_TO_FAL_SIZE.get(aspect_ratio, "square_hd")
 
     url = f"{FAL_SYNC_BASE}/{FAL_MODEL}"
+    payload = {"prompt": prompt, "image_size": image_size, "num_images": 1}
+    if safety_check:
+        payload["enable_safety_checker"] = True
     log.info(
         "submit_image_generation: job_id=%s url=%s size=%s model=%s prompt_preview=%.80r",
         job_id, url, image_size, model, prompt,
@@ -67,11 +75,7 @@ def submit_image_generation(
         response = requests.post(
             url,
             headers={"Authorization": f"Key {FAL_API_KEY}"},
-            json={
-                "prompt": prompt,
-                "image_size": image_size,
-                "num_images": 1,
-            },
+            json=payload,
             timeout=120,
         )
     except requests.exceptions.Timeout:
@@ -118,6 +122,10 @@ def submit_image_generation(
         log.error("fal.ai: could not parse JSON response (job_id=%s): %s | raw: %.500s",
                   job_id, exc, response.text)
         raise RuntimeError(f"fal.ai response was not valid JSON: {exc}")
+
+    if safety_check and any(bool(x) for x in (data.get("has_nsfw_concepts") or [])):
+        log.warning("submit_image_generation: safety checker flagged job_id=%s", job_id)
+        raise UnsafeImageError("fal.ai safety checker flagged the image")
 
     images = data.get("images", [])
     if not images:

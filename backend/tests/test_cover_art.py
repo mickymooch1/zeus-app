@@ -106,3 +106,45 @@ def test_sanitiser_caps_at_150():
     out = sg.sanitize_cover_art_description("moon " * 60)
     assert out is not None and len(out) <= sg.COVER_DESCRIPTION_MAX == 150
     assert not out.endswith(" ")
+
+
+# ── Task 2: Flux safety flag ─────────────────────────────────────────────────
+
+class _Resp:
+    def __init__(self, data):
+        self._data, self.ok, self.status_code, self.text = data, True, 200, ""
+
+    def json(self):
+        return self._data
+
+
+def _fake_fal(monkeypatch, data):
+    import image_generator as ig
+    sent = {}
+
+    def post(url, headers=None, json=None, timeout=None):
+        sent["json"] = json
+        return _Resp(data)
+
+    monkeypatch.setattr(ig, "FAL_API_KEY", "k")
+    monkeypatch.setattr(ig.requests, "post", post)
+    monkeypatch.setattr(ig, "download_and_save_image", lambda job_id, url: f"https://x/{job_id}.jpg")
+    return ig, sent
+
+
+def test_default_payload_has_no_safety_key(monkeypatch):
+    ig, sent = _fake_fal(monkeypatch, {"images": [{"url": "https://cdn/x.jpg"}], "has_nsfw_concepts": [True]})
+    ig.submit_image_generation("p", "1:1")
+    assert sent["json"] == {"prompt": "p", "image_size": "square_hd", "num_images": 1}
+
+
+def test_safety_check_sends_flag_and_passes_clean_image(monkeypatch):
+    ig, sent = _fake_fal(monkeypatch, {"images": [{"url": "https://cdn/x.jpg"}], "has_nsfw_concepts": [False]})
+    assert ig.submit_image_generation("p", "1:1", safety_check=True).startswith("https://x/")
+    assert sent["json"]["enable_safety_checker"] is True
+
+
+def test_safety_check_raises_on_flagged_image(monkeypatch):
+    ig, _ = _fake_fal(monkeypatch, {"images": [{"url": "https://cdn/x.jpg"}], "has_nsfw_concepts": [True]})
+    with pytest.raises(ig.UnsafeImageError):
+        ig.submit_image_generation("p", "1:1", safety_check=True)
