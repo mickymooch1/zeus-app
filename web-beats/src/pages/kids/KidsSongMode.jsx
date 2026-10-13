@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { BACKEND_URL } from '../../brand';
+import KidsVoicePicker from '../../components/KidsVoicePicker';
 
 const THEMES = [
   { emoji: '🐘', label: 'Animals' },
@@ -25,11 +26,6 @@ const AGE_RANGES = [
   { value: 'tiny_tots',   emoji: '🍼', label: 'Tiny Tots',   ages: '2–4' },
   { value: 'little_ones', emoji: '🌟', label: 'Little Ones', ages: '4–6' },
   { value: 'big_kids',    emoji: '📚', label: 'Big Kids',    ages: '7–10' },
-];
-
-const ACCENTS = [
-  'British', 'Irish', 'Scottish', 'Australian',
-  'Caribbean', 'American Soul', 'Jamaican', 'French', 'Spanish',
 ];
 
 const selBtn = (active, borderColor, bgColor) => ({
@@ -75,7 +71,7 @@ export default function KidsSongMode() {
           kids_story: true,
           kids_mode: 'song',
           kids_age_range: age,
-          accent: accent || undefined,
+          vocal_accent: accent || undefined,
           explicit: false,
         }),
       });
@@ -143,16 +139,12 @@ export default function KidsSongMode() {
       </div>
 
       {/* Accent */}
-      <p style={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px' }}>🎤 Singing Accent</p>
-      <select
+      <KidsVoicePicker
         value={accent}
-        onChange={e => setAccent(e.target.value)}
-        className="kids-select"
-        style={{ marginBottom: 22 }}
-      >
-        <option value="">🌟 Default</option>
-        {ACCENTS.map(a => <option key={a} value={a}>{a}</option>)}
-      </select>
+        onChange={setAccent}
+        labelStyle={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px' }}
+        selectProps={{ className: 'kids-select', style: { marginBottom: 22 } }}
+      />
 
       {/* Character */}
       <p style={{ fontWeight: 800, fontSize: 13, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px' }}>

@@ -55,3 +55,25 @@ test('standard and roast requests route the picker via accentPayload', () => {
   assert.equal(SONGS_PAGE.split('...accentPayload(accent)').length - 1, 2);
   assert.ok(!/\n\s*accent: accent \|\| undefined,/.test(SONGS_PAGE), 'raw accent send left behind');
 });
+
+const readOrEmpty = (rel) => { try { return readFileSync(new URL(rel, import.meta.url), 'utf8'); } catch { return ''; } };
+const KIDS_PICKER = readOrEmpty('../components/KidsVoicePicker.jsx');
+const KIDS_SONG_MODE = readFileSync(new URL('../pages/kids/KidsSongMode.jsx', import.meta.url), 'utf8');
+
+test('kids picker label and flag-first options', () => {
+  assert.ok(KIDS_PICKER.includes("🎤 Singer's Voice"));
+  assert.ok(KIDS_PICKER.includes('🌟 Default'));
+  assert.match(KIDS_PICKER, /ACCENT_OPTIONS\.map/);
+  assert.match(KIDS_PICKER, /accentOptionLabel\(/);
+});
+
+test('both kids song pickers use the shared component and send vocal_accent', () => {
+  for (const [name, src] of [['SongsPage', SONGS_PAGE], ['KidsSongMode', KIDS_SONG_MODE]]) {
+    assert.match(src, /<KidsVoicePicker/, `${name} must render KidsVoicePicker`);
+    assert.ok(!src.includes('🎤 Singing Accent'), `${name} still has the old kids label`);
+  }
+  assert.match(KIDS_SONG_MODE, /vocal_accent: accent \|\| undefined/);
+  assert.match(SONGS_PAGE, /vocal_accent: kidsSubMode === 'song' \? \(kidsAccent \|\| undefined\) : undefined/);
+  // Story narrator still rides on `accent`.
+  assert.match(SONGS_PAGE, /accent: kidsSubMode === 'story' \? \(kidsNarratorVoice \|\| undefined\) : undefined/);
+});

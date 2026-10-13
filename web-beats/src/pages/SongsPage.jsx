@@ -31,6 +31,7 @@ import {
 } from '../utils/roastDraft';
 import { readRemixIntent, arrivedViaRemix, remixTargetFromSearch, remixDestination, withoutRemixStarted } from '../utils/remixIntent';
 import RemixStartedNotice from '../components/RemixStartedNotice';
+import KidsVoicePicker from '../components/KidsVoicePicker';
 import { freeSongsLine } from '../utils/freeSongs';
 import { apiErrorMessage, ROAST_DETAILS_MAX } from '../utils/apiErrorMessage';
 
@@ -1071,7 +1072,8 @@ export default function SongsPage() {
           kids_story: true,
           kids_mode: kidsSubMode,
           kids_age_range: kidsAgeRange || undefined,
-          accent: kidsSubMode === 'story' ? (kidsNarratorVoice || undefined) : (kidsAccent || undefined),
+          accent: kidsSubMode === 'story' ? (kidsNarratorVoice || undefined) : undefined,
+          vocal_accent: kidsSubMode === 'song' ? (kidsAccent || undefined) : undefined,
           child_voice: kidsSubMode === 'story' ? (kidsChildVoice || undefined) : undefined,
           character_voice: kidsSubMode === 'story' ? (kidsCharacterVoice || undefined) : undefined,
           story_language: kidsSubMode === 'story' ? (storyLanguage || 'english') : undefined,
@@ -2832,17 +2834,12 @@ export default function SongsPage() {
                     ))}
                   </div>
 
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#16c8ff', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>🎤 Singing Accent</p>
-                  <select
+                  <KidsVoicePicker
                     value={kidsAccent}
-                    onChange={(e) => setKidsAccent(e.target.value)}
-                    style={{ width: '100%', background: 'rgba(22,200,255,0.06)', border: '1px solid rgba(22,200,255,0.35)', borderRadius: 8, padding: '8px 12px', color: kidsAccent ? '#16c8ff' : 'rgba(22,200,255,0.5)', fontSize: 13, outline: 'none', marginBottom: 4 }}
-                  >
-                    <option value="">🌟 Default</option>
-                    {['British','Irish','Scottish','Australian','Caribbean','American Soul','Jamaican','French','Spanish'].map((a) => (
-                      <option key={a} value={a}>{a}</option>
-                    ))}
-                  </select>
+                    onChange={setKidsAccent}
+                    labelStyle={{ fontSize: 11, fontWeight: 700, color: '#16c8ff', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}
+                    selectProps={{ style: { width: '100%', background: 'rgba(22,200,255,0.06)', border: '1px solid rgba(22,200,255,0.35)', borderRadius: 8, padding: '8px 12px', color: kidsAccent ? '#16c8ff' : 'rgba(22,200,255,0.5)', fontSize: 13, outline: 'none', marginBottom: 4 } }}
+                  />
                 </>)}
 
                 {/* ── STORY MODE fields ── */}
