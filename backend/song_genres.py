@@ -343,3 +343,64 @@ def should_use_genre_default_accent(*, vocal_accent_key: str | None, legacy_acce
     """Genre defaults apply only to sung songs where the user chose no accent at all —
     any explicit choice (incl. a legacy language/vocal-style accent) replaces them."""
     return not (vocal_accent_key or legacy_accent or instrumental or intermittent or is_story)
+
+# ─── Cover art customisation (spec 2026-10-14) ──────────────────────────────
+# Mirrored by web-beats/src/utils/genres.js COVER_ART_STYLE_OPTIONS and
+# zeus-beats-ios CreateSongScreen.tsx; guarded by tests/test_cover_art_catalog_sync.py.
+import re as _re
+
+COVER_ART_STYLE_MAP: dict[str, str] = {
+    "cinematic": "cinematic lighting, dramatic composition, film still quality, high contrast",
+    "painterly": "oil painting style, brushstroke texture, fine art, gallery quality",
+    "vibrant": "vibrant saturated colours, bold and energetic, vivid and striking",
+    "dark_moody": "dark and moody, deep shadows, low key lighting, atmospheric",
+    "dreamy": "dreamy and ethereal, soft focus, pastel tones, otherworldly glow",
+    "vintage": "vintage retro style, film grain, faded colours, nostalgic feel",
+    "photorealistic": "photorealistic, ultra detailed, sharp focus, professional photography",
+    "illustrated": "cartoon illustration style, clean lines, colourful, fun and playful",
+}
+COVER_DESCRIPTION_MAX = 150
+
+_CTRL_RE = _re.compile(r"[\x00-\x1f\x7f]+")
+_URL_RE = _re.compile(r"(?:https?://|www\.)\S+", _re.I)
+_WEIGHT_RE = _re.compile(r"\(([^():]{1,60}):\s*-?\d+(?:\.\d+)?\)")
+_PARAM_RE = _re.compile(r"(?<![\w-])--[a-z][\w-]*(?:\s+(?!--)[^\s,]+)?", _re.I)   # one value only, so following words survive
+_NEGATIVE_RE = _re.compile(r"\bnegative\s+prompt\b.*$", _re.I)
+_IGNORE_RE = _re.compile(
+    r"[.,;:!?]?\s*\b(?:ignore|disregard|forget)\b[^,.;]*?\b(?:previous|prior|above|earlier|instructions?|prompt)\b[^,.;]*",
+    _re.I)
+_NO_TEXT_RE = _re.compile(r"[,;]?\s*\b(?:no|without)\s+(?:any\s+)?(?:text|words|lettering|typography)\b", _re.I)
+_TRAILING_NO_TEXT_RE = _re.compile(r",?\s*no text\s*$", _re.I)
+
+
+def resolve_cover_art_style(key: str | None) -> str | None:
+    k = (key or "").strip().lower()
+    return k if k in COVER_ART_STYLE_MAP else None
+
+
+def sanitize_cover_art_description(text: str | None) -> str | None:
+    """User text -> safe Flux fragment, or None when nothing meaningful remains."""
+    s = _CTRL_RE.sub(" ", text or "")
+    s = _URL_RE.sub(" ", s)
+    s = _WEIGHT_RE.sub(r"\1", s)
+    s = _PARAM_RE.sub(" ", s)
+    s = _NEGATIVE_RE.sub(" ", s)
+    s = _IGNORE_RE.sub(" ", s)
+    s = _NO_TEXT_RE.sub(" ", s)
+    s = _re.sub(r"\s+", " ", s)
+    s = _re.sub(r"\s+([,;:.])", r"\1", s)
+    s = _re.sub(r"([,;:])(?:\s*[,;:])+", r"\1", s)
+    s = s.strip(" ,;:.-")
+    s = s[:COVER_DESCRIPTION_MAX].rstrip(" ,;:.-")
+    return s if _re.search(r"[^\W_]", s) else None
+
+
+def build_cover_prompt(genre_prompt: str, style_key: str | None, description: str | None) -> str:
+    """genre prompt + style descriptor + description + "no text"; unchanged when neither is set."""
+    style = resolve_cover_art_style(style_key)
+    descriptor = COVER_ART_STYLE_MAP[style] if style else None
+    desc = sanitize_cover_art_description(description)
+    if not descriptor and not desc:
+        return genre_prompt
+    base = _TRAILING_NO_TEXT_RE.sub("", genre_prompt).strip().rstrip(",")
+    return ", ".join(p for p in (base, descriptor, desc, "no text") if p)
