@@ -21,9 +21,16 @@ SCANNER_SEGMENTS = frozenset({
     "phpinfo", "_profiler", "_environment", "server-info",
 })
 
-# Generic words: blocked ONLY as the whole path (`/info`), never as a segment of a longer
-# route (`/songs/info` stays a normal SPA route).
-SCANNER_EXACT = frozenset({"info"})
+# Blocked ONLY as the whole path (segments joined by "/", so `//blog/robots.txt` matches
+# "blog/robots.txt"), never as part of a longer route (`/songs/info` stays a normal SPA
+# route). Generic words, plus specific probes seen in the wild.
+SCANNER_EXACT = frozenset({"info", "blog/robots.txt", "7skdcjb8p1teibelop6h"})
+
+# First segments that are cloud-AI credential hunting (/ai/config.json, /bedrock/config.yml).
+# Anything BELOW them is blocked; the bare `/ai` and `/bedrock` are not. No route lives under
+# either — the hub API (backend `ai` package) is served at /api/hub, and the SEO pages are
+# `/ai-...`, a different segment. test_no_registered_backend_route_is_a_scanner_path guards it.
+SCANNER_PREFIXES = frozenset({"ai", "bedrock"})
 
 # Last-segment suffixes: scripts, dumps and editor/backup leftovers.
 SCANNER_SUFFIXES = (
@@ -44,7 +51,9 @@ def is_scanner_path(path: str) -> bool:
     served by its own route/mount before serve_spa's catch-all is reached.
     """
     segments = [s for s in path.lower().split("/") if s]
-    if len(segments) == 1 and segments[0] in SCANNER_EXACT:
+    if "/".join(segments) in SCANNER_EXACT:
+        return True
+    if len(segments) > 1 and segments[0] in SCANNER_PREFIXES:
         return True
     for seg in segments:
         if (seg in SCANNER_SEGMENTS

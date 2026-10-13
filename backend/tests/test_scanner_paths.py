@@ -88,6 +88,53 @@ def test_no_real_frontend_route_is_blocked_by_the_rules():
     assert hits == [], f"legitimate routes would be 404'd: {hits}"
 
 
+# Probes seen in the wild (2026-10): cloud-AI credential hunting (/ai/, /bedrock/), a
+# robots.txt fishing for a blog, and a fixed random token. None is a real route.
+AI_PROBE_PATHS = [
+    "//blog/robots.txt", "/7skdcjb8p1teibelop6h",
+    "/ai/config.json", "/ai/config.yaml", "/ai/credentials", "/ai/credentials.json",
+    "/bedrock/config.json", "/bedrock/config.toml", "/bedrock/config.yaml", "/bedrock/config.yml",
+]
+
+
+@pytest.mark.parametrize("p", AI_PROBE_PATHS)
+def test_the_ai_credential_probes_are_blocked(p):
+    assert scanner_paths.is_scanner_path(p) is True, p
+
+
+@pytest.mark.parametrize("p", [
+    "/ai/anything", "/ai/keys/openai.env", "/AI/Config.JSON", "ai/x",
+    "/bedrock/anything", "/bedrock/a/b/c", "/Bedrock/credentials",
+])
+def test_anything_under_ai_or_bedrock_is_blocked(p):
+    assert scanner_paths.is_scanner_path(p) is True, p
+
+
+@pytest.mark.parametrize("p", [
+    # the real hub API lives in the backend's `ai` package but is served under /api/hub
+    "/api/hub/status", "/api/hub/requests/123", "/api/hub/conversations/abc",
+    "/api/playlists/ai-generate",
+    # SEO landing pages start with "ai-", not an "ai" segment
+    "/ai-memorial-song-generator", "/ai-music-generator",
+    # "ai"/"bedrock" deeper in a path, the bare prefixes, and blog/robots elsewhere
+    "/songs/ai", "/discover/bedrock", "/ai", "/bedrock", "/blog", "/robots.txt",
+    "/7skdcjb8p1teibelop6h/x",
+])
+def test_the_ai_rules_do_not_catch_real_routes(p):
+    assert scanner_paths.is_scanner_path(p) is False, p
+
+
+def test_no_registered_backend_route_is_a_scanner_path():
+    """The bot guard checks EVERY response path, API routes included, so a real backend
+    route under /ai/ or /bedrock/ (or matching any other rule) would count as a strike."""
+    import re
+    import main
+    paths = [getattr(r, "path", "") for r in main.app.routes]
+    assert "/api/hub/status" in paths, "route listing missed the hub router"
+    hits = [p for p in paths if p and scanner_paths.is_scanner_path(re.sub(r"\{[^}]*\}", "x", p))]
+    assert hits == [], f"real backend routes match the scanner blocklist: {hits}"
+
+
 def test_main_alias_is_the_same_function():
     import main
     assert main._is_scanner_path is scanner_paths.is_scanner_path
