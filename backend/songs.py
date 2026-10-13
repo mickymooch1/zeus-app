@@ -614,13 +614,17 @@ def generate_song_variant(
     return {"variant_id": variant_id, "job_id": job_id, "status": "generating"}
 
 
-def apply_genre_default_accent(genre_style: str, genre: str, enabled: bool) -> str:
-    """Append the genre's default singer accent (song_genres.GENRE_DEFAULT_ACCENT) to the
+def apply_genre_default_accent(genre_style: str, genre: str, enabled: bool, front: bool = False) -> str:
+    """Add the genre's default singer accent (song_genres.GENRE_DEFAULT_ACCENT) to the
     genre core. Part of the core on purpose: assemble_variant_style trims the suffix,
-    never the core, so the default survives a long Sound Control/accent suffix."""
+    never the core, so the default survives a long Sound Control/accent suffix.
+    front=True for blends: a DJ-transition core often fills the whole style cap and the
+    final safety net truncates from the END, so an appended default would be cut off."""
     from song_genres import GENRE_DEFAULT_ACCENT
     default = GENRE_DEFAULT_ACCENT.get(genre) if enabled else None
-    return f"{genre_style}, {default}" if default else genre_style
+    if not default:
+        return genre_style
+    return f"{default}, {genre_style}" if front else f"{genre_style}, {default}"
 
 
 def generate_multiple_variants(
@@ -711,7 +715,8 @@ def generate_multiple_variants(
         # suffix is prepended (Suno weights it first) but if we're over budget we trim
         # the SUFFIX, never the genre identity. (Bug: a long rapid-fire accent used to
         # truncate "East Coast hip-h…", losing boom bap / jazzy-sample descriptors.)
-        style = apply_genre_default_accent(style, genre, use_genre_default_accent)
+        style = apply_genre_default_accent(style, genre, use_genre_default_accent,
+                                           front=bool(genre_b and genre_b in GENRE_PRESETS))
         genre_style = style
         safe_inspired_by = sanitize_inspired_by_descriptors(inspired_by_descriptors)
         tail = f", {safe_inspired_by}" if safe_inspired_by else ""

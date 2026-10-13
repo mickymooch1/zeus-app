@@ -303,3 +303,28 @@ def test_kids_song_mode_applies_vocal_accent():
     _, gmv, _ = _post({"brief": "x", "genres": ["pop"], "kids_story": True,
                        "kids_mode": "song", "vocal_accent": "australian"})
     assert EXPECTED_ACCENTS["australian"] in _kw(gmv)["suffix_parts"]
+
+
+# ── Final review fixes ───────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("genre_b", ["bluegrass", "folk", "britpop"])
+def test_blend_default_survives_long_dj_transition_core(genre_b):
+    """Review finding: _dj_transition_style cores often hit the 990 cap, so a default
+    appended at the END was hard-truncated away (grime × bluegrass → no London accent)."""
+    style = _styles(["grime"], genre_b=genre_b, suffix_parts=[],
+                    use_genre_default_accent=True)[f"grime__{genre_b}"]
+    assert EXPECTED_DEFAULTS["grime"] in style
+    assert len(style) <= 990
+
+
+def test_every_default_genre_blend_keeps_its_default():
+    from song_genres import GENRE_PRESETS
+    lost = []
+    for g in EXPECTED_DEFAULTS:
+        for b in GENRE_PRESETS:
+            if b == g:
+                continue
+            style = _styles([g], genre_b=b, suffix_parts=[], use_genre_default_accent=True)[f"{g}__{b}"]
+            if EXPECTED_DEFAULTS[g] not in style:
+                lost.append(f"{g}x{b}")
+    assert lost == [], f"{len(lost)} blends lost their default, e.g. {lost[:5]}"
