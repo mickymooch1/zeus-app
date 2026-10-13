@@ -147,3 +147,25 @@ export function accentPayload(value) {
   if (!value) return {};
   return _ACCENT_KEYS.has(value) ? { vocal_accent: value } : { accent: value };
 }
+
+// Cover art customisation (spec 2026-10-14). Keys mirror backend
+// song_genres.COVER_ART_STYLE_MAP and the iOS Create screen —
+// guarded by backend/tests/test_cover_art_catalog_sync.py.
+export const COVER_ART_STYLE_OPTIONS = [
+  { key: 'cinematic',      emoji: '🎬', label: 'Cinematic' },
+  { key: 'painterly',      emoji: '🖼️', label: 'Painterly' },
+  { key: 'vibrant',        emoji: '🌈', label: 'Vibrant' },
+  { key: 'dark_moody',     emoji: '🖤', label: 'Dark & Moody' },
+  { key: 'dreamy',         emoji: '✨', label: 'Dreamy' },
+  { key: 'vintage',        emoji: '🎭', label: 'Vintage / Retro' },
+  { key: 'photorealistic', emoji: '📸', label: 'Photorealistic' },
+  { key: 'illustrated',    emoji: '🎨', label: 'Illustrated / Cartoon' },
+];
+
+export const coverArtPayload = (style, description) => {
+  const out = {};
+  if (style) out.cover_art_style = style;
+  const d = (description || '').trim();
+  if (d) out.cover_art_description = d;
+  return out;
+};
