@@ -131,6 +131,19 @@ const ACCENT_OPTIONS: AccentOption[] = [
   { key: 'newzealand',         label: 'New Zealand',          flag: '🇳🇿', group: 'pacific' },
 ];
 
+// ─── Cover art style (mirrors backend COVER_ART_STYLE_MAP + web genres.js;
+// guarded by backend/tests/test_cover_art_catalog_sync.py) ────────────────────
+const COVER_ART_STYLE_OPTIONS: { key: string; emoji: string; label: string }[] = [
+  { key: 'cinematic',      emoji: '🎬', label: 'Cinematic' },
+  { key: 'painterly',      emoji: '🖼️', label: 'Painterly' },
+  { key: 'vibrant',        emoji: '🌈', label: 'Vibrant' },
+  { key: 'dark_moody',     emoji: '🖤', label: 'Dark & Moody' },
+  { key: 'dreamy',         emoji: '✨', label: 'Dreamy' },
+  { key: 'vintage',        emoji: '🎭', label: 'Vintage / Retro' },
+  { key: 'photorealistic', emoji: '📸', label: 'Photorealistic' },
+  { key: 'illustrated',    emoji: '🎨', label: 'Illustrated / Cartoon' },
+];
+
 function glabel(key: string): string {
   return GENRE_LABEL[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
 }
@@ -165,6 +178,8 @@ export function CreateSongScreen() {
   const [vocalMode,    setVocalMode]    = useState<VocalMode>('full');
   const [accent,       setAccent]       = useState<string>('');
   const [accentOpen,   setAccentOpen]   = useState(false);
+  const [coverStyle,   setCoverStyle]   = useState<string>('');
+  const [coverDesc,    setCoverDesc]    = useState<string>('');
   const [phase,        setPhase]        = useState<Phase>('idle');
   const [errorMsg,     setErrorMsg]     = useState('');
   // Set when generate hit the email-verification gate: the address to verify
@@ -215,6 +230,8 @@ export function CreateSongScreen() {
           brief:               brief.trim(),
           genres:              [genre],
           vocal_accent:        accent || undefined,
+          cover_art_style:       coverStyle || undefined,
+          cover_art_description: coverDesc.trim() || undefined,
           instrumental:        vocalMode === 'instrumental' || undefined,
           intermittent_vocals: vocalMode === 'intermittent' || undefined,
           platform:            'ios',   // attribution — which store this song came from
@@ -529,6 +546,34 @@ export function CreateSongScreen() {
                 </View>
               )}
 
+              {/* ── Cover art ───────────────────────────────────────────── */}
+              <Text style={[s.sectionLabel, { marginTop: 24 }]}>🎨 Cover Art Style (optional)</Text>
+              <View style={s.accentChipWrap}>
+                {COVER_ART_STYLE_OPTIONS.map(o => {
+                  const active = coverStyle === o.key;
+                  return (
+                    <TouchableOpacity
+                      key={o.key}
+                      style={[s.vocalChip, active && s.vocalChipActive]}
+                      onPress={() => setCoverStyle(active ? '' : o.key)}
+                    >
+                      <Text style={[s.vocalChipText, active && s.vocalChipTextActive]}>{`${o.emoji} ${o.label}`}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={[s.sectionLabel, { marginTop: 18 }]}>✏️ Describe your cover art (optional)</Text>
+              <TextInput
+                style={s.coverInput}
+                value={coverDesc}
+                onChangeText={setCoverDesc}
+                maxLength={150}
+                multiline
+                placeholder="e.g. Manchester skyline at night, a dog at a piano, stormy ocean..."
+                placeholderTextColor={COLORS.textMuted}
+              />
+              <Text style={s.coverCount}>{coverDesc.length}/150</Text>
+
               {/* ── Vocal mode ──────────────────────────────────────────── */}
               <Text style={[s.sectionLabel, { marginTop: 24 }]}>VOCAL MODE</Text>
               <View style={s.vocalRow}>
@@ -693,6 +738,11 @@ const s = StyleSheet.create({
   accentPanel:        { marginTop: 10 },
   accentGroupHeading: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 6 },
   accentChipWrap:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+
+  // ── Cover art
+  coverInput:         { borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 10,
+                        paddingVertical: 10, paddingHorizontal: 14, color: '#fff', fontSize: 14, minHeight: 60 },
+  coverCount:         { color: COLORS.textMuted, fontSize: 11, textAlign: 'right', marginTop: 4 },
 
   // ── Create button
   createBtn: {

@@ -20,3 +20,19 @@ def _keys(src: str) -> list[str]:
 
 def test_web_cover_styles_match_backend():
     assert _keys(WEB) == list(COVER_ART_STYLE_MAP)
+
+
+IOS = (ROOT / "zeus-beats-ios" / "src" / "screens" / "CreateSongScreen.tsx").read_text(encoding="utf-8")
+
+
+def test_ios_cover_styles_match_backend():
+    assert _keys(IOS) == list(COVER_ART_STYLE_MAP)
+
+
+def test_ios_sends_both_fields_and_shows_labels():
+    assert "cover_art_style:" in IOS and "coverStyle || undefined" in IOS
+    assert "cover_art_description:" in IOS and "coverDesc.trim() || undefined" in IOS
+    assert "🎨 Cover Art Style (optional)" in IOS
+    assert "✏️ Describe your cover art (optional)" in IOS
+    assert "maxLength={150}" in IOS
+    assert IOS.index("Singer's Accent (optional)") < IOS.index("🎨 Cover Art Style (optional)") < IOS.index("── Vocal mode ─")
