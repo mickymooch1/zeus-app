@@ -24,7 +24,7 @@ import { useStoryModeEnabled } from '../hooks/useStoryModeEnabled';
 import ComingSoonBadge      from '../components/ComingSoonBadge';
 import ComingSoonModal      from '../components/ComingSoonModal';
 import SongCard, { S, actionBtnStyle } from '../components/SongCard';
-import { GENRE_CATEGORIES, KIDS_GENRE_CATEGORIES, kidsRequestGenres, genreColor, gLabel, GENRES, ACCENT_OPTIONS, ACCENT_GROUP_LABELS, accentOptionLabel, accentPayload } from '../utils/genres';
+import { GENRE_CATEGORIES, KIDS_GENRE_CATEGORIES, kidsRequestGenres, genreColor, gLabel, GENRES, ACCENT_OPTIONS, ACCENT_GROUP_LABELS, accentOptionLabel, accentPayload, COVER_ART_STYLE_OPTIONS, coverArtPayload } from '../utils/genres';
 import {
   readRoastDraft, clearRoastDraft,
   savePostVerifyDraft, readPostVerifyDraft, clearPostVerifyDraft,
@@ -428,6 +428,8 @@ export default function SongsPage() {
   });
   const [vocalGender, setVocalGender]     = useState('');
   const [accent, setAccent]               = useState('');
+  const [coverStyle, setCoverStyle]       = useState('');
+  const [coverDesc, setCoverDesc]         = useState('');
   // Genre blend
   const [genreBlend, setGenreBlend]       = useState(false);
   const [genreB, setGenreB]               = useState('');
@@ -1090,6 +1092,7 @@ export default function SongsPage() {
           roast_vibe: roastVibe,
           // Sent unconditionally — see the note in the standard branch below.
           ...accentPayload(accent),
+          ...coverArtPayload(coverStyle, coverDesc),
           model_version: modelVersion,
         };
       } else {
@@ -1117,6 +1120,7 @@ export default function SongsPage() {
           // blend) look like a backend fault. The state is the source of truth.
           vocal_gender: vocalGender || undefined,
           ...accentPayload(accent),
+          ...coverArtPayload(coverStyle, coverDesc),
           tempo: tempo || undefined,
           tempo_bpm: tempo === 'custom' ? tempoBpm : undefined,
           model_version: modelVersion,
@@ -2300,6 +2304,31 @@ export default function SongsPage() {
                   </optgroup>
                 </select>
                 <p style={{ fontSize: 11, color: '#cccccc', marginTop: 5 }}>Leave blank and Zeus uses the genre's natural accent.</p>
+              </div>
+            )}
+
+            {!isKidsMode && (
+              <div style={{ marginBottom: 18 }}>
+                <p className="zb-mini-label">🎨 Cover Art Style (optional)</p>
+                <div className="zb-chips" role="group" aria-label="Cover art style" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
+                  {COVER_ART_STYLE_OPTIONS.map(o => (
+                    <button key={o.key} type="button" className="zb-chip" aria-pressed={coverStyle === o.key}
+                      onClick={() => setCoverStyle(coverStyle === o.key ? '' : o.key)}>
+                      {o.emoji} {o.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="zb-mini-label">✏️ Describe your cover art (optional)</p>
+                <textarea
+                  className="zb-input"
+                  rows={2}
+                  maxLength={150}
+                  value={coverDesc}
+                  onChange={(e) => setCoverDesc(e.target.value)}
+                  placeholder="e.g. Manchester skyline at night, a dog at a piano, stormy ocean..."
+                  style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
+                />
+                <p style={{ fontSize: 11, color: '#7f93a8', textAlign: 'right', margin: '4px 0 0' }}>{coverDesc.length}/150</p>
               </div>
             )}
 
