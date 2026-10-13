@@ -312,3 +312,14 @@ def test_take_2_gets_flux_only_when_customised():
     assert "if permanent_image_url2 and not _take2_custom:" in take2
     assert take2.index("if permanent_image_url2 and not _take2_custom:") < take2.index("_generate_flux_cover(")
     assert "customised Flux failed — keeping Suno artwork" in take2
+
+
+# ── Final review fix: ordinary prose with ignore/forget must survive ────────
+
+@pytest.mark.parametrize("raw", [
+    "I will never forget my previous dog Max",
+    "Ignore the noise above the city lights and dance",
+    "Never forget your earlier self, a mirror",
+])
+def test_sanitiser_keeps_ordinary_ignore_forget_prose(raw):
+    assert sg.sanitize_cover_art_description(raw) == raw

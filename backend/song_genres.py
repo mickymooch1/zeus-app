@@ -367,7 +367,9 @@ _WEIGHT_RE = _re.compile(r"\(([^():]{1,60}):\s*-?\d+(?:\.\d+)?\)")
 _PARAM_RE = _re.compile(r"(?<![\w-])--[a-z][\w-]*(?:\s+(?!--)[^\s,]+)?", _re.I)   # one value only, so following words survive
 _NEGATIVE_RE = _re.compile(r"\bnegative\s+prompt\b.*$", _re.I)
 _IGNORE_RE = _re.compile(
-    r"[.,;:!?]?\s*\b(?:ignore|disregard|forget)\b[^,.;]*?\b(?:previous|prior|above|earlier|instructions?|prompt)\b[^,.;]*",
+    # Only when an instruction word follows within a few words, so prose like
+    # "never forget my previous dog" survives.
+    r"[.,;:!?]?\s*\b(?:ignore|disregard|forget)\s+(?:\w+\s+){0,3}?(?:instructions?|prompts?|rules)\b[^,.;]*",
     _re.I)
 _NO_TEXT_RE = _re.compile(r"[,;]?\s*\b(?:no|without)\s+(?:any\s+)?(?:text|words|lettering|typography)\b", _re.I)
 _TRAILING_NO_TEXT_RE = _re.compile(r",?\s*no text\s*$", _re.I)
