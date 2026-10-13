@@ -70,3 +70,57 @@ export const gLabel = (g) => {
 // cannot disagree again. genres.test.mjs pins this list to the backend's
 // GENRE_PRESETS keys so a genre can never be pickable without a style preset.
 export const GENRES = [...new Set(GENRE_CATEGORIES.flatMap(cat => cat.genres))];
+
+// ── Singer's accent picker ──────────────────────────────────────────────────
+// Keys/groups mirror backend/song_genres.py ACCENT_STYLE_MAP + ACCENT_GROUPS and
+// zeus-beats-ios CreateSongScreen.tsx; backend/tests/test_accent_catalog_sync.py
+// fails the build if any of the three drift.
+export const ACCENT_GROUP_LABELS = [
+  ['british_isles', '🇬🇧🇮🇪 British Isles & Ireland'],
+  ['americas',      '🌎 Americas'],
+  ['africa',        '🌍 Africa'],
+  ['europe',        '🇪🇺 Europe'],
+  ['asia',          '🌏 Middle East & Asia'],
+  ['pacific',       '🌊 Pacific'],
+];
+export const ACCENT_OPTIONS = [
+  { key: 'english_london',     label: 'London',               flag: '🇬🇧', group: 'british_isles' },
+  { key: 'english_northern',   label: 'Northern English',     flag: '🇬🇧', group: 'british_isles' },
+  { key: 'scottish',           label: 'Scottish',             flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', group: 'british_isles' },
+  { key: 'welsh',              label: 'Welsh',                flag: '🏴󠁧󠁢󠁷󠁬󠁳󠁿', group: 'british_isles' },
+  { key: 'irish',              label: 'Irish',                flag: '🇮🇪', group: 'british_isles' },
+  { key: 'american_southern',  label: 'Southern American',    flag: '🇺🇸', group: 'americas' },
+  { key: 'american_newyork',   label: 'New York',             flag: '🇺🇸', group: 'americas' },
+  { key: 'american_westcoast', label: 'West Coast American',  flag: '🇺🇸', group: 'americas' },
+  { key: 'jamaican',           label: 'Jamaican',             flag: '🇯🇲', group: 'americas' },
+  { key: 'brazilian',          label: 'Brazilian',            flag: '🇧🇷', group: 'americas' },
+  { key: 'mexican',            label: 'Mexican',              flag: '🇲🇽', group: 'americas' },
+  { key: 'colombian',          label: 'Colombian',            flag: '🇨🇴', group: 'americas' },
+  { key: 'nigerian',           label: 'Nigerian',             flag: '🇳🇬', group: 'africa' },
+  { key: 'ghanaian',           label: 'Ghanaian',             flag: '🇬🇭', group: 'africa' },
+  { key: 'south_african',      label: 'South African',        flag: '🇿🇦', group: 'africa' },
+  { key: 'kenyan',             label: 'Kenyan',               flag: '🇰🇪', group: 'africa' },
+  { key: 'senegalese',         label: 'Senegalese',           flag: '🇸🇳', group: 'africa' },
+  { key: 'french',             label: 'French',               flag: '🇫🇷', group: 'europe' },
+  { key: 'spanish',            label: 'Spanish',              flag: '🇪🇸', group: 'europe' },
+  { key: 'italian',            label: 'Italian',              flag: '🇮🇹', group: 'europe' },
+  { key: 'german',             label: 'German',               flag: '🇩🇪', group: 'europe' },
+  { key: 'portuguese',         label: 'Portuguese',           flag: '🇵🇹', group: 'europe' },
+  { key: 'indian',             label: 'Indian',               flag: '🇮🇳', group: 'asia' },
+  { key: 'pakistani',          label: 'Pakistani',            flag: '🇵🇰', group: 'asia' },
+  { key: 'arabic',             label: 'Arabic',               flag: '🇸🇦', group: 'asia' },
+  { key: 'japanese',           label: 'Japanese',             flag: '🇯🇵', group: 'asia' },
+  { key: 'korean',             label: 'Korean',               flag: '🇰🇷', group: 'asia' },
+  { key: 'australian',         label: 'Australian',           flag: '🇦🇺', group: 'pacific' },
+  { key: 'newzealand',         label: 'New Zealand',          flag: '🇳🇿', group: 'pacific' },
+];
+const _ACCENT_KEYS = new Set(ACCENT_OPTIONS.map(o => o.key));
+
+export const accentOptionLabel = (opt) => `${opt.flag} ${opt.label}`;
+
+// One picker holds two kinds of value: an ACCENT_OPTIONS key (→ vocal_accent) or a
+// legacy language / vocal-style value (→ accent, which lyrics.py also reads).
+export function accentPayload(value) {
+  if (!value) return {};
+  return _ACCENT_KEYS.has(value) ? { vocal_accent: value } : { accent: value };
+}
