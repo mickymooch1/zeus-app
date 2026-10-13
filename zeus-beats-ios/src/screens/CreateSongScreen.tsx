@@ -85,6 +85,52 @@ const GENRE_LABEL: Record<string, string> = {
   disco:'Disco', nudisco:'Nu Disco', bollywood:'Bollywood', boombap:'Boom Bap', citypop:'City Pop', futurebass:'Future Bass', gqom:'Gqom', gogo:'Go-Go', traditionalcountry:'Traditional Country', classicsoul:'Classic Soul',
 };
 
+// ─── Singer's accent (mirrors backend ACCENT_STYLE_MAP + web genres.js; guarded by
+// backend/tests/test_accent_catalog_sync.py) ─────────────────────────────────
+
+interface AccentOption { key: string; label: string; flag: string; group: string }
+
+const ACCENT_GROUP_LABELS: [string, string][] = [
+  ['british_isles', '🇬🇧🇮🇪 British Isles & Ireland'],
+  ['americas',      '🌎 Americas'],
+  ['africa',        '🌍 Africa'],
+  ['europe',        '🇪🇺 Europe'],
+  ['asia',          '🌏 Middle East & Asia'],
+  ['pacific',       '🌊 Pacific'],
+];
+
+const ACCENT_OPTIONS: AccentOption[] = [
+  { key: 'english_london',     label: 'London',               flag: '🇬🇧', group: 'british_isles' },
+  { key: 'english_northern',   label: 'Northern English',     flag: '🇬🇧', group: 'british_isles' },
+  { key: 'scottish',           label: 'Scottish',             flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', group: 'british_isles' },
+  { key: 'welsh',              label: 'Welsh',                flag: '🏴󠁧󠁢󠁷󠁬󠁳󠁿', group: 'british_isles' },
+  { key: 'irish',              label: 'Irish',                flag: '🇮🇪', group: 'british_isles' },
+  { key: 'american_southern',  label: 'Southern American',    flag: '🇺🇸', group: 'americas' },
+  { key: 'american_newyork',   label: 'New York',             flag: '🇺🇸', group: 'americas' },
+  { key: 'american_westcoast', label: 'West Coast American',  flag: '🇺🇸', group: 'americas' },
+  { key: 'jamaican',           label: 'Jamaican',             flag: '🇯🇲', group: 'americas' },
+  { key: 'brazilian',          label: 'Brazilian',            flag: '🇧🇷', group: 'americas' },
+  { key: 'mexican',            label: 'Mexican',              flag: '🇲🇽', group: 'americas' },
+  { key: 'colombian',          label: 'Colombian',            flag: '🇨🇴', group: 'americas' },
+  { key: 'nigerian',           label: 'Nigerian',             flag: '🇳🇬', group: 'africa' },
+  { key: 'ghanaian',           label: 'Ghanaian',             flag: '🇬🇭', group: 'africa' },
+  { key: 'south_african',      label: 'South African',        flag: '🇿🇦', group: 'africa' },
+  { key: 'kenyan',             label: 'Kenyan',               flag: '🇰🇪', group: 'africa' },
+  { key: 'senegalese',         label: 'Senegalese',           flag: '🇸🇳', group: 'africa' },
+  { key: 'french',             label: 'French',               flag: '🇫🇷', group: 'europe' },
+  { key: 'spanish',            label: 'Spanish',              flag: '🇪🇸', group: 'europe' },
+  { key: 'italian',            label: 'Italian',              flag: '🇮🇹', group: 'europe' },
+  { key: 'german',             label: 'German',               flag: '🇩🇪', group: 'europe' },
+  { key: 'portuguese',         label: 'Portuguese',           flag: '🇵🇹', group: 'europe' },
+  { key: 'indian',             label: 'Indian',               flag: '🇮🇳', group: 'asia' },
+  { key: 'pakistani',          label: 'Pakistani',            flag: '🇵🇰', group: 'asia' },
+  { key: 'arabic',             label: 'Arabic',               flag: '🇸🇦', group: 'asia' },
+  { key: 'japanese',           label: 'Japanese',             flag: '🇯🇵', group: 'asia' },
+  { key: 'korean',             label: 'Korean',               flag: '🇰🇷', group: 'asia' },
+  { key: 'australian',         label: 'Australian',           flag: '🇦🇺', group: 'pacific' },
+  { key: 'newzealand',         label: 'New Zealand',          flag: '🇳🇿', group: 'pacific' },
+];
+
 function glabel(key: string): string {
   return GENRE_LABEL[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
 }
@@ -117,6 +163,8 @@ export function CreateSongScreen() {
   const [genre,        setGenre]        = useState<string | null>(null);
   const [expanded,     setExpanded]     = useState<Set<string>>(new Set(['uk_street']));
   const [vocalMode,    setVocalMode]    = useState<VocalMode>('full');
+  const [accent,       setAccent]       = useState<string>('');
+  const [accentOpen,   setAccentOpen]   = useState(false);
   const [phase,        setPhase]        = useState<Phase>('idle');
   const [errorMsg,     setErrorMsg]     = useState('');
   // Set when generate hit the email-verification gate: the address to verify
@@ -166,6 +214,7 @@ export function CreateSongScreen() {
         body: JSON.stringify({
           brief:               brief.trim(),
           genres:              [genre],
+          vocal_accent:        accent || undefined,
           instrumental:        vocalMode === 'instrumental' || undefined,
           intermittent_vocals: vocalMode === 'intermittent' || undefined,
           platform:            'ios',   // attribution — which store this song came from
@@ -440,6 +489,46 @@ export function CreateSongScreen() {
                 );
               })}
 
+              {/* ── Singer's accent ─────────────────────────────────────── */}
+              <Text style={[s.sectionLabel, { marginTop: 24 }]}>🎤 Singer's Accent (optional)</Text>
+              <TouchableOpacity style={s.accentRow} onPress={() => setAccentOpen(o => !o)}>
+                <Text style={s.accentRowText}>
+                  {accent
+                    ? (() => { const o = ACCENT_OPTIONS.find(x => x.key === accent); return o ? `${o.flag} ${o.label}` : 'None'; })()
+                    : 'None'}
+                </Text>
+                <Text style={s.accentRowText}>{accentOpen ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+              {accentOpen && (
+                <View style={s.accentPanel}>
+                  <TouchableOpacity
+                    style={[s.vocalChip, !accent && s.vocalChipActive, { alignSelf: 'flex-start', marginBottom: 8 }]}
+                    onPress={() => { setAccent(''); setAccentOpen(false); }}
+                  >
+                    <Text style={[s.vocalChipText, !accent && s.vocalChipTextActive]}>None</Text>
+                  </TouchableOpacity>
+                  {ACCENT_GROUP_LABELS.map(([groupId, heading]) => (
+                    <View key={groupId} style={{ marginBottom: 10 }}>
+                      <Text style={s.accentGroupHeading}>{heading}</Text>
+                      <View style={s.accentChipWrap}>
+                        {ACCENT_OPTIONS.filter(o => o.group === groupId).map(o => {
+                          const active = accent === o.key;
+                          return (
+                            <TouchableOpacity
+                              key={o.key}
+                              style={[s.vocalChip, active && s.vocalChipActive]}
+                              onPress={() => { setAccent(o.key); setAccentOpen(false); }}
+                            >
+                              <Text style={[s.vocalChipText, active && s.vocalChipTextActive]}>{`${o.flag} ${o.label}`}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
               {/* ── Vocal mode ──────────────────────────────────────────── */}
               <Text style={[s.sectionLabel, { marginTop: 24 }]}>VOCAL MODE</Text>
               <View style={s.vocalRow}>
@@ -595,6 +684,15 @@ const s = StyleSheet.create({
   },
   vocalChipText: { fontSize: 12, fontWeight: '500', color: COLORS.textMuted },
   vocalChipTextActive: { color: '#c4b5fd', fontWeight: '700' },
+
+  // ── Singer's accent
+  accentRow:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                        borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 10,
+                        paddingVertical: 12, paddingHorizontal: 14 },
+  accentRowText:      { color: '#fff', fontSize: 14 },
+  accentPanel:        { marginTop: 10 },
+  accentGroupHeading: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 6 },
+  accentChipWrap:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 
   // ── Create button
   createBtn: {
