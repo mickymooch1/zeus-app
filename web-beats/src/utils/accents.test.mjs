@@ -77,3 +77,11 @@ test('both kids song pickers use the shared component and send vocal_accent', ()
   // Story narrator still rides on `accent`.
   assert.match(SONGS_PAGE, /accent: kidsSubMode === 'story' \? \(kidsNarratorVoice \|\| undefined\) : undefined/);
 });
+
+test('adult accent picker is hidden in Kids mode (kids has its own Singer\'s Voice picker)', () => {
+  const src = readFileSync(new URL('../pages/SongsPage.jsx', import.meta.url), 'utf8');
+  const at = src.indexOf("t('songs.accentLabel')");
+  const gate = src.lastIndexOf('{', src.lastIndexOf('&& (', at));
+  const cond = src.slice(gate, src.lastIndexOf('&& (', at));
+  assert.match(cond, /!isKidsMode/, `adult picker condition is: ${cond}`);
+});

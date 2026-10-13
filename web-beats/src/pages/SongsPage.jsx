@@ -2221,7 +2221,7 @@ export default function SongsPage() {
 
             <GenreTileGrid selGenres={selGenres} toggleGenre={toggleGenre} gLabel={gLabel} />
 
-            {!['meditation','healingfrequency'].some(g => selGenres.has(g)) && (
+            {!isKidsMode && !['meditation','healingfrequency'].some(g => selGenres.has(g)) && (
               <div style={{ marginBottom: 18 }}>
                 <p className="zb-mini-label">{t('songs.accentLabel')}</p>
                 <select
