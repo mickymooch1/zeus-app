@@ -261,3 +261,85 @@ def resolve_sound_control(sound_control):
     if notes:
         descriptors.append(notes)
     return descriptors, instrumental
+
+# ── Singer's accent picker ───────────────────────────────────────────────────
+# Spec: docs/superpowers/specs/2026-10-13-vocal-accent-picker-design.md.
+# Mirrored (keys + groups) in web-beats/src/utils/genres.js ACCENT_OPTIONS and
+# zeus-beats-ios CreateSongScreen.tsx; tests/test_accent_catalog_sync.py guards it.
+ACCENT_STYLE_MAP: dict[str, str] = {
+    # British Isles & Ireland
+    "english_london":     "authentic London British vocals, Cockney or South London accent",
+    "english_northern":   "Northern English vocals, Manchester or Leeds accent, gritty and warm",
+    "scottish":           "Scottish accent vocals, Edinburgh or Glasgow lilt",
+    "welsh":              "Welsh accent vocals, melodic lilting tone",
+    "irish":              "Irish accent vocals, lilting Dublin or Cork delivery",
+    # Americas
+    "american_southern":  "Southern American accent, country twang, warm drawl",
+    "american_newyork":   "New York accent vocals, sharp and urban",
+    "american_westcoast": "West Coast American vocals, laid back California delivery",
+    "jamaican":           "Jamaican patois vocals, dancehall delivery, island lilt",
+    "brazilian":          "Brazilian Portuguese vocals, warm samba inflection",
+    "mexican":            "Mexican Spanish vocals, warm ranchera delivery",
+    "colombian":          "Colombian Spanish vocals, coastal Caribbean lilt",
+    # Africa
+    "nigerian":           "Nigerian vocal style, Afrobeats inflection, Lagos energy",
+    "ghanaian":           "Ghanaian vocals, highlife warmth, Accra tone",
+    "south_african":      "South African vocals, township energy, Joburg delivery",
+    "kenyan":             "Kenyan vocals, East African lilt, Nairobi style",
+    "senegalese":         "Senegalese vocals, West African griot warmth",
+    # Europe
+    "french":             "French accent vocals, Parisian delivery, romantic tone",
+    "spanish":            "Spanish accent vocals, Castilian delivery",
+    "italian":            "Italian accent vocals, operatic warmth, Mediterranean tone",
+    "german":             "German accent vocals, precise and powerful delivery",
+    "portuguese":         "Portuguese vocals, Lisbon fado-tinged delivery",
+    # Middle East & Asia
+    "indian":             "Indian accent vocals, Bollywood warmth, Hindi film style",
+    "pakistani":          "Pakistani vocals, Lahori delivery, qawwali warmth",
+    "arabic":             "Arabic accent vocals, Middle Eastern melodic delivery",
+    "japanese":           "Japanese accent vocals, precise and melodic J-pop delivery",
+    "korean":             "Korean accent vocals, K-pop clean and precise delivery",
+    # Pacific
+    "australian":         "Australian accent vocals, laid back Aussie delivery",
+    "newzealand":         "New Zealand accent vocals, warm Kiwi tone",
+}
+
+ACCENT_GROUPS: list[tuple[str, list[str]]] = [
+    ("british_isles", ["english_london", "english_northern", "scottish", "welsh", "irish"]),
+    ("americas", ["american_southern", "american_newyork", "american_westcoast", "jamaican",
+                  "brazilian", "mexican", "colombian"]),
+    ("africa", ["nigerian", "ghanaian", "south_african", "kenyan", "senegalese"]),
+    ("europe", ["french", "spanish", "italian", "german", "portuguese"]),
+    ("asia", ["indian", "pakistani", "arabic", "japanese", "korean"]),
+    ("pacific", ["australian", "newzealand"]),
+]
+
+# The accent a genre sings in when the user picks none. Kept OUT of GENRE_PRESETS so an
+# explicit choice can replace it cleanly; songs.apply_genre_default_accent appends it.
+GENRE_DEFAULT_ACCENT: dict[str, str] = {
+    "grime":           "authentic London British MC vocals, South London accent",
+    "ukdrill":         "London drill vocals, South London accent",
+    "irishrebel":      "Irish accent vocals, Dublin delivery",
+    "irishballad":     "Irish accent vocals, lilting emotional delivery",
+    "irishtradtechno": "Irish accent gang vocals",
+    "ragga":           "Jamaican patois vocals, dancehall delivery",
+    "rootsreggae":     "Jamaican vocals, roots delivery",
+    "country":         "Southern American accent, country twang",
+    "countrysoul":     "Southern American vocals, warm soul drawl",
+    "outlawcountry":   "Southern American accent, dark and gritty drawl",
+    "countryrap":      "Southern American accent, country rap drawl",
+    "countryballad":   "Southern American accent, emotional country delivery",
+}
+
+
+def resolve_vocal_accent(key: str | None) -> str | None:
+    """The ACCENT_STYLE_MAP key for a client value, or None when blank/unknown."""
+    k = (key or "").strip().lower()
+    return k if k in ACCENT_STYLE_MAP else None
+
+
+def should_use_genre_default_accent(*, vocal_accent_key: str | None, legacy_accent: str | None,
+                                    instrumental: bool, intermittent: bool, is_story: bool) -> bool:
+    """Genre defaults apply only to sung songs where the user chose no accent at all —
+    any explicit choice (incl. a legacy language/vocal-style accent) replaces them."""
+    return not (vocal_accent_key or legacy_accent or instrumental or intermittent or is_story)
