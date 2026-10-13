@@ -39,6 +39,6 @@ test('Create-page Kids music style starts unpicked and both pickers can unpick i
   const toggles = SONGS_PAGE.match(/onClick=\{\(\) => setKidsMusicStyle\(kidsMusicStyle === val \? null : val\)\}/g) || [];
   assert.equal(toggles.length, 2, 'Song and Story pickers must both toggle');
   assert.ok(!/setKidsMusicStyle\(val\)\}/.test(SONGS_PAGE), 'a picker still only selects');
-  // Nothing picked → pop, as before.
-  assert.match(SONGS_PAGE, /genres: KIDS_MUSIC_GENRES\[kidsMusicStyle\] \|\| \['pop'\]/);
+  // Nothing picked → pop (see kidsRequestGenres in kidsGenres.test.mjs).
+  assert.match(SONGS_PAGE, /genres: kidsRequestGenres\(selGenres, KIDS_MUSIC_GENRES\[kidsMusicStyle\]\)/);
 });

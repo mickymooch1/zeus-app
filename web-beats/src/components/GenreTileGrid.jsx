@@ -26,14 +26,14 @@ function TileArt({ color, src }) {
   );
 }
 
-export default function GenreTileGrid({ selGenres, toggleGenre, gLabel, artFor = tileArt }) {
+export default function GenreTileGrid({ selGenres, toggleGenre, gLabel, artFor = tileArt, categories = GENRE_CATEGORIES }) {
   const [catId, setCatId] = useState(() => initialCategory(selGenres));
-  const cat = GENRE_CATEGORIES.find((c) => c.id === catId) || GENRE_CATEGORIES[0];
+  const cat = categories.find((c) => c.id === catId) || categories[0];
 
   return (
     <>
       <div className="zb-chips" role="group" aria-label="Genre categories">
-        {GENRE_CATEGORIES.map((c) => {
+        {categories.map((c) => {
           const n = c.genres.reduce((k, g) => k + (selGenres.has(g) ? 1 : 0), 0);
           return (
             <button key={c.id} type="button" className="zb-chip" aria-pressed={c.id === cat.id} onClick={() => setCatId(c.id)}>

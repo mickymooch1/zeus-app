@@ -24,7 +24,7 @@ import { useStoryModeEnabled } from '../hooks/useStoryModeEnabled';
 import ComingSoonBadge      from '../components/ComingSoonBadge';
 import ComingSoonModal      from '../components/ComingSoonModal';
 import SongCard, { S, actionBtnStyle } from '../components/SongCard';
-import { GENRE_CATEGORIES, genreColor, gLabel, GENRES, ACCENT_OPTIONS, ACCENT_GROUP_LABELS, accentOptionLabel, accentPayload } from '../utils/genres';
+import { GENRE_CATEGORIES, KIDS_GENRE_CATEGORIES, kidsRequestGenres, genreColor, gLabel, GENRES, ACCENT_OPTIONS, ACCENT_GROUP_LABELS, accentOptionLabel, accentPayload } from '../utils/genres';
 import {
   readRoastDraft, clearRoastDraft,
   savePostVerifyDraft, readPostVerifyDraft, clearPostVerifyDraft,
@@ -1067,7 +1067,7 @@ export default function SongsPage() {
         ].filter(Boolean).join('. ');
         requestBody = {
           brief: kidsBrief,
-          genres: KIDS_MUSIC_GENRES[kidsMusicStyle] || ['pop'],
+          genres: kidsRequestGenres(selGenres, KIDS_MUSIC_GENRES[kidsMusicStyle]),
           song_title: songTitle.trim() || undefined,
           kids_story: true,
           kids_mode: kidsSubMode,
@@ -1705,6 +1705,8 @@ export default function SongsPage() {
 
   const toggleGenre = (g) =>
     setSelGenres((prev) => {
+      // Kids mode makes one song for 1 credit, so its tiles are single-select.
+      if (isKidsMode) return prev.has(g) ? new Set() : new Set([g]);
       const next = new Set(prev);
       next.has(g) ? next.delete(g) : next.add(g);
       return next;
@@ -2197,7 +2199,7 @@ export default function SongsPage() {
                 they did not know they were spending. Only shown at 2+, so it explains
                 itself exactly when the misconception can occur and stays out of the way
                 otherwise. Genre BLENDING is a different feature (Genre B, below). */}
-            {selGenres.size > 1 && (
+            {!isKidsMode && selGenres.size > 1 && (
               <p style={{
                 display: 'flex', gap: 8, alignItems: 'flex-start',
                 background: 'rgba(22,200,255,0.06)',
@@ -2219,7 +2221,7 @@ export default function SongsPage() {
               </p>
             )}
 
-            <GenreTileGrid selGenres={selGenres} toggleGenre={toggleGenre} gLabel={gLabel} />
+            <GenreTileGrid selGenres={selGenres} toggleGenre={toggleGenre} gLabel={gLabel} categories={isKidsMode ? KIDS_GENRE_CATEGORIES : GENRE_CATEGORIES} />
 
             {!isKidsMode && !['meditation','healingfrequency'].some(g => selGenres.has(g)) && (
               <div style={{ marginBottom: 18 }}>

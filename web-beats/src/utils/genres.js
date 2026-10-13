@@ -71,6 +71,29 @@ export const gLabel = (g) => {
 // GENRE_PRESETS keys so a genre can never be pickable without a style preset.
 export const GENRES = [...new Set(GENRE_CATEGORIES.flatMap(cat => cat.genres))];
 
+// Kids section of the main Create page only (the standalone /kids app has its own
+// pickers): genres whose style is too dark, aggressive or adult-themed for a
+// children's song or story are left out of its tile grid.
+export const KIDS_HIDDEN_GENRES = new Set([
+  'ukdrill', 'deeprotbassline',
+  'dancehall', 'corridos',
+  'trap', 'latintrap', 'trapsoul', 'driftphonk', 'brazilianphonk',
+  'metal', 'outlawcountry', 'outlawcountryrap', 'irishrebel',
+  'darkcinematic', 'witchhouse', 'gothicrock',
+]);
+export const KIDS_GENRE_CATEGORIES = GENRE_CATEGORIES
+  .map(cat => ({ ...cat, genres: cat.genres.filter(g => !KIDS_HIDDEN_GENRES.has(g)) }))
+  .filter(cat => cat.genres.length > 0);
+
+// A Kids song/story is flat-rate (1 credit) but the backend renders — and charges —
+// one variant per genre sent, so exactly one genre goes out: the picked tile, else
+// the Kids Music Style's genre, else pop.
+export const kidsRequestGenres = (selGenres, styleGenres) => {
+  const tile = [...selGenres].find(g => !KIDS_HIDDEN_GENRES.has(g));
+  if (tile) return [tile];
+  return styleGenres?.length ? [styleGenres[0]] : ['pop'];
+};
+
 // ── Singer's accent picker ──────────────────────────────────────────────────
 // Keys/groups mirror backend/song_genres.py ACCENT_STYLE_MAP + ACCENT_GROUPS and
 // zeus-beats-ios CreateSongScreen.tsx; backend/tests/test_accent_catalog_sync.py
