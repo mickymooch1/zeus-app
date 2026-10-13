@@ -121,3 +121,76 @@ def test_should_use_genre_default_accent(kw, expected):
                 intermittent=False, is_story=False)
     args.update(kw)
     assert should_use_genre_default_accent(**args) is expected
+
+
+# ── Task 2: songs-level defaults ─────────────────────────────────────────────
+
+def _styles(genres, **kw):
+    """Run the real generate_multiple_variants (admin: no credit DB) and capture
+    the style_prompt each variant would send to the provider."""
+    import songs
+    captured = {}
+
+    def fake_variant(**k):
+        captured[k["genre_tag"]] = k["style_prompt"]
+        return {"variant_id": len(captured)}
+
+    with patch.object(songs, "generate_song_variant", side_effect=fake_variant):
+        songs.generate_multiple_variants(user_id="u", lyric_id=1, genres=genres,
+                                         db_path="unused.db", is_admin=True, **kw)
+    return captured
+
+
+def test_apply_genre_default_accent_unit():
+    from songs import apply_genre_default_accent
+    assert apply_genre_default_accent("core", "grime", True) == \
+        "core, authentic London British MC vocals, South London accent"
+    assert apply_genre_default_accent("core", "grime", False) == "core"
+    assert apply_genre_default_accent("core", "pop", True) == "core"
+
+
+@pytest.mark.parametrize("genre,snippet", sorted(EXPECTED_DEFAULTS.items()))
+def test_each_default_genre_gets_its_accent(genre, snippet):
+    style = _styles([genre], suffix_parts=[], use_genre_default_accent=True)[genre]
+    assert snippet in style
+
+
+@pytest.mark.parametrize("genre", sorted(EXPECTED_DEFAULTS))
+def test_flag_off_means_no_default(genre):
+    style = _styles([genre], suffix_parts=[], use_genre_default_accent=False)[genre]
+    assert EXPECTED_DEFAULTS[genre] not in style
+
+
+def test_genres_without_a_default_are_byte_identical():
+    """No accent = no change: the flag must not touch any other genre's style."""
+    from song_genres import GENRE_PRESETS
+    plain = [g for g in GENRE_PRESETS if g not in EXPECTED_DEFAULTS]
+    for g in plain:
+        on = _styles([g], suffix_parts=["slow tempo"], use_genre_default_accent=True)[g]
+        off = _styles([g], suffix_parts=["slow tempo"], use_genre_default_accent=False)[g]
+        assert on == off, g
+
+
+def test_default_only_on_matching_variant():
+    s = _styles(["grime", "pop"], suffix_parts=[], use_genre_default_accent=True)
+    assert EXPECTED_DEFAULTS["grime"] in s["grime"]
+    assert "South London accent" not in s["pop"]
+
+
+def test_blend_variant_gets_own_genre_default_once():
+    s = _styles(["grime"], genre_b="pop", suffix_parts=[], use_genre_default_accent=True)
+    style = s["grime__pop"]
+    assert style.count(EXPECTED_DEFAULTS["grime"]) == 1
+
+
+def test_default_survives_suffix_trim():
+    huge = ["x" * 400, "y" * 400, "z" * 400]
+    style = _styles(["grime"], suffix_parts=huge, use_genre_default_accent=True)["grime"]
+    assert EXPECTED_DEFAULTS["grime"] in style
+    assert len(style) <= 990
+
+
+def test_existing_callers_unchanged_by_default():
+    """Callers that don't pass the flag (remix, zeus_agent) get no default."""
+    style = _styles(["grime"], suffix_parts=[])["grime"]
+    assert EXPECTED_DEFAULTS["grime"] not in style
