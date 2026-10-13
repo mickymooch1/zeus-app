@@ -148,3 +148,88 @@ def test_safety_check_raises_on_flagged_image(monkeypatch):
     ig, _ = _fake_fal(monkeypatch, {"images": [{"url": "https://cdn/x.jpg"}], "has_nsfw_concepts": [True]})
     with pytest.raises(ig.UnsafeImageError):
         ig.submit_image_generation("p", "1:1", safety_check=True)
+
+
+# ── Task 3: storage + endpoint ───────────────────────────────────────────────
+from unittest.mock import patch  # noqa: E402
+
+
+def test_lyrics_table_gets_cover_columns_and_helper_writes_them(tmp_path):
+    import db
+    import sqlite3
+    p = tmp_path / "z.db"
+    db.init_user_tables(p)
+    cols = {r[1] for r in sqlite3.connect(p).execute("PRAGMA table_info(lyrics)")}
+    assert {"cover_art_style", "cover_art_description"} <= cols
+    conn = sqlite3.connect(p)
+    conn.execute("INSERT INTO lyrics (id, user_id, brief, lyrics_text, title) VALUES (7, 'u', 'b', 'l', 't')")
+    conn.commit()
+    db.set_lyric_cover_art(p, 7, "vibrant", "a red fox")
+    assert sqlite3.connect(p).execute(
+        "SELECT cover_art_style, cover_art_description FROM lyrics WHERE id = 7").fetchone() == ("vibrant", "a red fox")
+
+
+def _user():
+    return {"id": "cover-user", "email": "c@example.com", "subscription_status": "active",
+            "subscription_plan": "free", "password_hash": "x", "name": "C",
+            "is_admin": 0, "email_verified": 1}
+
+
+def _post(body):
+    import auth
+    import main as _main
+    from fastapi.testclient import TestClient
+    _main.app.dependency_overrides[auth.get_current_user] = _user
+    _main.limiter.enabled = False
+    try:
+        with patch("db.get_song_credits", return_value={"balance": 10, "monthly_allowance": 0}), \
+             patch("db.upsert_song_credits"), \
+             patch("db.set_lyric_cover_art", create=True) as store, \
+             patch("lyrics.generate_lyrics",
+                   return_value={"lyric_id": 1, "lyrics": "[Verse 1]\nfake", "title": "Fake"}), \
+             patch("songs.generate_multiple_variants",
+                   return_value={"variants": [{"variant_id": 1, "genre": "pop"}]}):
+            with TestClient(_main.app) as client:
+                resp = client.post("/api/songs/generate", json=body,
+                                   headers={"Authorization": "Bearer fake"})
+        return resp, store
+    finally:
+        _main.app.dependency_overrides.pop(auth.get_current_user, None)
+
+
+BASE = {"brief": "a song", "genres": ["pop"]}
+
+
+def test_choices_are_cleaned_and_stored_on_the_lyric():
+    resp, store = _post({**BASE, "cover_art_style": " Dreamy ", "cover_art_description": "a moon, no text"})
+    assert resp.status_code == 200, resp.text
+    store.assert_called_once()
+    _path, lyric_id, style, desc = store.call_args.args
+    assert (lyric_id, style, desc) == (1, "dreamy", "a moon")
+
+
+def test_150_chars_accepted_151_rejected():
+    ok, _ = _post({**BASE, "cover_art_description": "a" * 150})
+    assert ok.status_code == 200, ok.text
+    bad, store = _post({**BASE, "cover_art_description": "a" * 151})
+    assert bad.status_code == 422
+    store.assert_not_called()
+
+
+def test_nothing_stored_without_choices():
+    resp, store = _post(BASE)
+    assert resp.status_code == 200, resp.text
+    store.assert_not_called()
+
+
+def test_unknown_style_ignored_and_nothing_stored():
+    resp, store = _post({**BASE, "cover_art_style": "neon"})
+    assert resp.status_code == 200, resp.text
+    store.assert_not_called()
+
+
+def test_kids_request_stores_nothing():
+    resp, store = _post({**BASE, "kids_story": True, "kids_mode": "song",
+                         "cover_art_style": "vibrant", "cover_art_description": "a castle"})
+    assert resp.status_code == 200, resp.text
+    store.assert_not_called()

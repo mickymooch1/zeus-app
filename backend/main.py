@@ -2497,6 +2497,8 @@ class SongsGenerateRequest(BaseModel):
     model_version: str | None = None     # "V4.5" | "V4.5 Plus" | "V5" | "V5.5"
     accent: str | None = None            # e.g. "British" → appended to style string
     vocal_accent: str | None = Field(default=None, max_length=40)  # song_genres.ACCENT_STYLE_MAP key → style prefix; overrides genre default
+    cover_art_style: str | None = Field(default=None, max_length=40)          # song_genres.COVER_ART_STYLE_MAP key
+    cover_art_description: str | None = Field(default=None, max_length=150)  # free text, sanitised before use
     explicit: bool = False               # agency/enterprise only — loosens Suno content filter
     instrumental: bool = False           # skip lyrics; append instrumental style suffix
     intermittent_vocals: bool = False    # mostly instrumental with sparse vocal hooks/ad libs
@@ -2891,6 +2893,19 @@ async def songs_generate(
         raise HTTPException(status_code=500, detail=f"Lyrics generation failed: {exc}")
 
     lyric_id = lyric_result["lyric_id"]
+
+    # Cover art choices ride on the lyric row; the webhook's Flux cover reads them.
+    if not body.kids_story and (body.cover_art_style or body.cover_art_description):
+        from song_genres import resolve_cover_art_style as _res_cover, sanitize_cover_art_description as _clean_cover
+        _cover_style = _res_cover(body.cover_art_style)
+        if body.cover_art_style and not _cover_style:
+            log.info("cover art: unknown cover_art_style=%r ignored", body.cover_art_style)
+        _cover_desc = _clean_cover(body.cover_art_description)
+        if _cover_style or _cover_desc:
+            try:
+                db.set_lyric_cover_art(db_path, lyric_id, _cover_style, _cover_desc)
+            except Exception:
+                log.exception("cover art: failed to store choices for lyric_id=%s", lyric_id)
 
     # ElevenLabs TTS narration — Story sub-mode only; costs 1 regular song credit (not premium)
     story_audio_url = None

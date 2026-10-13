@@ -384,6 +384,9 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE users ADD COLUMN school_verified INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE song_variants ADD COLUMN subtitles_url TEXT",
             "ALTER TABLE lyrics ADD COLUMN kids_story INTEGER NOT NULL DEFAULT 0",
+            # Create-flow cover art choices (spec 2026-10-14); read by webhooks._generate_flux_cover.
+            "ALTER TABLE lyrics ADD COLUMN cover_art_style TEXT",
+            "ALTER TABLE lyrics ADD COLUMN cover_art_description TEXT",
             "ALTER TABLE users ADD COLUMN custom_voice_id TEXT",
             # Canonical (normalised) email — defeats the Gmail +alias/dot tricks.
             # Deliberately NOT UNIQUE: historical duplicates may already exist and
@@ -3373,5 +3376,18 @@ def get_active_subscribers(db_path: pathlib.Path, plans: list[str]) -> list[dict
             plans,
         ).fetchall()
         return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def set_lyric_cover_art(db_path, lyric_id: int, style: str | None, description: str | None) -> None:
+    """Store the Create-flow cover-art choices; webhooks._generate_flux_cover reads them."""
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE lyrics SET cover_art_style = ?, cover_art_description = ? WHERE id = ?",
+            (style, description, lyric_id),
+        )
+        conn.commit()
     finally:
         conn.close()
