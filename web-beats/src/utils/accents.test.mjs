@@ -33,11 +33,12 @@ test('adult label text', () => {
   assert.equal(EN.songs.accentLabel, "🎤 Singer's Accent (optional)");
 });
 
-test('adult picker sits right after the genre grid, outside Advanced', () => {
-  const grid = SONGS_PAGE.indexOf('<GenreTileGrid');
-  const picker = SONGS_PAGE.indexOf("t('songs.accentLabel')");
+test('adult picker is in Advanced, back in its original slot: Vocal gender → accent → Model', () => {
   const adv = SONGS_PAGE.indexOf('{showAdvanced && (');
-  assert.ok(grid > 0 && picker > grid && picker < adv, 'picker must be between grid and Advanced');
+  const gender = SONGS_PAGE.indexOf("t('songs.vocalGenderLabel')");
+  const picker = SONGS_PAGE.indexOf("t('songs.accentLabel')");
+  const model = SONGS_PAGE.indexOf("t('songs.modelLabel')");
+  assert.ok(adv > 0 && gender > adv && picker > gender && model > picker, 'order: Advanced → Vocal gender → accent → Model');
   assert.equal(SONGS_PAGE.split("t('songs.accentLabel')").length - 1, 1, 'exactly one adult picker');
 });
 
@@ -81,7 +82,6 @@ test('both kids song pickers use the shared component and send vocal_accent', ()
 test('adult accent picker is hidden in Kids mode (kids has its own Singer\'s Voice picker)', () => {
   const src = readFileSync(new URL('../pages/SongsPage.jsx', import.meta.url), 'utf8');
   const at = src.indexOf("t('songs.accentLabel')");
-  const gate = src.lastIndexOf('{', src.lastIndexOf('&& (', at));
-  const cond = src.slice(gate, src.lastIndexOf('&& (', at));
-  assert.match(cond, /!isKidsMode/, `adult picker condition is: ${cond}`);
+  const cond = src.slice(src.lastIndexOf('{!', at), at);
+  assert.match(cond, /^\{!isKidsMode && /, `adult picker condition is: ${cond}`);
 });
