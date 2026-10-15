@@ -25,12 +25,11 @@ test('coverArtPayload drops empty values and trims the description', () => {
 import { readFileSync } from 'node:fs';
 const SONGS_PAGE = readFileSync(new URL('../pages/SongsPage.jsx', import.meta.url), 'utf8');
 
-test('Create page shows both cover fields right after the genre grid (before Advanced), hidden in Kids', () => {
-  const grid = SONGS_PAGE.indexOf('<GenreTileGrid');
+test('Create page shows both cover fields after Singer\'s Accent, hidden in Kids', () => {
+  const accent = SONGS_PAGE.indexOf("t('songs.accentLabel')");
   const style = SONGS_PAGE.indexOf('🎨 Cover Art Style (optional)');
   const desc = SONGS_PAGE.indexOf('✏️ Describe your cover art (optional)');
-  const adv = SONGS_PAGE.indexOf('{showAdvanced && (');
-  assert.ok(grid > 0 && style > grid && desc > style && adv > desc, 'order: genres → style → description → Advanced');
+  assert.ok(accent > 0 && style > accent && desc > style, 'order: accent → style → description');
   assert.ok(SONGS_PAGE.includes('placeholder="e.g. Manchester skyline at night, a dog at a piano, stormy ocean..."'));
   assert.match(SONGS_PAGE, /maxLength=\{150\}[\s\S]{0,400}value=\{coverDesc\}|value=\{coverDesc\}[\s\S]{0,400}maxLength=\{150\}/);
   const block = SONGS_PAGE.slice(SONGS_PAGE.lastIndexOf('{!isKidsMode && (', style), style);

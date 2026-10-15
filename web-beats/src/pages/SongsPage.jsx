@@ -2227,6 +2227,86 @@ export default function SongsPage() {
 
             <GenreTileGrid selGenres={selGenres} toggleGenre={toggleGenre} gLabel={gLabel} categories={isKidsMode ? KIDS_GENRE_CATEGORIES : GENRE_CATEGORIES} />
 
+            {!isKidsMode && !['meditation','healingfrequency'].some(g => selGenres.has(g)) && (
+              <div style={{ marginBottom: 18 }}>
+                <p className="zb-mini-label">{t('songs.accentLabel')}</p>
+                <select
+                  value={accent}
+                  onChange={(e) => setAccent(e.target.value)}
+                  style={{ width: '100%', background: '#060b16', border: '1px solid #2a3b57', borderRadius: 6, padding: '6px 10px', color: accent ? '#bfefff' : '#cccccc', fontSize: 13, outline: 'none' }}
+                >
+                  <option value="">None</option>
+                  {ACCENT_GROUP_LABELS.map(([groupId, heading]) => (
+                    <optgroup key={groupId} label={heading}>
+                      {ACCENT_OPTIONS.filter(o => o.group === groupId).map(o => (
+                        <option key={o.key} value={o.key}>{accentOptionLabel(o)}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                  <optgroup label="🌐 Sing in another language (lyrics in that language)">
+                    <option value="French">🇫🇷 French</option>
+                    <option value="Spanish">🇪🇸 Spanish</option>
+                    <option value="Portuguese">🇵🇹 Portuguese</option>
+                    <option value="Dutch">🇳🇱 Dutch</option>
+                    <option value="German">🇩🇪 German</option>
+                    <option value="Italian">🇮🇹 Italian</option>
+                    <option value="Russian">🇷🇺 Russian</option>
+                    <option value="Polish">🇵🇱 Polish</option>
+                    <option value="Swedish">🇸🇪 Swedish</option>
+                    <option value="Norwegian">🇳🇴 Norwegian</option>
+                    <option value="Danish">🇩🇰 Danish</option>
+                    <option value="Greek">🇬🇷 Greek</option>
+                    <option value="Romanian">🇷🇴 Romanian</option>
+                    <option value="Ukrainian">🇺🇦 Ukrainian</option>
+                    <option value="Hungarian">🇭🇺 Hungarian</option>
+                    <option value="Czech">🇨🇿 Czech</option>
+                    <option value="Korean">🇰🇷 Korean</option>
+                    <option value="Japanese">🇯🇵 Japanese</option>
+                    <option value="Mandarin">🇨🇳 Mandarin Chinese</option>
+                    <option value="Hindi">🇮🇳 Hindi</option>
+                    <option value="Thai">🇹🇭 Thai</option>
+                    <option value="Tagalog">🇵🇭 Tagalog (Filipino)</option>
+                    <option value="Indonesian">🇮🇩 Indonesian</option>
+                    <option value="Vietnamese">🇻🇳 Vietnamese</option>
+                    <option value="Arabic">🇦🇪 Arabic</option>
+                    <option value="Turkish">🇹🇷 Turkish</option>
+                    <option value="Swahili">🇰🇪 Swahili</option>
+                    <option value="Yoruba">🇳🇬 Yoruba</option>
+                    <option value="Amharic">🇪🇹 Amharic</option>
+                    <option value="Zulu">🇿🇦 Zulu</option>
+                    <option value="Haitian Creole">🇭🇹 Haitian Creole</option>
+                    <option value="Brazilian Portuguese">🇧🇷 Brazilian Portuguese</option>
+                  </optgroup>
+                  <optgroup label="🎙 Vocal Style">
+                    <option value="classic rock vocalist, powerful raw rock delivery, gritty emotional rock voice, stadium rock energy">🎸 Classic Rock</option>
+                    <option value="Southern rock drawl, Alabama Georgia rock delivery, country rock vocal twang, raw swampy Southern rock grit">🤘 Southern Rock</option>
+                    <option value="raw blues rock vocalist, gritty soulful blues delivery, Southern blues emotional power, whiskey-soaked blues voice">🎵 Blues Rock</option>
+                    <option value="punk rock vocalist, raw aggressive punk delivery, rebellious British punk energy, fast aggressive vocal style">🏴‍☠️ Punk Rock</option>
+                    <option value="extremely deep resonant bass-baritone male vocalist, ultra low rich deep voice, velvet smooth deep bass delivery, romantic intimate low register singing, deep chest resonance, powerful low bass vocal presence">🎤 Deep Bass Voice</option>
+                    <option value="extremely fast rapid-fire rap delivery, machine gun flow, tongue-twisting fast paced lyrics, technical speed rapping, double-time triple-time flow, intricate fast wordplay, breathless rapid syllable delivery, lightning fast verbal dexterity, hypersped lyrical flow">🔥 Rapid Fire Rap</option>
+                    {[
+                      ['UK D&B MC', 'energetic UK drum and bass MC delivery, rapid fire hype, crowd control shouts, classic jungle MC style, rewind calls'],
+                      ['UK Jungle MC', 'old school jungle MC flow, ragga influenced delivery, rewind calls, authentic 90s rave MC energy'],
+                      ['Bashment MC', 'Jamaican bashment MC delivery, dancehall ragga style, riddim riding vocals, Caribbean MC energy'],
+                      ['Jamaican Dancehall', 'fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation'],
+                      ['Vocoder / Talk Box', 'vocoder effect on vocals, robotic talk box voice, synthesized voice processing, Zapp and Roger style, computerised speech melody, electro funk vocoder, Roger Troutman talk box technique, robotic singing voice, pitch shifted electronic vocal effect'],
+                      ['Cyborg / Synthesised', 'vocoder processed vocals, robotic voice effect, synthesised speech, digital pitch correction, computerised vocal tone, sci-fi robot voice, electronic vocal processing'],
+                      ['Punjabi', 'authentic Punjabi vocal delivery, Punjabi mother tongue singer, strong Punjabi pronunciation, Gurmukhī influenced phonetics, traditional Punjabi singing style, bhangra vocal technique, nasal Punjabi tones, desi authentic delivery, not English accent'],
+                      ['Spanish Latin', 'authentic Spanish Latin accent, native Spanish speaker singing in Spanish, Cuban or Puerto Rican Caribbean pronunciation, warm Latin vowels, rolling R sounds, natural Spanish flow, not English accent at all'],
+                      ['Puerto Rican', 'authentic Puerto Rican accent, Boricua Spanish pronunciation, Caribbean Puerto Rican delivery, urban San Juan flow, authentic PR Spanish vowels, native Puerto Rican speaker'],
+                      ['Cockney Grime', 'thick East London Cockney grime delivery, working class London accent mixed with grime flow, Cockney rhyming slang inflection, hard London vowels, street grime MC style with Cockney twist, authentic East End London road man delivery, sharp clipped Cockney consonants with grime energy'],
+                    ].map(([label, value]) => (
+                      <option key={label} value={value}>{label}</option>
+                    ))}
+                    {['D&B MC','UK Rave MC','British MC Grime','Jazz Vocal','American Hip-Hop','K-Pop','West African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta','West Coast G-Funk','British Street Soul','Caribbean','American Soul'].map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </optgroup>
+                </select>
+                <p style={{ fontSize: 11, color: '#cccccc', marginTop: 5 }}>Leave blank and Zeus uses the genre's natural accent.</p>
+              </div>
+            )}
+
             {!isKidsMode && (
               <div style={{ marginBottom: 18 }}>
                 <p className="zb-mini-label">🎨 Cover Art Style (optional)</p>
@@ -2328,84 +2408,6 @@ export default function SongsPage() {
                     ))}
                   </div>
                 </div>
-
-                {!isKidsMode && !['meditation','healingfrequency'].some(g => selGenres.has(g)) && <div>
-                  <p className="zb-mini-label">{t('songs.accentLabel')}</p>
-                  <select
-                    value={accent}
-                    onChange={(e) => setAccent(e.target.value)}
-                    style={{ width: '100%', background: '#060b16', border: '1px solid #2a3b57', borderRadius: 6, padding: '6px 10px', color: accent ? '#bfefff' : '#cccccc', fontSize: 13, outline: 'none' }}
-                  >
-                    <option value="">None</option>
-                    {ACCENT_GROUP_LABELS.map(([groupId, heading]) => (
-                      <optgroup key={groupId} label={heading}>
-                        {ACCENT_OPTIONS.filter(o => o.group === groupId).map(o => (
-                          <option key={o.key} value={o.key}>{accentOptionLabel(o)}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                    <optgroup label="🌐 Sing in another language (lyrics in that language)">
-                      <option value="French">🇫🇷 French</option>
-                      <option value="Spanish">🇪🇸 Spanish</option>
-                      <option value="Portuguese">🇵🇹 Portuguese</option>
-                      <option value="Dutch">🇳🇱 Dutch</option>
-                      <option value="German">🇩🇪 German</option>
-                      <option value="Italian">🇮🇹 Italian</option>
-                      <option value="Russian">🇷🇺 Russian</option>
-                      <option value="Polish">🇵🇱 Polish</option>
-                      <option value="Swedish">🇸🇪 Swedish</option>
-                      <option value="Norwegian">🇳🇴 Norwegian</option>
-                      <option value="Danish">🇩🇰 Danish</option>
-                      <option value="Greek">🇬🇷 Greek</option>
-                      <option value="Romanian">🇷🇴 Romanian</option>
-                      <option value="Ukrainian">🇺🇦 Ukrainian</option>
-                      <option value="Hungarian">🇭🇺 Hungarian</option>
-                      <option value="Czech">🇨🇿 Czech</option>
-                      <option value="Korean">🇰🇷 Korean</option>
-                      <option value="Japanese">🇯🇵 Japanese</option>
-                      <option value="Mandarin">🇨🇳 Mandarin Chinese</option>
-                      <option value="Hindi">🇮🇳 Hindi</option>
-                      <option value="Thai">🇹🇭 Thai</option>
-                      <option value="Tagalog">🇵🇭 Tagalog (Filipino)</option>
-                      <option value="Indonesian">🇮🇩 Indonesian</option>
-                      <option value="Vietnamese">🇻🇳 Vietnamese</option>
-                      <option value="Arabic">🇦🇪 Arabic</option>
-                      <option value="Turkish">🇹🇷 Turkish</option>
-                      <option value="Swahili">🇰🇪 Swahili</option>
-                      <option value="Yoruba">🇳🇬 Yoruba</option>
-                      <option value="Amharic">🇪🇹 Amharic</option>
-                      <option value="Zulu">🇿🇦 Zulu</option>
-                      <option value="Haitian Creole">🇭🇹 Haitian Creole</option>
-                      <option value="Brazilian Portuguese">🇧🇷 Brazilian Portuguese</option>
-                    </optgroup>
-                    <optgroup label="🎙 Vocal Style">
-                      <option value="classic rock vocalist, powerful raw rock delivery, gritty emotional rock voice, stadium rock energy">🎸 Classic Rock</option>
-                      <option value="Southern rock drawl, Alabama Georgia rock delivery, country rock vocal twang, raw swampy Southern rock grit">🤘 Southern Rock</option>
-                      <option value="raw blues rock vocalist, gritty soulful blues delivery, Southern blues emotional power, whiskey-soaked blues voice">🎵 Blues Rock</option>
-                      <option value="punk rock vocalist, raw aggressive punk delivery, rebellious British punk energy, fast aggressive vocal style">🏴‍☠️ Punk Rock</option>
-                      <option value="extremely deep resonant bass-baritone male vocalist, ultra low rich deep voice, velvet smooth deep bass delivery, romantic intimate low register singing, deep chest resonance, powerful low bass vocal presence">🎤 Deep Bass Voice</option>
-                      <option value="extremely fast rapid-fire rap delivery, machine gun flow, tongue-twisting fast paced lyrics, technical speed rapping, double-time triple-time flow, intricate fast wordplay, breathless rapid syllable delivery, lightning fast verbal dexterity, hypersped lyrical flow">🔥 Rapid Fire Rap</option>
-                      {[
-                        ['UK D&B MC', 'energetic UK drum and bass MC delivery, rapid fire hype, crowd control shouts, classic jungle MC style, rewind calls'],
-                        ['UK Jungle MC', 'old school jungle MC flow, ragga influenced delivery, rewind calls, authentic 90s rave MC energy'],
-                        ['Bashment MC', 'Jamaican bashment MC delivery, dancehall ragga style, riddim riding vocals, Caribbean MC energy'],
-                        ['Jamaican Dancehall', 'fast Jamaican dancehall ragga delivery, aggressive patois flow, digital riddim MC style, bashment energy, rapid fire Jamaican pronunciation'],
-                        ['Vocoder / Talk Box', 'vocoder effect on vocals, robotic talk box voice, synthesized voice processing, Zapp and Roger style, computerised speech melody, electro funk vocoder, Roger Troutman talk box technique, robotic singing voice, pitch shifted electronic vocal effect'],
-                        ['Cyborg / Synthesised', 'vocoder processed vocals, robotic voice effect, synthesised speech, digital pitch correction, computerised vocal tone, sci-fi robot voice, electronic vocal processing'],
-                        ['Punjabi', 'authentic Punjabi vocal delivery, Punjabi mother tongue singer, strong Punjabi pronunciation, Gurmukhī influenced phonetics, traditional Punjabi singing style, bhangra vocal technique, nasal Punjabi tones, desi authentic delivery, not English accent'],
-                        ['Spanish Latin', 'authentic Spanish Latin accent, native Spanish speaker singing in Spanish, Cuban or Puerto Rican Caribbean pronunciation, warm Latin vowels, rolling R sounds, natural Spanish flow, not English accent at all'],
-                        ['Puerto Rican', 'authentic Puerto Rican accent, Boricua Spanish pronunciation, Caribbean Puerto Rican delivery, urban San Juan flow, authentic PR Spanish vowels, native Puerto Rican speaker'],
-                        ['Cockney Grime', 'thick East London Cockney grime delivery, working class London accent mixed with grime flow, Cockney rhyming slang inflection, hard London vowels, street grime MC style with Cockney twist, authentic East End London road man delivery, sharp clipped Cockney consonants with grime energy'],
-                      ].map(([label, value]) => (
-                        <option key={label} value={value}>{label}</option>
-                      ))}
-                      {['D&B MC','UK Rave MC','British MC Grime','Jazz Vocal','American Hip-Hop','K-Pop','West African','American Phonk','New Jersey / Newark','British African','Jamaican Rasta','West Coast G-Funk','British Street Soul','Caribbean','American Soul'].map((a) => (
-                        <option key={a} value={a}>{a}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                  <p style={{ fontSize: 11, color: '#cccccc', marginTop: 5 }}>Leave blank and Zeus uses the genre's natural accent.</p>
-                </div>}
 
                 <div>
                   <p className="zb-mini-label">{t('songs.modelLabel')}</p>
