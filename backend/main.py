@@ -3293,6 +3293,10 @@ async def songs_generate(
         log.info("Kids mode: sub_mode=%s instrumental=%s", body.kids_mode or 'song', extra_suno_params.get("instrumental", False))
 
     style_suffix_parts: list[str] = []
+    # The picked singer's accent travels separately: songs.generate_multiple_variants
+    # puts it first and reserves its space, so a blend core or a long Sound Control
+    # note is trimmed instead of the accent being dropped (found 2026-10-15).
+    _accent_part: str | None = None
     if body.kids_story and not _is_story:  # Song sub-mode — sung children's song
         style_suffix_parts.append("children's song, warm playful singing voice, fun and engaging for kids, upbeat storyteller energy")
     if body.tempo == "slow":
@@ -3365,6 +3369,8 @@ async def songs_generate(
             "Indonesian":           "native Indonesian vocalist singing in Bahasa Indonesia, authentic Indonesian pronunciation, warm Southeast Asian delivery, natural Indonesian style",
             "Vietnamese":           "native Vietnamese vocalist singing in Vietnamese, authentic Vietnamese tonal pronunciation, warm Southeast Asian delivery, natural Vietnamese style",
             "Arabic":               "native Arabic vocalist singing in Arabic, authentic Arabic pronunciation, maqam-influenced warmth, natural Arabic vocal delivery",
+            "French language":     "native French vocalist singing in French, authentic French pronunciation, warm French vowels, natural French delivery, sings entirely in French",
+            "Spanish language":    "native Spanish vocalist singing in Spanish, authentic Spanish pronunciation, warm Latin vowels, natural Spanish delivery, sings entirely in Spanish",
             "German":              "native German vocalist singing in German, authentic German pronunciation, clear German consonants, natural German delivery, sings entirely in German",
             "Italian":             "native Italian vocalist singing in Italian, authentic Italian pronunciation, warm melodic Italian vowels, natural Italian delivery, sings entirely in Italian",
             "Portuguese":          "native Portuguese vocalist singing in Portuguese, authentic Portuguese pronunciation, warm Iberian vowels, natural Portuguese delivery, sings entirely in Portuguese",
@@ -3420,7 +3426,7 @@ async def songs_generate(
                 "haitian":     "native Haitian Creole speaker singing in Kreyòl, authentic Caribbean French Creole pronunciation, educational Haitian Creole language song for children",
                 "brazilian":   "native Brazilian speaker singing in Brazilian Portuguese, authentic Brazilian pronunciation, warm tropical vowels, educational Brazilian Portuguese song for children",
             }
-            style_suffix_parts.append(_KIDS_LANG_STYLE[body.accent.lower()])
+            _accent_part = _KIDS_LANG_STYLE[body.accent.lower()]
             log.info("accent: kids_lang accent=%r applied", body.accent)
         else:
             _accent_desc = _ACCENT_DESCRIPTORS.get(body.accent, f"{body.accent} accent vocals")
@@ -3450,10 +3456,10 @@ async def songs_generate(
             if "rapid-fire rap" in (body.accent or "").lower():
                 _accent_desc = "fast double-time rap flow, rapid staccato cadence, sped-up vocals, 170 BPM"
                 log.info("accent: rapid-fire → concise style descriptor (%d chars)", len(_accent_desc))
-            style_suffix_parts.append(_accent_desc)
+            _accent_part = _accent_desc
             log.info("accent: %s accent=%r → %r", "kids" if body.kids_story else "regular", body.accent, _accent_desc[:80])
     if _vocal_accent_key and not _is_story:
-        style_suffix_parts.append(_ACCENT_STYLE_MAP[_vocal_accent_key])
+        _accent_part = _ACCENT_STYLE_MAP[_vocal_accent_key]
         log.info("accent: vocal_accent=%r applied", _vocal_accent_key)
     # Rapid Fire Rap: the concise style descriptor is added via _accent_desc above (so the
     # genre's core descriptors stay inside the 500-char budget). Here we ONLY set the
@@ -3491,7 +3497,11 @@ async def songs_generate(
             style_suffix_parts.append(f"{_hz} Hz solfeggio healing frequency tuning, {_hz} Hz resonance")
     if _sc_descriptors:
         style_suffix_parts.extend(_sc_descriptors)   # appended last = lowest truncation priority
-    tempo_suffix = ", ".join(style_suffix_parts) or None
+    if _accent_part:
+        # A free-text accent value is user input; never let it crowd out the genre.
+        from style_assembly import trim_descriptors as _trim_descriptors
+        _accent_part = _trim_descriptors(_accent_part, 320)
+    tempo_suffix = ", ".join(([_accent_part] if _accent_part else []) + style_suffix_parts) or None
     if body.kids_story:
         log.info("kids_%s: tempo_suffix=%r", body.kids_mode or 'song', tempo_suffix)
 
@@ -3603,6 +3613,7 @@ async def songs_generate(
             extra_suno_params=extra_suno_params or None,
             tempo_suffix=tempo_suffix,
             suffix_parts=style_suffix_parts,
+            accent_part=_accent_part,
             is_admin=is_admin,
             inspired_by_descriptors=safe_inspired_by,
             animate_cover=body.animate_cover,

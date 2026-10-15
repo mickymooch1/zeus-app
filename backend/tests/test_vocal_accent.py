@@ -236,7 +236,7 @@ def test_vocal_accent_appends_snippet_and_disables_default():
     resp, gmv, _ = _post({"brief": "x", "genres": ["pop"], "vocal_accent": "jamaican"})
     assert resp.status_code == 200
     kw = _kw(gmv)
-    assert EXPECTED_ACCENTS["jamaican"] in kw["suffix_parts"]
+    assert kw["accent_part"] == EXPECTED_ACCENTS["jamaican"]
     assert kw["use_genre_default_accent"] is False
 
 
@@ -250,7 +250,7 @@ def test_no_accent_enables_default_and_adds_nothing():
 def test_explicit_accent_overrides_grime_default():
     _, gmv, _ = _post({"brief": "x", "genres": ["grime"], "vocal_accent": "scottish"})
     kw = _kw(gmv)
-    assert EXPECTED_ACCENTS["scottish"] in kw["suffix_parts"]
+    assert kw["accent_part"] == EXPECTED_ACCENTS["scottish"]
     assert kw["use_genre_default_accent"] is False
 
 
@@ -258,7 +258,7 @@ def test_legacy_accent_still_works_and_suppresses_default():
     """Old app builds still send accent="Irish"; it must keep its descriptor."""
     _, gmv, _ = _post({"brief": "x", "genres": ["grime"], "accent": "Irish"})
     kw = _kw(gmv)
-    assert any("Irish brogue" in s for s in kw["suffix_parts"])
+    assert "Irish brogue" in kw["accent_part"]
     assert kw["use_genre_default_accent"] is False
 
 
@@ -287,22 +287,22 @@ def test_unknown_vocal_accent_is_ignored_not_rejected():
 
 def test_vocal_accent_key_is_normalised():
     _, gmv, _ = _post({"brief": "x", "genres": ["pop"], "vocal_accent": " Jamaican "})
-    assert EXPECTED_ACCENTS["jamaican"] in _kw(gmv)["suffix_parts"]
+    assert _kw(gmv)["accent_part"] == EXPECTED_ACCENTS["jamaican"]
 
 
 def test_both_fields_vocal_accent_wins_style_accent_reaches_lyrics():
     _, gmv, lyr = _post({"brief": "x", "genres": ["pop"],
                          "vocal_accent": "jamaican", "accent": "German"})
-    parts = _kw(gmv)["suffix_parts"]
-    assert EXPECTED_ACCENTS["jamaican"] in parts
-    assert not any("German" in s for s in parts)
+    kw = _kw(gmv)
+    assert kw["accent_part"] == EXPECTED_ACCENTS["jamaican"]
+    assert not any("German" in s for s in kw["suffix_parts"])
     assert lyr.call_args.kwargs["accent"] == "German"
 
 
 def test_kids_song_mode_applies_vocal_accent():
     _, gmv, _ = _post({"brief": "x", "genres": ["pop"], "kids_story": True,
                        "kids_mode": "song", "vocal_accent": "australian"})
-    assert EXPECTED_ACCENTS["australian"] in _kw(gmv)["suffix_parts"]
+    assert _kw(gmv)["accent_part"] == EXPECTED_ACCENTS["australian"]
 
 
 # ── Final review fixes ───────────────────────────────────────────────────────

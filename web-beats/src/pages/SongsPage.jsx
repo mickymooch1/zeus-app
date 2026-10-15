@@ -2367,8 +2367,8 @@ export default function SongsPage() {
                       <option value="extremely fast rapid-fire rap delivery, machine gun flow, tongue-twisting fast paced lyrics, technical speed rapping, double-time triple-time flow, intricate fast wordplay, breathless rapid syllable delivery, lightning fast verbal dexterity, hypersped lyrical flow">🔥 Rapid Fire Rap</option>
                     </optgroup>
                     <optgroup label="🇪🇺 European Languages (lyrics in that language)">
-                      <option value="French">🇫🇷 French</option>
-                      <option value="Spanish">🇪🇸 Spanish</option>
+                      <option value="French language">🇫🇷 French</option>
+                      <option value="Spanish language">🇪🇸 Spanish</option>
                       <option value="Portuguese">🇵🇹 Portuguese</option>
                       <option value="Dutch">🇳🇱 Dutch</option>
                       <option value="German">🇩🇪 German</option>

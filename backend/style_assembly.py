@@ -13,7 +13,33 @@ import logging
 logger = logging.getLogger("zeus.songs")
 
 
-def assemble_variant_style(genre_core, suffix_parts, tail="", hard_cap=990, genre="?"):
+def trim_descriptors(text, max_len):
+    """Shorten a comma-separated descriptor string to max_len by dropping whole
+    trailing descriptors (falls back to a plain cut for one oversized descriptor)."""
+    text = text or ""
+    if len(text) <= max_len:
+        return text
+    if max_len <= 0:
+        return ""
+    cut = text[:max_len]
+    at = cut.rfind(", ")
+    return (cut[:at] if at > 0 else cut).rstrip(" ,")
+
+
+def assemble_variant_style(genre_core, suffix_parts, tail="", hard_cap=990, genre="?", accent=None):
+    """accent: the picked singer's accent. It goes FIRST and its space is reserved —
+    the genre core is trimmed (whole trailing descriptors) and suffix descriptors
+    dropped before the accent is ever touched. Without an accent this is unchanged."""
+    accent = (accent or "").strip()
+    if accent:
+        room = hard_cap - len(accent) - 2  # ", " after the accent
+        core = trim_descriptors(genre_core, max(0, room - len(tail or "")))
+        if core != genre_core:
+            logger.warning("style: trimmed genre core %d→%d chars to keep the accent for genre=%r",
+                           len(genre_core), len(core), genre)
+        rest = assemble_variant_style(core, suffix_parts, tail, hard_cap=room, genre=genre)
+        return f"{accent}, {rest}" if rest else accent
+
     parts = [p for p in (suffix_parts or []) if p and p.strip()]
     tail = tail or ""
 

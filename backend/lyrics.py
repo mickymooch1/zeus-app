@@ -452,7 +452,10 @@ _KIDS_LANGUAGE_MAP = {
 # Regular (non-kids) accents that should produce lyrics in a non-English language.
 # Claude Sonnet is used automatically when this map has a match.
 _REGULAR_LANGUAGE_MAP = {
-    # European
+    # European. "French"/"Spanish" alone are accent-only (English lyrics); the
+    # "lyrics in that language" dropdown entries send "French language"/"Spanish language".
+    'french language':     'French',
+    'spanish language':    'Spanish',
     'german':              'German',
     'italian':             'Italian',
     'portuguese':          'Portuguese',
@@ -487,6 +490,12 @@ _REGULAR_LANGUAGE_MAP = {
     # Americas
     'brazilian portuguese': 'Brazilian Portuguese',
 }
+
+
+def lyric_language_for(accent: str | None, lyrics_language: str | None = None) -> str | None:
+    """Language the lyrics must be written in: the genre's own language wins
+    (corridos -> Spanish), else the picked language accent, else None (English)."""
+    return lyrics_language or _REGULAR_LANGUAGE_MAP.get((accent or '').strip().lower())
 
 
 _SECTION_TAG_LINE_RE = re.compile(r'^\s*\[[^\]]*\]\s*$')
@@ -1078,7 +1087,7 @@ def generate_lyrics(user_id: str, brief: str, db_path: pathlib.Path, explicit: b
             if g in GENRE_MOOD_DIRECTIVES:
                 user_message += GENRE_MOOD_DIRECTIVES[g]
 
-    _lyric_language = lyrics_language or _REGULAR_LANGUAGE_MAP.get((accent or '').lower())
+    _lyric_language = lyric_language_for(accent, lyrics_language)
     if _lyric_language:
         user_message += (
             f"\n\nIMPORTANT: Write the lyrics ENTIRELY in {_lyric_language} — not English. "

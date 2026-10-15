@@ -89,3 +89,12 @@ test('adult accent picker is hidden in Kids mode (kids has its own Singer\'s Voi
   const cond = src.slice(src.lastIndexOf('{!', at), at);
   assert.match(cond, /^\{!isKidsMode && /, `adult picker condition is: ${cond}`);
 });
+
+test('"lyrics in that language" French and Spanish have their own values; accent-only ones stay', () => {
+  const at = SONGS_PAGE.indexOf("t('songs.accentLabel')");
+  const block = SONGS_PAGE.slice(at, SONGS_PAGE.indexOf('</select>', at));
+  assert.match(block, /<option value="French language">🇫🇷 French<\/option>/);
+  assert.match(block, /<option value="Spanish language">🇪🇸 Spanish<\/option>/);
+  assert.match(block, /\['British',[^\]]*'French','Spanish'/);
+  assert.ok(!block.includes('<option value="French">') && !block.includes('<option value="Spanish">'));
+});

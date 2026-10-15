@@ -324,8 +324,34 @@ def strip_vocal_cues(style: str, vocal_gender: str | None = None) -> str:
     return ", ".join(["full length track, 3 minute duration, extended outro"] + kept + [hook_cue])
 
 
-def _dj_transition_style(style_a: str, style_b: str) -> str:
-    """Build a Suno section-tag style string that switches genre per section."""
+def _shrink_pair_to_fit(style_a: str, style_b: str, build, max_len: int) -> str:
+    """build(a, b) with both genres' descriptor lists shortened evenly — whole trailing
+    descriptors off whichever genre is currently longer — until the result fits
+    max_len. Keeps BOTH genres (each keeps at least its first descriptor) instead of
+    cutting the end off, which lost genre B entirely. Unchanged when it already fits."""
+    full = build(style_a, style_b)
+    if len(full) <= max_len:
+        return full
+    a = [d.strip() for d in style_a.split(",") if d.strip()]
+    b = [d.strip() for d in style_b.split(",") if d.strip()]
+    out = full
+    while len(out) > max_len and (len(a) > 1 or len(b) > 1):
+        longer = a if (len(", ".join(a)) >= len(", ".join(b)) and len(a) > 1) or len(b) <= 1 else b
+        longer.pop()
+        out = build(", ".join(a), ", ".join(b))
+    return out[:max_len]
+
+
+def _dj_transition_style(style_a: str, style_b: str, max_len: int | None = None) -> str:
+    """Build a Suno section-tag style string that switches genre per section.
+    max_len is passed when space is reserved for a picked accent: both genres are then
+    shortened evenly to fit. Without it, the original plain 1000-char cut."""
+    if max_len is None:
+        return _dj_transition_full(style_a, style_b)[:1000]
+    return _shrink_pair_to_fit(style_a, style_b, _dj_transition_full, max_len)
+
+
+def _dj_transition_full(style_a: str, style_b: str) -> str:
     return (
         f"[intro: {style_a}] "
         f"[verse: {style_a}] "
@@ -334,7 +360,7 @@ def _dj_transition_style(style_a: str, style_b: str) -> str:
         f"[bridge: {style_b}] "
         f"[outro: {style_b}] "
         "genre switch DJ mix, section by section genre change, not blended, alternating genres per section"
-    )[:1000]
+    )
 
 
 def _submit_to_apiframe(variant_id: int, lyrics: str, style_prompt: str, suno_model: str, extra_suno_params: dict) -> str:
@@ -645,9 +671,14 @@ def generate_multiple_variants(
     vocal_gender: str | None = None,
     platform: str | None = None,
     use_genre_default_accent: bool = False,
+    accent_part: str | None = None,
 ) -> dict:
     """Generate the same lyrics in multiple genres. Costs len(genres) credits.
-    Admin users bypass credit checks entirely."""
+    Admin users bypass credit checks entirely.
+
+    accent_part: the picked singer's accent descriptor. It leads the style and its
+    space is reserved, so a blend's DJ-transition core or a long Sound Control note
+    is trimmed rather than the accent being dropped (style_assembly)."""
     from song_genres import GENRE_PRESETS
 
     valid_genres = [g for g in genres if g in GENRE_PRESETS]
@@ -671,6 +702,9 @@ def generate_multiple_variants(
                 f"Need {len(valid_genres)} credits, have {available}"
             )
 
+    accent_part = (accent_part or "").strip() or None
+    # Space a blend core may use when an accent leads the style (", " after it).
+    _blend_max = 990 - (len(accent_part) + 2 if accent_part else 0)
     variants = []
     for genre in valid_genres:
         from song_genres import KIDS_STORY_PRESETS
@@ -693,15 +727,15 @@ def generate_multiple_variants(
                                         if s.strip() and not any(k in s.lower() for k in _VOCAL_CUE_KEYWORDS))
                 _scrubbed_b = ", ".join(s.strip() for s in GENRE_PRESETS[genre_b].split(",")
                                         if s.strip() and not any(k in s.lower() for k in _VOCAL_CUE_KEYWORDS))
-                style = (
-                    "full length track, 3 minute duration, extended outro, "
-                    f"{_scrubbed_a}, {_scrubbed_b}, "
-                    "mostly instrumental, brief vocal hooks only"
-                )
+                _merge = lambda a, b: ("full length track, 3 minute duration, extended outro, "  # noqa: E731
+                                       f"{a}, {b}, mostly instrumental, brief vocal hooks only")
+                style = (_shrink_pair_to_fit(_scrubbed_a, _scrubbed_b, _merge, _blend_max)
+                         if accent_part else _merge(_scrubbed_a, _scrubbed_b))
                 logger.info("intermittent blend: plain-merged style (no DJ-transition) genre=%s×%s len=%d", genre, genre_b, len(style))
             else:
                 # Normal blend (not intermittent): keep the DJ-transition section structure.
-                style = _dj_transition_style(style, GENRE_PRESETS[genre_b])
+                style = _dj_transition_style(style, GENRE_PRESETS[genre_b],
+                                             max_len=_blend_max if accent_part else None)
                 logger.info("genre_blend: %s × %s DJ-transition style len=%d", genre, genre_b, len(style))
         # Accent/vocal modifiers go BEFORE the genre preset so Suno weights them first.
         # Genre presets can contain strong location/vocal cues (e.g. "East London sound")
@@ -725,7 +759,7 @@ def generate_multiple_variants(
             # dropped descriptors named in the log). Common case is byte-identical.
             # assemble_variant_style already enforces hard_cap internally.
             style = assemble_variant_style(genre_style, suffix_parts, tail,
-                                           hard_cap=hard_cap, genre=genre)
+                                           hard_cap=hard_cap, genre=genre, accent=accent_part)
         elif tempo_suffix:
             # Legacy path (only the zeus_agent caller, which passes no suffix_parts).
             # Unchanged char-level trim.
