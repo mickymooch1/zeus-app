@@ -33,27 +33,32 @@ test('adult label text', () => {
   assert.equal(EN.songs.accentLabel, "🎤 Singer's Accent (optional)");
 });
 
-test('adult picker sits right after the genre grid, outside Advanced', () => {
-  const grid = SONGS_PAGE.indexOf('<GenreTileGrid');
-  const picker = SONGS_PAGE.indexOf("t('songs.accentLabel')");
+test('adult picker is in Advanced, in its original slot: Vocal gender → accent → Model', () => {
   const adv = SONGS_PAGE.indexOf('{showAdvanced && (');
-  assert.ok(grid > 0 && picker > grid && picker < adv, 'picker must be between grid and Advanced');
+  const gender = SONGS_PAGE.indexOf("t('songs.vocalGenderLabel')");
+  const picker = SONGS_PAGE.indexOf("t('songs.accentLabel')");
+  const model = SONGS_PAGE.indexOf("t('songs.modelLabel')");
+  assert.ok(adv > 0 && gender > adv && picker > gender && model > picker, 'order: Advanced → Vocal gender → accent → Model');
   assert.equal(SONGS_PAGE.split("t('songs.accentLabel')").length - 1, 1, 'exactly one adult picker');
 });
 
-test('three groups: accents, languages, vocal styles — nothing lost', () => {
-  assert.match(SONGS_PAGE, /🌐 Sing in another language/);
-  assert.match(SONGS_PAGE, /🎙 Vocal Style/);
+test('adult picker is the original dropdown: Auto first, then British at the top of the list', () => {
+  const at = SONGS_PAGE.indexOf("t('songs.accentLabel')");
+  const block = SONGS_PAGE.slice(at, SONGS_PAGE.indexOf('</select>', at));
+  const options = [...block.matchAll(/<option[^>]*>([^<]+)<\/option>/g)].map(m => m[1]);
+  assert.equal(options[0], '🎤 Auto (matches your genre)');
+  assert.match(block, /\{\['British','American \(Southern\)','Irish','Scottish','Australian',/);
   for (const kept of ['Rapid Fire Rap', 'Deep Bass Voice', 'Classic Rock', 'Vocoder / Talk Box',
-                      'Cockney Grime', 'Bashment MC', 'UK Jungle MC', 'British MC Grime',
-                      'American Soul', 'Caribbean', 'Punjabi', 'Brazilian Portuguese', 'Yoruba'])
-    assert.ok(SONGS_PAGE.includes(kept), `lost option: ${kept}`);
-  assert.ok(!SONGS_PAGE.includes('Auto (matches your genre)'));
+                      'Cockney Grime', 'UK Jungle MC', 'British MC Grime',
+                      'American Soul', 'Caribbean', 'Punjabi'])
+    assert.ok(block.includes(kept), `lost option: ${kept}`);
+  assert.ok(!block.includes('ACCENT_GROUP_LABELS'), 'grouped catalog picker should be gone');
+  assert.match(SONGS_PAGE, /Leave on Auto to let Zeus match the accent to your genre/);
 });
 
-test('standard and roast requests route the picker via accentPayload', () => {
-  assert.equal(SONGS_PAGE.split('...accentPayload(accent)').length - 1, 2);
-  assert.ok(!/\n\s*accent: accent \|\| undefined,/.test(SONGS_PAGE), 'raw accent send left behind');
+test('standard and roast requests send the picker on the original accent field', () => {
+  assert.equal(SONGS_PAGE.split(/\n\s*accent: accent \|\| undefined,/).length - 1, 2);
+  assert.ok(!SONGS_PAGE.includes('accentPayload(accent)'));
 });
 
 const readOrEmpty = (rel) => { try { return readFileSync(new URL(rel, import.meta.url), 'utf8'); } catch { return ''; } };
@@ -81,7 +86,6 @@ test('both kids song pickers use the shared component and send vocal_accent', ()
 test('adult accent picker is hidden in Kids mode (kids has its own Singer\'s Voice picker)', () => {
   const src = readFileSync(new URL('../pages/SongsPage.jsx', import.meta.url), 'utf8');
   const at = src.indexOf("t('songs.accentLabel')");
-  const gate = src.lastIndexOf('{', src.lastIndexOf('&& (', at));
-  const cond = src.slice(gate, src.lastIndexOf('&& (', at));
-  assert.match(cond, /!isKidsMode/, `adult picker condition is: ${cond}`);
+  const cond = src.slice(src.lastIndexOf('{!', at), at);
+  assert.match(cond, /^\{!isKidsMode && /, `adult picker condition is: ${cond}`);
 });
