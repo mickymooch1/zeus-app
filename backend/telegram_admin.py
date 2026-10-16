@@ -66,6 +66,8 @@ Just talk to me naturally, mate! Examples:
 <code>make school EMAIL</code> — set account_type='school' for testing
 <code>incidents</code> — list open incidents (severity, count, age)
 <code>history CATEGORY</code> — last 5 resolved incidents for a category
+<code>verified users</code> — everyone who verified their email, newest first (add <code>page 2</code> for more)
+<code>unverified users</code> — everyone who hasn't verified yet, newest signup first (add <code>page 2</code> for more)
 <code>security status</code> — last scan result, active blocks, enforcement mode
 <code>blocked ips</code> — every blocked IP with reason, expiry and denied requests
 <code>security events IP</code> — what a flagged IP was hitting: paths, user agents, status
@@ -329,14 +331,17 @@ def _cmd_reply_to_contact(submission_id, message: str) -> str:
 
 
 def _cmd_db_verify_email(email: str) -> str:
-    """Set email_verified=1 for a user by email."""
+    """Set email_verified=1 for a user by email. verified_at keeps its first value."""
     try:
+        from datetime import datetime, timezone
         import db as _db
         db_path = _db.get_db_path()
         conn = sqlite3.connect(str(db_path))
         try:
             conn.execute(
-                "UPDATE users SET email_verified = 1 WHERE lower(email) = lower(?)", (email,)
+                "UPDATE users SET email_verified = 1, "
+                "verified_at = COALESCE(verified_at, ?) WHERE lower(email) = lower(?)",
+                (datetime.now(timezone.utc).isoformat(), email),
             )
             rows_changed = conn.execute("SELECT changes()").fetchone()[0]
             conn.commit()
@@ -358,7 +363,8 @@ def _cmd_db_unverify_email(email: str) -> str:
         conn = sqlite3.connect(str(db_path))
         try:
             conn.execute(
-                "UPDATE users SET email_verified = 0 WHERE lower(email) = lower(?)", (email,)
+                "UPDATE users SET email_verified = 0, verified_at = NULL WHERE lower(email) = lower(?)",
+                (email,),
             )
             rows_changed = conn.execute("SELECT changes()").fetchone()[0]
             conn.commit()
@@ -552,6 +558,67 @@ def _cmd_recent_users(n: int = 5) -> str:
         return "\n".join(lines)
     except Exception as exc:
         return f"❌ DB error: {exc}"
+
+
+# ── Verified / unverified users ──────────────────────────────────────────────
+
+_USERS_PAGE_SIZE = 20
+
+
+def _when(ts) -> str:
+    return (ts or "").replace("T", " ")[:16]
+
+
+def _user_list(verified: bool, page: int) -> str:
+    """One page of verified or unverified users, newest first, count on top."""
+    page = max(1, page)
+    if verified:
+        icon, word, col = "✅", "verified", "verified_at"
+        # NULL verified_at = verified before the date was recorded: list those last.
+        order = f"{col} IS NULL, {_TS.format(col=col)} DESC, {_TS.format(col='created_at')} DESC"
+    else:
+        icon, word, col = "⏳", "unverified", "created_at"
+        order = f"{_TS.format(col=col)} DESC"
+    try:
+        conn = _ro_conn()
+        try:
+            flag = 1 if verified else 0
+            total = conn.execute("SELECT COUNT(*) FROM users WHERE email_verified = ?", (flag,)).fetchone()[0]
+            rows = conn.execute(
+                f"SELECT email, {col} ts FROM users WHERE email_verified = ? ORDER BY {order} LIMIT ? OFFSET ?",
+                (flag, _USERS_PAGE_SIZE, (page - 1) * _USERS_PAGE_SIZE)).fetchall()
+        finally:
+            conn.close()
+    except Exception as exc:
+        return f"❌ DB error: {exc}"
+
+    out = [f"{icon} {total} {word} user{'' if total == 1 else 's'}"]
+    if not rows:
+        if page > 1:
+            out.append(f"<i>No page {page} — the list ends on page "
+                       f"{max(1, -(-total // _USERS_PAGE_SIZE))}.</i>")
+        return "\n".join(out)
+    first = (page - 1) * _USERS_PAGE_SIZE + 1
+    last = first + len(rows) - 1
+    if total > _USERS_PAGE_SIZE:
+        out.append(f"<i>Showing {first}–{last}</i>")
+    out.append("")
+    label = "verified" if verified else "signed up"
+    for r in rows:
+        when = _when(r["ts"]) or "date not recorded"
+        out.append(f"• <code>{_esc(r['email'])}</code> — {label} {_esc(when)}")
+    remaining = total - last
+    if remaining > 0:
+        out += ["", f"<i>…and {remaining} more — send <code>{word} users page {page + 1}</code></i>"]
+    return "\n".join(out)
+
+
+def _cmd_verified_users(page: int = 1) -> str:
+    return _user_list(True, page)
+
+
+def _cmd_unverified_users(page: int = 1) -> str:
+    return _user_list(False, page)
 
 
 # ── Revenue ──────────────────────────────────────────────────────────────────
@@ -2997,6 +3064,12 @@ def parse_and_run(text: str, chat_id: str = "") -> str:
     # exact command here already uses.
     if re.match(r'^(?:porick\s+)?incidents$', t, re.IGNORECASE):
         return _cmd_incidents()
+
+    # verified users / unverified users [page N] — read-only lists, newest first
+    m = re.match(r'^(?:porick\s+)?(un)?verified\s+users(?:\s+page\s+(\d+))?$', t, re.IGNORECASE)
+    if m:
+        page = int(m.group(2) or 1)
+        return _cmd_unverified_users(page) if m.group(1) else _cmd_verified_users(page)
 
     # history CATEGORY — last 5 resolved incidents for that category
     m = re.match(r'^(?:porick\s+)?history\s+(\S+)$', t, re.IGNORECASE)

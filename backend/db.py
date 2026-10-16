@@ -257,6 +257,9 @@ def init_user_tables(db_path: pathlib.Path) -> None:
             "ALTER TABLE users ADD COLUMN gate_block_count INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN gate_first_blocked_at TEXT",
             "ALTER TABLE users ADD COLUMN gate_last_blocked_at TEXT",
+            # When the email was verified (Porick's `verified users`). Users verified
+            # before this column existed keep NULL — the date was never recorded.
+            "ALTER TABLE users ADD COLUMN verified_at TEXT",
             "ALTER TABLE song_variants ADD COLUMN animate_cover INTEGER NOT NULL DEFAULT 1",
             "ALTER TABLE song_credits ADD COLUMN animation_balance INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE song_credits ADD COLUMN animation_monthly_allowance INTEGER NOT NULL DEFAULT 0",

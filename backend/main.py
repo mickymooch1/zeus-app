@@ -1647,7 +1647,8 @@ async def verify_email(request: Request, body: VerifyEmailRequest):
     if expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="This verification link has expired")
 
-    db.update_user(db_path, record["user_id"], email_verified=1)
+    db.update_user(db_path, record["user_id"], email_verified=1,
+                   verified_at=datetime.now(timezone.utc).isoformat())
     db.mark_verification_token_used(db_path, body.token)
 
     return {"ok": True, "message": "Email verified successfully. You can now generate songs."}
