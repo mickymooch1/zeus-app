@@ -198,6 +198,8 @@ export default function App() {
             />
             <Route path="/songs/share/:variantId" element={<SongSharePage />} />
             <Route path="/memorials" element={<MemorialsLandingPage />} />
+            {/* Bare /memorial (no token) matched nothing and showed a blank page. */}
+            <Route path="/memorial" element={<Navigate to="/memorials" replace />} />
             <Route path="/memorial/:token" element={<MemorialPage />} />
             <Route
               path="/memorials/create"
