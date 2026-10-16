@@ -48,10 +48,6 @@ export default function MemorialsLandingPage() {
       <MemorialSkyBackdrop />
       <BeatsNavbar />
       <div className="page" style={{ maxWidth: 640, margin: '0 auto', padding: '64px 24px', textAlign: 'center' }}>
-        <div className="hero-orbs" aria-hidden>
-          <div className="orb orb-2" />
-        </div>
-
         <h1 style={{ fontSize: 32, fontWeight: 700, margin: 0 }}>
           Create a Lasting Memorial Tribute
         </h1>

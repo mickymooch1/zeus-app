@@ -34,6 +34,10 @@ test('it is the first thing inside each page wrapper, before the navbar', () => 
     /<div className="memorial-wizard-page">\s*<MemorialSkyBackdrop \/>\s*<BeatsNavbar \/>/);
 });
 
+test('the landing page has no magenta hero orb tinting the sky', () => {
+  assert.doesNotMatch(read('pages/MemorialsLandingPage.jsx'), /hero-orbs|orb-2/);
+});
+
 test('the public memorial page keeps HeavenlyBackdrop and not the sky', () => {
   const page = read('pages/MemorialPage.jsx');
   assert.doesNotMatch(page, /MemorialSkyBackdrop/);
