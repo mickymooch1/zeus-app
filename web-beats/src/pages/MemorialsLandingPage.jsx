@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
 import IOSWebViewBanner from '../components/IOSWebViewBanner';
+import MemorialSkyBackdrop from '../components/MemorialSkyBackdrop';
 
 export default function MemorialsLandingPage() {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ export default function MemorialsLandingPage() {
 
   return (
     <div className="memorials-landing-page">
+      <MemorialSkyBackdrop />
       <BeatsNavbar />
       <div className="page" style={{ maxWidth: 640, margin: '0 auto', padding: '64px 24px', textAlign: 'center' }}>
         <div className="hero-orbs" aria-hidden>

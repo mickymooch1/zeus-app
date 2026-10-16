@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { BeatsNavbar } from '../components/BeatsNavbar';
+import MemorialSkyBackdrop from '../components/MemorialSkyBackdrop';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../brand';
 import { startGenerationPoll } from '../utils/generationPoller';
@@ -264,6 +265,7 @@ export default function MemorialWizardPage() {
 
   return (
     <div className="memorial-wizard-page">
+      <MemorialSkyBackdrop />
       <BeatsNavbar />
       <div className="page" style={{ maxWidth: 560, margin: '0 auto', padding: '48px 24px 96px' }}>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 32, flexWrap: 'wrap' }}>
