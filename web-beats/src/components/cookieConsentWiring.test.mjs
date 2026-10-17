@@ -75,3 +75,17 @@ test('privacy policy describes Google Ads honestly', () => {
   assert.doesNotMatch(privacy, /We do not use tracking cookies, advertising cookies/);
   for (const s of ['Google Ads', '_gcl_', 'Reject', 'Cookie settings']) assert.ok(privacy.includes(s), s);
 });
+
+// Review blocker 3: the policy must say what withdrawal does and does NOT do.
+test('privacy policy is accurate about withdrawal and information already sent', () => {
+  const privacy = read('pages/PrivacyPage.jsx').replace(/\s+/g, ' ');
+  for (const s of [
+    "can't undo what was already sent", // already-sent data stays with Google
+    '_gcl_ls', // the localStorage entry gtag.js writes is deleted too
+    'reload the page so Google', // the running tag is removed
+    'cancel any sign-up that hadn', // unsent retries are dropped
+    "can't delete cookies that Google sets on its own websites",
+    'zeus_ads_consent', // the consent cookie is disclosed
+    'at most five times, within 30 days', // retry behaviour disclosed
+  ]) assert.ok(privacy.includes(s), s);
+});

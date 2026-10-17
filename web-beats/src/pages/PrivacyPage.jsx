@@ -278,8 +278,9 @@ export default function PrivacyPage() {
               preferences, such as your language.
             </li>
             <li>
-              <strong>Your cookie choice:</strong> Stored in browser localStorage so we don't ask
-              you again on every visit.
+              <strong>Your cookie choice:</strong> Stored in browser localStorage and in a small
+              first-party cookie (<code>zeus_ads_consent</code>, kept for 12 months), so we don't ask
+              you again on every visit. If the two ever disagree, we treat it as a Reject.
             </li>
           </ul>
           <p>
@@ -295,7 +296,10 @@ export default function PrivacyPage() {
             <li>
               When you create an account, we tell Google that a sign-up happened, together with an
               internal account number so it is only counted once. We do not send Google your name,
-              email address or anything you create.
+              email address or anything you create. If Google's tag can't load at that moment (for
+              example on a poor connection or with an ad blocker), your browser keeps a note of the
+              sign-up and tries again on a later visit — at most five times, within 30 days, and only
+              while you still accept advertising cookies.
             </li>
             <li>
               We use this only to measure our adverts. We do not allow it to be used for
@@ -321,7 +325,21 @@ export default function PrivacyPage() {
               Cookie settings
             </button>
             {' '}(also linked at the bottom of our home page and in the app's side menu). If you
-            change from Accept to Reject, we delete the Google Ads cookies on this site.
+            change from Accept to Reject, from that moment we: tell Google's tag that consent is
+            withdrawn; stop sending any further information to Google; cancel any sign-up that
+            hadn't yet been passed to Google; delete the Google Ads cookies and browser storage this
+            site set (such as <code>_gcl_au</code>, <code>_gcl_aw</code> and <code>_gcl_ls</code>);
+            and reload the page so Google's tag is no longer running.
+          </p>
+          <p>
+            Withdrawing consent can't undo what was already sent while you had accepted — for
+            example, a sign-up already passed to Google. Google keeps that under its own privacy
+            policy, and you can ask Google about it directly. We also can't delete cookies that
+            Google sets on its own websites (such as google.com); you can clear those in your browser
+            settings or manage them at{' '}
+            <a href="https://myadcenter.google.com" target="_blank" rel="noopener noreferrer" className="auth-link">
+              myadcenter.google.com
+            </a>.
           </p>
         </section>
 
