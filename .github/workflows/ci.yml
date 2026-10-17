@@ -85,12 +85,16 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt
       # Scratch dirs for songs and the SQLite DB (the runner context isn't
-      # available in a job-level env block, so they are set here).
+      # available in a job-level env block, so they are set here). The app's
+      # start-up also creates /data/avatars etc. — production has a volume at
+      # /data — so give the runner a writable /data too.
       - name: Scratch data dirs
         run: |
           echo "SONG_STORAGE_PATH=$RUNNER_TEMP/songs" >> "$GITHUB_ENV"
           echo "ZEUS_DATA_DIR=$RUNNER_TEMP/zeus-data" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/songs" "$RUNNER_TEMP/zeus-data"
+          sudo mkdir -p /data
+          sudo chown "$(id -u):$(id -g)" /data
       # `tests`, not bare pytest: backend/test_song_pipeline.py is a live-API script.
       # On failure the tail of the output is also posted as one error annotation,
       # so it is readable on the run page without opening the raw log.
@@ -101,7 +105,7 @@ jobs:
           python -m pytest tests -q -rfE -p no:cacheprovider 2>&1 | tee "$RUNNER_TEMP/pytest.log"
           code=${PIPESTATUS[0]}
           if [ "$code" != 0 ]; then
-            msg=$(tail -n 60 "$RUNNER_TEMP/pytest.log" | sed -e 's/%/%25/g' -e 's//%0D/g' | awk 'BEGIN{ORS="%0A"} {print}')
+            msg=$(tail -n 60 "$RUNNER_TEMP/pytest.log" | tr -d '\r' | sed -e 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
             echo "::error title=pytest exit $code::${msg}"
           fi
           exit $code
