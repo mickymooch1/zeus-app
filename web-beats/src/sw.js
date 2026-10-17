@@ -40,6 +40,12 @@ self.addEventListener('fetch', event => {
   // Navigation requests (full-page loads for any SPA route) — network first.
   // When online: fetch fresh HTML and refresh the shell cache for next offline visit.
   // When offline: serve the cached shell — React Router handles routing client-side.
+  // Hidden frames (the Google Ads sign-up frame, /ads-frame.html) are not the
+  // app shell: never cache them under '/', just let them hit the network.
+  if (request.mode === 'navigate' && request.destination === 'iframe') {
+    return;
+  }
+
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)

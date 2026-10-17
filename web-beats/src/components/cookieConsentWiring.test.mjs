@@ -82,10 +82,21 @@ test('privacy policy is accurate about withdrawal and information already sent',
   for (const s of [
     "can't undo what was already sent", // already-sent data stays with Google
     '_gcl_ls', // the localStorage entry gtag.js writes is deleted too
-    'reload the page so Google', // the running tag is removed
+    'including a sign-up report that is still in progress', // a send in progress is stopped
+    'zeus_ads_click', // the remembered ad click is disclosed
     'cancel any sign-up that hadn', // unsent retries are dropped
     "can't delete cookies that Google sets on its own websites",
     'zeus_ads_consent', // the consent cookie is disclosed
     'at most five times, within 30 days', // retry behaviour disclosed
+    "Google's tag never runs on the pages you use", // sign-ups only: no page views, no form scanning
   ]) assert.ok(privacy.includes(s), s);
+});
+
+// The Google Ads frame is a navigation the service worker sees: it must never be
+// cached as the app shell under '/' (the app would open the empty frame offline).
+test('service worker leaves iframe navigations alone', () => {
+  const sw = read('sw.js');
+  const skip = sw.indexOf("request.mode === 'navigate' && request.destination === 'iframe'");
+  assert.ok(skip > -1, 'iframe navigations must be skipped');
+  assert.ok(skip < sw.indexOf("cache.put('/'"), 'before the shell is cached');
 });

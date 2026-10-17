@@ -290,8 +290,16 @@ export default function PrivacyPage() {
           </p>
           <ul>
             <li>
-              If you accept, we load Google's tag, which may set Google Ads cookies such as{' '}
-              <code>_gcl_au</code> and <code>_gcl_aw</code> (kept for up to 90 days).
+              Google's tag never runs on the pages you use. Only when you create an account (and
+              have accepted) do we open it in a hidden, separate frame, just long enough to report
+              that sign-up, and then remove it — so it can't see which pages you visit or anything you
+              type. It may set Google Ads cookies such as <code>_gcl_au</code> (kept for up to 90
+              days).
+            </li>
+            <li>
+              If you arrived by clicking one of our Google adverts and you accept, we keep that
+              click's reference in your browser (<code>zeus_ads_click</code>, up to 90 days) so a
+              sign-up can be credited to the right advert.
             </li>
             <li>
               When you create an account, we tell Google that a sign-up happened, together with an
@@ -325,11 +333,11 @@ export default function PrivacyPage() {
               Cookie settings
             </button>
             {' '}(also linked at the bottom of our home page and in the app's side menu). If you
-            change from Accept to Reject, from that moment we: tell Google's tag that consent is
-            withdrawn; stop sending any further information to Google; cancel any sign-up that
-            hadn't yet been passed to Google; delete the Google Ads cookies and browser storage this
-            site set (such as <code>_gcl_au</code>, <code>_gcl_aw</code> and <code>_gcl_ls</code>);
-            and reload the page so Google's tag is no longer running.
+            change from Accept to Reject, from that moment we: stop sending anything to Google,
+            including a sign-up report that is still in progress; cancel any sign-up that hadn't yet
+            been passed to Google; forget the advert click reference; and delete the Google Ads
+            cookies and browser storage this site set (such as <code>_gcl_au</code>,{' '}
+            <code>_gcl_aw</code> and <code>_gcl_ls</code>).
           </p>
           <p>
             Withdrawing consent can't undo what was already sent while you had accepted — for
