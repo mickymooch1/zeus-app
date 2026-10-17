@@ -818,6 +818,13 @@
   transition: color 0.2s;
 }
 .lp .footer-links a:hover { color: #00f0ff; }
+.lp .footer-links .footer-link-btn {
+  background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  transition: color 0.2s;
+}
+.lp .footer-links .footer-link-btn:hover { color: #00f0ff; }
 .lp .footer-guides {
   flex-basis: 100%;
   display: flex;

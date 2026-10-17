@@ -6,6 +6,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { useDiscoverBadge } from '../hooks/useDiscoverBadge';
 import { useClipsEnabled } from '../hooks/useClipsEnabled';
 import { isIOSWebView } from '../hooks/useIsIOSWebView';
+import { openCookieSettings } from '../utils/adsConsent';
 import { NavIcon as Icon, ZeusBolt } from './navIcons';
 import './NeonSidebar.css';
 
@@ -70,6 +71,9 @@ export function NeonSidebar() {
       <div className="zb-side-foot">
         <Link to="/billing" className="zb-side-account" title={user?.email}>{user?.email}</Link>
         <div style={{ padding: '0 6px' }}><LanguageSelector /></div>
+        {!isIOSWebView && (
+          <button type="button" className="zb-side-cookies" onClick={openCookieSettings}>{t('cookies.settings')}</button>
+        )}
       </div>
     </aside>
   );

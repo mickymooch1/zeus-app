@@ -436,9 +436,11 @@
     }
   },
   "cookies": {
-    "message": "We gebruiken cookies om je ervaring te verbeteren. Door Zeus Beats te gebruiken ga je akkoord met ons <privacy>Privacybeleid</privacy>.",
+    "message": "We willen Google Ads-cookies gebruiken om te meten welke van onze advertenties tot aanmeldingen leiden. Ze worden alleen geplaatst als je op Accepteren klikt, en je kunt je keuze altijd wijzigen via Cookie-instellingen. Zie ons <privacy>Privacybeleid</privacy>.",
     "learnMore": "Meer info",
-    "accept": "Accepteren"
+    "accept": "Accepteren",
+    "reject": "Weigeren",
+    "settings": "Cookie-instellingen"
   },
   "onboarding": {
     "language": {

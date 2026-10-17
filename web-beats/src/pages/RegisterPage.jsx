@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BRAND } from '../brand';
 import { readUtmAttribution } from '../utils/utmAttribution';
+import { trackSignupConversion } from '../utils/adsConsent';
 import { clipsReturnPath } from '../utils/clipsChrome';
 import { remixTargetFromSearch, remixQuery } from '../utils/remixIntent';
 
@@ -81,7 +82,10 @@ export default function RegisterPage() {
       const fingerprint = collectFingerprint();
       // name is optional — empty string is a perfectly valid signup. Users who
       // skip it get asked again after their first song.
-      await register(email, password, name.trim(), tcAccepted, 'beats', referral, fingerprint, readUtmAttribution());
+      const data = await register(email, password, name.trim(), tcAccepted, 'beats', referral, fingerprint, readUtmAttribution());
+      // Google Ads "Sign-up" conversion — only now the account exists, only with
+      // cookie consent, once per user id. Never throws (see utils/adsConsent.js).
+      trackSignupConversion(data?.user?.id);
       // Land straight in the app to make a song — no verification wall, no pricing detour.
       // A remix in progress takes over that landing spot instead (SongsPage reads
       // ?remix= itself and redirects on to the actual remix flow — see its own

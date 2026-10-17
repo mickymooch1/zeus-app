@@ -434,9 +434,11 @@
     }
   },
   "cookies": {
-    "message": "我们使用cookie来改善您的使用体验。使用Zeus Beats即表示您同意我们的<privacy>隐私政策</privacy>。",
+    "message": "我们希望使用 Google Ads Cookie 来衡量哪些广告带来了注册。只有在您点击“接受”后才会设置这些 Cookie，您可以随时在“Cookie 设置”中更改选择。请参阅我们的<privacy>隐私政策</privacy>。",
     "learnMore": "了解更多",
-    "accept": "接受"
+    "accept": "接受",
+    "reject": "拒绝",
+    "settings": "Cookie 设置"
   },
   "onboarding": {
     "language": {

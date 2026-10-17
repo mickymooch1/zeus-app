@@ -436,9 +436,11 @@
     }
   },
   "cookies": {
-    "message": "Usamos cookies para mejorar tu experiencia. Al usar Zeus Beats aceptas nuestra <privacy>Política de privacidad</privacy>.",
+    "message": "Nos gustaría usar cookies de Google Ads para medir qué anuncios nuestros generan registros. Solo se activan si haces clic en Aceptar, y puedes cambiar de opinión en cualquier momento en Configuración de cookies. Consulta nuestra <privacy>Política de privacidad</privacy>.",
     "learnMore": "Más información",
-    "accept": "Aceptar"
+    "accept": "Aceptar",
+    "reject": "Rechazar",
+    "settings": "Configuración de cookies"
   },
   "onboarding": {
     "language": {

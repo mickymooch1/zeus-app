@@ -434,9 +434,11 @@
     }
   },
   "cookies": {
-    "message": "当サイトでは、より良い体験のためにCookieを使用しています。Zeus Beatsをご利用いただくことで、<privacy>プライバシーポリシー</privacy>に同意したものとみなされます。",
+    "message": "どの広告が会員登録につながったかを測定するため、Google 広告の Cookie を使用したいと考えています。Cookie は「同意する」を押した場合にのみ設定され、「Cookie 設定」からいつでも変更できます。詳しくは<privacy>プライバシーポリシー</privacy>をご覧ください。",
     "learnMore": "詳細を見る",
-    "accept": "同意する"
+    "accept": "同意する",
+    "reject": "拒否する",
+    "settings": "Cookie 設定"
   },
   "onboarding": {
     "language": {

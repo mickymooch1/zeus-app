@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { BRAND } from '../brand';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { GENRES } from '../utils/genres';
+import { openCookieSettings } from '../utils/adsConsent';
 import './LandingPageBeats.css';
 
 // Icons and layout live here; every string comes from landing.features.* so the
@@ -615,6 +616,7 @@ export default function LandingPage() {
             <Link to="/refund-policy">{t('landing.footerRefund')}</Link>
             <Link to="/data-deletion">{t('landing.footerDataDeletion')}</Link>
             <Link to="/contact">{t('landing.footerContact')}</Link>
+            <button type="button" className="footer-link-btn" onClick={openCookieSettings}>{t('cookies.settings')}</button>
           </div>
           {/* Server-rendered SEO landing pages — plain <a> (not <Link>) so the
               browser fetches them from the server instead of the SPA router. */}

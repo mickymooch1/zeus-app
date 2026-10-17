@@ -1,14 +1,16 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import { isClipViewerPath, COOKIE_BANNER_H_VAR } from '../utils/clipsChrome';
-
-const STORAGE_KEY = 'zeus_cookie_accepted';
+import { readConsent, setConsent, COOKIE_SETTINGS_EVENT } from '../utils/adsConsent';
+import { isIOSWebView } from '../hooks/useIsIOSWebView';
 
 export default function CookieBanner() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
-  const [visible, setVisible] = useState(() => !localStorage.getItem(STORAGE_KEY));
+  // Shown until the visitor makes a choice (Accept or Reject — see
+  // utils/adsConsent.js), and again whenever a "Cookie settings" link asks.
+  const [visible, setVisible] = useState(() => readConsent() === null);
   const ref = useRef(null);
   // On the full-screen clip viewers the Remix button and song bar are pinned
   // to the bottom — a first-time visitor must be able to hit Remix without
@@ -33,15 +35,38 @@ export default function CookieBanner() {
     };
   }, [visible, compact]);
 
-  if (!visible) return null;
+  useEffect(() => {
+    const open = () => setVisible(true);
+    window.addEventListener(COOKIE_SETTINGS_EVENT, open);
+    return () => window.removeEventListener(COOKIE_SETTINGS_EVENT, open);
+  }, []);
 
-  const accept = () => {
-    localStorage.setItem(STORAGE_KEY, '1');
+  // Inside the iOS app Google's tag never loads (Apple's tracking rules), so
+  // there is nothing to consent to — don't ask.
+  if (!visible || isIOSWebView) return null;
+
+  const choose = (choice) => {
+    setConsent(choice);
     setVisible(false);
   };
 
+  // Accept and Reject share ONE style object: under UK rules (PECR / ICO)
+  // refusing must be exactly as easy and as prominent as accepting.
+  const choiceBtn = {
+    padding: compact ? '6px 14px' : '7px 20px',
+    borderRadius: '999px',
+    fontSize: compact ? '12px' : '13px',
+    fontWeight: 700,
+    fontFamily: 'inherit',
+    background: '#16c8ff',
+    color: '#031018',
+    border: 'none',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  };
+
   return (
-    <div ref={ref} style={{
+    <div ref={ref} role="region" aria-label={t('cookies.settings')} style={{
       position: 'fixed',
       bottom: 0,
       left: 0,
@@ -93,21 +118,10 @@ export default function CookieBanner() {
             {t('cookies.learnMore')}
           </Link>
         )}
-        <button
-          onClick={accept}
-          style={{
-            padding: compact ? '6px 14px' : '7px 20px',
-            borderRadius: '999px',
-            fontSize: compact ? '12px' : '13px',
-            fontWeight: 700,
-            fontFamily: 'inherit',
-            background: '#16c8ff',
-            color: '#031018',
-            border: 'none',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <button type="button" onClick={() => choose('denied')} style={choiceBtn}>
+          {t('cookies.reject')}
+        </button>
+        <button type="button" onClick={() => choose('granted')} style={choiceBtn}>
           {t('cookies.accept')}
         </button>
       </div>

@@ -146,9 +146,9 @@ function AppInner() {
   // page — the main app's cookie banner (bright purple, fixed to the bottom)
   // clashes with its calm design and can cover the photos on small screens.
   // Safe to suppress there specifically: this page sets no cookies of its own,
-  // and the app loads no analytics/tracking scripts anywhere that this
-  // banner's consent actually gates — only Google Fonts, which isn't
-  // cookie-gated by this banner regardless of route.
+  // and the only thing the banner's consent gates — the Google Ads tag (see
+  // utils/adsConsent.js) — never loads without a stored Accept, so a visitor
+  // who lands here first simply gets no tag.
   // /memorial/:token is the same standalone page family (added later, at a
   // different path) — it was never covered by this check, so the banner sat
   // over the memorial card and its photos. isStandalonePublicPage covers both.

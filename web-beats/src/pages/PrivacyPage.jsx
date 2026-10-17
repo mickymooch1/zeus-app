@@ -1,4 +1,5 @@
 import { BeatsNavbar } from '../components/BeatsNavbar';
+import { openCookieSettings } from '../utils/adsConsent';
 
 export default function PrivacyPage() {
   return (
@@ -9,7 +10,7 @@ export default function PrivacyPage() {
       </div>
       <main className="content-page page">
         <h1 className="content-title">Privacy Policy</h1>
-        <p className="content-meta">Last updated: 17 July 2026</p>
+        <p className="content-meta">Last updated: 17 October 2026</p>
 
         <section className="content-section">
           <h2>1. Introduction</h2>
@@ -70,6 +71,10 @@ export default function PrivacyPage() {
             <li>Post to Facebook via Make.com automation (Music Agency plan only)</li>
             <li>Send transactional emails (account confirmation, billing receipts)</li>
             <li>Monitor for abuse, fraud, and security incidents</li>
+            <li>
+              Measure whether our Google Ads adverts lead to new accounts — only if you accept
+              advertising cookies (see section 9)
+            </li>
             <li>Comply with legal obligations</li>
           </ul>
           <p>
@@ -260,20 +265,63 @@ export default function PrivacyPage() {
         <section className="content-section">
           <h2>9. Cookies</h2>
           <p>
-            Zeus Beats uses minimal cookies and local storage:
+            <strong>Essential (always on).</strong> These are needed for the Service to work, so
+            they don't need your consent:
           </p>
           <ul>
             <li>
               <strong>Authentication token:</strong> Stored in browser localStorage to keep you
-              signed in. This is strictly necessary for the Service to function.
+              signed in.
             </li>
             <li>
               <strong>Session preferences:</strong> Lightweight data to remember your UI
-              preferences.
+              preferences, such as your language.
+            </li>
+            <li>
+              <strong>Your cookie choice:</strong> Stored in browser localStorage so we don't ask
+              you again on every visit.
             </li>
           </ul>
           <p>
-            We do not use tracking cookies, advertising cookies, or third-party analytics cookies.
+            <strong>Advertising (only if you click Accept).</strong> We use Google Ads conversion
+            tracking, provided by Google, to find out whether people who click one of our Google
+            adverts go on to create a Zeus Beats account:
+          </p>
+          <ul>
+            <li>
+              If you accept, we load Google's tag, which may set Google Ads cookies such as{' '}
+              <code>_gcl_au</code> and <code>_gcl_aw</code> (kept for up to 90 days).
+            </li>
+            <li>
+              When you create an account, we tell Google that a sign-up happened, together with an
+              internal account number so it is only counted once. We do not send Google your name,
+              email address or anything you create.
+            </li>
+            <li>
+              We use this only to measure our adverts. We do not allow it to be used for
+              personalised advertising, and we do not use Google Analytics.
+            </li>
+            <li>
+              Google processes this data under its own privacy policy (
+              <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="auth-link">
+                policies.google.com/privacy
+              </a>
+              ), and it may be transferred outside the UK under Google's safeguards.
+            </li>
+          </ul>
+          <p>
+            We use Google Consent Mode. Until you choose, all Google advertising storage is set to
+            "denied" and Google's tag is not loaded at all. If you click Reject, or never choose,
+            no advertising cookies are set and nothing is sent to Google.
+          </p>
+          <p>
+            <strong>Changing your mind.</strong> You can change your choice at any time with{' '}
+            <button type="button" onClick={openCookieSettings} className="auth-link"
+                    style={{ background: 'none', border: 0, padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+              Cookie settings
+            </button>
+            {' '}(also linked at the bottom of our home page and in the app's side menu). If you
+            change from Accept to Reject, we delete the Google Ads cookies on this site.
           </p>
         </section>
 
