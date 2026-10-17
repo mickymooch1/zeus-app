@@ -92,4 +92,16 @@ jobs:
           echo "ZEUS_DATA_DIR=$RUNNER_TEMP/zeus-data" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/songs" "$RUNNER_TEMP/zeus-data"
       # `tests`, not bare pytest: backend/test_song_pipeline.py is a live-API script.
-      - run: python -m pytest tests -q
+      # On failure the tail of the output is also posted as one error annotation,
+      # so it is readable on the run page without opening the raw log.
+      - name: pytest
+        shell: bash
+        run: |
+          set +e
+          python -m pytest tests -q -rfE -p no:cacheprovider 2>&1 | tee "$RUNNER_TEMP/pytest.log"
+          code=${PIPESTATUS[0]}
+          if [ "$code" != 0 ]; then
+            msg=$(tail -n 60 "$RUNNER_TEMP/pytest.log" | sed -e 's/%/%25/g' -e 's//%0D/g' | awk 'BEGIN{ORS="%0A"} {print}')
+            echo "::error title=pytest exit $code::${msg}"
+          fi
+          exit $code
