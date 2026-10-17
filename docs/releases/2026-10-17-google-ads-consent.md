@@ -61,6 +61,14 @@ the account before launch. The raw email never appeared in any request.
   0m9gg5gh.up.railway.app`. Live deployment `6b811676-9b00-4590-9ee2-9d4d29e4619d`
   (commit `45ca91c`), SUCCESS. Deploys automatically on every push to `master`
   only. "Wait for CI" is **off**: Railway does not wait for GitHub checks.
+- **Wait for CI can't be switched on yet.** It is a toggle in the service's
+  settings (not exposed to the Railway API tools used here), and Railway only
+  shows it once a GitHub Actions workflow runs on pushes to the deploy branch —
+  i.e. once `.github/workflows/ci.yml` is on `master`. It is therefore step 6 of
+  Deploying below. When on, a deploy waits for every GitHub Actions workflow
+  on the commit; a failed workflow skips the deploy; other apps' checks (such
+  as `gracious-exploration`'s red status) are ignored; after 2 hours of
+  waiting the deploy is skipped.
 - **`gracious-exploration`** (`378a5815-2cea-46da-867c-0d98a8f52f28`): an older
   duplicate on the same repo/branch with no domain, no volume, only
   `ANTHROPIC_API_KEY`; every deploy fails (missing `APIFRAME_API_KEY`). Serves
@@ -78,14 +86,15 @@ the account before launch. The raw email never appeared in any request.
 | web | Node 20: `npm ci`, `npm run build` (zeusaidesign.com, also in the Docker image) |
 | backend | Python 3.12: `pip install -r requirements.txt`, writable `/data`, `python -m pytest tests -q`; on failure the output tail is posted as an annotation |
 
-Known: 2 backend tests (`test_library_batch::test_library_endpoint_is_registered_and_not_shadowed`,
-`test_scanner_paths::test_no_registered_backend_route_is_a_scanner_path`) fail
-with FastAPI 0.143.x (route introspection; `requirements.txt` isn't pinned).
-They fail identically on `master` and are unrelated to this branch.
+The two route-table tests that broke with FastAPI 0.143 (it no longer
+flattens `include_router` routers into `app.routes`) now read routes through
+`tests/route_paths.py`, which works on both 0.135 and 0.143 — test-only fix.
+`requirements.txt` is still unpinned, so a fresh build can pull newer packages
+than production has; pinning is a separate decision.
 
 ## Before merging
 
-1. CI: web-beats and web green; backend green apart from the 2 known failures above.
+1. CI: all three jobs green on the branch head.
 2. Google Ads settings above confirmed off.
 3. Optional: the headless-Chrome end-to-end harness (real gtag.js, every Google
    hit intercepted, `/auth/register` faked) — 51 checks.
@@ -97,7 +106,13 @@ They fail identically on `master` and are unrelated to this branch.
 3. Re-run the tests on the merged tree (or let CI run on the merge commit).
 4. `git push origin master` — starts the production deploy on `steadfast-healing`.
 5. Watch Railway until the new deployment is SUCCESS (about 1–2 minutes).
-   Record its id: `__________`.
+   Record its id: `__________`. (This first deploy can't be gated by Wait for
+   CI — the workflow isn't on `master` until this push. Master hasn't moved
+   since `45ca91c`, so the merge has the same content as the CI-tested branch
+   head; check the CI run on the merge commit too.)
+6. Railway → `steadfast-healing` → zeus-app → Settings → Source → turn on
+   **Wait for CI**. (Leave `gracious-exploration` alone.) From then on every
+   production deploy waits for CI to pass.
 
 ## Verifying in production (about 15 minutes)
 
@@ -149,7 +164,15 @@ cookies) is accurate again once the code is gone.
 
 - Sign-ups by people who don't click Accept are not counted (strict opt-in).
 - If a visitor accepts only after navigating away from the ad's landing URL,
-  the click can't be linked (the tag loads after the click id has left the URL).
+  the click isn't linked: the tag loads after the click id has left the
+  address bar. Tested 2026-10-18 with the real gtag.js: passing the landing
+  URL as `page_location` (config or `set`) does not set `_gcl_aw` or `gclaw`.
+  What does work: keeping the landing URL's gclid / gbraid / wbraid in page
+  memory only (no storage, nothing sent), and on Accept briefly putting them
+  back in the address bar while the tag starts, then restoring it —
+  `_gcl_aw` set, conversion attributed, no request before consent. Not built:
+  it isn't a Google-documented method and needs the owner's decision. It can't
+  help if the visitor reloads or leaves before accepting.
 - The browser can't confirm Google received a conversion ("handed off" = the tag
   processed it). Retries reuse the random id.
 - School sign-ups and email verifications are not tracked.
