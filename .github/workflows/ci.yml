@@ -76,8 +76,6 @@ jobs:
       ANTHROPIC_API_KEY: x
       APIFRAME_API_KEY: x
       JWT_SECRET: x
-      SONG_STORAGE_PATH: ${{ runner.temp }}/songs
-      ZEUS_DATA_DIR: ${{ runner.temp }}/zeus-data
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -86,6 +84,12 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt
-      - run: mkdir -p "$SONG_STORAGE_PATH" "$ZEUS_DATA_DIR"
+      # Scratch dirs for songs and the SQLite DB (the runner context isn't
+      # available in a job-level env block, so they are set here).
+      - name: Scratch data dirs
+        run: |
+          echo "SONG_STORAGE_PATH=$RUNNER_TEMP/songs" >> "$GITHUB_ENV"
+          echo "ZEUS_DATA_DIR=$RUNNER_TEMP/zeus-data" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/songs" "$RUNNER_TEMP/zeus-data"
       # `tests`, not bare pytest: backend/test_song_pipeline.py is a live-API script.
       - run: python -m pytest tests -q
