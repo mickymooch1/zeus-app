@@ -129,7 +129,9 @@ def test_no_registered_backend_route_is_a_scanner_path():
     route under /ai/ or /bedrock/ (or matching any other rule) would count as a strike."""
     import re
     import main
-    paths = [getattr(r, "path", "") for r in main.app.routes]
+    sys.path.insert(0, str(pathlib.Path(__file__).parent))
+    from route_paths import all_route_paths
+    paths = all_route_paths(main.app.routes)
     assert "/api/hub/status" in paths, "route listing missed the hub router"
     hits = [p for p in paths if p and scanner_paths.is_scanner_path(re.sub(r"\{[^}]*\}", "x", p))]
     assert hits == [], f"real backend routes match the scanner blocklist: {hits}"

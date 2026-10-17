@@ -130,6 +130,8 @@ def test_library_endpoint_is_registered_and_not_shadowed():
     """/api/library must not sit under /api/lyrics/{lyric_id:int}, which would
     422 on a string segment instead of falling through."""
     import main
-    paths = {r.path for r in main.app.routes}
+    sys.path.insert(0, str(pathlib.Path(__file__).parent))
+    from route_paths import all_route_paths
+    paths = set(all_route_paths(main.app.routes))
     assert "/api/library" in paths
     assert not any(p.startswith("/api/lyrics/") and p.endswith("/library") for p in paths)
