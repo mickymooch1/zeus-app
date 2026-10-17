@@ -436,7 +436,7 @@
     }
   },
   "cookies": {
-    "message": "Nous aimerions utiliser des cookies Google Ads pour mesurer lesquelles de nos publicités mènent à des inscriptions. Ils ne sont déposés que si vous cliquez sur Accepter, et vous pouvez changer d'avis à tout moment dans Paramètres des cookies. Consultez notre <privacy>Politique de confidentialité</privacy>.",
+    "message": "Avec votre accord, nous aimerions utiliser la balise publicitaire et les cookies de Google sur nos pages pour mesurer lesquelles de nos publicités amènent des visites et des inscriptions. Rien n'est utilisé tant que vous ne cliquez pas sur Accepter, et vous pouvez changer d'avis à tout moment dans Paramètres des cookies. Consultez notre <privacy>Politique de confidentialité</privacy>.",
     "learnMore": "En savoir plus",
     "accept": "Accepter",
     "reject": "Refuser",

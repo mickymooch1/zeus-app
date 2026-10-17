@@ -436,7 +436,7 @@
     }
   },
   "cookies": {
-    "message": "We'd like to use Google Ads cookies to measure which of our adverts lead to sign-ups. They're only set if you click Accept, and you can change your mind any time in Cookie settings. See our <privacy>Privacy Policy</privacy>.",
+    "message": "With your OK, we'd like to use Google's advertising tag and cookies on our pages to measure which of our adverts bring visitors and sign-ups. Nothing is used unless you click Accept, and you can change your mind any time in Cookie settings. See our <privacy>Privacy Policy</privacy>.",
     "learnMore": "Learn More",
     "accept": "Accept",
     "reject": "Reject",

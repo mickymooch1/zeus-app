@@ -436,7 +436,7 @@
     }
   },
   "cookies": {
-    "message": "Gostaríamos de usar cookies do Google Ads para medir quais dos nossos anúncios geram cadastros. Eles só são definidos se você clicar em Aceitar, e você pode mudar de ideia a qualquer momento em Configurações de cookies. Veja nossa <privacy>Política de Privacidade</privacy>.",
+    "message": "Com a sua autorização, gostaríamos de usar a tag de publicidade e os cookies do Google nas nossas páginas para medir quais dos nossos anúncios trazem visitas e cadastros. Nada é usado a menos que você clique em Aceitar, e você pode mudar de ideia a qualquer momento em Configurações de cookies. Veja nossa <privacy>Política de Privacidade</privacy>.",
     "learnMore": "Saiba mais",
     "accept": "Aceitar",
     "reject": "Recusar",

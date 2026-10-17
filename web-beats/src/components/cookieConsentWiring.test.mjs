@@ -68,6 +68,8 @@ test('every locale has the new banner copy — no more "by using … you agree"'
     assert.match(c.message, /Google/, `${f}: names Google`);
   }
   assert.doesNotMatch(JSON.parse(read('locales/en.json')).cookies.message, /By using/);
+  // after Accept the tag runs sitewide: the banner must say it's on our pages and measures visits
+  assert.match(JSON.parse(read('locales/en.json')).cookies.message, /on our pages.*visitors and sign-ups/);
 });
 
 test('privacy policy describes Google Ads honestly', () => {
@@ -80,23 +82,20 @@ test('privacy policy describes Google Ads honestly', () => {
 test('privacy policy is accurate about withdrawal and information already sent', () => {
   const privacy = read('pages/PrivacyPage.jsx').replace(/\s+/g, ' ');
   for (const s of [
+    "runs on every page of the site you visit", // sitewide tag after consent
+    'records your page views', // page-view tracking disclosed
+    'random reference number', // conversion id is random, not the account number
     "can't undo what was already sent", // already-sent data stays with Google
+    'page views or a sign-up already passed to Google',
     '_gcl_ls', // the localStorage entry gtag.js writes is deleted too
-    'including a sign-up report that is still in progress', // a send in progress is stopped
-    'zeus_ads_click', // the remembered ad click is disclosed
+    'reload the page so the tag is no longer running', // the running tag is removed
     'cancel any sign-up that hadn', // unsent retries are dropped
     "can't delete cookies that Google sets on its own websites",
     'zeus_ads_consent', // the consent cookie is disclosed
     'at most five times, within 30 days', // retry behaviour disclosed
-    "Google's tag never runs on the pages you use", // sign-ups only: no page views, no form scanning
+    'Google is not loaded at all'.replace('Google is', "Google's tag is"), // basic consent mode
   ]) assert.ok(privacy.includes(s), s);
-});
-
-// The Google Ads frame is a navigation the service worker sees: it must never be
-// cached as the app shell under '/' (the app would open the empty frame offline).
-test('service worker leaves iframe navigations alone', () => {
-  const sw = read('sw.js');
-  const skip = sw.indexOf("request.mode === 'navigate' && request.destination === 'iframe'");
-  assert.ok(skip > -1, 'iframe navigations must be skipped');
-  assert.ok(skip < sw.indexOf("cache.put('/'"), 'before the shell is cached');
+  for (const gone of ['hidden, separate frame', 'zeus_ads_click', 'internal account number']) {
+    assert.ok(!privacy.includes(gone), `stale wording: ${gone}`);
+  }
 });

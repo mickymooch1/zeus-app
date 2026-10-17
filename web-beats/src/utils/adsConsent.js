@@ -1,31 +1,29 @@
-// Google Ads "Sign-up" conversion behind explicit cookie consent (UK PECR /
-// Google Consent Mode v2) — and nothing else.
+// Google Ads: the standard sitewide Google tag behind explicit cookie consent
+// (UK PECR), using Consent Mode v2 in its "basic" form.
 //
-// Google's tag NEVER runs on the app's own pages. For each consented sign-up,
-// a hidden frame (/ads-frame.html + public/ads-frame.js) is added, loads the
-// tag, sends that one conversion and is removed. Measured against the real
-// gtag.js, this is what keeps tracking limited to sign-ups:
-//   - a tag on the page sends page_view pings on every page and SPA
-//     navigation whenever it is `config`ured (even with send_page_view: false);
-//   - while loaded on a page it also watches every form submission there and
-//     sends "form-data" pings (this account has automatic enhanced conversions);
-//   - once loaded it can't be switched off — a 'denied' update and
-//     window['ga-disable-AW-…'] don't stop it.
-// In the empty frame it sees no pages, forms or navigation; the main page
-// only ever pushes the all-denied Consent Mode default.
+// Basic Consent Mode, as Google documents it: the all-denied defaults are
+// pushed on every page load, but gtag.js itself is not requested until the
+// visitor clicks Accept — so without consent nothing at all reaches Google.
+// After Accept the standard Google tag runs on every page (page views, the
+// conversion linker that reads the ad click from the landing URL), with
+// ad_storage + ad_user_data granted; ad_personalization (remarketing) and
+// analytics_storage stay denied.
 //
-// Ad click: the gclid / gbraid / wbraid from the landing URL is held in memory
-// and, once the visitor accepts, kept in localStorage for 90 days, then passed
-// to the frame's URL where the tag reads it — so a sign-up is attributed to the
-// ad even on a later visit.
+// The only conversion is "Sign-up", fired from RegisterPage after the backend
+// has created the account. Its transaction_id is a random conversion id made
+// once per sign-up (never the user id — Google asks that transaction ids not
+// identify customers) and reused for every retry, so Google drops duplicates.
 //
-// Delivery: a browser cannot see whether Google accepted a hit (the response is
-// cross-origin and opaque). The tag's event_callback — which fires once it has
-// processed the event, whether the hit then succeeds or fails — is the strongest
-// local signal, so that is "handed off". Until then the sign-up stays pending
-// in localStorage and is retried on later visits (while consent lasts, up to 5
-// attempts within 30 days), always with the user id as transaction_id so
-// Google drops duplicates.
+// Delivery: a browser cannot see whether Google accepted a hit (the response
+// is cross-origin and opaque). Measured against the real gtag.js, its
+// event_callback fires once it has processed the event, whether the hit then
+// succeeds or fails — so that is "handed off". Until then the sign-up stays
+// pending in localStorage and is retried on later visits (while consent lasts,
+// up to 5 attempts within 30 days).
+//
+// Withdrawal: a loaded gtag.js can't be switched off (a 'denied' update and
+// window['ga-disable-AW-…'] don't stop it — measured), so withdrawing consent
+// on a page where it is running reloads the page after saving the choice.
 //
 // Fail safe: consent that can't be read counts as not given; "denied" in either
 // place it is stored wins over "granted".
@@ -39,38 +37,51 @@ export const SIGNUP_CONVERSION_LABEL = 'o7SdCLShsZ8dEI7K9_1E';
 // those visitors are simply asked again.
 export const CONSENT_STORAGE_KEY = 'zeus_cookie_consent';
 export const CONSENT_COOKIE = 'zeus_ads_consent';
+// [{ user, cid, ts, attempts }] — `user` stays in this browser (local
+// de-duplication); only the random `cid` is ever sent to Google.
 export const PENDING_STORAGE_KEY = 'zeus_ads_pending_signups';
-export const CLICK_STORAGE_KEY = 'zeus_ads_click';
 export const COOKIE_SETTINGS_EVENT = 'zeus:cookie-settings';
-export const FRAME_PATH = '/ads-frame.html';
-export const FRAME_MESSAGE_TYPE = 'zeus-ads-frame';
 const SENT_KEY_PREFIX = 'zeus_ads_signup_sent_';
-const CLICK_ID_PARAMS = ['gclid', 'gbraid', 'wbraid'];
+const SCRIPT_ID = 'zeus-gtag';
 const CONSENT_COOKIE_MAX_AGE_S = 365 * 24 * 60 * 60;
 const PENDING_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const PENDING_MAX_ATTEMPTS = 5;
-const CLICK_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
-const DEFAULT_SEND_TIMEOUT_MS = 20000;
+const DEFAULT_TAG_TIMEOUT_MS = 15000;
+const HAND_OFF_WAIT_MS = 10000;
+const CID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 const DENIED = {
   ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
 };
+const GRANTED = { ...DENIED, ad_storage: 'granted', ad_user_data: 'granted' };
 
 // Per-page state — reset by initConsentMode, which runs once per page load.
 let blocked = false;
-let sendTimeoutMs = DEFAULT_SEND_TIMEOUT_MS;
+let tagTimeoutMs = DEFAULT_TAG_TIMEOUT_MS;
 let memoryChoice = null; // this page's choice; wins over storage
-let landingClick = null; // ad click ids from this page's landing URL
-const memoryPending = new Map(); // id -> record, in case storage writes fail
+let tagPromise = null;
+let configured = false;
+const memoryPending = new Map(); // user -> record, in case storage writes fail
 const memorySent = new Set();
 const inFlight = new Set();
-const liveFrames = new Map(); // id -> finish(status)
+const cancelled = new Set(); // in flight when consent was withdrawn
 
 function gtag() {
   // gtag.js only processes real Arguments objects, so this must stay a
   // `function` using `arguments` (not rest params / an array).
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push(arguments);
+}
+
+// A random v4 UUID, from the browser's cryptographic generator.
+function newConversionId() {
+  const c = globalThis.crypto;
+  if (typeof c?.randomUUID === 'function') return c.randomUUID();
+  const b = c.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
 // ── storage helpers: never throw; writes report whether they really stuck ──
@@ -115,140 +126,136 @@ export function readConsent() {
 
 const consentOk = () => !blocked && readConsent() === 'granted';
 
-// ── ad click ids ───────────────────────────────────────────────────────────
-
-const CLICK_ID_RE = /^[\w-]{1,200}$/;
-
-function pickClickIds(source) {
-  const click = {};
-  for (const k of CLICK_ID_PARAMS) {
-    const v = source(k);
-    if (typeof v === 'string' && CLICK_ID_RE.test(v)) click[k] = v;
-  }
-  return Object.keys(click).length ? click : null;
-}
-function clickFromUrl() {
-  try {
-    const params = new URLSearchParams(window.location?.search || '');
-    return pickClickIds((k) => params.get(k));
-  } catch {
-    return null;
-  }
-}
-function rememberClick() {
-  if (landingClick) lsSet(CLICK_STORAGE_KEY, JSON.stringify({ ...landingClick, ts: Date.now() }));
-}
-function currentClick() {
-  if (landingClick) return landingClick;
-  try {
-    const stored = JSON.parse(lsGet(CLICK_STORAGE_KEY));
-    if (!stored || Date.now() - (Number(stored.ts) || 0) > CLICK_MAX_AGE_MS) return null;
-    return pickClickIds((k) => stored[k]);
-  } catch {
-    return null;
-  }
-}
-
 // ── pending conversions ────────────────────────────────────────────────────
+
+const validRecord = (r) => r && typeof r.user === 'string' && typeof r.cid === 'string' && CID_RE.test(r.cid);
 
 function storedPending() {
   try {
     const list = JSON.parse(lsGet(PENDING_STORAGE_KEY) || '[]');
-    return Array.isArray(list) ? list.filter((r) => r && typeof r.id === 'string') : [];
+    return Array.isArray(list) ? list.filter(validRecord) : [];
   } catch {
     return [];
   }
 }
 function livePending() {
-  const byId = new Map(storedPending().map((r) => [r.id, r]));
-  for (const [id, r] of memoryPending) byId.set(id, { ...byId.get(id), ...r });
+  const byUser = new Map(storedPending().map((r) => [r.user, r]));
+  for (const [user, r] of memoryPending) byUser.set(user, { ...byUser.get(user), ...r });
   const now = Date.now();
-  return [...byId.values()].filter((r) => now - (Number(r.ts) || 0) <= PENDING_MAX_AGE_MS
+  return [...byUser.values()].filter((r) => now - (Number(r.ts) || 0) <= PENDING_MAX_AGE_MS
     && (Number(r.attempts) || 0) < PENDING_MAX_ATTEMPTS);
 }
 function savePending(list) {
   memoryPending.clear();
-  for (const r of list) memoryPending.set(r.id, r);
+  for (const r of list) memoryPending.set(r.user, r);
   if (list.length === 0) lsRemove(PENDING_STORAGE_KEY);
   else lsSet(PENDING_STORAGE_KEY, JSON.stringify(list));
 }
-function updatePending(id, change) {
-  savePending(livePending().map((r) => (r.id === id ? change(r) : r)).filter(Boolean));
+function updatePending(user, change) {
+  savePending(livePending().map((r) => (r.user === user ? change(r) : r)).filter(Boolean));
 }
-function isSent(id) {
-  return memorySent.has(id) || lsGet(`${SENT_KEY_PREFIX}${id}`) === '1';
+function isSent(user) {
+  return memorySent.has(user) || lsGet(`${SENT_KEY_PREFIX}${user}`) === '1';
 }
-function markHandedOff(id) {
-  memorySent.add(id);
-  lsSet(`${SENT_KEY_PREFIX}${id}`, '1');
-  updatePending(id, () => null);
+function markHandedOff(user) {
+  memorySent.add(user);
+  lsSet(`${SENT_KEY_PREFIX}${user}`, '1');
+  updatePending(user, () => null);
 }
 
-// ── the hidden frame ───────────────────────────────────────────────────────
+// ── the tag ────────────────────────────────────────────────────────────────
 
-function sendViaFrame(id) {
-  return new Promise((resolve) => {
-    let frame = null;
-    let timer = null;
-    const listener = (e) => {
-      if (!frame || e.source !== frame.contentWindow || e.origin !== window.location.origin) return;
-      const d = e.data;
-      if (!d || d.type !== FRAME_MESSAGE_TYPE || d.tid !== id) return;
-      finish(d.status === 'handed-off' ? 'handed-off' : 'failed');
+// Resolves once gtag.js has loaded; rejects on load error or timeout. A failed
+// script element is removed so a later attempt can add it again.
+function loadTag() {
+  if (blocked) return Promise.reject(new Error('blocked'));
+  if (tagPromise) return tagPromise;
+  const existing = document.getElementById(SCRIPT_ID);
+  if (existing) {
+    // timed out earlier on this page and may still arrive — don't add a second copy
+    return window.google_tag_data ? Promise.resolve() : Promise.reject(new Error('still loading'));
+  }
+  tagPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.id = SCRIPT_ID;
+    s.async = true;
+    s.src = `https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`;
+    let settled = false;
+    const fail = (why) => {
+      if (settled) return;
+      settled = true;
+      tagPromise = null;
+      reject(new Error(why));
     };
-    function finish(status) {
-      if (liveFrames.get(id) !== finish) return; // settled already, or not this send
-      liveFrames.delete(id);
+    const timer = setTimeout(() => fail('timeout'), tagTimeoutMs);
+    s.onload = () => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
-      try { window.removeEventListener('message', listener); } catch { /* no window */ }
-      try { frame?.remove(); } catch { /* already gone */ }
-      if (status === 'cancelled') { resolve('skipped'); return; }
-      if (status === 'handed-off') { markHandedOff(id); resolve('handed-off'); return; }
-      // 'failed': gtag.js couldn't load — free to retry. 'timeout': we can't
-      // tell whether it went, so not again on this page (later visits retry,
-      // and Google drops a duplicate transaction_id).
-      if (status === 'failed') inFlight.delete(id);
-      resolve('pending');
-    }
-    liveFrames.set(id, finish);
-    try {
-      frame = document.createElement('iframe');
-      frame.setAttribute('aria-hidden', 'true');
-      frame.setAttribute('tabindex', '-1');
-      frame.title = 'Zeus Beats';
-      frame.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden;pointer-events:none';
-      const click = currentClick();
-      const qs = click ? new URLSearchParams(click).toString() : '';
-      frame.src = `${FRAME_PATH}${qs ? `?${qs}` : ''}#tid=${encodeURIComponent(id)}`;
-      window.addEventListener('message', listener);
-      timer = setTimeout(() => finish('timeout'), sendTimeoutMs);
-      (document.body || document.documentElement).appendChild(frame);
-    } catch {
-      finish('failed');
+      resolve();
+    };
+    s.onerror = () => {
+      clearTimeout(timer);
+      try { s.remove(); } catch { /* already gone */ }
+      fail('load failed');
+    };
+    document.head.appendChild(s);
+    if (!configured) {
+      configured = true;
+      gtag('js', new Date());
+      gtag('config', GOOGLE_ADS_ID); // the standard sitewide config
     }
   });
+  tagPromise.catch(() => {});
+  return tagPromise;
 }
 
-async function dispatch(id) {
-  if (inFlight.has(id) || isSent(id) || !consentOk()) return 'skipped';
-  inFlight.add(id);
-  updatePending(id, (r) => ({ ...r, attempts: (Number(r.attempts) || 0) + 1 }));
-  return sendViaFrame(id);
+async function dispatch(user) {
+  if (inFlight.has(user) || isSent(user) || !consentOk()) return 'skipped';
+  const record = livePending().find((r) => r.user === user);
+  if (!record) return 'skipped';
+  inFlight.add(user);
+  updatePending(user, (r) => ({ ...r, attempts: (Number(r.attempts) || 0) + 1 }));
+  try {
+    await loadTag();
+  } catch {
+    inFlight.delete(user);
+    return 'pending';
+  }
+  // consent may have been withdrawn while the tag was loading
+  if (!consentOk() || cancelled.has(user)) {
+    inFlight.delete(user);
+    return 'skipped';
+  }
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve('pending'), HAND_OFF_WAIT_MS);
+    timer?.unref?.();
+    gtag('event', 'conversion', {
+      send_to: `${GOOGLE_ADS_ID}/${SIGNUP_CONVERSION_LABEL}`,
+      transaction_id: record.cid,
+      event_callback: () => {
+        clearTimeout(timer);
+        markHandedOff(user);
+        resolve('handed-off');
+      },
+    });
+    // stays in inFlight for the rest of this page: never pushed twice per page
+  });
 }
 
 // Retries anything a previous page couldn't hand to the tag.
 export function flushPendingConversions() {
   try {
     if (!consentOk()) return Promise.resolve([]);
-    return Promise.all(livePending().filter((r) => !isSent(r.id)).map((r) => dispatch(r.id)));
+    return Promise.all(livePending().filter((r) => !isSent(r.user)).map((r) => dispatch(r.user)));
   } catch {
     return Promise.resolve([]);
   }
 }
 
-// Google Ads' first-party cookies (_gcl_au, _gcl_aw, …) and the _gcl_ls entry
-// gtag.js keeps in localStorage — the frame is same-origin, so they are ours to
-// delete. Set on the registrable domain, so try each parent domain as well.
+// Google Ads' first-party cookies (_gcl_aw, _gcl_au, …) and the _gcl_ls entry
+// gtag.js keeps in localStorage. Set on the registrable domain, so try each
+// parent domain as well as none.
 function clearAdStorage() {
   try {
     const names = document.cookie.split(';').map((c) => c.split('=')[0].trim()).filter((n) => n.startsWith('_gcl'));
@@ -271,23 +278,23 @@ function clearAdStorage() {
 // ── public API ─────────────────────────────────────────────────────────────
 
 // Call once per page load, before the app renders. `blocked` is true inside
-// the iOS app, where Apple's tracking rules apply — nothing is ever sent there.
-export function initConsentMode({ blocked: isBlocked = false, sendTimeoutMs: timeout = DEFAULT_SEND_TIMEOUT_MS } = {}) {
+// the iOS app, where Apple's tracking rules apply — the tag never loads there.
+export function initConsentMode({ blocked: isBlocked = false, tagTimeoutMs: timeout = DEFAULT_TAG_TIMEOUT_MS } = {}) {
   blocked = isBlocked;
-  sendTimeoutMs = timeout;
+  tagTimeoutMs = timeout;
   memoryChoice = null;
+  tagPromise = null;
+  configured = false;
   memoryPending.clear();
   memorySent.clear();
   inFlight.clear();
-  for (const finish of [...liveFrames.values()]) finish('cancelled'); // never leave a send unsettled
-  landingClick = clickFromUrl();
+  cancelled.clear();
   try {
-    // The main page never grants anything to Google: if any Google tag were
-    // ever added here, it would start (and stay) all-denied.
     gtag('consent', 'default', DENIED);
-    savePending(livePending()); // drops expired / exhausted records
+    savePending(livePending()); // drops expired / exhausted / malformed records
     if (consentOk()) {
-      rememberClick();
+      gtag('consent', 'update', GRANTED);
+      loadTag();
       flushPendingConversions();
     }
   } catch {
@@ -295,11 +302,15 @@ export function initConsentMode({ blocked: isBlocked = false, sendTimeoutMs: tim
   }
 }
 
-// Returns { persisted } — whether the choice was saved for future visits (it
-// always applies to the rest of this page).
+// Returns { persisted, reloading }. Withdrawing consent on a page where
+// Google's tag already ran reloads the page — the only way to stop it. If the
+// withdrawal couldn't be saved, it does NOT reload (the reload would bring the
+// old Accept back); the denial holds in memory for the rest of the page.
 export function setConsent(choice) {
   const value = choice === 'granted' ? 'granted' : 'denied';
   memoryChoice = value;
+  let tagWasRunning = false;
+  try { tagWasRunning = !!document.getElementById(SCRIPT_ID); } catch { /* no DOM */ }
   if (!lsSet(CONSENT_STORAGE_KEY, JSON.stringify({ ads: value, v: 1, ts: Date.now() })) && value === 'denied') {
     lsRemove(CONSENT_STORAGE_KEY); // never leave an old "granted" behind
   }
@@ -309,21 +320,22 @@ export function setConsent(choice) {
   try {
     if (value === 'granted') {
       if (!blocked) {
-        rememberClick();
+        gtag('consent', 'update', GRANTED);
+        loadTag();
         flushPendingConversions();
       }
-    } else {
-      // Withdrawal: stop any send in progress, forget unsent sign-ups and the
-      // ad click, and delete what Google's tag stored on this site.
-      for (const finish of [...liveFrames.values()]) finish('cancelled');
-      savePending([]);
-      lsRemove(CLICK_STORAGE_KEY);
-      clearAdStorage();
+      return { persisted, reloading: false };
     }
+    gtag('consent', 'update', DENIED);
+    savePending([]); // anything not yet handed to Google is cancelled
+    for (const user of inFlight) cancelled.add(user);
+    clearAdStorage();
+    const reloading = tagWasRunning && persisted;
+    if (reloading) window.location.reload();
+    return { persisted, reloading };
   } catch {
-    // tracking must never break the app
+    return { persisted, reloading: false };
   }
-  return { persisted };
 }
 
 export function openCookieSettings() {
@@ -334,19 +346,19 @@ export function openCookieSettings() {
   }
 }
 
-// Resolves to 'handed-off' (Google's tag took the event), 'pending' (kept for
-// a retry on a later visit) or 'skipped' (no consent, no id, already done or
+// Resolves to 'handed-off' (gtag.js took the event), 'pending' (kept for a
+// retry on a later visit) or 'skipped' (no consent, no id, already done or
 // withdrawn). Never rejects.
 export function trackSignupConversion(userId) {
   try {
     if (userId === undefined || userId === null || userId === '') return Promise.resolve('skipped');
     if (!consentOk()) return Promise.resolve('skipped');
-    const id = String(userId);
-    if (isSent(id)) return Promise.resolve('skipped');
-    if (!livePending().some((r) => r.id === id)) {
-      savePending([...livePending(), { id, ts: Date.now(), attempts: 0 }]);
+    const user = String(userId);
+    if (isSent(user)) return Promise.resolve('skipped');
+    if (!livePending().some((r) => r.user === user)) {
+      savePending([...livePending(), { user, cid: newConversionId(), ts: Date.now(), attempts: 0 }]);
     }
-    return dispatch(id).catch(() => 'pending');
+    return dispatch(user).catch(() => 'pending');
   } catch {
     return Promise.resolve('skipped');
   }

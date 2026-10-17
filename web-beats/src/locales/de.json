@@ -436,7 +436,7 @@
     }
   },
   "cookies": {
-    "message": "Wir möchten Google-Ads-Cookies verwenden, um zu messen, welche unserer Anzeigen zu Registrierungen führen. Sie werden nur gesetzt, wenn du auf Akzeptieren klickst, und du kannst deine Wahl jederzeit in den Cookie-Einstellungen ändern. Siehe unsere <privacy>Datenschutzerklärung</privacy>.",
+    "message": "Mit deiner Zustimmung möchten wir das Werbe-Tag und die Cookies von Google auf unseren Seiten verwenden, um zu messen, welche unserer Anzeigen Besucher und Registrierungen bringen. Nichts davon wird genutzt, solange du nicht auf Akzeptieren klickst, und du kannst deine Wahl jederzeit in den Cookie-Einstellungen ändern. Siehe unsere <privacy>Datenschutzerklärung</privacy>.",
     "learnMore": "Mehr erfahren",
     "accept": "Akzeptieren",
     "reject": "Ablehnen",

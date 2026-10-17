@@ -72,8 +72,8 @@ export default function PrivacyPage() {
             <li>Send transactional emails (account confirmation, billing receipts)</li>
             <li>Monitor for abuse, fraud, and security incidents</li>
             <li>
-              Measure whether our Google Ads adverts lead to new accounts — only if you accept
-              advertising cookies (see section 9)
+              Measure visits from our Google Ads adverts and the accounts they lead to — only if
+              you accept advertising cookies (see section 9)
             </li>
             <li>Comply with legal obligations</li>
           </ul>
@@ -284,34 +284,35 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p>
-            <strong>Advertising (only if you click Accept).</strong> We use Google Ads conversion
-            tracking, provided by Google, to find out whether people who click one of our Google
-            adverts go on to create a Zeus Beats account:
+            <strong>Advertising (only if you click Accept).</strong> We use Google's advertising
+            tag (the "Google tag"), provided by Google, to measure which of our Google adverts bring
+            people to Zeus Beats and which lead to new accounts:
           </p>
           <ul>
             <li>
-              Google's tag never runs on the pages you use. Only when you create an account (and
-              have accepted) do we open it in a hidden, separate frame, just long enough to report
-              that sign-up, and then remove it — so it can't see which pages you visit or anything you
-              type. It may set Google Ads cookies such as <code>_gcl_au</code> (kept for up to 90
-              days).
+              If you accept, Google's tag runs on every page of the site you visit from then on. It
+              records your page views (such as the page address and the page you came from, along
+              with technical details Google receives, like your browser type and IP address) and
+              notes which of our adverts you clicked, if any. It may set Google Ads cookies and
+              browser storage such as <code>_gcl_au</code>, <code>_gcl_aw</code> and{' '}
+              <code>_gcl_ls</code> (kept for up to 90 days).
             </li>
             <li>
-              If you arrived by clicking one of our Google adverts and you accept, we keep that
-              click's reference in your browser (<code>zeus_ads_click</code>, up to 90 days) so a
-              sign-up can be credited to the right advert.
+              The only action we report to Google as a "conversion" is creating an account. When you
+              create one, we send Google a sign-up event with a random reference number made just
+              for that sign-up — not your account number, name, email address or anything you
+              create. If Google's tag can't load at that moment (for example on a poor connection or
+              with an ad blocker), your browser keeps a note of the sign-up and tries again on a
+              later visit — at most five times, within 30 days, and only while you still accept
+              advertising cookies — reusing the same reference number so it is only counted once.
             </li>
             <li>
-              When you create an account, we tell Google that a sign-up happened, together with an
-              internal account number so it is only counted once. We do not send Google your name,
-              email address or anything you create. If Google's tag can't load at that moment (for
-              example on a poor connection or with an ad blocker), your browser keeps a note of the
-              sign-up and tries again on a later visit — at most five times, within 30 days, and only
-              while you still accept advertising cookies.
+              We don't send Google what you type into forms, and Google's automatic collection of
+              such information is switched off for our account.
             </li>
             <li>
               We use this only to measure our adverts. We do not allow it to be used for
-              personalised advertising, and we do not use Google Analytics.
+              personalised advertising (remarketing), and we do not use Google Analytics.
             </li>
             <li>
               Google processes this data under its own privacy policy (
@@ -333,18 +334,18 @@ export default function PrivacyPage() {
               Cookie settings
             </button>
             {' '}(also linked at the bottom of our home page and in the app's side menu). If you
-            change from Accept to Reject, from that moment we: stop sending anything to Google,
-            including a sign-up report that is still in progress; cancel any sign-up that hadn't yet
-            been passed to Google; forget the advert click reference; and delete the Google Ads
-            cookies and browser storage this site set (such as <code>_gcl_au</code>,{' '}
+            change from Accept to Reject, from that moment we: tell Google's tag that consent is
+            withdrawn and reload the page so the tag is no longer running; send nothing further to
+            Google; cancel any sign-up that hadn't yet been passed to Google; and delete the Google
+            Ads cookies and browser storage this site set (such as <code>_gcl_au</code>,{' '}
             <code>_gcl_aw</code> and <code>_gcl_ls</code>).
           </p>
           <p>
             Withdrawing consent can't undo what was already sent while you had accepted — for
-            example, a sign-up already passed to Google. Google keeps that under its own privacy
-            policy, and you can ask Google about it directly. We also can't delete cookies that
-            Google sets on its own websites (such as google.com); you can clear those in your browser
-            settings or manage them at{' '}
+            example, page views or a sign-up already passed to Google. Google keeps that under its
+            own privacy policy, and you can ask Google about it directly. We also can't delete
+            cookies that Google sets on its own websites (such as google.com); you can clear those
+            in your browser settings or manage them at{' '}
             <a href="https://myadcenter.google.com" target="_blank" rel="noopener noreferrer" className="auth-link">
               myadcenter.google.com
             </a>.

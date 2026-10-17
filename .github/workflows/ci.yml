@@ -37,14 +37,14 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      # Basic Consent Mode: Google's tag must never be in the static HTML — the
+      # app adds it only after the visitor clicks Accept (utils/adsConsent.js).
       - name: Google tag is not in the static HTML
         run: |
           if grep -q googletagmanager ../web-beats-dist/index.html; then
-            echo "::error::index.html must not load Google's tag (it only runs in /ads-frame.html after consent)"
+            echo "::error::index.html must not load Google's tag before consent"
             exit 1
           fi
-          test -f ../web-beats-dist/ads-frame.html
-          test -f ../web-beats-dist/ads-frame.js
 
   web:
     name: zeusaidesign.com frontend — production build

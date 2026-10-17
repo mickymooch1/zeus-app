@@ -1,24 +1,27 @@
 /**
- * Google Ads sign-up conversion + Consent Mode v2 (UK PECR: opt-in only).
+ * Google Ads: standard sitewide Google tag with basic Consent Mode v2
+ * (UK PECR: advertising cookies need opt-in).
  *
  * The rules these tests pin down:
- *   - Google's tag never runs on the app's pages: the main page only pushes the
- *     all-denied Consent Mode default. Each consented sign-up gets a hidden
- *     /ads-frame.html frame that sends that one conversion and is removed.
+ *   - Nothing from Google before consent: only the all-denied Consent Mode
+ *     default is pushed; gtag.js is not requested until the visitor accepts.
+ *   - After Accept, the standard Google tag runs on every page (config, page
+ *     views) with ad_storage + ad_user_data granted; ad_personalization and
+ *     analytics_storage stay denied.
  *   - The old "By using Zeus Beats you agree" banner flag is NOT consent.
- *   - A sign-up stays pending until the frame reports the tag took it, and is
- *     retried on later visits (same transaction_id) — max 5 tries, 30 days.
+ *   - Only a successful registration fires a conversion. Its transaction_id is
+ *     a random conversion id made once per sign-up — never the user id — and
+ *     reused for every retry, so Google drops duplicates.
+ *   - A sign-up stays pending until gtag.js has loaded and handed it back via
+ *     event_callback; retried on later visits (max 5 tries, 30 days).
  *   - Storage failures fail safe: "denied" anywhere wins; unknown = no tracking.
- *   - Withdrawing consent stops sends in progress, cancels pending sign-ups,
- *     forgets the ad click and deletes Google's _gcl cookies/storage.
+ *   - Reject / withdrawal: denied pushed, pending cancelled, _gcl cookies and
+ *     storage cleared, page reloaded if the tag was running.
  */
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const ORIGIN = 'https://zeusbeats.com';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function fakeStorage() {
   const store = new Map();
@@ -36,30 +39,27 @@ function fakeStorage() {
 // between pages unless `fresh` is set, exactly like a real reload.
 let jar = new Map();
 let page;
-function newPage({ fresh = false, cookies = {}, search = '' } = {}) {
+function newPage({ fresh = false, cookies = {} } = {}) {
   if (fresh) {
     globalThis.localStorage = fakeStorage();
     globalThis.sessionStorage = fakeStorage();
     jar = new Map(Object.entries(cookies));
   }
-  const frames = [];
+  const scripts = [];
   const events = [];
-  const listeners = new Set();
+  let reloads = 0;
   globalThis.window = {
-    location: { hostname: 'zeusbeats.com', origin: ORIGIN, search },
+    location: { hostname: 'zeusbeats.com', reload: () => { reloads += 1; } },
     dispatchEvent: (e) => { events.push(e.type); return true; },
-    addEventListener: (type, fn) => { if (type === 'message') listeners.add(fn); },
-    removeEventListener: (type, fn) => { if (type === 'message') listeners.delete(fn); },
   };
-  const body = { appendChild: (el) => { frames.push(el); return el; } };
   globalThis.document = {
-    body,
     createElement: (tag) => {
-      const el = { tagName: tag.toUpperCase(), attrs: {}, style: {}, contentWindow: { name: 'frame-window' } };
-      el.setAttribute = (k, v) => { el.attrs[k] = v; };
-      el.remove = () => { const i = frames.indexOf(el); if (i >= 0) frames.splice(i, 1); el.removed = true; };
+      const el = { tagName: tag.toUpperCase() };
+      el.remove = () => { const i = scripts.indexOf(el); if (i >= 0) scripts.splice(i, 1); };
       return el;
     },
+    getElementById: (id) => scripts.find((s) => s.id === id) || null,
+    head: { appendChild: (el) => { scripts.push(el); return el; } },
     get cookie() { return [...jar].map(([k, v]) => `${k}=${v}`).join('; '); },
     set cookie(str) {
       const [pair, ...attrs] = str.split(';').map((s) => s.trim());
@@ -67,83 +67,103 @@ function newPage({ fresh = false, cookies = {}, search = '' } = {}) {
       if (attrs.some((a) => /^max-age=0$/i.test(a))) jar.delete(name); else jar.set(name, value);
     },
   };
-  page = { frames, events, listeners };
+  page = { scripts, events, get reloads() { return reloads; } };
   return page;
 }
 
-beforeEach(() => { newPage({ fresh: true, cookies: { _gcl_au: '1.1.2', zeus_x: 'keep' }, search: '?gclid=TEST' }); });
+beforeEach(() => { newPage({ fresh: true, cookies: { _gcl_aw: 'GCL.1.abc', _gcl_au: '1.1.2', zeus_x: 'keep' } }); });
 
 const ads = await import('./adsConsent.js');
 
 const calls = () => (window.dataLayer || []).map((args) => Array.from(args));
 const isArgumentsObject = (x) => Object.prototype.toString.call(x) === '[object Arguments]';
+const conversions = () => calls().filter((c) => c[0] === 'event' && c[1] === 'conversion');
 const tick = () => new Promise((r) => setImmediate(r));
-const tidOf = (frame) => decodeURIComponent(frame.src.split('#tid=')[1]);
-// The frame posting back to the app (see public/ads-frame.js).
-async function frameSays(status, { frame = page.frames[0], tid, origin = ORIGIN, source } = {}) {
-  const e = { source: source ?? frame.contentWindow, origin, data: { type: 'zeus-ads-frame', tid: tid ?? tidOf(frame), status } };
-  for (const fn of [...page.listeners]) fn(e);
-  await tick();
-}
+// (no-ops when the tag was never requested)
+const tagLoads = () => { page.scripts[0]?.onload(); return tick(); };
+const tagFails = () => { page.scripts[0]?.onerror(); return tick(); };
+// gtag.js calls event_callback once it has processed the event.
+const tagHandsOff = async () => { for (const c of conversions()) c[2].event_callback?.(); await tick(); };
 const grantedPage = (opts) => { ads.initConsentMode(opts); ads.setConsent('granted'); };
 const pending = () => JSON.parse(localStorage.getItem(ads.PENDING_STORAGE_KEY) || '[]');
+const pendingUsers = () => pending().map((r) => r.user);
 
-// ── basics ──────────────────────────────────────────────────────────────────
+// ── consent and the sitewide tag ───────────────────────────────────────────
 
-test('IDs match the Google Ads snippet, and the frame script uses the same ones', () => {
+test('IDs match the Google Ads snippet', () => {
   assert.equal(ads.GOOGLE_ADS_ID, 'AW-18517714190');
   assert.equal(ads.SIGNUP_CONVERSION_LABEL, 'o7SdCLShsZ8dEI7K9_1E');
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  const frameJs = fs.readFileSync(path.join(here, '..', '..', 'public', 'ads-frame.js'), 'utf8');
-  assert.match(frameJs, /var ADS_ID = 'AW-18517714190';/);
-  assert.match(frameJs, /var LABEL = 'o7SdCLShsZ8dEI7K9_1E';/);
-  assert.ok(frameJs.includes(`'${ads.FRAME_MESSAGE_TYPE}'`));
 });
 
-test('the main page only ever pushes the all-denied Consent Mode default — even after Accept and a sign-up', async () => {
-  grantedPage();
-  const p = ads.trackSignupConversion(42);
-  await frameSays('handed-off');
-  await p;
-  const all = calls();
-  assert.equal(all.length, 1);
-  assert.deepEqual(all[0], ['consent', 'default', {
+test('before consent: only the all-denied Consent Mode default — no tag, no js, no config', () => {
+  ads.initConsentMode();
+  assert.deepEqual(calls(), [['consent', 'default', {
     ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
-  }]);
+  }]]);
+  assert.equal(page.scripts.length, 0, 'gtag.js not requested');
+  assert.equal(ads.readConsent(), null);
+});
+
+test('gtag pushes real Arguments objects (gtag.js ignores plain arrays)', () => {
+  grantedPage();
+  assert.ok(window.dataLayer.length > 2);
   assert.ok(window.dataLayer.every(isArgumentsObject));
 });
 
-test('no choice yet: no frame, nothing granted', () => {
-  ads.initConsentMode();
-  assert.equal(ads.readConsent(), null);
-  assert.equal(page.frames.length, 0);
-});
-
-test('the old implied-consent banner flag does not count as consent', async () => {
+test('the old implied-consent banner flag does not count as consent', () => {
   localStorage.setItem('zeus_cookie_accepted', '1');
   ads.initConsentMode();
   assert.equal(ads.readConsent(), null);
-  assert.equal(await ads.trackSignupConversion(42), 'skipped');
-  assert.equal(page.frames.length, 0);
+  assert.equal(page.scripts.length, 0);
 });
 
-test('Accept on its own sends nothing — not even from an ad click', () => {
-  grantedPage();
-  assert.equal(ads.readConsent(), 'granted');
-  assert.equal(page.frames.length, 0);
-  newPage({ search: '?gclid=AGAIN' });
+test('Accept: grants ad storage + ad user data only, then loads the standard Google tag once and configures it', () => {
   ads.initConsentMode();
-  assert.equal(page.frames.length, 0, 'a returning visitor who accepted: nothing on page load');
+  ads.setConsent('granted');
+  ads.setConsent('granted');
+  assert.equal(ads.readConsent(), 'granted');
+  assert.equal(page.scripts.length, 1);
+  assert.equal(page.scripts[0].src, 'https://www.googletagmanager.com/gtag/js?id=AW-18517714190');
+  assert.equal(page.scripts[0].async, true);
+  const update = calls().find((c) => c[0] === 'consent' && c[1] === 'update');
+  assert.deepEqual(update[2], {
+    ad_storage: 'granted', ad_user_data: 'granted',
+    ad_personalization: 'denied', // no remarketing / personalised ads
+    analytics_storage: 'denied', // no analytics product is used
+  });
+  const configs = calls().filter((c) => c[0] === 'config');
+  assert.deepEqual(configs, [['config', 'AW-18517714190']], 'standard sitewide config (page views included)');
+  const i = calls().findIndex((c) => c[0] === 'consent' && c[1] === 'update');
+  assert.ok(i < calls().findIndex((c) => c[0] === 'config'), 'consent update before config');
 });
 
-test('Reject: nothing sent, denied recorded, existing Google Ads cookies cleared', async () => {
+test('sitewide: a visitor who accepted gets the tag on every later page load', () => {
+  grantedPage();
+  for (let i = 0; i < 3; i++) {
+    newPage();
+    ads.initConsentMode();
+    assert.equal(page.scripts.length, 1);
+    assert.equal(calls().filter((c) => c[0] === 'config').length, 1);
+  }
+});
+
+test('Accept on its own sends no conversion', async () => {
+  grantedPage();
+  await tagLoads();
+  assert.equal(conversions().length, 0);
+});
+
+test('Reject: nothing loads, denied is recorded and existing Google Ads cookies are cleared', () => {
   ads.initConsentMode();
   ads.setConsent('denied');
   assert.equal(ads.readConsent(), 'denied');
-  assert.equal(await ads.trackSignupConversion(42), 'skipped');
-  assert.equal(page.frames.length, 0);
-  assert.ok(!jar.has('_gcl_au'));
+  assert.equal(page.scripts.length, 0);
+  assert.ok(!jar.has('_gcl_aw') && !jar.has('_gcl_au'));
   assert.equal(jar.get('zeus_x'), 'keep');
+  assert.equal(page.reloads, 0, 'no reload needed — the tag never ran on this page');
+  newPage();
+  ads.initConsentMode();
+  assert.equal(page.scripts.length, 0, 'still nothing on later pages');
 });
 
 test('garbage in storage is treated as no choice', () => {
@@ -154,12 +174,12 @@ test('garbage in storage is treated as no choice', () => {
   assert.equal(ads.readConsent(), null);
 });
 
-test('inside the iOS app nothing is ever sent, even with consent', async () => {
+test('inside the iOS app the tag never loads, even with consent', async () => {
   localStorage.setItem(ads.CONSENT_STORAGE_KEY, JSON.stringify({ ads: 'granted', v: 1, ts: 1 }));
   ads.initConsentMode({ blocked: true });
   ads.setConsent('granted');
+  assert.equal(page.scripts.length, 0);
   assert.equal(await ads.trackSignupConversion(42), 'skipped');
-  assert.equal(page.frames.length, 0);
 });
 
 test('openCookieSettings asks the banner to reappear', () => {
@@ -172,146 +192,153 @@ test('openCookieSettings asks the banner to reappear', () => {
 test('without consent no conversion is sent or stored', async () => {
   ads.initConsentMode();
   assert.equal(await ads.trackSignupConversion(42), 'skipped');
+  ads.setConsent('denied');
+  assert.equal(await ads.trackSignupConversion(42), 'skipped');
+  assert.equal(conversions().length, 0);
   assert.deepEqual(pending(), []);
-  assert.equal(page.frames.length, 0);
 });
 
-test('with consent: one hidden frame carrying the ad click and the user id; removed once handed off', async () => {
+test('with consent: one labelled conversion with a random conversion id, handed off via the tag', async () => {
   grantedPage();
   const p = ads.trackSignupConversion(42);
-  assert.equal(page.frames.length, 1);
-  const [frame] = page.frames;
-  assert.equal(frame.tagName, 'IFRAME');
-  assert.equal(frame.src, '/ads-frame.html?gclid=TEST#tid=42');
-  assert.equal(frame.attrs['aria-hidden'], 'true');
-  assert.match(frame.style.cssText, /visibility:hidden/);
-  await frameSays('handed-off');
+  await tagLoads();
+  assert.equal(conversions().length, 1);
+  const [[, , params]] = conversions();
+  assert.equal(params.send_to, 'AW-18517714190/o7SdCLShsZ8dEI7K9_1E');
+  assert.match(params.transaction_id, UUID_RE, 'a random v4 UUID');
+  assert.notEqual(params.transaction_id, '42');
+  assert.deepEqual(Object.keys(params).sort(), ['event_callback', 'send_to', 'transaction_id'], 'nothing else about the user');
+  await tagHandsOff();
   assert.equal(await p, 'handed-off');
-  assert.equal(page.frames.length, 0, 'frame removed — the tag is gone');
-  assert.equal(page.listeners.size, 0, 'message listener removed');
   assert.deepEqual(pending(), []);
+});
+
+test('the conversion id is random, not derived from the user id', async () => {
+  const ids = [];
+  for (let i = 0; i < 3; i++) {
+    newPage({ fresh: true });
+    grantedPage();
+    ads.trackSignupConversion(42); // same user id each time, fresh browser
+    await tagLoads();
+    ids.push(conversions()[0][2].transaction_id);
+  }
+  assert.equal(new Set(ids).size, 3, 'a new random id each time');
+  for (const id of ids) assert.match(id, UUID_RE);
 });
 
 test('the same user id never converts twice (double submit, refresh, back button)', async () => {
   grantedPage();
   const a = ads.trackSignupConversion(42);
-  const b = ads.trackSignupConversion(42); // double submit while sending
-  assert.equal(page.frames.length, 1);
-  await frameSays('handed-off');
+  const b = ads.trackSignupConversion(42); // double submit while the tag is loading
+  await tagLoads();
+  await tagHandsOff();
   assert.equal(await a, 'handed-off');
   assert.equal(await b, 'skipped');
   assert.equal(await ads.trackSignupConversion('42'), 'skipped');
+  assert.equal(conversions().length, 1);
   newPage();
   ads.initConsentMode();
-  assert.equal(page.frames.length, 0, 'nothing re-sent after a confirmed hand-off');
+  await tagLoads();
+  assert.equal(conversions().length, 0, 'nothing re-sent after a confirmed hand-off');
 });
 
 test('a missing user id sends nothing', async () => {
   grantedPage();
   for (const id of [undefined, null, '']) assert.equal(await ads.trackSignupConversion(id), 'skipped');
-  assert.equal(page.frames.length, 0);
-});
-
-test('messages from anything but this frame, this origin and this sign-up are ignored', async () => {
-  grantedPage();
-  const p = ads.trackSignupConversion(42);
-  await frameSays('handed-off', { origin: 'https://evil.example' });
-  await frameSays('handed-off', { source: { other: true } });
-  await frameSays('handed-off', { tid: '99' });
-  assert.equal(page.frames.length, 1, 'still waiting');
-  await frameSays('handed-off');
-  assert.equal(await p, 'handed-off');
-});
-
-test('ad click: remembered after Accept for a sign-up on a later visit (90 days), never without consent', async () => {
-  newPage({ search: '?utm_source=ad&gbraid=GB-1&wbraid=bad%20value!' });
-  ads.initConsentMode();
-  assert.equal(localStorage.getItem(ads.CLICK_STORAGE_KEY), null, 'not stored before consent');
-  ads.setConsent('granted');
-  newPage({ search: '' }); // comes back later, no click in the URL
-  ads.initConsentMode();
-  ads.trackSignupConversion(7);
-  assert.equal(page.frames[0].src, '/ads-frame.html?gbraid=GB-1#tid=7', 'malformed wbraid dropped');
-  const stored = JSON.parse(localStorage.getItem(ads.CLICK_STORAGE_KEY));
-  localStorage.setItem(ads.CLICK_STORAGE_KEY, JSON.stringify({ ...stored, ts: Date.now() - 91 * 864e5 }));
-  newPage({ search: '' });
-  ads.initConsentMode();
-  ads.trackSignupConversion(8);
-  // (sign-up 7 was never confirmed, so it is retried here too — also without the expired click)
-  assert.deepEqual(page.frames.map((f) => f.src), ['/ads-frame.html#tid=7', '/ads-frame.html#tid=8'], 'older than 90 days: no click');
+  assert.equal(conversions().length, 0);
 });
 
 // ── BLOCKER 1: lost conversions ─────────────────────────────────────────────
 
-test('B1: not marked sent until the frame says the tag took it', async () => {
+test('B1: nothing is pushed or marked sent before gtag.js has loaded', async () => {
   grantedPage();
   ads.trackSignupConversion(42);
   await tick();
-  assert.deepEqual(pending().map((r) => r.id), ['42']);
-  assert.equal(localStorage.getItem('zeus_ads_signup_sent_42'), null);
+  assert.equal(conversions().length, 0, 'event must wait for the tag');
+  assert.deepEqual(pendingUsers(), ['42'], 'kept as pending until handed off');
+  assert.match(pending()[0].cid, UUID_RE);
 });
 
-test('B1: tag fails to load in the frame → pending, frame removed, can retry on the same page', async () => {
-  grantedPage();
-  const p = ads.trackSignupConversion(42);
-  await frameSays('failed');
-  assert.equal(await p, 'pending');
-  assert.equal(page.frames.length, 0);
-  assert.deepEqual(pending().map((r) => r.id), ['42']);
-  const again = ads.trackSignupConversion(42);
-  assert.equal(page.frames.length, 1, 'retried');
-  assert.equal(tidOf(page.frames[0]), '42');
-  await frameSays('handed-off');
-  assert.equal(await again, 'handed-off');
-});
-
-test('B1: no answer from the frame → times out, pending, not re-sent on this page', async () => {
-  grantedPage({ sendTimeoutMs: 5 });
-  const status = await ads.trackSignupConversion(42);
-  assert.equal(status, 'pending');
-  assert.equal(page.frames.length, 0, 'frame removed on timeout');
-  assert.equal(await ads.trackSignupConversion(42), 'skipped', 'unknown outcome: not again on this page');
-  assert.deepEqual(pending().map((r) => r.id), ['42']);
-});
-
-test('B1: a later visit retries with the same transaction id, then never again', async () => {
+test('B1: loaded but not yet handed off is still pending, and retried with the SAME conversion id', async () => {
   grantedPage();
   ads.trackSignupConversion(42);
-  await frameSays('failed');
+  await tagLoads();
+  const first = conversions()[0][2].transaction_id;
+  assert.deepEqual(pendingUsers(), ['42']);
   newPage();
   ads.initConsentMode();
-  assert.equal(page.frames.length, 1);
-  assert.equal(tidOf(page.frames[0]), '42');
-  await frameSays('handed-off');
+  await tagLoads();
+  assert.equal(conversions().length, 1, 'retried on the next visit');
+  assert.equal(conversions()[0][2].transaction_id, first, 'same conversion id — Google drops duplicates');
+});
+
+test('B1: tag fails to load → conversion stays pending, nothing marked sent', async () => {
+  grantedPage();
+  const p = ads.trackSignupConversion(42);
+  await tagFails();
+  assert.equal(await p, 'pending');
+  assert.equal(conversions().length, 0);
+  assert.deepEqual(pendingUsers(), ['42']);
+  assert.equal(page.scripts.length, 0, 'failed script removed so a retry can load it again');
+});
+
+test('B1: after a failed load the next visit retries with the same conversion id and then stops', async () => {
+  grantedPage();
+  ads.trackSignupConversion(42);
+  const cid = pending()[0].cid;
+  await tagFails();
+  newPage();
+  ads.initConsentMode();
+  await tagLoads();
+  assert.equal(conversions().length, 1);
+  assert.equal(conversions()[0][2].transaction_id, cid);
+  await tagHandsOff();
   assert.deepEqual(pending(), []);
   newPage();
   ads.initConsentMode();
-  assert.equal(page.frames.length, 0);
+  await tagLoads();
+  assert.equal(conversions().length, 0, 'not sent again once handed off');
+});
+
+test('B1: a failed load can be retried in the same page (script re-added)', async () => {
+  grantedPage();
+  ads.trackSignupConversion(42);
+  await tagFails();
+  const p = ads.trackSignupConversion(43);
+  assert.equal(page.scripts.length, 1);
+  await tagLoads();
+  await tagHandsOff();
+  assert.equal(await p, 'handed-off');
+});
+
+test('B1: a tag that never loads times out and stays pending', async () => {
+  grantedPage({ tagTimeoutMs: 5 });
+  const status = await ads.trackSignupConversion(42);
+  assert.equal(status, 'pending');
+  assert.equal(conversions().length, 0);
+  assert.deepEqual(pendingUsers(), ['42']);
 });
 
 test('B1: retries give up after 5 attempts or 30 days', async () => {
   grantedPage();
   ads.trackSignupConversion(42);
-  await frameSays('failed');
-  for (let i = 0; i < 6; i++) { newPage(); ads.initConsentMode(); if (page.frames[0]) await frameSays('failed'); }
+  await tagFails();
+  for (let i = 0; i < 6; i++) { newPage(); ads.initConsentMode(); await tagFails(); }
   assert.deepEqual(pending(), [], 'dropped after 5 attempts');
-  localStorage.setItem(ads.PENDING_STORAGE_KEY, JSON.stringify([{ id: '7', ts: Date.now() - 31 * 864e5, attempts: 0 }]));
+  localStorage.setItem(ads.PENDING_STORAGE_KEY, JSON.stringify([
+    { user: '7', cid: '11111111-1111-4111-8111-111111111111', ts: Date.now() - 31 * 864e5, attempts: 0 },
+  ]));
   newPage();
   ads.initConsentMode();
   assert.deepEqual(pending(), [], 'dropped after 30 days');
-  assert.equal(page.frames.length, 0);
 });
 
-test('B1: a stale send for the same user id can never swallow a newer one', async () => {
-  grantedPage({ sendTimeoutMs: 30 });
-  const old = ads.trackSignupConversion(42); // never answered
-  newPage();
-  ads.initConsentMode({ sendTimeoutMs: 60 }); // re-initialised while the old send is still out
-  const fresh = ads.trackSignupConversion(42);
-  assert.equal(await old, 'skipped', 're-initialising cancels the old send');
-  await new Promise((r) => setTimeout(r, 100));
-  const settled = await Promise.race([fresh, new Promise((r) => setTimeout(() => r('HUNG'), 200))]);
-  assert.notEqual(settled, 'HUNG', 'the newer send must still settle on its own timeout');
+test('B1: a pending record without a valid conversion id is dropped, never sent with a made-up one', async () => {
+  localStorage.setItem(ads.PENDING_STORAGE_KEY, JSON.stringify([{ user: '9', cid: '9', ts: Date.now(), attempts: 0 }]));
+  grantedPage();
+  await tagLoads();
+  assert.equal(conversions().length, 0);
+  assert.deepEqual(pending(), []);
 });
 
 // ── BLOCKER 2: browser storage failures ─────────────────────────────────────
@@ -332,7 +359,7 @@ const refuseCookies = () => {
   Object.defineProperty(document, 'cookie', { get: d.get, set() {} });
 };
 
-test('B2: Reject whose localStorage write fails over an old Accept is still Reject — now and after reload', async () => {
+test('B2: Reject whose localStorage write fails over an old Accept is still Reject — now and after reload', () => {
   grantedPage();
   breakStorage(); // the old {ads:'granted'} is still in there
   ads.setConsent('denied');
@@ -340,10 +367,10 @@ test('B2: Reject whose localStorage write fails over an old Accept is still Reje
   newPage();
   ads.initConsentMode();
   assert.equal(ads.readConsent(), 'denied');
-  assert.equal(await ads.trackSignupConversion(42), 'skipped');
+  assert.equal(page.scripts.length, 0, 'rejected consent must never load the tag');
 });
 
-test('B2: Reject with failing writes AND cookies refused: the old Accept is removed, next page is not tracked', async () => {
+test('B2: Reject with failing writes AND cookies refused: the old Accept is removed, next page is not tracked', () => {
   grantedPage();
   jar.delete(ads.CONSENT_COOKIE);
   breakStorage(); // setItem throws, removeItem still works
@@ -352,7 +379,7 @@ test('B2: Reject with failing writes AND cookies refused: the old Accept is remo
   newPage();
   ads.initConsentMode();
   assert.notEqual(ads.readConsent(), 'granted');
-  assert.equal(await ads.trackSignupConversion(42), 'skipped');
+  assert.equal(page.scripts.length, 0);
 });
 
 test('B2: storage that cannot be read at all means no tracking', async () => {
@@ -362,15 +389,16 @@ test('B2: storage that cannot be read at all means no tracking', async () => {
   newPage();
   ads.initConsentMode();
   assert.equal(ads.readConsent(), null);
+  assert.equal(page.scripts.length, 0);
   assert.equal(await ads.trackSignupConversion(42), 'skipped');
 });
 
-test('B2: conflicting records (one says granted, one says denied) mean denied', async () => {
+test('B2: conflicting records (one says granted, one says denied) mean denied', () => {
   localStorage.setItem(ads.CONSENT_STORAGE_KEY, JSON.stringify({ ads: 'granted', v: 1, ts: 1 }));
   jar.set(ads.CONSENT_COOKIE, 'denied');
   ads.initConsentMode();
   assert.equal(ads.readConsent(), 'denied');
-  assert.equal(await ads.trackSignupConversion(42), 'skipped');
+  assert.equal(page.scripts.length, 0);
 });
 
 test('B2: Accept that cannot be saved anywhere still applies to this page only, then asks again', async () => {
@@ -380,25 +408,32 @@ test('B2: Accept that cannot be saved anywhere still applies to this page only, 
   ads.setConsent('granted');
   assert.equal(ads.readConsent(), 'granted');
   const p = ads.trackSignupConversion(42);
-  assert.equal(page.frames.length, 1, 'eligible conversion not lost to a storage failure');
-  await frameSays('handed-off');
+  await tagLoads();
+  assert.equal(conversions().length, 1, 'eligible conversion not lost to a storage failure');
+  assert.match(conversions()[0][2].transaction_id, UUID_RE);
+  await tagHandsOff();
   assert.equal(await p, 'handed-off');
   newPage();
   ads.initConsentMode();
   assert.equal(ads.readConsent(), null, 'uncertain → ask again, no tracking');
+  assert.equal(page.scripts.length, 0);
 });
 
-test('B2: a failed "sent" write never throws and any retry reuses the transaction id', async () => {
+test('B2: a failed "sent" write never throws and any retry reuses the conversion id', async () => {
   grantedPage();
   const p = ads.trackSignupConversion(42);
+  const cid = pending()[0].cid;
   const real = breakStorage(); // pending already written; the "sent" write will fail
-  await frameSays('handed-off');
+  await tagLoads();
+  await tagHandsOff();
   assert.equal(await p, 'handed-off');
   globalThis.localStorage = real;
   newPage();
   ads.initConsentMode();
-  assert.ok(page.frames.length <= 1);
-  if (page.frames.length) assert.equal(tidOf(page.frames[0]), '42');
+  await tagLoads();
+  const re = conversions();
+  assert.ok(re.length <= 1);
+  if (re.length) assert.equal(re[0][2].transaction_id, cid, 'any retry reuses the conversion id');
 });
 
 test('B2: nothing in this module throws when storage and cookies are unavailable', async () => {
@@ -414,60 +449,72 @@ test('B2: nothing in this module throws when storage and cookies are unavailable
 
 // ── BLOCKER 3: consent withdrawal ───────────────────────────────────────────
 
-test('B3: withdrawal deletes _gcl cookies, _gcl storage and the remembered ad click', () => {
+test('B3: withdrawing after Accept pushes denied, deletes _gcl cookies AND _gcl storage, reloads to remove the tag', async () => {
   grantedPage();
-  assert.ok(localStorage.getItem(ads.CLICK_STORAGE_KEY));
-  jar.set('_gcl_aw', 'GCL.1.x');
+  await tagLoads();
+  jar.set('_gcl_au', '1.1.9');
   localStorage.setItem('_gcl_ls', '{"x":1}');
   sessionStorage.setItem('_gcl_tmp', '1');
   const result = ads.setConsent('denied');
-  assert.deepEqual(result, { persisted: true });
+  const last = calls().filter((c) => c[0] === 'consent' && c[1] === 'update').at(-1)[2];
+  for (const k of ['ad_storage', 'ad_user_data', 'ad_personalization', 'analytics_storage']) assert.equal(last[k], 'denied', k);
   assert.ok(![...jar.keys()].some((k) => k.startsWith('_gcl')));
   assert.equal(localStorage.getItem('_gcl_ls'), null);
   assert.equal(sessionStorage.getItem('_gcl_tmp'), null);
-  assert.equal(localStorage.getItem(ads.CLICK_STORAGE_KEY), null);
-});
-
-test('B3: withdrawing while a sign-up is being sent removes the frame and cancels it', async () => {
-  grantedPage();
-  const p = ads.trackSignupConversion(42);
-  assert.equal(page.frames.length, 1);
-  ads.setConsent('denied');
-  assert.equal(await p, 'skipped');
-  assert.equal(page.frames.length, 0, 'tag removed with its frame');
-  assert.deepEqual(pending(), []);
-});
-
-test('B3: withdrawal cancels pending sign-ups for good — accepting again does not send them', async () => {
-  grantedPage();
-  ads.trackSignupConversion(42);
-  await frameSays('failed');
-  ads.setConsent('denied');
-  assert.deepEqual(pending(), []);
-  ads.setConsent('granted');
+  assert.deepEqual(result, { persisted: true, reloading: true });
+  assert.equal(page.reloads, 1, 'reload: the running Google tag cannot be switched off any other way');
   newPage();
   ads.initConsentMode();
-  assert.equal(page.frames.length, 0);
+  assert.equal(page.scripts.length, 0, 'tag not loaded after the reload');
+});
+
+test('B3: withdrawal cancels any conversion not yet handed to Google — for good', async () => {
+  grantedPage();
+  ads.trackSignupConversion(42);
+  await tagFails();
+  assert.deepEqual(pendingUsers(), ['42']);
+  ads.setConsent('denied');
+  assert.deepEqual(pending(), []);
+  ads.setConsent('granted'); // even accepting again later must not send it
+  newPage();
+  ads.initConsentMode();
+  await tagLoads();
+  assert.equal(conversions().length, 0);
+});
+
+test('B3: withdrawing while the tag is still loading — the conversion is never pushed', async () => {
+  grantedPage();
+  const p = ads.trackSignupConversion(42);
+  ads.setConsent('denied');
+  await tagLoads();
+  assert.equal(await p, 'skipped');
+  assert.equal(conversions().length, 0);
 });
 
 test('B3: after withdrawal no further conversions are sent', async () => {
   grantedPage();
+  await tagLoads();
   ads.setConsent('denied');
   assert.equal(await ads.trackSignupConversion(43), 'skipped');
-  assert.equal(page.frames.length, 0);
+  assert.equal(conversions().length, 0);
 });
 
-test('B3: a withdrawal that cannot be saved still holds for the rest of the page', async () => {
+test('B3: if the withdrawal cannot be saved, do not reload (it would bring the old Accept back)', async () => {
   grantedPage();
+  await tagLoads();
+  const real = globalThis.localStorage;
   globalThis.localStorage = {
-    getItem: (k) => fakeStorage().getItem(k),
+    getItem: (k) => real.getItem(k), // the old {ads:'granted'} is still readable
     setItem() { throw new Error('QuotaExceededError'); },
     removeItem() { throw new Error('x'); },
-    key: () => null,
-    get length() { return 0; },
+    key: (i) => real.key(i),
+    get length() { return real.length; },
   };
-  refuseCookies();
-  ads.setConsent('denied');
-  assert.equal(ads.readConsent(), 'denied');
+  Object.defineProperty(document, 'cookie', { get: () => '', set() {} });
+  const result = ads.setConsent('denied');
+  assert.deepEqual(result, { persisted: false, reloading: false });
+  assert.equal(page.reloads, 0);
+  assert.equal(ads.readConsent(), 'denied', 'still denied for the rest of this page');
   assert.equal(await ads.trackSignupConversion(44), 'skipped');
+  globalThis.localStorage = real;
 });
