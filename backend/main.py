@@ -5383,7 +5383,7 @@ async def mark_variant_qr_generated(variant_id: int, current_user: dict = Depend
     return {"variant_id": variant_id, "qr_generated": True}
 
 
-_ALLOWED_OCCASIONS = {"memorial", "birthday", "anniversary", "celebration"}
+_ALLOWED_OCCASIONS = {"memorial", "birthday", "anniversary", "celebration", "christmas", "love"}
 
 
 class SetOccasionRequest(BaseModel):
@@ -7218,6 +7218,8 @@ _OG_OCCASION_DESCRIPTIONS = {
     "birthday":    "A birthday song made with Zeus Beats.",
     "anniversary": "An anniversary song made with Zeus Beats.",
     "celebration": "A song to celebrate, made with Zeus Beats.",
+    "christmas":   "A Christmas song made with Zeus Beats.",
+    "love":        "A love song made with Zeus Beats.",
 }
 _OG_DEFAULT_DESCRIPTION = "Listen to this song, made with Zeus Beats."
 
