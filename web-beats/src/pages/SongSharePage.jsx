@@ -73,6 +73,16 @@ const OCCASION_COPY = {
     subheading: 'A moment worth celebrating',
     playLabel: 'Play the Song',
   },
+  christmas: {
+    heading: (name, title) => (name ? `Merry Christmas ${name}!` : title),
+    subheading: 'A song made just for you',
+    playLabel: 'Play Your Song',
+  },
+  love: {
+    heading: (name, title) => (name ? `For ${name}, with love` : title),
+    subheading: 'A song made just for you',
+    playLabel: 'Play Your Song',
+  },
 };
 
 export default function SongSharePage() {

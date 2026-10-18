@@ -93,7 +93,7 @@ def test_occasion_columns_exist_and_default_to_null(app_client):
 
 # ── POST .../occasion ────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("occasion", ["memorial", "birthday", "anniversary", "celebration"])
+@pytest.mark.parametrize("occasion", ["memorial", "birthday", "anniversary", "celebration", "christmas", "love"])
 def test_set_occasion_accepts_each_allowed_value(app_client, occasion):
     client, _db, _main, db_path, _, _ = app_client
     resp = client.post("/api/songs/variants/100/occasion",
@@ -104,6 +104,11 @@ def test_set_occasion_accepts_each_allowed_value(app_client, occasion):
     variant = _db.get_song_variant_by_id(db_path, 100)
     assert variant["occasion"] == occasion
     assert variant["occasion_name"] == "Alex"
+
+
+def test_every_allowed_occasion_has_a_link_preview_description(app_client):
+    _client, _db, main, *_ = app_client
+    assert main._ALLOWED_OCCASIONS <= set(main._OG_OCCASION_DESCRIPTIONS)
 
 
 def test_set_occasion_rejects_invalid_value(app_client):
@@ -416,3 +421,17 @@ def test_whatsapp_crawler_gets_song_og_tags_without_duplicates(app_client, tmp_p
     assert html.count('name="twitter:image"') == 1, "duplicate twitter:image tag — generic static tag not removed"
     assert 'content="Test Song"' in html
     assert "Zeus Beats — Create AI Music in Seconds" not in html
+
+
+# ── QR greeting card download is free ────────────────────────────────────
+
+def test_marking_a_qr_card_downloaded_never_touches_credits(app_client):
+    """The themed QR card is drawn client-side; the only server call its
+    Download button makes is mark-qr-generated (for the delete guard)."""
+    client, _db, _main, db_path, owner, _ = app_client
+    _db.upsert_song_credits(db_path, owner["id"], balance=3, monthly_allowance=3)
+    before = _db.get_song_credits(db_path, owner["id"])
+    resp = client.post("/api/songs/variants/100/mark-qr-generated")
+    assert resp.status_code == 200
+    assert _db.get_song_credits(db_path, owner["id"]) == before
+    assert _db.get_song_variant_by_id(db_path, 100)["qr_generated"] == 1

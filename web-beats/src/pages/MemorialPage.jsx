@@ -35,6 +35,8 @@ const OCCASION_COPY = {
   birthday: { heading: (name, title) => (name ? `Happy Birthday ${name}!` : title), subheading: 'A song made just for you' },
   anniversary: { heading: (name, title) => (name ? `Happy Anniversary ${name}!` : title), subheading: "Here's to many more" },
   celebration: { heading: (name, title) => name || title, subheading: 'A moment worth celebrating' },
+  christmas: { heading: (name, title) => (name ? `Merry Christmas ${name}!` : title), subheading: 'A song made just for you' },
+  love: { heading: (name, title) => (name ? `For ${name}, with love` : title), subheading: 'A song made just for you' },
 };
 
 // Same warm/paper visual identity as SongSharePage.jsx — deliberately not the
