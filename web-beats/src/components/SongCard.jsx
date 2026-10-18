@@ -10,7 +10,9 @@ import { isIOSWebView } from '../hooks/useIsIOSWebView';
 import { genreColor, gLabel } from '../utils/genres';
 import { useAuth } from '../contexts/AuthContext';
 import { useClipsEnabled } from '../hooks/useClipsEnabled';
-import { themeForOccasion, cardFilename, PERSONAL_MESSAGE_MAX } from '../utils/qrCardThemes';
+import {
+  themeForOccasion, cardFilename, PERSONAL_MESSAGE_MAX, CARD_PHOTO_TYPES, validateCardPhoto,
+} from '../utils/qrCardThemes';
 import { drawQrCard, CARD_WIDTH, CARD_HEIGHT } from '../utils/drawQrCard';
 import { shareOrDownloadCard } from '../utils/qrCardDownload';
 
@@ -138,6 +140,8 @@ const SongCard = memo(function SongCard({
   const [qrOpen, setQrOpen] = useState(false);
   const [qrJustMarked, setQrJustMarked] = useState(false);
   const [cardMessage, setCardMessage] = useState('');
+  const [cardPhoto, setCardPhoto] = useState(null); // loaded HTMLImageElement, client-side only
+  const [cardPhotoError, setCardPhotoError] = useState('');
   const [photosOpen, setPhotosOpen] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError, setPhotoError] = useState('');
@@ -284,8 +288,8 @@ const SongCard = memo(function SongCard({
       if (cancelled || !canvas || !qrCanvas) return;
       cardBlobRef.current = null;
       drawQrCard(canvas.getContext('2d'), {
-        theme: cardTheme, title, qrCanvas, logo: cardLogoRef.current, personalMessage: cardMessage,
-      });
+        theme: cardTheme, title, qrCanvas, logo: cardLogoRef.current, personalMessage: cardMessage, photo: cardPhoto,
+      }); // also sets canvas.height — the card grows taller only when its content needs it
       canvas.toBlob((blob) => { if (!cancelled) cardBlobRef.current = blob; }, 'image/png');
     };
     if (cardLogoRef.current === undefined) {
@@ -297,7 +301,27 @@ const SongCard = memo(function SongCard({
       render();
     }
     return () => { cancelled = true; };
-  }, [qrOpen, shareUrlForQr, title, cardTheme, cardMessage]);
+  }, [qrOpen, shareUrlForQr, title, cardTheme, cardMessage, cardPhoto]);
+
+  // Optional card photo — decoded in the browser and drawn onto the canvas;
+  // it is never sent to the server.
+  const cardPhotoInputRef = useRef(null);
+  const handleCardPhoto = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // so picking the same file again still fires onChange
+    if (!file) return;
+    const error = validateCardPhoto(file);
+    if (error) { setCardPhotoError(error); return; }
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(objectUrl); setCardPhotoError(''); setCardPhoto(img); };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); setCardPhotoError("That photo couldn't be opened — try a different one."); };
+    img.src = objectUrl;
+  };
+  const removeCardPhoto = () => {
+    setCardPhoto(null);
+    setCardPhotoError('');
+  };
 
   const handleCardDownload = async () => {
     const canvas = cardCanvasRef.current;
@@ -900,7 +924,7 @@ const SongCard = memo(function SongCard({
                       width={CARD_WIDTH}
                       height={CARD_HEIGHT}
                       aria-label={`${title || 'Song'} QR greeting card`}
-                      style={{ width: '100%', maxWidth: 300, height: 'auto', aspectRatio: `${CARD_WIDTH} / ${CARD_HEIGHT}`, borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.45)' }}
+                      style={{ width: '100%', maxWidth: 300, height: 'auto', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.45)' }}
                     />
                     {/* Hidden — same value, rendered off-screen purely as export sources: the card + plain PNG use the canvas, plain SVG the svg */}
                     <div ref={qrCanvasWrapRef} style={{ width: 0, height: 0, overflow: 'hidden' }}>
@@ -921,6 +945,28 @@ const SongCard = memo(function SongCard({
                       />
                       <span style={{ alignSelf: 'flex-end', fontSize: 11, color: '#7f8ba0' }}>{cardMessage.length}/{PERSONAL_MESSAGE_MAX}</span>
                     </label>
+                    <input
+                      ref={cardPhotoInputRef}
+                      type="file"
+                      accept={CARD_PHOTO_TYPES.join(',')}
+                      onChange={handleCardPhoto}
+                      style={{ display: 'none' }}
+                    />
+                    {cardPhoto ? (
+                      <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                        <span style={{ flex: 1, alignSelf: 'center', fontSize: 13, color: '#cfd8e6' }}>📷 Photo added</span>
+                        <button onClick={removeCardPhoto} aria-label="Remove photo" style={{ ...actionBtnStyle, color: '#ff8a8a', borderColor: 'rgba(255,138,138,0.5)' }}>
+                          ✕ Remove photo
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => cardPhotoInputRef.current?.click()} style={{ ...actionBtnStyle, width: '100%', color: '#16c8ff', borderColor: 'rgba(22,200,255,0.5)' }}>
+                        📷 Add a photo (optional)
+                      </button>
+                    )}
+                    {cardPhotoError && (
+                      <p role="alert" style={{ margin: 0, width: '100%', fontSize: 12, color: '#ff8a8a' }}>{cardPhotoError}</p>
+                    )}
                     <button onClick={handleCardDownload} style={{ ...actionBtnStyle, width: '100%', padding: '12px 14px', fontSize: 15, fontWeight: 700, color: '#04060c', background: '#16c8ff', borderColor: '#16c8ff' }}>
                       ⬇️ Download Card
                     </button>

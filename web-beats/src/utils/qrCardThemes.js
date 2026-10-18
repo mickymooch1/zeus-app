@@ -4,9 +4,20 @@
 
 export const PERSONAL_MESSAGE_MAX = 150;
 
+// Optional photo drawn onto the card (client-side only, never uploaded).
+export const CARD_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+export const CARD_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+export function validateCardPhoto(file) {
+  if (!CARD_PHOTO_TYPES.includes(file?.type)) return 'Please choose a JPG, PNG or WEBP image.';
+  if (file.size > CARD_PHOTO_MAX_BYTES) return 'That photo is over 5MB — please choose a smaller one.';
+  return null;
+}
+
 export const CARD_THEMES = {
   birthday: {
     id: 'birthday',
+    photo: 'circle',
     icon: '🎂',
     message: 'Scan to hear your song! 🎂',
     motif: 'confetti',
@@ -18,6 +29,7 @@ export const CARD_THEMES = {
   },
   wedding: {
     id: 'wedding',
+    photo: 'panel',
     icon: '💍',
     message: 'Scan to hear your song 💍',
     motif: 'floral',
@@ -29,6 +41,7 @@ export const CARD_THEMES = {
   },
   christmas: {
     id: 'christmas',
+    photo: 'panel',
     icon: '🎄',
     message: 'Scan to hear your song 🎄',
     motif: 'snow',
@@ -41,6 +54,7 @@ export const CARD_THEMES = {
   },
   memorial: {
     id: 'memorial',
+    photo: 'circle',
     icon: '🕊️',
     message: 'A song made in your memory 🕊️',
     motif: 'clouds',
@@ -51,6 +65,7 @@ export const CARD_THEMES = {
   },
   love: {
     id: 'love',
+    photo: 'panel',
     icon: '❤️',
     message: 'Scan to hear your song ❤️',
     motif: 'hearts',
@@ -61,6 +76,7 @@ export const CARD_THEMES = {
   },
   general: {
     id: 'general',
+    photo: 'panel',
     icon: '🎵',
     message: 'Scan to hear your song 🎵',
     motif: 'neon',
